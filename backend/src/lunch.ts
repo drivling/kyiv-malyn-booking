@@ -696,6 +696,17 @@ export function formatLunchTotalsComment(
   return lines.join('\n');
 }
 
+/**
+ * Рядок про оплату в нашій відповіді на замовлення (той самий у Python: formatters.format_paid_line).
+ * null — оплат ще немає.
+ */
+export function formatPaidLine(totalUah: number, paidUah: number): string | null {
+  if (!(paidUah > 0)) return null;
+  if (paidUah === totalUah) return '✅ Оплатив';
+  if (paidUah > totalUah) return `✅ Оплатив (переплата ${paidUah - totalUah} грн)`;
+  return `Оплатив ${paidUah} грн, залишок ${totalUah - paidUah} грн`;
+}
+
 export function formatOrderConfirmText(opts: {
   displayName: string;
   lines: Array<{
@@ -711,6 +722,10 @@ export function formatOrderConfirmText(opts: {
   trayTotalUah: number;
   totalUah: number;
   unmatched?: string[];
+  /** Страви, яких сьогодні немає (рядки unavailable) */
+  unavailable?: string[];
+  /** Скільки людина вже заплатила за день — дописуємо «✅ Оплатив» */
+  paidUah?: number;
 }): string {
   const parts = [`${opts.displayName}, заказ:`];
   for (const line of opts.lines) {
@@ -725,11 +740,77 @@ export function formatOrderConfirmText(opts: {
     parts.push(`Лотки: ${opts.trayCount} × ${opts.trayPriceUah} = ${opts.trayTotalUah} грн`);
   }
   parts.push(`Разом: ${opts.totalUah} грн`);
+  const paidLine = formatPaidLine(opts.totalUah, opts.paidUah ?? 0);
+  if (paidLine) parts.push(paidLine);
+  if (opts.unavailable && opts.unavailable.length) {
+    parts.push('Сьогодні немає: ' + opts.unavailable.join(', ') + '.');
+  }
   if (opts.unmatched && opts.unmatched.length) {
     parts.push('Не розпізнав: ' + opts.unmatched.join(', '));
     parts.push('Уточни назви по меню.');
   }
   return parts.join('\n');
+}
+
+function splitUnmatchedText(unmatched: string | null | undefined): string[] {
+  return unmatched
+    ? unmatched
+        .split(/[;\n]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+}
+
+/** Скільки людина заплатила за день (усі оплати: з чату й кнопкою «Оплатив»). */
+export async function lunchPaidUah(prisma: PrismaClient, dayId: number, participantId: number): Promise<number> {
+  const agg = await prisma.lunchPayment.aggregate({
+    where: { dayId, participantId },
+    _sum: { amountUah: true },
+  });
+  return agg._sum.amountUah || 0;
+}
+
+/**
+ * Наша відповідь на замовлення, зібрана з того, що зараз у БД (страви, лотки, оплати) — щоб підправити
+ * її в групі (кнопка «Оплатив»). Формат той самий, що в живій відповіді слухача й при ручній правці.
+ */
+export async function lunchOrderConfirmFromDb(
+  prisma: PrismaClient,
+  orderId: number
+): Promise<{ confirmText: string; replyMessageId: string | null; sourceMessageId: string | null }> {
+  const order = await prisma.lunchOrder.findUnique({
+    where: { id: orderId },
+    include: {
+      participant: true,
+      lines: { orderBy: { id: 'asc' }, include: { dish: { select: { name: true } } } },
+    },
+  });
+  if (!order) throw new Error('Замовлення не знайдено');
+  const settings = await getLunchSettings(prisma);
+  const available = order.lines.filter((l) => !l.unavailable);
+  const confirmText = formatOrderConfirmText({
+    displayName: order.participant.displayName,
+    lines: available.map((l) => ({
+      menuItemName: l.dish?.name ?? null,
+      rawName: l.rawName,
+      qty: l.qty,
+      unitPriceUah: l.unitPriceUah,
+      lineTotalUah: l.lineTotalUah,
+    })),
+    foodTotal: available.reduce((sum, l) => sum + l.lineTotalUah, 0),
+    trayCount: order.trayCount,
+    trayPriceUah: settings.trayPriceUah,
+    trayTotalUah: order.trayTotalUah,
+    totalUah: order.totalUah,
+    unmatched: splitUnmatchedText(order.unmatchedText),
+    unavailable: order.lines.filter((l) => l.unavailable).map((l) => l.dish?.name ?? l.rawName),
+    paidUah: await lunchPaidUah(prisma, order.dayId, order.participantId),
+  });
+  return {
+    confirmText,
+    replyMessageId: order.replyMessageId != null ? String(order.replyMessageId) : null,
+    sourceMessageId: order.sourceMessageId != null ? String(order.sourceMessageId) : null,
+  };
 }
 
 /**
@@ -878,12 +959,8 @@ export async function updateLunchOrder(
     }
   });
 
-  const unmatchedParts = unmatched
-    ? unmatched
-        .split(/[;\n]+/)
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : [];
+  const unmatchedParts = splitUnmatchedText(unmatched);
+  const paidUah = await lunchPaidUah(prisma, order.dayId, order.participantId);
   const confirmText = formatOrderConfirmText({
     displayName: order.participant.displayName,
     lines: linesData.map((l) => ({
@@ -899,6 +976,7 @@ export async function updateLunchOrder(
     trayTotalUah,
     totalUah: total,
     unmatched: unmatchedParts,
+    paidUah,
   });
 
   return {
@@ -959,6 +1037,7 @@ export async function recordLunchPayment(
   opts: { participantId: number; amountUah?: number; rawText?: string }
 ): Promise<{
   ok: boolean;
+  orderId: number;
   amountUah: number;
   ordered: number;
   paid: number;
@@ -998,6 +1077,7 @@ export async function recordLunchPayment(
   const paid = paidSoFar + amount;
   return {
     ok: true,
+    orderId: order.id,
     amountUah: amount,
     ordered: order.totalUah,
     paid,

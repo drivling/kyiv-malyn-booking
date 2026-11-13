@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/api/client';
+import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import type { TransportDataset } from '@/api/transportDataset';
 import type { ArrivalReportDays, ArrivalReportStats } from '@/types';
 import './ArrivalReportsTab.css';
@@ -31,7 +32,8 @@ function signedMin(n: number | null): string {
  * зведення по рейсу на зупинці (середнє, мін і макс відхилення від розкладу) і сирі звіти з
  * можливістю видалити хибний.
  */
-export const ArrivalReportsTab: React.FC = () => {
+/** city — місто звітів (перемикач над вкладками, фаза 6 плану Коростеня); без нього — Малин */
+export const ArrivalReportsTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRANSPORT_CITY }) => {
   const [days, setDays] = useState<ArrivalReportDays>(30);
   const [stats, setStats] = useState<ArrivalReportStats | null>(null);
   const [error, setError] = useState('');
@@ -41,7 +43,7 @@ export const ArrivalReportsTab: React.FC = () => {
   useEffect(() => {
     let alive = true;
     apiClient
-      .getTransportDataset()
+      .getTransportDataset({ city })
       .then((d) => {
         if (alive) setDataset(d);
       })
@@ -49,17 +51,17 @@ export const ArrivalReportsTab: React.FC = () => {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [city]);
 
   const load = useCallback(() => {
     setLoading(true);
     setError('');
     apiClient
-      .getArrivalReports(days)
+      .getArrivalReports(days, city)
       .then(setStats)
       .catch((e) => setError(e instanceof Error ? e.message : 'Не вдалося завантажити звіти'))
       .finally(() => setLoading(false));
-  }, [days]);
+  }, [days, city]);
 
   useEffect(() => {
     load();
@@ -73,7 +75,7 @@ export const ArrivalReportsTab: React.FC = () => {
   const remove = async (id: number) => {
     if (!window.confirm(`Видалити звіт #${id}?`)) return;
     try {
-      await apiClient.deleteArrivalReport(id);
+      await apiClient.deleteArrivalReport(id, city);
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не вдалося видалити');

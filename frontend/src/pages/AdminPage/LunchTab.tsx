@@ -383,7 +383,12 @@ export const LunchTab: React.FC = () => {
     setSuccess('');
     try {
       const res = await apiClient.payLunchDebt(participantId);
-      setSuccess(`Оплату зараховано: ${res.payment.amountUah} грн (борг тепер ${res.payment.debt} грн).`);
+      const tg = res.telegramError
+        ? ` «Оплатив» у групі не дописано: ${res.telegramError}`
+        : res.hasReply
+          ? ' «✅ Оплатив» у відповіді в групі поставлено в чергу на правку.'
+          : ' (нашої відповіді в групі немає — там нічого не змінено.)';
+      setSuccess(`Оплату зараховано: ${res.payment.amountUah} грн (борг тепер ${res.payment.debt} грн).${tg}`);
       if (res.summary) setSummary(res.summary);
       else await load();
     } catch (e) {

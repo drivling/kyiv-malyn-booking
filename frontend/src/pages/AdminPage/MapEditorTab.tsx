@@ -17,8 +17,10 @@ import {
 } from '@/api/transportDataset';
 import { broadcastTransportDatasetInvalidate } from '../LocalTransportPage/dataset/useTransportDataset';
 import { getStopArticle } from '@/content/stops';
+import { DEFAULT_TRANSPORT_CITY, transportProfile } from '@/site/transportCity';
 import { routeNo, routeNoWithId } from '@/utils/routeNames';
 import { StopsPanel } from './MapEditorStopsPanel';
+import { DatasetImportButton } from './DatasetImportButton';
 import {
   applyStopRenamesToDataset,
   buildStopRenameMap,
@@ -248,7 +250,8 @@ function MapCenterTracker({ onCenterChange }: { onCenterChange: (lat: number, ln
 
 type EditorMode = 'coords' | 'direction';
 
-export const MapEditorTab: React.FC = () => {
+/** city — місто датасету (перемикач над вкладками, фаза 6 плану Коростеня); без нього — Малин */
+export const MapEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRANSPORT_CITY }) => {
   const [transportData, setTransportData] = useState<TransportData | null>(null);
   const [coordsData, setCoordsData] = useState<StopsCoordsData | null>(null);
   const [baseDataset, setBaseDataset] = useState<TransportDataset | null>(null);
@@ -306,11 +309,11 @@ export const MapEditorTab: React.FC = () => {
   }, [baseDataset, dbNameById, renameMap]);
 
   const applyDataset = useCallback((dataset: TransportDataset) => {
-    const { transport, coords } = datasetToEditor(dataset);
+    const { transport, coords } = datasetToEditor(dataset, transportProfile(city).center ?? undefined);
     setBaseDataset(dataset);
     setTransportData(transport as TransportData);
     setCoordsData(coords);
-  }, []);
+  }, [city]);
 
   const loadFromDb = useCallback(async () => {
     setLoading(true);
@@ -320,7 +323,7 @@ export const MapEditorTab: React.FC = () => {
     setEditingStopId(null);
     try {
       // Повз HTTP-кеш: revision має бути свіжою, інакше перше ж збереження отримає 409
-      const dataset = await apiClient.getTransportDataset({ fresh: true });
+      const dataset = await apiClient.getTransportDataset({ fresh: true, city });
       applyDataset(dataset);
       setStatusMsg('Завантажено з бази');
     } catch (err) {
@@ -328,7 +331,7 @@ export const MapEditorTab: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [applyDataset]);
+  }, [applyDataset, city]);
 
   useEffect(() => {
     void loadFromDb();
@@ -361,7 +364,7 @@ export const MapEditorTab: React.FC = () => {
     setActionError('');
     setStatusMsg('');
     try {
-      const result = await apiClient.putTransportDataset(dataset, baseDataset.revision);
+      const result = await apiClient.putTransportDataset(dataset, baseDataset.revision, city);
       // Варіанти шляху й номери для показу редактор не шле — сервер лишив їх як були; тримаємо їх і нову revision
       const prevRoutes = new Map(baseDataset.routes.map((r) => [r.id, r] as const));
       applyDataset({
@@ -383,7 +386,7 @@ export const MapEditorTab: React.FC = () => {
     } finally {
       setSaving(false);
     }
-  }, [transportData, coordsData, baseDataset, nextDataset, renameMap, changes, applyDataset]);
+  }, [transportData, coordsData, baseDataset, nextDataset, renameMap, changes, applyDataset, city]);
 
   const handleReloadFromDb = useCallback(async () => {
     if (
@@ -413,14 +416,14 @@ export const MapEditorTab: React.FC = () => {
     setActionError('');
     setStatusMsg('Перерахунок сегментів через OSRM…');
     try {
-      const result = await apiClient.recalculateTransportSegments(selectedRoute || undefined);
+      const result = await apiClient.recalculateTransportSegments(selectedRoute || undefined, city);
       setStatusMsg(
         `Сегменти оновлено: маршрути ${result.routes.join(', ')}, ` +
           `записано ${result.segmentsWritten}, OSRM ${result.osrmRequested}` +
           (result.osrmFailed ? ` (fallback: ${result.osrmFailed})` : '')
       );
       // підтягнути свіжі сегменти й revision у baseDataset (для наступного збереження)
-      const dataset = await apiClient.getTransportDataset({ fresh: true });
+      const dataset = await apiClient.getTransportDataset({ fresh: true, city });
       applyDataset(dataset);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Не вдалося перерахувати сегменти');
@@ -428,7 +431,7 @@ export const MapEditorTab: React.FC = () => {
     } finally {
       setRecalculating(false);
     }
-  }, [selectedRoute, applyDataset]);
+  }, [selectedRoute, applyDataset, city]);
 
   /** Варіанти шляху обраного маршруту — лише показ (Docs/route-variants-2026-10.md) */
   const selectedVariants = useMemo(
@@ -798,6 +801,15 @@ export const MapEditorTab: React.FC = () => {
             <Button type="button" onClick={handleReloadFromDb} disabled={loading || saving || recalculating}>
               Завантажити з бази
             </Button>
+            <DatasetImportButton
+              city={city}
+              current={baseDataset}
+              disabled={loading || saving || recalculating || isDirty}
+              onImported={(message) => {
+                void loadFromDb().then(() => setStatusMsg(message));
+              }}
+              onError={setActionError}
+            />
             <Button
               type="button"
               onClick={handleRecalculateSegments}
@@ -964,7 +976,7 @@ export const MapEditorTab: React.FC = () => {
           panNonce={panNonce}
           isExcluded={(id) => (selectedRoute ? isStopExcludedInAnyDirection(id) : false)}
           isTechnical={isTechnicalStop}
-          hasArticle={(id) => Boolean(getStopArticle(id))}
+          hasArticle={(id) => Boolean(getStopArticle(id, city))}
           onSelect={selectStop}
           onStartEdit={setEditingStopId}
           onCancelEdit={() => setEditingStopId(null)}

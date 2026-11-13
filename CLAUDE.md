@@ -123,6 +123,16 @@ of `dist` in a commit.
   into a captured chat. The only Telegram output is the shared `LunchOutboundMessage` queue, whose
   `target` column routes rows to the lunch group (`lunch`, markdown) or the owner's Saved Messages
   (`saved`, HTML).
+  **One deliberate exception — auto-reply** (`dzhura/responder.py` + `autoreply.py`, experiment): a *private* chat with
+  `DzhuraChat.autoReplyEnabled` gets an answer written by Claude in the owner's style when the owner has not replied
+  within `autoReplyDelaySec` (default 80, per chat; timer from the last incoming message, cancelled by any reply of
+  the owner). Only there, and only at that moment, the listener marks the chat read, shows «typing» and sends 1–3
+  messages directly; they are stored with `DzhuraMessage.isAutoReply` and reported to Saved Messages. Style comes from
+  the last 120 stored messages of that chat (the owner's own replies are the examples) plus the optional
+  `autoReplyNote`; the prompt forbids invented facts, promises of money/meetings and claiming to be human (a sincere
+  «are you a bot?» → silence, the owner answers). `DzhuraJob` type `autoreply_preview` runs the same request without
+  sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
+  `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
 
 ### In-process scheduled jobs (no external cron)
 
@@ -136,6 +146,7 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
 | Deactivate expired poputky listings + expire pending `RideShareRequest` | `VIBER_CLEANUP_INTERVAL_MIN` (5) | `viber-listing-expiry.ts` |
 | Archive old listings (`ViberRideEvent` import, delete inactive > 90 d) | `VIBER_ARCHIVE_INTERVAL_MIN` (1440) | `viber-listing-archive.ts` |
 | Trip reminders: 20:00 day before, 08:00, one pre-departure (2 h / 30 min) | `BOOKING_REMINDERS_INTERVAL_MIN` (1) | `booking-reminders.ts` |
+| Watch external timetable sources (Korosten council page, data.gov.ua sets) → admin-chat alert on change | `TRANSPORT_SOURCE_WATCH_INTERVAL_MIN` (360) | `transport-source-watch.ts` |
 
 - A listing is visible until `endsAt + 1 h`. `endsAt` = trip day + end of `departureTime` **in Kyiv time** stored as
   UTC (`getListingEndsAt`; Railway runs TZ=UTC). Public reads (`/viber-listings`, `/search`, `/:id/contact`,
@@ -196,7 +207,10 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 
   New Telethon call sites must go through `withTelegramUserSessionExclusive` or
   `awaitTelegramSession()`.
-- OCR-based lunch order parsing (`LUNCH_OCR_MODEL`, `OPENAI_API_KEY`) via the Python lunch listener.
+- OCR of the menu photo the operator posts in the lunch group, via Claude (`ANTHROPIC_API_KEY`, `LUNCH_OCR_MODEL`, default
+  `claude-opus-5-5`; `ANTHROPIC_WORKSPACE_ID` only for an organization-level key not bound to a workspace;
+  `lunch/ocr_menu.py`) in the Python lunch listener. Every photo is checked, but only one the model
+  marks as a menu with ≥ 5 priced dishes is used, and it is merged into the day's menu, never replacing it.
 - The same listener process hosts «Джура» chat capture (`DZHURA_ENABLED`, default on) — see above.
 - Python phone-lookup scripts under `backend/opendatabot-fop-parser/` and
   `backend/internet-phone-search/`, invoked from `phone-lookup.ts`/`phonecheck.ts`.
@@ -217,8 +231,12 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   - `SupportPage` → `/support` — help centre (`SupportHub` + `SupportArticle`).
 
   Plus non-menu routes: `AdminPage` (`/admin/:tab?`), `StickerWallPage` (`/admin/wall`),
-  `LoginPage` (`/login`), `UserPage` (`/user`). `/booking` and `/poputky` redirect to `/mizhgorodski`;
-  the old BookingPage and PoputkyPage components were removed in #38 (recover them from git history
+  `LoginPage` (`/login`), `UserPage` (`/user`). `/booking` redirects to `/mizhgorodski` and `/poputky` to
+  `/mizhgorodski?type=carpool` (the «Попутки» tab already chosen; the page's canonical stays `/mizhgorodski`). The 301s are
+  one table, `EXACT_REDIRECTS` in `frontend/scripts/serve-dist-rules.mjs` (pure, tested in `serve-dist-rules.test.ts`;
+  the visitor's own query is merged into a target that has one), mirrored by `<Navigate>` in `App.tsx`; keep the two in
+  step. Browsers and the CDN keep a 301 for a day (`max-age=86400`), so a changed target reaches repeat visitors with a delay.
+  The old BookingPage and PoputkyPage components were removed in #38 (recover them from git history
   if a booking page is ever needed again).
 - `src/api/client.ts` — single typed API client wrapping all backend calls; add new endpoints here
   rather than calling `fetch` ad hoc from components. `API_URL` comes from `VITE_API_URL`
@@ -354,7 +372,7 @@ The domain map lives in `frontend/scripts/site-hosts.mjs` (plain ESM — importe
 host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`).
 
 - Switching «Рідне місто» to a city that owns a domain navigates to that domain with the same path
-  and query (`?city=<code>` carries the choice; cookies do not cross domains) — `buildCitySwitchUrl`
+  and query (`?homeCity=<code>` carries the choice; cookies do not cross domains) — `buildCitySwitchUrl`
   + `useHomeCityHandoff`. A secondary domain pins its own home city.
 - `/admin`, `/login`, `/user` exist only on the primary domain: 301 in `serve-dist.mjs` for the first
   hit, `DomainGuard` for SPA navigation (the Telegram Login widget is bound to one bot domain).
@@ -444,6 +462,60 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   (JSON, `?limit=`, newest first) and `GET /transport/changes.rss` (one item per row, Ukrainian `summary`, falls back to one
   feed-only item while the table is empty) read it; the RSS body is cached per revision. A new write path must call both
   helpers.
+- **Korosten city transport** is being added in phases — master plan and recovery file
+  `Docs/korosten-transport-2026-11.md` (read it first; its «Готовність до ввімкнення» table says what the Korosten
+  `hasLocalTransport` checkbox would show today). Sources and their licences: `data/korosten-transport/SOURCES.md`.
+  Source watch (phase 1): `WATCHED_SOURCES` in `backend/src/transport-source-watch.ts` — one GET per source per tick,
+  fingerprint = content (table text / file dates), first run is a baseline, one admin-chat alert per change
+  (conditional `updateMany` on the old fingerprint), a page without tables is a failure, not a change. Admin block on
+  `/admin/route-schedule` (`SourceWatchPanel`), endpoints `/admin/transport/sources*`. The council page is parsed by
+  the pure `backend/src/korosten-source-parser.ts` (routes, runs per «Графік», breaks, `*` footnote read from its
+  text, italics = other path), so alerts list the changed runs; the committed source snapshot and `timetable.json`
+  live in `data/korosten-transport/source/` (`npm run korosten:snapshot` in `backend/`, a test keeps the two in step).
+  Never change how `snapshotHtmlTables` hashes a table — a new fingerprint would alert on every source at deploy.
+  Stop order and minutes between stops come from the owner's 2025 project (`data/korosten-transport/project-2025/`:
+  16 HTML pages → `chains.json` via `korosten-project-parser.ts`); names are mapped to the council's `z-0NN` stops by
+  `stop-aliases.json` (`korosten-stop-aliases.ts`, manual hints in `stop-aliases.hints.json`), and `REPORT.md` compares
+  the project with the council timetable. All three are generated by `npm run korosten:snapshot -- --project` and a
+  test fails when they drift — edit the hints or the HTML, never the generated files.
+  Phase 8 (`Docs/korosten-transport-data-2026-11.md`): `npm run korosten:dataset` (backend) builds the draft Korosten dataset
+  `data/korosten-transport/dataset/korosten-dataset.json` + `REPORT.md` from those files, the OSM / Nominatim snapshots in
+  `osm/` (`--fetch-osm`) and the manual decisions in `dataset-config.json` (№2-Б, path variants, colours, OSM hints); a test
+  keeps the committed draft equal to the generator. `--apply` writes it with `?city=Korosten` + `baseRevision` (backup,
+  verify after PUT); the map editor has «Імпорт датасету з файлу…» for a non-default city. Google is a checker only
+  (`place_id` + distance, never Google coordinates in git; the owner's temporary Google points live only in gitignored
+  `*.local.json`). `--google-hops` checks every A → B → C triple of every chain with Routes TRANSIT (`korosten-google.ts`;
+  committed `google/hops.json` keeps verdicts + a hash of our coordinates, no Google geometry; resumable across the daily quota). The draft replaces the city's whole dataset — after manual edits the DB
+  is the source. On the site, `VERIFIED_ROUTE_IDS` is a Malyn list: `isVerifiedRoute` / `verifiedRouteIds()` treat every route
+  of another city as verified (`setVerifiedRoutesCity`, switched by `useTransportDataset`), and the map centre comes from the
+  city's profile.
+- **Transport tenancy** (`Docs/transport-tenancy-2026-11.md`): the 11 city-transport tables carry `cityCode`
+  (`TripPoint.code`, default `'Malyn'`). Every Prisma call on them is scoped by it — the DB functions take
+  `cityCode = DEFAULT_TRANSPORT_CITY` / `opts.cityCode`, and `transport-tenancy.test.ts` fails on an unscoped call (add
+  a new endpoint to its «кожен запит… несе cityCode» test). The router takes an optional `?city=` (body `city` on the
+  three public POSTs) through `parseTransportCity` / `resolveTransportCity` (`backend/src/transport-city.ts`): no
+  parameter = Malyn, byte-identical (`transport-golden.test.ts` pins sha256 of its responses — never update that file
+  to make a change pass); a city whose `hasLocalTransport` is off answers 404 to the public and `private, no-store` to
+  the admin token. Keys are composite with the city (`@@id([cityCode, id])` on stops, routes and trips, composite FKs,
+  `TransportRevision` keyed by `(cityCode, revision)`, one `TransportMeta` row per city), so two cities may share ids:
+  look rows up with `cityCode_id`, and write another city's dataset with `PUT /transport/dataset?city=<code>` (admin
+  only, its own `baseRevision`). Another city's open data (GTFS, RSS, revisions, calendar) still answers 404. Write
+  transport tests on `transport-test-store.ts`, which honours `where` and unique keys; do not run `prisma format`.
+- **Transport city on the frontend** (`frontend/src/site/transportCity.ts`): the site's `cityCode` picks the dataset.
+  The admin transport tabs (map editor, schedule, stickers, arrivals, `/admin/wall`) edit the city in `?city=<code>`
+  (`useAdminTransportCity` + `TransportCityBar`; the same key as the backend's `?city=`), stickers then point at that
+  city's domain. `/transport?city=<code>` is an admin-only preview of a city whose gate is still off
+  (`transportPreviewCity()`: admin token in localStorage, sticky in sessionStorage, banner with «Вийти з перегляду»).
+  `useTransportDataset(city = siteTransportCity())` keeps a cache and a localStorage copy per city (Malyn keeps the
+  historic key `transport-dataset:v1`, others add `:<city>`; the build snapshot is Malyn-only), `apiClient` adds
+  `?city=` only for a non-default city, and `routeNo()` / `routeColor()` read per-city registries switched by the
+  loader. A Malyn page outside `/transport` must ask for Malyn explicitly (`useTransportDataset(DEFAULT_TRANSPORT_CITY)`).
+  `transportProfile(city)` also carries the city's name in three cases (`site-hosts.mjs` `cityNameUk*`), its domain, `hasOpenData`,
+  quick «Куди їдете?» chips and the footer source: every text, FAQ, JSON-LD, title and canonical on `/transport*` comes from it
+  (Malyn strings stay byte-identical — the prerender must not change); a city without a scheme hides the «Схема» tab, scheme minis
+  and `/transport/scheme` (→ `/transport`), and orders board lines by number, not by the Malyn legend.
+  Stop articles, the scheme legend colours and legacy stop names belong to Malyn (`transportProfile`); another city's
+  line colours come from `dataset.meta.routeColors`. `sendOrQueue` stamps `city` on writes from a non-default site.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via
@@ -480,6 +552,16 @@ notifications — is derived from them. Keep the two maps in sync.
   (`lt.frequentToStops`) are exported/restored/cleared as a file by `LocalTransportPage/transportPrefs.ts`
   (`TransportPrefsPanel` in the open-data block) — no server involved.
 
+- **Kyiv ↔ Malyn marshrutka fare** (310 грн one way, both directions, since 4 Nov 2026; was 280, round trip 620 instead of
+  560 — the carrier via ІнфоМалин). The number lives in four places, change them together: `Schedule.priceUah` in the DB
+  (a data migration — touch only `vehicleType = 'marshrutka'` rows still at the old price, because elektrichka rows
+  share the route names and manual prices must survive; see `20261104100000_kyiv_malyn_marshrutka_fare_310`), the default
+  for new schedules `KYIV_MALYN_MARSHRUTKA_FARE_UAH` in `backend/src/schedule-price.ts`, the prose constant
+  `frontend/src/utils/fares.ts` (FAQ, `/support/prices`, corridor landings, admin form default; `fares.test.ts` fails if the
+  two constants differ) and the committed prerender fallback `frontend/scripts/data/corridor-schedules.snapshot.json`.
+  Timetable tables and static pages read the price from the live API at build time, so **redeploy the frontend after the
+  backend migration has run**. A local `npm run build` rewrites that snapshot from the live API (prices, `fetchedAt`) —
+  check `git diff` before committing.
 - Git commit messages must be written in English (project convention, from `.cursor/rules`).
 - «Зубастик» (Kyiv ↔ Malyn marshrutkas) is **phone-only for now**: the online flow (site modal, bot
   `/book`) still writes the booking and keeps the old «технічний режим» warnings. Warn **only where people

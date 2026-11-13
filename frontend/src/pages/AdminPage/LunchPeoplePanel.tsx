@@ -45,7 +45,7 @@ export const LunchPeoplePanel: React.FC<{
       </p>
       <label className="lunch-check">
         <input type="checkbox" checked={notify} onChange={(e) => onNotifyChange(e.target.checked)} />
-        Написати людині підтвердження в групу (як при звичайному замовленні)
+        Підтвердження в групі: підправити нашу попередню відповідь людині (якщо її ще не було — відповісти)
       </label>
 
       {data && !data.available ? (

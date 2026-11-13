@@ -46,11 +46,14 @@ function createTransportPrismaStub(store: Store): PrismaClient {
     });
   };
 
+  // Мета — один рядок на місто (TransportMeta.cityCode @unique); у цьому сховищі місто одне — Малин
+  const isMeta = (where: any) => !!store.meta && (where?.cityCode ?? 'Malyn') === ((store.meta as any).cityCode ?? 'Malyn');
   const model = (key: Exclude<keyof Store, 'revisions'>) => ({
     findMany: async ({ orderBy: ob }: any = {}) => orderBy(store[key] as any[], ob),
     findUnique: async ({ where }: any) => {
-      if (key === 'meta') return store.meta?.id === where.id ? store.meta : null;
-      return (store[key] as any[]).find((r) => r.id === where.id) ?? null;
+      if (key === 'meta') return isMeta(where) ? store.meta : null;
+      const id = where.cityCode_id?.id ?? where.id;
+      return (store[key] as any[]).find((r) => r.id === id) ?? null;
     },
     deleteMany: async () => {
       (store as any)[key] = key === 'meta' ? null : [];
@@ -67,16 +70,16 @@ function createTransportPrismaStub(store: Store): PrismaClient {
     },
     update: async ({ where, data }: any) => {
       if (key !== 'meta') throw new Error('update only for meta in stub');
-      if (store.meta?.id !== where.id) throw Object.assign(new Error('Record not found'), { code: 'P2025' });
+      if (!isMeta(where)) throw Object.assign(new Error('Record not found'), { code: 'P2025' });
       store.meta = { ...store.meta, ...data, updatedAt: nextUpdatedAt() } as never;
       return store.meta;
     },
     upsert: async ({ where, create, update }: any) => {
       if (key !== 'meta') throw new Error('upsert only for meta in stub');
-      if (store.meta?.id === where.id) {
+      if (isMeta(where)) {
         store.meta = { ...store.meta, ...update, updatedAt: nextUpdatedAt() } as never;
       } else {
-        store.meta = { id: create.id ?? 1, payload: create.payload, updatedAt: nextUpdatedAt() } as never;
+        store.meta = { id: create.id ?? 1, cityCode: create.cityCode ?? 'Malyn', payload: create.payload, updatedAt: nextUpdatedAt() } as never;
       }
       return store.meta;
     },
@@ -94,7 +97,7 @@ function createTransportPrismaStub(store: Store): PrismaClient {
       count: async () => store.revisions.length,
       findMany: async ({ orderBy: ob, take }: any = {}) => orderBy(store.revisions, ob).slice(0, take ?? undefined),
       upsert: async ({ where, create }: any) => {
-        const found = store.revisions.find((r) => r.revision === where.revision);
+        const found = store.revisions.find((r) => r.revision === where.cityCode_revision.revision);
         if (found) return found;
         const row = { createdAt: new Date(), ...create, diff: create.diff ?? null };
         store.revisions.push(row);

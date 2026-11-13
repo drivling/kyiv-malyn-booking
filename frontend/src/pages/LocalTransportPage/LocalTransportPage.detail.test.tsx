@@ -2,6 +2,8 @@
  * Сторінка маршруту (/transport/route/:id): URL — єдине джерело пари «Звідки»/«Куди», напрямку
  * й обраного рейсу. RouteMap (Leaflet) замокано; датасет — через MSW.
  */
+import fs from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
@@ -410,3 +412,53 @@ describe('LocalTransportPage route page: display number', () => {
   });
 });
 
+
+/**
+ * Плашка «Проїзд 25₴» у шапці маршруту: сума з meta.fare, той самий темний градієнт, що й «Тариф у сервісі»
+ * в довідці (.support-fare-chip). #52 колись замінив її на текстовий чип — цей блок не дає зробити це знову.
+ */
+describe('LocalTransportPage route page: the fare plate', () => {
+  const withFare = { ...dataset, meta: { ...dataset.meta, fare: { amount: 25, currency: 'UAH' } } };
+
+  it('shows the plate from meta.fare: uppercase label, amount and a separate «₴», no generic chip classes', async () => {
+    server.use(http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(withFare)));
+    await openRoute('/transport/route/2');
+    const plate = await screen.findByLabelText('Проїзд 25 гривень');
+    expect(plate.classList.contains('lt-fare-chip')).toBe(true);
+    expect(plate.classList.contains('lt-chip')).toBe(false);
+    expect(plate.querySelector('.lt-fare-chip__label')?.textContent).toBe('Проїзд');
+    expect(plate.querySelector('.lt-fare-chip__amount')?.textContent).toBe('25₴');
+    const currency = plate.querySelector('.lt-fare-chip__currency');
+    expect(currency?.textContent).toBe('₴');
+    expect(currency?.getAttribute('aria-hidden')).toBe('true');
+    // Плашка стоїть у шапці поруч із заголовком маршруту
+    expect(plate.closest('.lt-detail-header, .lt-route-header, header')).not.toBeNull();
+  });
+
+  it('is absent while the dataset has no fare', async () => {
+    await openRoute('/transport/route/2');
+    expect(screen.queryByLabelText(/^Проїзд \d+ гривень$/)).toBeNull();
+    expect(document.querySelector('.lt-fare-chip')).toBeNull();
+  });
+
+  it('keeps the help-centre design: same gradient, label and currency colour as .support-fare-chip', () => {
+    const read = (rel: string) => fs.readFileSync(path.resolve(__dirname, rel), 'utf8');
+    const rule = (css: string, selector: string) => {
+      const m = new RegExp(`\\n${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\{([^}]*)\\}`).exec(css);
+      expect(m, `${selector} rule`).not.toBeNull();
+      return m![1];
+    };
+    const route = read('./LocalTransportPage.css');
+    const support = read('../SupportPage/SupportPage.css');
+    const gradient = /background:\s*(linear-gradient\([^)]*\))/;
+    const routeGradient = gradient.exec(rule(route, '.lt-fare-chip'))?.[1];
+    const supportGradient = gradient.exec(rule(support, '.support-fare-chip'))?.[1];
+    expect(routeGradient).toBeTruthy();
+    expect(routeGradient).toBe(supportGradient);
+    expect(rule(route, '.lt-fare-chip')).toMatch(/color:\s*#fff/);
+    expect(rule(route, '.lt-fare-chip__label')).toMatch(/text-transform:\s*uppercase/);
+    const mint = /#5ee4b5/;
+    expect(rule(route, '.lt-fare-chip__currency')).toMatch(mint);
+    expect(rule(support, '.support-fare-chip__amount span')).toMatch(mint);
+  });
+});

@@ -4,9 +4,15 @@
  * заголовка, опису та FAQ, щоб обидві версії сторінки не розходились у формулюваннях.
  */
 
+/**
+ * Місто сторінки: форми назви й домен. За замовчуванням — Малин (статичний пререндер); SPA передає місто з профілю
+ * транспорту (Docs/korosten-transport-2026-11.md, фаза 10а). Для Малина тексти дослівно ті самі.
+ */
+export const MALYN_COPY_CITY = { genitive: 'Малина', locative: 'Малині', domain: 'malin.kiev.ua' };
+
 /** <title> сторінки зупинки */
-export function stopPageTitle(name) {
-  return `Зупинка «${name}» — розклад маршруток Малина | malin.kiev.ua`;
+export function stopPageTitle(name, city = MALYN_COPY_CITY) {
+  return `Зупинка «${name}» — розклад маршруток ${city.genitive} | ${city.domain}`;
 }
 
 /**
@@ -26,29 +32,32 @@ export function stopArticleDescription(article) {
 }
 
 /** Опис, коли статті про зупинку немає (`routeIds` — номери для показу) */
-export function stopFallbackDescription(name, routeIds) {
+export function stopFallbackDescription(name, routeIds, city = MALYN_COPY_CITY) {
   const routes = routeIds.length ? `: маршрути ${routeIds.map((r) => `№${r}`).join(', ')}` : '';
-  return `Табло зупинки «${name}» у Малині${routes}. Наступні відправлення міського транспорту.`;
+  return `Табло зупинки «${name}» у ${city.locative}${routes}. Наступні відправлення міського транспорту.`;
 }
 
 /** FAQ хаба табло (без обраної зупинки); друге питання повторюється на кожній сторінці зупинки */
-export const STOP_HUB_FAQ = [
-  {
-    q: 'Як подивитися розклад з зупинки в Малині?',
-    a: 'Відкрийте malin.kiev.ua/transport/stop, оберіть зупинку — побачите наступні відправлення всіх маршрутів. Або перейдіть за прямим посиланням /transport/stop/st_…',
-  },
-  {
-    q: 'Чим табло відрізняється від планера «Звідки → Куди»?',
-    a: 'Табло показує всі рейси з однієї зупинки. Планер /transport шукає прямі маршрути між двома зупинками.',
-  },
-];
+export function stopHubFaq(city = MALYN_COPY_CITY) {
+  return [
+    {
+      q: `Як подивитися розклад з зупинки в ${city.locative}?`,
+      a: `Відкрийте ${city.domain}/transport/stop, оберіть зупинку — побачите наступні відправлення всіх маршрутів. Або перейдіть за прямим посиланням /transport/stop/st_…`,
+    },
+    {
+      q: 'Чим табло відрізняється від планера «Звідки → Куди»?',
+      a: 'Табло показує всі рейси з однієї зупинки. Планер /transport шукає прямі маршрути між двома зупинками.',
+    },
+  ];
+}
+export const STOP_HUB_FAQ = stopHubFaq();
 
 /** Перше питання сторінки зупинки: які маршрути тут зупиняються (`routeIds` — номери для показу, у порядку показу) */
-export function stopRoutesFaq(name, routeIds, stopId) {
+export function stopRoutesFaq(name, routeIds, stopId, city = MALYN_COPY_CITY) {
   return {
     q: `Які маршрутки зупиняються на «${name}»?`,
     a: routeIds.length
-      ? `На зупинці «${name}» у Малині курсують маршрути: ${routeIds.map((r) => `№${r}`).join(', ')}. Час відправлення зі зупинки — у картках табло malin.kiev.ua/transport/stop/${stopId}.`
-      : `Відкрийте табло зупинки «${name}» на malin.kiev.ua/transport/stop/${stopId} — відправлення зʼявляться, щойно розклад буде в даних.`,
+      ? `На зупинці «${name}» у ${city.locative} курсують маршрути: ${routeIds.map((r) => `№${r}`).join(', ')}. Час відправлення зі зупинки — у картках табло ${city.domain}/transport/stop/${stopId}.`
+      : `Відкрийте табло зупинки «${name}» на ${city.domain}/transport/stop/${stopId} — відправлення зʼявляться, щойно розклад буде в даних.`,
   };
 }

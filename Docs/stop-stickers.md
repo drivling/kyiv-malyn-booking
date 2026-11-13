@@ -131,4 +131,4 @@ id), «З них повертались» і «Повернень за пері�
   — головний домен навіть при друку з dev-сервера (див. «Популярність наклейок»).
 - Змінили маршрути або перейменували зупинку — передрукуйте наклейку: вона генерується з поточних даних.
 
-Анонси для соцмереж (текст і картинки для Facebook): [`stickers-facebook-post.md`](./stickers-facebook-post.md) — перші наклейки; [`stickers-facebook-post-2.md`](./stickers-facebook-post-2.md) — продовжуємо, «самої наклейки мало», думаємо про таблички; [`stickers-facebook-post-3.md`](./stickers-facebook-post-3.md) — з обох боків дороги («з якого боку чекати?»), карта зупинок з наклейками.
+Анонси для соцмереж (текст і картинки для Facebook): [`stickers-facebook-post.md`](./stickers-facebook-post.md) — перші наклейки; [`stickers-facebook-post-2.md`](./stickers-facebook-post-2.md) — продовжуємо, «самої наклейки мало», думаємо про таблички; [`stickers-facebook-post-3.md`](./stickers-facebook-post-3.md) — з обох боків дороги («з якого боку чекати?»), карта зупинок з наклейками; [`stickers-facebook-post-4.md`](./stickers-facebook-post-4.md) — Мазепи (обидва боки) і Барміна, карта зупинок з наклейками.

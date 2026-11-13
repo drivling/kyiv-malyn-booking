@@ -24,6 +24,7 @@ import {
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { buildCitySwitchUrl, getCurrentSite } from '@/site/siteConfig';
 import { isPrerendering } from '@/utils/prerender';
+import { KYIV_MALYN_FARE_PREVIOUS_UAH, KYIV_MALYN_FARE_SINCE, KYIV_MALYN_FARE_UAH } from '@/utils/fares';
 import { BusBookingModal } from './BusBookingModal';
 import { PhoneOnlyNotice } from './PhoneOnlyNotice';
 import { ZUBASTYK_MAIN_PHONE, ZUBASTYK_TEMP_NOTE, isPhoneOnlySchedule, zubastykTelHref } from './phoneOnlyBooking';
@@ -60,7 +61,7 @@ const HOME_CITY_STORAGE_FALLBACK = 'Malyn';
 const MIZH_HOME_FAQ: Array<{ q: string; a: string }> = [
   {
     q: 'Скільки коштує маршрутка Київ — Малин?',
-    a: 'Локальна маршрутка Малин ↔ Київ (Академмістечко / Святошин) у базі malin.kiev.ua — 280 грн за місце. Не плутайте з квитками 450–600₴ з агрегаторів автобусів. Попутки — ціна водія в картці (часто ~200–250₴). Детально: /support/prices.',
+    a: `Локальна маршрутка Малин ↔ Київ (Академмістечко / Святошин) у базі malin.kiev.ua — ${KYIV_MALYN_FARE_UAH} грн за місце (з ${KYIV_MALYN_FARE_SINCE}; раніше ${KYIV_MALYN_FARE_PREVIOUS_UAH} грн). Не плутайте з квитками 450–600₴ з агрегаторів автобусів. Попутки — ціна водія в картці (часто ~200–250₴). Детально: /support/prices.`,
   },
   {
     q: 'Як доїхати до Малина з Києва, Житомира чи Коростеня?',

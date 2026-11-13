@@ -23,6 +23,85 @@ export function isLegacyGonePath(pathname) {
   return LEGACY_GONE_RE.test(pathname) && !LEGACY_BOOKING_RE.test(pathname);
 }
 
+/**
+ * Exact pathname (no trailing slash except `/`) → Location: a path, optionally with its own `?query` and `#hash`.
+ * `/poputky` is the old rideshare page: it lands on the intercity board with the «Попутки» filter already chosen
+ * (`?type=carpool` is read by MizhgorodskiPage; its canonical stays `/mizhgorodski`, so the query adds no duplicate).
+ * The SPA mirrors this in App.tsx (`<Navigate>`) — keep the two in step.
+ */
+export const EXACT_REDIRECTS = new Map([
+  ['/', '/mizhgorodski'],
+  ['/poputky', '/mizhgorodski?type=carpool'],
+  ['/booking', '/mizhgorodski'],
+  ['/zubustik', '/zubastyk'],
+  ['/avtostantsiya', '/avtostantsiya-malyn'],
+  ['/help', '/support'],
+  ['/privacy', '/about#privacy-policy'],
+  ['/privacy-policy', '/about#privacy-policy'],
+]);
+
+/**
+ * '/a/?x=1' → { pathname: '/a', search: '?x=1' }: percent-decoded path, no trailing slash (except `/`).
+ * A `#fragment` never reaches the server in a request line, so none is expected here.
+ * @param {string} urlPath
+ */
+export function splitUrl(urlPath) {
+  const q = urlPath.indexOf('?');
+  const pathPart = q >= 0 ? urlPath.slice(0, q) : urlPath;
+  const search = q >= 0 ? urlPath.slice(q) : '';
+  let pathname;
+  try {
+    pathname = decodeURIComponent(pathPart.split('#')[0] || '/');
+  } catch {
+    pathname = pathPart.split('#')[0] || '/';
+  }
+  if (pathname.length > 1 && pathname.endsWith('/')) {
+    pathname = pathname.slice(0, -1);
+  }
+  if (!pathname.startsWith('/')) pathname = `/${pathname}`;
+  return { pathname, search };
+}
+
+/**
+ * Carry the request's query string over to a redirect target. A target that has its own query keeps it and the two
+ * are merged: the visitor's parameters win on a clash (`/poputky?type=bus` → `type=bus`), the rest are added
+ * (`/poputky?utm_source=fb` → `type=carpool&utm_source=fb`). A `#hash` stays at the very end.
+ * @param {string} target
+ * @param {string} search  '' or '?a=1'
+ */
+export function withSearch(target, search) {
+  if (!search) return target;
+  const hashIdx = target.indexOf('#');
+  const hash = hashIdx === -1 ? '' : target.slice(hashIdx);
+  const base = hashIdx === -1 ? target : target.slice(0, hashIdx);
+  const qIdx = base.indexOf('?');
+  if (qIdx === -1) return `${base}${search}${hash}`;
+  const params = new URLSearchParams(base.slice(qIdx + 1));
+  const incoming = new URLSearchParams(search);
+  for (const key of new Set(incoming.keys())) params.delete(key);
+  for (const [key, value] of incoming) params.append(key, value);
+  return `${base.slice(0, qIdx)}?${params.toString()}${hash}`;
+}
+
+/** @returns {string|null} absolute path for the 301 Location (path + optional query + hash) */
+export function permanentRedirectLocation(urlPath) {
+  const { pathname, search } = splitUrl(urlPath);
+
+  const exact = EXACT_REDIRECTS.get(pathname);
+  if (exact) return withSearch(exact, search);
+
+  // Old Zubustik-site booking pages (plan 1.10)
+  const legacy = legacyRedirectLocation(pathname);
+  if (legacy) return legacy;
+
+  if (pathname === '/localtransport' || pathname.startsWith('/localtransport/')) {
+    const next = pathname.replace(/^\/localtransport/, '/transport') || '/transport';
+    return `${next}${search}`;
+  }
+
+  return null;
+}
+
 const ROUTE_PATH_RE = /^\/transport\/route\/([^/]+)$/;
 
 /**

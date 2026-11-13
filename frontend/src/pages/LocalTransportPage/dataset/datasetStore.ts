@@ -9,8 +9,12 @@
  */
 import type { TransportDataset } from '@/api/transportDataset';
 import { isPrerendering } from '@/utils/prerender';
+import { DEFAULT_TRANSPORT_CITY, isDefaultTransportCity } from '@/site/transportCity';
 
 export const DATASET_STORAGE_KEY = 'transport-dataset:v1';
+/** Ключ копії: у Малина — історичний (копії в людей не губляться), в іншого міста — із суфіксом */
+export const datasetStorageKey = (city: string = DEFAULT_TRANSPORT_CITY): string =>
+  isDefaultTransportCity(city) ? DATASET_STORAGE_KEY : `${DATASET_STORAGE_KEY}:${city}`;
 export const SNAPSHOT_URL = '/transport/dataset.json';
 /** Більше не зберігаємо: localStorage ~5 МБ на origin, копія має лишити місце решті ключів */
 export const MAX_STORED_CHARS = 1_500_000;
@@ -28,10 +32,10 @@ function looksLikeDataset(v: unknown): v is TransportDataset {
   return Array.isArray(d.stops) && Array.isArray(d.routes) && Array.isArray(d.trips);
 }
 
-export function readStored(): StoredDataset | null {
+export function readStored(city: string = DEFAULT_TRANSPORT_CITY): StoredDataset | null {
   if (isPrerendering()) return null;
   try {
-    const raw = localStorage.getItem(DATASET_STORAGE_KEY);
+    const raw = localStorage.getItem(datasetStorageKey(city));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<StoredDataset>;
     if (!looksLikeDataset(parsed.dataset) || typeof parsed.fetchedAt !== 'number') return null;
@@ -46,22 +50,22 @@ export function readStored(): StoredDataset | null {
 }
 
 /** true — збережено; false — завеликий, нема localStorage або квота вичерпана (сайт працює й без копії) */
-export function writeStored(dataset: TransportDataset, fetchedAt: number = Date.now()): boolean {
+export function writeStored(dataset: TransportDataset, fetchedAt: number = Date.now(), city: string = DEFAULT_TRANSPORT_CITY): boolean {
   if (isPrerendering()) return false;
   try {
     const stored: StoredDataset = { dataset, revision: dataset.revision ?? null, fetchedAt };
     const raw = JSON.stringify(stored);
     if (raw.length > MAX_STORED_CHARS) return false;
-    localStorage.setItem(DATASET_STORAGE_KEY, raw);
+    localStorage.setItem(datasetStorageKey(city), raw);
     return true;
   } catch {
     return false;
   }
 }
 
-export function clearStored(): void {
+export function clearStored(city: string = DEFAULT_TRANSPORT_CITY): void {
   try {
-    localStorage.removeItem(DATASET_STORAGE_KEY);
+    localStorage.removeItem(datasetStorageKey(city));
   } catch {
     /* ignore */
   }

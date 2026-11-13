@@ -21,6 +21,7 @@ const path_1 = __importDefault(require("path"));
 const client_1 = require("@prisma/client");
 const local_transport_1 = require("../local-transport");
 const transport_revisions_1 = require("../transport-revisions");
+const transport_city_code_1 = require("../transport-city-code");
 function resolveRuntimeDir() {
     const candidates = [
         // dist/scripts → ../../seed-data/...  (= backend/seed-data/...)
@@ -45,7 +46,8 @@ async function main() {
     const prisma = new client_1.PrismaClient();
     try {
         if (ifEmpty) {
-            const count = await prisma.transportStop.count();
+            // Лише Малин: зупинки іншого міста не роблять малинський датасет «непорожнім»
+            const count = await prisma.transportStop.count({ where: { cityCode: transport_city_code_1.DEFAULT_TRANSPORT_CITY } });
             if (count > 0) {
                 console.log(`[seed:transport] skip — already have ${count} stops (--if-empty)`);
                 return;

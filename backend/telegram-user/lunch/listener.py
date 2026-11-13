@@ -6,7 +6,7 @@ Telethon-слухач групи «Обіди для НЕ бідних».
   python3 -m lunch.listener
 
 Env: DATABASE_URL, TELEGRAM_API_ID, TELEGRAM_API_HASH, TELEGRAM_USER_SESSION_PATH,
-     OPENAI_API_KEY, LUNCH_GROUP_ID (default -5427750954), LUNCH_OPERATOR_IDS (comma),
+     ANTHROPIC_API_KEY (OCR меню з фото; ANTHROPIC_WORKSPACE_ID — для ключа без воркспейсу), LUNCH_GROUP_ID (default -5427750954), LUNCH_OPERATOR_IDS (comma),
      DZHURA_ENABLED (default 1 — «Джура» читає обрані чати в базу в цьому ж процесі, див. dzhura/)
 """
 
@@ -26,7 +26,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from lunch.db import LunchDB, today_kyiv  # noqa: E402
-from lunch.ocr_menu import ocr_menu_from_image_bytes  # noqa: E402
+from lunch.ocr_menu import merge_menu_items, ocr_menu_from_image_bytes  # noqa: E402
 from lunch.parse_order import looks_like_order, parse_order_contextual  # noqa: E402
 from lunch.parse_payment import looks_like_card_number, parse_payment  # noqa: E402
 from lunch.parse_summary import (  # noqa: E402
@@ -49,6 +49,7 @@ from lunch.order_reply import (  # noqa: E402
     PersonalOrderAction,
     decide_personal_order_action,
     ocr_enabled,
+    refresh_order_reply,
 )
 from lunch.util import load_dotenv  # noqa: E402
 
@@ -78,6 +79,11 @@ def _edit_target_gone(exc: Exception) -> bool:
     )
 
 
+def _edit_not_modified(exc: Exception) -> bool:
+    """Правимо тим самим текстом (напр. «Розібрати» нічого не змінив) — Telegram відмовляє, але це успіх."""
+    return type(exc).__name__ == "MessageNotModifiedError" or "not modified" in str(exc)
+
+
 async def edit_or_reply(client, entity, db: LunchDB, row: dict):
     """Підправити нашу відповідь у групі. Якщо її вже немає (видалили) — написати нову відповідь на
     повідомлення людини й запам'ятати її id, замість нескінченних ретраїв edit.
@@ -87,6 +93,8 @@ async def edit_or_reply(client, entity, db: LunchDB, row: dict):
         await client.edit_message(entity, mid, row["text"])
         return None
     except Exception as e:  # noqa: BLE001
+        if _edit_not_modified(e):
+            return None
         if not _edit_target_gone(e):
             raise
         source = await db.find_order_source_by_reply_id(mid)
@@ -246,26 +254,30 @@ async def run() -> None:
         # --- фото меню ---
         if msg.photo:
             print(f"[lunch] photo from {name} id={msg.id}")
-            # Без OPENAI_API_KEY — мовчки ігноруємо (меми після обіду не спамимо)
-            if not ocr_enabled(os.environ.get("OPENAI_API_KEY")):
+            # Без ANTHROPIC_API_KEY — мовчки ігноруємо (меми після обіду не спамимо)
+            if not ocr_enabled(os.environ.get("ANTHROPIC_API_KEY")):
                 print("[lunch] photo ignored (OCR off)")
                 return
             try:
                 with tempfile.TemporaryDirectory() as tmp:
                     path = await msg.download_media(file=os.path.join(tmp, "menu.jpg"))
                     if not path:
-                        await reply(event, "Не вдалося завантажити фото меню.")
+                        print(f"[lunch] photo {msg.id}: не вдалося завантажити", file=sys.stderr)
                         return
                     data = Path(path).read_bytes()
-                items, raw = await ocr_menu_from_image_bytes(data)
-                print("[lunch] OCR items:", items)
+                items, raw = await ocr_menu_from_image_bytes(data, known_names=await db.catalog_dish_names())
                 if not items:
-                    await reply(event, "Не розпізнав страви з цінами на фото. Спробуй чіткіше фото.")
+                    # чек, мем, список замовлень — не меню: мовчимо, у групу нічого не пишемо
+                    found = len(raw.get("items") or [])
+                    print(f"[lunch] photo {msg.id}: не меню (is_menu={raw.get('is_menu')}, позицій={found})")
                     return
+                print(f"[lunch] OCR menu photo={msg.id}: {len(items)} позицій")
                 day = await db.get_or_create_day(today_kyiv())
+                # доливаємо в наявне меню дня (друге фото меню, меню з адмінки), а не стираємо його
+                existing = [(m.name, m.price_uah) for m in await db.list_menu_items(day.id)]
                 menu_rows = await db.replace_menu(
                     day.id,
-                    items,
+                    merge_menu_items(existing, items),
                     menu_message_id=msg.id,
                     parsed_raw=raw,
                 )
@@ -275,8 +287,8 @@ async def run() -> None:
                 for n in notices:
                     await reply(event, format_unavailable(n["display_name"], n["missing_dishes"]))
             except Exception as e:
-                print(f"[lunch] OCR error: {e}", file=sys.stderr)
-                await reply(event, f"Помилка OCR меню: {e}")
+                # у групу помилку не пишемо: фото могло бути й не меню; меню завжди можна вставити в адмінці
+                print(f"[lunch] OCR error photo={msg.id}: {e}", file=sys.stderr)
             return
 
         if not text:
@@ -431,6 +443,8 @@ async def run() -> None:
             await db.add_payment(day.id, pid, pay.amount_uah, text, source_message_id=msg.id)
             ordered, paid, debt = await db.participant_balance(day.id, pid)
             await reply(event, format_payment_reply(name, pay.amount_uah, ordered, paid, debt))
+            # і «✅ Оплатив» у нашій відповіді на замовлення — як кнопка «Оплатив» в адмінці
+            await refresh_order_reply(db, day.id, pid)
             return
 
         # --- замовлення ---
@@ -500,6 +514,7 @@ async def run() -> None:
         # людина в адмінці (ручна правка замовлення / картка страви).
         tray_price = await db.get_tray_price()
         trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
+        _ordered, paid, _debt = await db.participant_balance(day.id, pid)
         confirm = format_order_confirm(
             name,
             result.lines,
@@ -510,6 +525,7 @@ async def run() -> None:
             tray_total_uah=tray_sum,
             unavailable=result.unavailable,
             ambiguous=result.ambiguous,
+            paid_uah=paid,
         )
         reply_id = await reply(event, confirm)
         if reply_id:

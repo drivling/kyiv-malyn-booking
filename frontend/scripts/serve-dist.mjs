@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, NO_CACHE_HEADERS, stopRedirectLocation } from './serve-dist-rules.mjs';
+import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, permanentRedirectLocation, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 import { API_BASE } from './api-base.mjs';
 
@@ -39,61 +39,6 @@ const MIME = {
   '.pdf': 'application/pdf',
   '.webmanifest': 'application/manifest+json',
 };
-
-/** Exact pathname (no trailing slash except `/`) → Location path+optional hash */
-const EXACT_REDIRECTS = new Map([
-  ['/', '/mizhgorodski'],
-  ['/poputky', '/mizhgorodski'],
-  ['/booking', '/mizhgorodski'],
-  ['/zubustik', '/zubastyk'],
-  ['/avtostantsiya', '/avtostantsiya-malyn'],
-  ['/help', '/support'],
-  ['/privacy', '/about#privacy-policy'],
-  ['/privacy-policy', '/about#privacy-policy'],
-]);
-
-function splitUrl(urlPath) {
-  const q = urlPath.indexOf('?');
-  const pathPart = q >= 0 ? urlPath.slice(0, q) : urlPath;
-  const search = q >= 0 ? urlPath.slice(q) : '';
-  let pathname;
-  try {
-    pathname = decodeURIComponent(pathPart.split('#')[0] || '/');
-  } catch {
-    pathname = pathPart.split('#')[0] || '/';
-  }
-  if (pathname.length > 1 && pathname.endsWith('/')) {
-    pathname = pathname.slice(0, -1);
-  }
-  if (!pathname.startsWith('/')) pathname = `/${pathname}`;
-  return { pathname, search };
-}
-
-function withSearch(target, search) {
-  if (!search) return target;
-  const hashIdx = target.indexOf('#');
-  if (hashIdx === -1) return `${target}${search}`;
-  return `${target.slice(0, hashIdx)}${search}${target.slice(hashIdx)}`;
-}
-
-/** @returns {string|null} absolute path for Location (path + optional query + hash) */
-function permanentRedirectLocation(urlPath) {
-  const { pathname, search } = splitUrl(urlPath);
-
-  const exact = EXACT_REDIRECTS.get(pathname);
-  if (exact) return withSearch(exact, search);
-
-  // Old Zubustik-site booking pages (plan 1.10)
-  const legacy = legacyRedirectLocation(pathname);
-  if (legacy) return legacy;
-
-  if (pathname === '/localtransport' || pathname.startsWith('/localtransport/')) {
-    const next = pathname.replace(/^\/localtransport/, '/transport') || '/transport';
-    return `${next}${search}`;
-  }
-
-  return null;
-}
 
 function safeJoin(root, urlPath) {
   const decoded = decodeURIComponent(urlPath.split('?')[0].split('#')[0]);

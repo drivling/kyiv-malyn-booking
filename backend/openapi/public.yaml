@@ -82,6 +82,8 @@ paths:
         центр мапи) — у внутрішньому форматі, яким живе сам сайт. Поле `revision` — ISO-час останньої зміни в
         адмінці. Формат внутрішній і може змінюватись разом із сайтом; для сторонніх застосунків надійніший GTFS.
         Знімок на момент збірки сайту є також на `https://malin.kiev.ua/transport/dataset.json`.
+      parameters:
+        - $ref: '#/components/parameters/City'
       responses:
         '200':
           description: Поточний датасет
@@ -289,6 +291,7 @@ paths:
           in: path
           required: true
           schema: { $ref: '#/components/schemas/StopId' }
+        - $ref: '#/components/parameters/City'
       responses:
         '200':
           description: Чинна зупинка
@@ -319,6 +322,8 @@ paths:
       operationId: getStopRedirects
       summary: Мапа «старий id зупинки → чинний»
       description: Злиті чи видалені зупинки; у GTFS і датасеті старого `stop_id` вже немає, тут видно, куди він веде. Порожній об'єкт — редиректів немає.
+      parameters:
+        - $ref: '#/components/parameters/City'
       responses:
         '200':
           description: Мапа редиректів
@@ -589,6 +594,14 @@ paths:
 
 components:
   parameters:
+    City:
+      name: city
+      in: query
+      required: false
+      schema: { type: string, example: Malyn }
+      description: |
+        Код міста, чий транспорт запитано. Без параметра — Малин (так було завжди, і відповідь та сама).
+        Місто, чий транспорт ще не опубліковано, і невідомий код відповідають 404.
     IfNoneMatch:
       name: If-None-Match
       in: header
@@ -900,6 +913,7 @@ components:
       type: object
       required: [stopId, side]
       properties:
+        city: { type: string, example: Malyn, description: 'Код міста зупинки; без поля — Малин' }
         stopId: { $ref: '#/components/schemas/StopId' }
         side: { $ref: '#/components/schemas/StickerSide' }
         clientId: { $ref: '#/components/schemas/ClientId' }
@@ -907,6 +921,7 @@ components:
       type: object
       required: [stopId, side, clientId, via]
       properties:
+        city: { type: string, example: Malyn, description: 'Код міста зупинки; без поля — Малин' }
         stopId: { $ref: '#/components/schemas/StopId' }
         side: { $ref: '#/components/schemas/StickerSide' }
         clientId: { $ref: '#/components/schemas/ClientId' }
@@ -925,6 +940,7 @@ components:
       type: object
       required: [kind, routeId, tripId, direction, stopId, scheduledTime, source]
       properties:
+        city: { type: string, example: Malyn, description: 'Код міста зупинки; без поля — Малин' }
         kind: { type: string, enum: [arrived, missed] }
         routeId: { $ref: '#/components/schemas/RouteId' }
         tripId: { type: string, example: '11-03' }

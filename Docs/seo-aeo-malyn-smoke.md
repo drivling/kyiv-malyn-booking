@@ -24,7 +24,7 @@ Goal: готовність конкурувати з Polissya / новинами
 
 ## URL hygiene
 
-- [x] `/poputky` → `/mizhgorodski` (**HTTP 301** у `serve-dist.mjs` + SPA Navigate)
+- [x] `/poputky` → `/mizhgorodski?type=carpool` (**HTTP 301** у `serve-dist.mjs` + SPA Navigate; одразу вибрана вкладка «Попутки», канон лишається `/mizhgorodski`)
 - [x] `/booking` → `/mizhgorodski` (**HTTP 301** + SPA)
 - [x] `/localtransport` → `/transport` (**HTTP 301** + SPA rewrite)
 - [x] `robots.txt` **не** Disallow `/poputky` / `/booking`
@@ -48,7 +48,7 @@ Goal: готовність конкурувати з Polissya / новинами
 
 - [x] GSC: надіслати оновлений sitemap
 - [ ] URL Inspection на `/mizhgorodski/malyn-kyiv` і `/support/travel`
-- [ ] Запит на переобхід `/poputky` (має дати **301** → `/mizhgorodski`)
+- [ ] Запит на переобхід `/poputky` (має дати **301** → `/mizhgorodski?type=carpool`)
 - [ ] Перевірити в AI Overview / site: що з’являються години рейсів з лендінгів
 
 ## Honest note

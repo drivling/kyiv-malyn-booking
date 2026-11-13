@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { transportProfile } from '@/site/transportCity';
 import { usePageSeo } from '@/hooks';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { LocalTransportSubNav } from './LocalTransportSubNav';
@@ -73,7 +74,15 @@ function closestData(target: EventTarget | null, attr: 'route' | 'stop'): string
  * Обраний маршрут живе в URL (?route=3), щоб на нього можна було дати посилання; ?stop=<id>
  * (з табло) ставить маркер «ви тут» і, поки маршрут не обрано, підсвічує лінії через цю зупинку.
  */
+/**
+ * Схема намальована лише для Малина; місто без схеми (Коростень до фази 12) веде на планувальник — разом зі схемою
+ * ховається й блок відкритих даних, бо фід GTFS / RSS / ICS поки лише малинський.
+ */
 export function LocalTransportSchemePage() {
+  return transportProfile().hasScheme ? <MalynSchemePage /> : <Navigate to="/transport" replace />;
+}
+
+function MalynSchemePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchDate = searchParams.get('d') || '';

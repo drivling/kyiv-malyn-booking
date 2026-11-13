@@ -1,0 +1,3933 @@
+{
+  "directions": [
+    {
+      "code": "11",
+      "route": "1",
+      "direction": 1,
+      "title": "Залізничний вокзал – Поліське водосховище",
+      "from": "Залізничний вокзал",
+      "stops": [
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 2
+        },
+        {
+          "name": "Центр міста",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "Ощадбанк",
+          "onDemand": true,
+          "minute": 6
+        },
+        {
+          "name": "вул. В. Стуса (Сакко і Ванцетті)",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Черемушки",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Ветлікарня",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Селище ДОК",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Хімік",
+          "onDemand": false,
+          "minute": 16
+        },
+        {
+          "name": "Чолівський переїзд",
+          "onDemand": false,
+          "minute": 19
+        },
+        {
+          "name": "Школа №13",
+          "onDemand": false,
+          "minute": 21
+        },
+        {
+          "name": "Шляхзалізобетон",
+          "onDemand": true,
+          "minute": 24
+        },
+        {
+          "name": "Мирний/щебзавод",
+          "onDemand": false,
+          "minute": 26
+        },
+        {
+          "name": "На вимогу",
+          "onDemand": false,
+          "minute": 28
+        },
+        {
+          "name": "Поліське водосховище",
+          "onDemand": false,
+          "minute": 30
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:20",
+            "mark": null
+          },
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "07:05",
+            "mark": null
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:05",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:10",
+            "mark": null
+          },
+          {
+            "time": "09:35",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "11:55",
+            "mark": null
+          },
+          {
+            "time": "12:30",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:30",
+            "mark": null
+          },
+          {
+            "time": "15:55",
+            "mark": null
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "16:55",
+            "mark": null
+          },
+          {
+            "time": "17:35",
+            "mark": null
+          },
+          {
+            "time": "18:35",
+            "mark": null
+          },
+          {
+            "time": "19:30",
+            "mark": null
+          },
+          {
+            "time": "20:30",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:20",
+            "mark": null
+          },
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "07:05",
+            "mark": null
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:05",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:10",
+            "mark": null
+          },
+          {
+            "time": "09:35",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "11:55",
+            "mark": null
+          },
+          {
+            "time": "12:30",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:30",
+            "mark": null
+          },
+          {
+            "time": "15:55",
+            "mark": null
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "17:35",
+            "mark": null
+          },
+          {
+            "time": "18:35",
+            "mark": null
+          },
+          {
+            "time": "19:30",
+            "mark": null
+          },
+          {
+            "time": "20:30",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "12",
+      "route": "1",
+      "direction": 2,
+      "title": "Поліське водосховище - Залізничний вокзал",
+      "from": "Поліське водосховище",
+      "stops": [
+        {
+          "name": "Поліське водосховище",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "На вимогу",
+          "onDemand": false,
+          "minute": 2
+        },
+        {
+          "name": "Мирний/щебзавод",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "Шляхзалізобетон",
+          "onDemand": true,
+          "minute": 7
+        },
+        {
+          "name": "Школа №13",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Чолівський переїзд",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Хімік",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Селище ДОК",
+          "onDemand": false,
+          "minute": 16
+        },
+        {
+          "name": "Ветлікарня",
+          "onDemand": false,
+          "minute": 18
+        },
+        {
+          "name": "Черемушки",
+          "onDemand": false,
+          "minute": 20
+        },
+        {
+          "name": "вул. В. Стуса (Сакко і Ванцетті)",
+          "onDemand": false,
+          "minute": 22
+        },
+        {
+          "name": "Ощадбанк",
+          "onDemand": true,
+          "minute": 25
+        },
+        {
+          "name": "Центр міста",
+          "onDemand": false,
+          "minute": 27
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 29
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 30
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:45",
+            "mark": null
+          },
+          {
+            "time": "07:00",
+            "mark": null
+          },
+          {
+            "time": "07:35",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "08:35",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "09:35",
+            "mark": null
+          },
+          {
+            "time": "10:05",
+            "mark": null
+          },
+          {
+            "time": "11:00",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "12:25",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": null
+          },
+          {
+            "time": "16:00",
+            "mark": null
+          },
+          {
+            "time": "16:25",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "17:25",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          },
+          {
+            "time": "19:00",
+            "mark": null
+          },
+          {
+            "time": "20:00",
+            "mark": null
+          },
+          {
+            "time": "21:00",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:45",
+            "mark": null
+          },
+          {
+            "time": "07:00",
+            "mark": null
+          },
+          {
+            "time": "07:35",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "08:35",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "09:35",
+            "mark": null
+          },
+          {
+            "time": "10:05",
+            "mark": null
+          },
+          {
+            "time": "11:00",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "12:25",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": null
+          },
+          {
+            "time": "16:00",
+            "mark": null
+          },
+          {
+            "time": "16:25",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          },
+          {
+            "time": "19:00",
+            "mark": null
+          },
+          {
+            "time": "20:00",
+            "mark": null
+          },
+          {
+            "time": "21:00",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "21",
+      "route": "2",
+      "direction": 1,
+      "title": "Залізничний вокзал – Пашини",
+      "from": "Залізничний вокзал",
+      "stops": [
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "Парк Древлянський",
+          "onDemand": false,
+          "minute": 5
+        },
+        {
+          "name": "Міська лікарня",
+          "onDemand": false,
+          "minute": 6
+        },
+        {
+          "name": "Автобусний парк",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Заготзерно",
+          "onDemand": false,
+          "minute": 9
+        },
+        {
+          "name": "Граніт",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "ДУ",
+          "onDemand": false,
+          "minute": 11
+        },
+        {
+          "name": "Школа №5",
+          "onDemand": false,
+          "minute": 13
+        },
+        {
+          "name": "Пошта",
+          "onDemand": true,
+          "minute": 14
+        },
+        {
+          "name": "Поліклініка",
+          "onDemand": false,
+          "minute": 15
+        },
+        {
+          "name": "АЗС",
+          "onDemand": true,
+          "minute": 16
+        },
+        {
+          "name": "Пашини",
+          "onDemand": false,
+          "minute": 18
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:55",
+            "mark": null
+          },
+          {
+            "time": "07:20",
+            "mark": null
+          },
+          {
+            "time": "07:45",
+            "mark": null
+          },
+          {
+            "time": "08:10",
+            "mark": null
+          },
+          {
+            "time": "08:35",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "09:25",
+            "mark": null
+          },
+          {
+            "time": "10:15",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "11:55",
+            "mark": null
+          },
+          {
+            "time": "12:20",
+            "mark": null
+          },
+          {
+            "time": "12:45",
+            "mark": null
+          },
+          {
+            "time": "13:10",
+            "mark": null
+          },
+          {
+            "time": "13:35",
+            "mark": null
+          },
+          {
+            "time": "14:25",
+            "mark": null
+          },
+          {
+            "time": "14:50",
+            "mark": null
+          },
+          {
+            "time": "15:40",
+            "mark": null
+          },
+          {
+            "time": "16:20",
+            "mark": null
+          },
+          {
+            "time": "16:40",
+            "mark": "С"
+          },
+          {
+            "time": "17:25",
+            "mark": "С"
+          },
+          {
+            "time": "18:10",
+            "mark": null
+          },
+          {
+            "time": "19:10",
+            "mark": null
+          },
+          {
+            "time": "20:10",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:55",
+            "mark": null
+          },
+          {
+            "time": "07:20",
+            "mark": null
+          },
+          {
+            "time": "07:45",
+            "mark": null
+          },
+          {
+            "time": "08:10",
+            "mark": null
+          },
+          {
+            "time": "08:35",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "09:25",
+            "mark": null
+          },
+          {
+            "time": "10:15",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "11:55",
+            "mark": null
+          },
+          {
+            "time": "12:20",
+            "mark": null
+          },
+          {
+            "time": "12:45",
+            "mark": null
+          },
+          {
+            "time": "13:10",
+            "mark": null
+          },
+          {
+            "time": "13:35",
+            "mark": null
+          },
+          {
+            "time": "14:25",
+            "mark": null
+          },
+          {
+            "time": "14:50",
+            "mark": null
+          },
+          {
+            "time": "15:40",
+            "mark": null
+          },
+          {
+            "time": "16:20",
+            "mark": null
+          },
+          {
+            "time": "16:40",
+            "mark": null
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "18:10",
+            "mark": null
+          },
+          {
+            "time": "19:10",
+            "mark": null
+          },
+          {
+            "time": "20:10",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [
+        {
+          "mark": "С",
+          "text": "Початок маршруту з зупинки \"Гастелло\", крім суботи та неділі"
+        }
+      ],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "22",
+      "route": "2",
+      "direction": 2,
+      "title": "Пашини – Залізничний вокзал",
+      "from": "Пашини",
+      "stops": [
+        {
+          "name": "Пашини",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "АЗС",
+          "onDemand": true,
+          "minute": 2
+        },
+        {
+          "name": "Поліклініка",
+          "onDemand": false,
+          "minute": 3
+        },
+        {
+          "name": "Пошта",
+          "onDemand": true,
+          "minute": 4
+        },
+        {
+          "name": "Школа №5",
+          "onDemand": false,
+          "minute": 5
+        },
+        {
+          "name": "ДУ",
+          "onDemand": false,
+          "minute": 7
+        },
+        {
+          "name": "Граніт",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Заготзерно",
+          "onDemand": false,
+          "minute": 9
+        },
+        {
+          "name": "Автобусний парк",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Міська лікарня",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Парк Древлянський",
+          "onDemand": false,
+          "minute": 13
+        },
+        {
+          "name": "Міськвиконком",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 15
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 17
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "07:20",
+            "mark": null
+          },
+          {
+            "time": "07:45",
+            "mark": null
+          },
+          {
+            "time": "08:10",
+            "mark": null
+          },
+          {
+            "time": "08:35",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "09:25",
+            "mark": null
+          },
+          {
+            "time": "09:50",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "11:05",
+            "mark": null
+          },
+          {
+            "time": "11:55",
+            "mark": null
+          },
+          {
+            "time": "12:20",
+            "mark": null
+          },
+          {
+            "time": "12:45",
+            "mark": null
+          },
+          {
+            "time": "13:10",
+            "mark": null
+          },
+          {
+            "time": "13:35",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "14:50",
+            "mark": null
+          },
+          {
+            "time": "15:15",
+            "mark": null
+          },
+          {
+            "time": "16:05",
+            "mark": "*"
+          },
+          {
+            "time": "16:50",
+            "mark": "*"
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          },
+          {
+            "time": "18:40",
+            "mark": null
+          },
+          {
+            "time": "19:40",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "07:20",
+            "mark": null
+          },
+          {
+            "time": "07:45",
+            "mark": null
+          },
+          {
+            "time": "08:10",
+            "mark": null
+          },
+          {
+            "time": "08:35",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "09:25",
+            "mark": null
+          },
+          {
+            "time": "09:50",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "11:05",
+            "mark": null
+          },
+          {
+            "time": "11:55",
+            "mark": null
+          },
+          {
+            "time": "12:20",
+            "mark": null
+          },
+          {
+            "time": "12:45",
+            "mark": null
+          },
+          {
+            "time": "13:10",
+            "mark": null
+          },
+          {
+            "time": "13:35",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "14:50",
+            "mark": null
+          },
+          {
+            "time": "15:15",
+            "mark": null
+          },
+          {
+            "time": "16:05",
+            "mark": null
+          },
+          {
+            "time": "16:50",
+            "mark": null
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          },
+          {
+            "time": "18:40",
+            "mark": null
+          },
+          {
+            "time": "19:40",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [
+        {
+          "mark": "*",
+          "text": "Закінчується зупинкою \"Залізничний вокзал\""
+        }
+      ],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "31",
+      "route": "3",
+      "direction": 1,
+      "title": "Залізничний вокзал – Коростень-Подільський – Чигирі",
+      "from": "Залізничний вокзал",
+      "stops": [
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 3
+        },
+        {
+          "name": "Парк Древлянський",
+          "onDemand": false,
+          "minute": 7
+        },
+        {
+          "name": "Завод \"Жовтнева кузня\"",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Фарфоровий завод",
+          "onDemand": false,
+          "minute": 9
+        },
+        {
+          "name": "Дитячий садок №2",
+          "onDemand": true,
+          "minute": 10
+        },
+        {
+          "name": "Завод \"Хіммаш\"",
+          "onDemand": false,
+          "minute": 11
+        },
+        {
+          "name": "Гастроном",
+          "onDemand": false,
+          "minute": 13
+        },
+        {
+          "name": "вул. Генерала Кульчицького (Магазин вул. Фрунзе)",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Прорізна №33",
+          "onDemand": false,
+          "minute": 15
+        },
+        {
+          "name": "Лісозахист",
+          "onDemand": true,
+          "minute": 16
+        },
+        {
+          "name": "ПП \"Ельфа\"",
+          "onDemand": false,
+          "minute": 17
+        },
+        {
+          "name": "вул. Курчатова",
+          "onDemand": true,
+          "minute": 18
+        },
+        {
+          "name": "вул. М. Стельмаха (Ватутіна)",
+          "onDemand": false,
+          "minute": 19
+        },
+        {
+          "name": "Школа №8",
+          "onDemand": false,
+          "minute": 20
+        },
+        {
+          "name": "Магазин \"Наташа\"",
+          "onDemand": false,
+          "minute": 22
+        },
+        {
+          "name": "пров. Залізничний",
+          "onDemand": false,
+          "minute": 24
+        },
+        {
+          "name": "Коростень-Подільський",
+          "onDemand": false,
+          "minute": 26
+        },
+        {
+          "name": "Залізничний шляхопровід",
+          "onDemand": true,
+          "minute": 27
+        },
+        {
+          "name": "Церква",
+          "onDemand": true,
+          "minute": 28
+        },
+        {
+          "name": "вул.Саченка",
+          "onDemand": false,
+          "minute": 29
+        },
+        {
+          "name": "Чигирі",
+          "onDemand": false,
+          "minute": 30
+        },
+        {
+          "name": "вул. Проліскова",
+          "onDemand": false,
+          "minute": 32
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:40",
+            "mark": null
+          },
+          {
+            "time": "07:20",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "08:40",
+            "mark": null
+          },
+          {
+            "time": "09:20",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "11:20",
+            "mark": null
+          },
+          {
+            "time": "12:40",
+            "mark": null
+          },
+          {
+            "time": "13:40",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": null
+          },
+          {
+            "time": "15:40",
+            "mark": null
+          },
+          {
+            "time": "16:20",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          },
+          {
+            "time": "19:00",
+            "mark": null
+          },
+          {
+            "time": "20:10",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:40",
+            "mark": null
+          },
+          {
+            "time": "07:20",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "08:40",
+            "mark": null
+          },
+          {
+            "time": "09:20",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "11:20",
+            "mark": null
+          },
+          {
+            "time": "12:40",
+            "mark": null
+          },
+          {
+            "time": "13:40",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": null
+          },
+          {
+            "time": "16:20",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          },
+          {
+            "time": "19:00",
+            "mark": null
+          },
+          {
+            "time": "20:10",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "32",
+      "route": "3",
+      "direction": 2,
+      "title": "Чигирі – Коростень-Подільський – Залізничний вокзал",
+      "from": "вул. Проліскова",
+      "stops": [
+        {
+          "name": "вул. Проліскова",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Чигирі",
+          "onDemand": false,
+          "minute": 2
+        },
+        {
+          "name": "Залізничний шляхопровід",
+          "onDemand": true,
+          "minute": 3
+        },
+        {
+          "name": "Коростень-Подільський",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "Пров. Залізничний",
+          "onDemand": false,
+          "minute": 6
+        },
+        {
+          "name": "Магазин «Наташа»",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Школа №8",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Вул. Ватутіна (вул. М. Стельмаха)",
+          "onDemand": false,
+          "minute": 11
+        },
+        {
+          "name": "вул. Курчатова",
+          "onDemand": true,
+          "minute": 13
+        },
+        {
+          "name": "ПП «Ельфа»",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Лісозахист",
+          "onDemand": true,
+          "minute": 16
+        },
+        {
+          "name": "Прорізна №33",
+          "onDemand": false,
+          "minute": 17
+        },
+        {
+          "name": "Магазин вул. Фрунзе (вул. Генерала Кульчицького)",
+          "onDemand": false,
+          "minute": 19
+        },
+        {
+          "name": "Гастроном",
+          "onDemand": false,
+          "minute": 20
+        },
+        {
+          "name": "Завод «Хіммаш»",
+          "onDemand": false,
+          "minute": 22
+        },
+        {
+          "name": "Дитячий садок №2",
+          "onDemand": true,
+          "minute": 23
+        },
+        {
+          "name": "Фарфоровий завод",
+          "onDemand": false,
+          "minute": 24
+        },
+        {
+          "name": "Завод «Жовтнева кузня»",
+          "onDemand": false,
+          "minute": 26
+        },
+        {
+          "name": "Парк Древлянський",
+          "onDemand": false,
+          "minute": 28
+        },
+        {
+          "name": "Міськвиконком",
+          "onDemand": true,
+          "minute": 29
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 30
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 31
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:10",
+            "mark": null
+          },
+          {
+            "time": "06:40",
+            "mark": null
+          },
+          {
+            "time": "07:20",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "08:40",
+            "mark": null
+          },
+          {
+            "time": "09:20",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "11:20",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "13:20",
+            "mark": null
+          },
+          {
+            "time": "14:20",
+            "mark": null
+          },
+          {
+            "time": "15:40",
+            "mark": null
+          },
+          {
+            "time": "16:20",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "17:40",
+            "mark": null
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:35",
+            "mark": null
+          },
+          {
+            "time": "20:40",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "07:20",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "08:40",
+            "mark": null
+          },
+          {
+            "time": "09:20",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "11:20",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "13:20",
+            "mark": null
+          },
+          {
+            "time": "14:20",
+            "mark": null
+          },
+          {
+            "time": "15:40",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:35",
+            "mark": null
+          },
+          {
+            "time": "20:40",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "41",
+      "route": "4",
+      "direction": 1,
+      "title": "Залізничний Вокзал-Київська",
+      "from": "Залізничний вокзал",
+      "stops": [
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 2
+        },
+        {
+          "name": "Швейна фабрика",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "Дім правосуддя",
+          "onDemand": false,
+          "minute": 7
+        },
+        {
+          "name": "Вул. Шатрищанська",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Кафе «Ялинка»",
+          "onDemand": true,
+          "minute": 12
+        },
+        {
+          "name": "Трубосталь",
+          "onDemand": false,
+          "minute": 13
+        },
+        {
+          "name": "Київська 1",
+          "onDemand": true,
+          "minute": 14
+        },
+        {
+          "name": "Діагностичний центр",
+          "onDemand": false,
+          "minute": 16
+        },
+        {
+          "name": "Вул. Київська",
+          "onDemand": false,
+          "minute": 18
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:10",
+            "mark": "depot"
+          },
+          {
+            "time": "06:50",
+            "mark": null
+          },
+          {
+            "time": "07:07",
+            "mark": null
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "07:50",
+            "mark": null
+          },
+          {
+            "time": "08:07",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "08:50",
+            "mark": null
+          },
+          {
+            "time": "09:07",
+            "mark": null
+          },
+          {
+            "time": "09:50",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:07",
+            "mark": null
+          },
+          {
+            "time": "11:20",
+            "mark": "depot"
+          },
+          {
+            "time": "11:50",
+            "mark": null
+          },
+          {
+            "time": "12:07",
+            "mark": null
+          },
+          {
+            "time": "12:30",
+            "mark": null
+          },
+          {
+            "time": "12:50",
+            "mark": null
+          },
+          {
+            "time": "13:07",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:07",
+            "mark": null
+          },
+          {
+            "time": "14:50",
+            "mark": null
+          },
+          {
+            "time": "15:07",
+            "mark": null
+          },
+          {
+            "time": "15:50",
+            "mark": null
+          },
+          {
+            "time": "16:07",
+            "mark": null
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "16:50",
+            "mark": null
+          },
+          {
+            "time": "17:07",
+            "mark": null
+          },
+          {
+            "time": "17:30",
+            "mark": null
+          },
+          {
+            "time": "17:50",
+            "mark": null
+          },
+          {
+            "time": "18:10",
+            "mark": null
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:20",
+            "mark": null
+          },
+          {
+            "time": "20:00",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:10",
+            "mark": "depot"
+          },
+          {
+            "time": "06:50",
+            "mark": null
+          },
+          {
+            "time": "07:07",
+            "mark": null
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "07:50",
+            "mark": null
+          },
+          {
+            "time": "08:07",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "08:50",
+            "mark": null
+          },
+          {
+            "time": "09:07",
+            "mark": null
+          },
+          {
+            "time": "09:50",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:07",
+            "mark": null
+          },
+          {
+            "time": "11:20",
+            "mark": "depot"
+          },
+          {
+            "time": "11:50",
+            "mark": null
+          },
+          {
+            "time": "12:07",
+            "mark": null
+          },
+          {
+            "time": "12:30",
+            "mark": null
+          },
+          {
+            "time": "12:50",
+            "mark": null
+          },
+          {
+            "time": "13:07",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:07",
+            "mark": null
+          },
+          {
+            "time": "14:50",
+            "mark": null
+          },
+          {
+            "time": "15:07",
+            "mark": null
+          },
+          {
+            "time": "15:50",
+            "mark": null
+          },
+          {
+            "time": "16:07",
+            "mark": null
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "16:50",
+            "mark": null
+          },
+          {
+            "time": "17:07",
+            "mark": null
+          },
+          {
+            "time": "17:30",
+            "mark": null
+          },
+          {
+            "time": "17:50",
+            "mark": null
+          },
+          {
+            "time": "18:10",
+            "mark": null
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:20",
+            "mark": null
+          },
+          {
+            "time": "20:00",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [
+        {
+          "mark": "depot",
+          "text": "Маршрут за напрямком Коростень-Грозино-Київська"
+        }
+      ],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "42",
+      "route": "4",
+      "direction": 2,
+      "title": "Київська-Залізничний Вокзал",
+      "from": "Вул. Київська",
+      "stops": [
+        {
+          "name": "Вул. Київська",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Трубосталь",
+          "onDemand": false,
+          "minute": 3
+        },
+        {
+          "name": "Кафе «Ялинка»",
+          "onDemand": true,
+          "minute": 5
+        },
+        {
+          "name": "Вул. Шартрищанська",
+          "onDemand": false,
+          "minute": 7
+        },
+        {
+          "name": "Дім правосуддя",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Швейна фабрика",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 16
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "06:50",
+            "mark": null
+          },
+          {
+            "time": "07:10",
+            "mark": null
+          },
+          {
+            "time": "07:24",
+            "mark": null
+          },
+          {
+            "time": "07:50",
+            "mark": null
+          },
+          {
+            "time": "08:10",
+            "mark": null
+          },
+          {
+            "time": "08:24",
+            "mark": null
+          },
+          {
+            "time": "08:50",
+            "mark": null
+          },
+          {
+            "time": "09:10",
+            "mark": null
+          },
+          {
+            "time": "09:24",
+            "mark": null
+          },
+          {
+            "time": "10:10",
+            "mark": null
+          },
+          {
+            "time": "10:50",
+            "mark": null
+          },
+          {
+            "time": "11:24",
+            "mark": null
+          },
+          {
+            "time": "11:50",
+            "mark": null
+          },
+          {
+            "time": "12:10",
+            "mark": null
+          },
+          {
+            "time": "12:24",
+            "mark": null
+          },
+          {
+            "time": "12:50",
+            "mark": null
+          },
+          {
+            "time": "13:10",
+            "mark": null
+          },
+          {
+            "time": "13:24",
+            "mark": null
+          },
+          {
+            "time": "13:50",
+            "mark": null
+          },
+          {
+            "time": "14:24",
+            "mark": null
+          },
+          {
+            "time": "15:10",
+            "mark": null
+          },
+          {
+            "time": "15:24",
+            "mark": null
+          },
+          {
+            "time": "16:10",
+            "mark": null
+          },
+          {
+            "time": "16:24",
+            "mark": null
+          },
+          {
+            "time": "16:50",
+            "mark": null
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "17:24",
+            "mark": null
+          },
+          {
+            "time": "17:50",
+            "mark": null
+          },
+          {
+            "time": "18:10",
+            "mark": null
+          },
+          {
+            "time": "18:35",
+            "mark": "М"
+          },
+          {
+            "time": "18:50",
+            "mark": null
+          },
+          {
+            "time": "19:40",
+            "mark": null
+          },
+          {
+            "time": "20:20",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "06:50",
+            "mark": null
+          },
+          {
+            "time": "07:10",
+            "mark": null
+          },
+          {
+            "time": "07:24",
+            "mark": null
+          },
+          {
+            "time": "07:50",
+            "mark": null
+          },
+          {
+            "time": "08:10",
+            "mark": null
+          },
+          {
+            "time": "08:24",
+            "mark": null
+          },
+          {
+            "time": "08:50",
+            "mark": null
+          },
+          {
+            "time": "09:10",
+            "mark": null
+          },
+          {
+            "time": "09:24",
+            "mark": null
+          },
+          {
+            "time": "10:10",
+            "mark": null
+          },
+          {
+            "time": "10:50",
+            "mark": null
+          },
+          {
+            "time": "11:24",
+            "mark": null
+          },
+          {
+            "time": "11:50",
+            "mark": null
+          },
+          {
+            "time": "12:10",
+            "mark": null
+          },
+          {
+            "time": "12:24",
+            "mark": null
+          },
+          {
+            "time": "12:50",
+            "mark": null
+          },
+          {
+            "time": "13:10",
+            "mark": null
+          },
+          {
+            "time": "13:24",
+            "mark": null
+          },
+          {
+            "time": "13:50",
+            "mark": null
+          },
+          {
+            "time": "14:24",
+            "mark": null
+          },
+          {
+            "time": "15:10",
+            "mark": null
+          },
+          {
+            "time": "15:24",
+            "mark": null
+          },
+          {
+            "time": "16:10",
+            "mark": null
+          },
+          {
+            "time": "16:24",
+            "mark": null
+          },
+          {
+            "time": "16:50",
+            "mark": null
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "17:24",
+            "mark": null
+          },
+          {
+            "time": "17:50",
+            "mark": null
+          },
+          {
+            "time": "18:10",
+            "mark": null
+          },
+          {
+            "time": "18:35",
+            "mark": "М"
+          },
+          {
+            "time": "18:50",
+            "mark": null
+          },
+          {
+            "time": "19:40",
+            "mark": null
+          },
+          {
+            "time": "20:20",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [
+        {
+          "mark": "М",
+          "text": "Маршрут за напрямком Коростень-Грозино-Коростень"
+        }
+      ],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "51",
+      "route": "5",
+      "direction": 1,
+      "title": "Залізничний вокзал – Білокоровицьке шосе",
+      "from": "Залізничний вокзал",
+      "stops": [
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 2
+        },
+        {
+          "name": "Центр міста",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "вул. В. Стуса (Сакко і Ванцетті)",
+          "onDemand": false,
+          "minute": 6
+        },
+        {
+          "name": "Черемушки",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Ветлікарня",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Селище ДОК",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Хімік",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Чолівський переїзд",
+          "onDemand": false,
+          "minute": 16
+        },
+        {
+          "name": "Гуртожиток",
+          "onDemand": true,
+          "minute": 18
+        },
+        {
+          "name": "ДОК",
+          "onDemand": true,
+          "minute": 20
+        },
+        {
+          "name": "КВК №71",
+          "onDemand": false,
+          "minute": 22
+        },
+        {
+          "name": "Білокоровицьке Шосе",
+          "onDemand": false,
+          "minute": 24
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:15",
+            "mark": null
+          },
+          {
+            "time": "06:55",
+            "mark": null
+          },
+          {
+            "time": "07:55",
+            "mark": null
+          },
+          {
+            "time": "08:55",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:55",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": null
+          },
+          {
+            "time": "16:00",
+            "mark": null
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "18:15",
+            "mark": null
+          },
+          {
+            "time": "19:00",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:15",
+            "mark": null
+          },
+          {
+            "time": "06:55",
+            "mark": null
+          },
+          {
+            "time": "07:55",
+            "mark": null
+          },
+          {
+            "time": "08:55",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:55",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": null
+          },
+          {
+            "time": "16:00",
+            "mark": null
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "18:15",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "52",
+      "route": "5",
+      "direction": 2,
+      "title": "Білокоровицьке шосе – Залізничний вокзал",
+      "from": "Білокоровицьке Шосе",
+      "stops": [
+        {
+          "name": "Білокоровицьке Шосе",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "КВК №71",
+          "onDemand": false,
+          "minute": 2
+        },
+        {
+          "name": "ДОК",
+          "onDemand": true,
+          "minute": 4
+        },
+        {
+          "name": "Гуртожиток",
+          "onDemand": true,
+          "minute": 6
+        },
+        {
+          "name": "Чолівський переїзд",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Хімік",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Селище ДОК",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Ветлікарня",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Черемушки",
+          "onDemand": false,
+          "minute": 16
+        },
+        {
+          "name": "вул. В. Стуса (Сакко і Ванцетті)",
+          "onDemand": false,
+          "minute": 18
+        },
+        {
+          "name": "Центр міста",
+          "onDemand": false,
+          "minute": 20
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 22
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 24
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:35",
+            "mark": null
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:30",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "12:30",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:30",
+            "mark": null
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "17:40",
+            "mark": null
+          },
+          {
+            "time": "18:40",
+            "mark": null
+          },
+          {
+            "time": "19:30",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:35",
+            "mark": null
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:30",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "12:30",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:30",
+            "mark": null
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "17:40",
+            "mark": null
+          },
+          {
+            "time": "18:40",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "61",
+      "route": "6",
+      "direction": 1,
+      "title": "ст. Житомирська – Цегельний завод (ч/з Залізничний вокзал)",
+      "from": "Станція Житомирська",
+      "stops": [
+        {
+          "name": "Станція Житомирська",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Міське кладовище",
+          "onDemand": false,
+          "minute": 2
+        },
+        {
+          "name": "Завод \"ЗБШ\"",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "Вул. Маяковського",
+          "onDemand": true,
+          "minute": 6
+        },
+        {
+          "name": "Вул. Шевченка №117",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Ковельський парк",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Стадіон \"Локомотив\"",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Школа №9",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 15
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 16
+        },
+        {
+          "name": "Швейна фабрика",
+          "onDemand": false,
+          "minute": 17
+        },
+        {
+          "name": "Дім правосуддя",
+          "onDemand": false,
+          "minute": 19
+        },
+        {
+          "name": "Аптека",
+          "onDemand": true,
+          "minute": 20
+        },
+        {
+          "name": "ПМК",
+          "onDemand": true,
+          "minute": 22
+        },
+        {
+          "name": "Верас трейд",
+          "onDemand": true,
+          "minute": 23
+        },
+        {
+          "name": "Цегельний завод",
+          "onDemand": false,
+          "minute": 25
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "07:00",
+            "mark": "Н"
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": "Н"
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": "Н"
+          },
+          {
+            "time": "09:30",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": "Н"
+          },
+          {
+            "time": "11:00",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": "Н"
+          },
+          {
+            "time": "12:30",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": "Н"
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": "Н"
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": "Н"
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": "Н"
+          },
+          {
+            "time": "17:30",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": "Н"
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:00",
+            "mark": "Н"
+          },
+          {
+            "time": "19:30",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "07:00",
+            "mark": "Н"
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": "Н"
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": "Н"
+          },
+          {
+            "time": "09:30",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": "Н"
+          },
+          {
+            "time": "11:00",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": "Н"
+          },
+          {
+            "time": "12:30",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": "Н"
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": "Н"
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": "Н"
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "17:30",
+            "mark": null
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:30",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [
+        {
+          "mark": "Н",
+          "text": "Маршрут виконується по вул.Південна"
+        }
+      ],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "62",
+      "route": "6",
+      "direction": 2,
+      "title": "Цегельний завод – ст. Житомирська (ч/з Залізничний вокзал)",
+      "from": "Цегельний завод",
+      "stops": [
+        {
+          "name": "Цегельний завод",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Верас трейд",
+          "onDemand": true,
+          "minute": 3
+        },
+        {
+          "name": "ПМК",
+          "onDemand": true,
+          "minute": 5
+        },
+        {
+          "name": "Аптека",
+          "onDemand": true,
+          "minute": 7
+        },
+        {
+          "name": "Дім правосуддя",
+          "onDemand": false,
+          "minute": 9
+        },
+        {
+          "name": "Швейна фабрика",
+          "onDemand": false,
+          "minute": 11
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 13
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 15
+        },
+        {
+          "name": "Школа №9",
+          "onDemand": false,
+          "minute": 16
+        },
+        {
+          "name": "Стадіон \"Локомотив\"",
+          "onDemand": false,
+          "minute": 18
+        },
+        {
+          "name": "Ковельський парк",
+          "onDemand": false,
+          "minute": 19
+        },
+        {
+          "name": "Вул. Шевченка №117",
+          "onDemand": false,
+          "minute": 20
+        },
+        {
+          "name": "вул. Маяковського",
+          "onDemand": true,
+          "minute": 21
+        },
+        {
+          "name": "Завод \"ЗБШ\"",
+          "onDemand": false,
+          "minute": 22
+        },
+        {
+          "name": "Міське кладовище",
+          "onDemand": false,
+          "minute": 23
+        },
+        {
+          "name": "Станція Житомирська",
+          "onDemand": false,
+          "minute": 25
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:30",
+            "mark": null
+          },
+          {
+            "time": "07:00",
+            "mark": null
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "09:30",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:30",
+            "mark": null
+          },
+          {
+            "time": "16:00",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "17:30",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:00",
+            "mark": null
+          },
+          {
+            "time": "20:00",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "07:00",
+            "mark": null
+          },
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "09:30",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:30",
+            "mark": null
+          },
+          {
+            "time": "16:00",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          },
+          {
+            "time": "19:00",
+            "mark": null
+          },
+          {
+            "time": "20:00",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "71",
+      "route": "7",
+      "direction": 1,
+      "title": "Залізничний Вокзал - Романа Шухевича",
+      "from": "Залізничний вокзал",
+      "stops": [
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 2
+        },
+        {
+          "name": "Центр міста",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "\"Ощадбанк\"",
+          "onDemand": true,
+          "minute": 6
+        },
+        {
+          "name": "Вул. В. Стуса",
+          "onDemand": false,
+          "minute": 9
+        },
+        {
+          "name": "Черемушки",
+          "onDemand": false,
+          "minute": 11
+        },
+        {
+          "name": "Магазин 44",
+          "onDemand": false,
+          "minute": 13
+        },
+        {
+          "name": "Романа Шухевича",
+          "onDemand": false,
+          "minute": 16
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "06:47",
+            "mark": null
+          },
+          {
+            "time": "07:19",
+            "mark": null
+          },
+          {
+            "time": "07:51",
+            "mark": null
+          },
+          {
+            "time": "08:23",
+            "mark": null
+          },
+          {
+            "time": "09:05",
+            "mark": null
+          },
+          {
+            "time": "09:40",
+            "mark": null
+          },
+          {
+            "time": "10:20",
+            "mark": null
+          },
+          {
+            "time": "11:40",
+            "mark": null
+          },
+          {
+            "time": "12:20",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": null
+          },
+          {
+            "time": "13:40",
+            "mark": null
+          },
+          {
+            "time": "14:20",
+            "mark": null
+          },
+          {
+            "time": "14:55",
+            "mark": null
+          },
+          {
+            "time": "16:20",
+            "mark": null
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "17:40",
+            "mark": null
+          },
+          {
+            "time": "18:10",
+            "mark": null
+          },
+          {
+            "time": "18:50",
+            "mark": null
+          },
+          {
+            "time": "20:00",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "06:47",
+            "mark": null
+          },
+          {
+            "time": "07:19",
+            "mark": null
+          },
+          {
+            "time": "07:51",
+            "mark": null
+          },
+          {
+            "time": "08:23",
+            "mark": null
+          },
+          {
+            "time": "09:05",
+            "mark": null
+          },
+          {
+            "time": "09:40",
+            "mark": null
+          },
+          {
+            "time": "10:20",
+            "mark": null
+          },
+          {
+            "time": "11:40",
+            "mark": null
+          },
+          {
+            "time": "12:20",
+            "mark": null
+          },
+          {
+            "time": "13:00",
+            "mark": null
+          },
+          {
+            "time": "13:40",
+            "mark": null
+          },
+          {
+            "time": "14:20",
+            "mark": null
+          },
+          {
+            "time": "14:55",
+            "mark": null
+          },
+          {
+            "time": "16:20",
+            "mark": null
+          },
+          {
+            "time": "17:10",
+            "mark": null
+          },
+          {
+            "time": "17:40",
+            "mark": null
+          },
+          {
+            "time": "18:10",
+            "mark": null
+          },
+          {
+            "time": "18:50",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "72",
+      "route": "7",
+      "direction": 2,
+      "title": "Романа Шухевича-Залізничний вокзал",
+      "from": "Романа Шухевича",
+      "stops": [
+        {
+          "name": "Романа Шухевича",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Магазин 44",
+          "onDemand": false,
+          "minute": 3
+        },
+        {
+          "name": "Черемушки",
+          "onDemand": false,
+          "minute": 5
+        },
+        {
+          "name": "Вул. В. Стуса",
+          "onDemand": false,
+          "minute": 7
+        },
+        {
+          "name": "\"Ощадбанк\"",
+          "onDemand": true,
+          "minute": 10
+        },
+        {
+          "name": "Центр міста",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 14
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 16
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "07:03",
+            "mark": null
+          },
+          {
+            "time": "07:35",
+            "mark": "und"
+          },
+          {
+            "time": "08:07",
+            "mark": null
+          },
+          {
+            "time": "08:39",
+            "mark": "und"
+          },
+          {
+            "time": "09:20",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "12:40",
+            "mark": null
+          },
+          {
+            "time": "13:20",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "14:40",
+            "mark": null
+          },
+          {
+            "time": "15:15",
+            "mark": null
+          },
+          {
+            "time": "16:40",
+            "mark": null
+          },
+          {
+            "time": "17:25",
+            "mark": null
+          },
+          {
+            "time": "17:55",
+            "mark": null
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:10",
+            "mark": null
+          },
+          {
+            "time": "20:20",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "07:03",
+            "mark": null
+          },
+          {
+            "time": "07:35",
+            "mark": "und"
+          },
+          {
+            "time": "08:07",
+            "mark": null
+          },
+          {
+            "time": "08:39",
+            "mark": "und"
+          },
+          {
+            "time": "09:20",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "10:40",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": null
+          },
+          {
+            "time": "12:40",
+            "mark": null
+          },
+          {
+            "time": "13:20",
+            "mark": null
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "14:40",
+            "mark": null
+          },
+          {
+            "time": "15:15",
+            "mark": null
+          },
+          {
+            "time": "16:40",
+            "mark": null
+          },
+          {
+            "time": "17:25",
+            "mark": null
+          },
+          {
+            "time": "17:55",
+            "mark": null
+          },
+          {
+            "time": "18:30",
+            "mark": null
+          },
+          {
+            "time": "19:10",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [
+        {
+          "mark": "und",
+          "text": "Маршрут виконується через вул.Франка крім суботи та неділі"
+        }
+      ],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "81",
+      "route": "8",
+      "direction": 1,
+      "title": "Романа Шухевича – Бровар",
+      "from": "44-магазин",
+      "stops": [
+        {
+          "name": "44-магазин",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Романа Шухевича",
+          "onDemand": false,
+          "minute": 3
+        },
+        {
+          "name": "Районна лікарня",
+          "onDemand": false,
+          "minute": 6
+        },
+        {
+          "name": "Школа №1",
+          "onDemand": false,
+          "minute": 8
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 11
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 15
+        },
+        {
+          "name": "Швейна фабрика",
+          "onDemand": false,
+          "minute": 18
+        },
+        {
+          "name": "Вул.1–го травня",
+          "onDemand": false,
+          "minute": 21
+        },
+        {
+          "name": "Магазин",
+          "onDemand": false,
+          "minute": 24
+        },
+        {
+          "name": "Бровар",
+          "onDemand": false,
+          "minute": 28
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "07:00",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "11:00",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": "*"
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": null
+          },
+          {
+            "time": "16:00",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "07:00",
+            "mark": null
+          },
+          {
+            "time": "08:00",
+            "mark": null
+          },
+          {
+            "time": "09:00",
+            "mark": null
+          },
+          {
+            "time": "10:00",
+            "mark": null
+          },
+          {
+            "time": "11:00",
+            "mark": null
+          },
+          {
+            "time": "12:00",
+            "mark": "*"
+          },
+          {
+            "time": "14:00",
+            "mark": null
+          },
+          {
+            "time": "15:00",
+            "mark": null
+          },
+          {
+            "time": "16:00",
+            "mark": null
+          },
+          {
+            "time": "17:00",
+            "mark": null
+          },
+          {
+            "time": "18:00",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [
+        {
+          "mark": "*",
+          "text": "Закінчується зупинкою \"Залізничний вокзал\""
+        }
+      ],
+      "asOf": "2025-07-25"
+    },
+    {
+      "code": "82",
+      "route": "8",
+      "direction": 2,
+      "title": "Бровар – Романа Шухевича",
+      "from": "Бровар",
+      "stops": [
+        {
+          "name": "Бровар",
+          "onDemand": false,
+          "minute": 0
+        },
+        {
+          "name": "Магазин",
+          "onDemand": false,
+          "minute": 4
+        },
+        {
+          "name": "Вул.1–го травня",
+          "onDemand": false,
+          "minute": 7
+        },
+        {
+          "name": "Швейна фабрика",
+          "onDemand": false,
+          "minute": 10
+        },
+        {
+          "name": "Міський центральний ринок",
+          "onDemand": false,
+          "minute": 12
+        },
+        {
+          "name": "Залізничний вокзал",
+          "onDemand": false,
+          "minute": 15
+        },
+        {
+          "name": "Школа №1",
+          "onDemand": false,
+          "minute": 18
+        },
+        {
+          "name": "Районна лікарня",
+          "onDemand": false,
+          "minute": 21
+        },
+        {
+          "name": "Романа Шухевича",
+          "onDemand": false,
+          "minute": 24
+        },
+        {
+          "name": "Магазин №44",
+          "onDemand": false,
+          "minute": 27
+        }
+      ],
+      "departures": {
+        "weekdays": [
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:30",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:30",
+            "mark": null
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "17:30",
+            "mark": null
+          }
+        ],
+        "weekends": [
+          {
+            "time": "07:30",
+            "mark": null
+          },
+          {
+            "time": "08:30",
+            "mark": null
+          },
+          {
+            "time": "09:30",
+            "mark": null
+          },
+          {
+            "time": "10:30",
+            "mark": null
+          },
+          {
+            "time": "11:30",
+            "mark": null
+          },
+          {
+            "time": "13:30",
+            "mark": null
+          },
+          {
+            "time": "14:30",
+            "mark": null
+          },
+          {
+            "time": "15:30",
+            "mark": null
+          },
+          {
+            "time": "16:30",
+            "mark": null
+          },
+          {
+            "time": "17:30",
+            "mark": null
+          }
+        ]
+      },
+      "notes": [],
+      "asOf": "2025-07-25"
+    }
+  ]
+}

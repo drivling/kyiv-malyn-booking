@@ -1,4 +1,5 @@
 import type { BookingCity } from '@/utils/constants';
+import { KYIV_MALYN_FARE_PREVIOUS_UAH, KYIV_MALYN_FARE_SINCE, KYIV_MALYN_FARE_UAH } from '@/utils/fares';
 import { ZUBASTYK_TEMP_NOTE } from './phoneOnlyBooking';
 
 export type CorridorLandingSlug =
@@ -69,7 +70,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
       {
         q: 'Скільки коштує маршрутка Київ — Малин?',
-        a: 'У базі malin.kiev.ua локальна маршрутка Київ — Малин (Академмістечко / Святошин) — 280 грн за місце. Не плутайте з ~450–600₴ на агрегаторах автобусів. Попутки: ціна водія в картці, часто орієнтир ~200–250₴. Пояснення: /support/prices.',
+        a: `У базі malin.kiev.ua локальна маршрутка Київ — Малин (Академмістечко / Святошин) — ${KYIV_MALYN_FARE_UAH} грн за місце (з ${KYIV_MALYN_FARE_SINCE}; раніше ${KYIV_MALYN_FARE_PREVIOUS_UAH} грн). Не плутайте з ~450–600₴ на агрегаторах автобусів. Попутки: ціна водія в картці, часто орієнтир ~200–250₴. Пояснення: /support/prices.`,
       },
       {
         q: 'Як швидко знайти попутку Київ — Малин?',
@@ -122,7 +123,7 @@ export const CORRIDOR_LANDINGS: CorridorLanding[] = [
       },
       {
         q: 'Скільки коштує маршрутка Малин — Київ?',
-        a: 'Локальна маршрутка Малин — Київ у нашій базі — 280 грн за місце (Академмістечко / Святошин). Цифри 450–600₴ у Google часто стосуються інших автобусних квитків. Попутки — ціна в оголошенні. Детально: /support/prices.',
+        a: `Локальна маршрутка Малин — Київ у нашій базі — ${KYIV_MALYN_FARE_UAH} грн за місце (з ${KYIV_MALYN_FARE_SINCE}; раніше ${KYIV_MALYN_FARE_PREVIOUS_UAH} грн; Академмістечко / Святошин). Цифри 450–600₴ у Google часто стосуються інших автобусних квитків. Попутки — ціна в оголошенні. Детально: /support/prices.`,
       },
       {
         q: 'Де шукати маршрутку Малин — Київ на сьогодні?',

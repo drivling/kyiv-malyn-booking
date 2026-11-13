@@ -14,6 +14,8 @@
     "seed:transport": "node -r dotenv/config dist/scripts/seed-local-transport.js",
     "seed:transport:ts": "ts-node src/scripts/seed-local-transport.ts",
     "export:gtfs": "ts-node src/scripts/export-gtfs.ts",
+    "korosten:snapshot": "node dist/scripts/korosten-source-snapshot.js",
+    "korosten:dataset": "node dist/scripts/korosten-dataset.js",
     "calculate:segments": "ts-node src/scripts/calculate-segment-durations.ts",
     "test": "vitest run",
     "test:watch": "vitest",

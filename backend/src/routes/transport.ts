@@ -1,4 +1,4 @@
-import express, { Router } from 'express';
+import express, { Router, type Request, type Response } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { requireAdmin, resolveAdminPassword } from '../middleware/require-admin';
 import {
@@ -24,9 +24,30 @@ import {
 import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from '../sticker-wall';
 import { arrivalReportStats, buildArrivalRow, parseArrivalReport, parseReportDays } from '../arrival-reports';
 import { GTFS_ZIP_FILENAME, createGtfsFeedProvider, isGtfsFeedFile } from '../gtfs-feed';
+import { DEFAULT_TRANSPORT_CITY, parseTransportCity, resolveTransportCity, type TransportCityAccess } from '../transport-city';
+import {
+  WATCHED_SOURCES,
+  acknowledgeWatchedSource,
+  fetchSourceText,
+  listWatchedSources,
+  runSourceWatch,
+  type SourceWatchDeps,
+} from '../transport-source-watch';
 
-export function createTransportRouter(deps: { prisma: PrismaClient; adminPassword?: string }): Router {
+export function createTransportRouter(deps: {
+  prisma: PrismaClient;
+  adminPassword?: string;
+  /** Стеження за джерелами розкладу: куди слати сповіщення і чим ходити в мережу (тести підміняють) */
+  sourceWatch?: Partial<SourceWatchDeps>;
+}): Router {
   const { prisma } = deps;
+  const sourceWatchDeps: SourceWatchDeps = {
+    fetchText: fetchSourceText,
+    notify: async () => false,
+    now: () => new Date(),
+    sources: WATCHED_SOURCES,
+    ...deps.sourceWatch,
+  };
   const adminPassword = resolveAdminPassword(deps.adminPassword);
   const r = express.Router();
   const isRepeatScan = createScanDeduper();
@@ -43,11 +64,43 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
     'Last-Modified': new Date(revision).toUTCString(),
   });
 
+  /**
+   * Місто запиту (Docs/transport-tenancy-2026-11.md): ?city= або body.city, без нього — Малин. Невідоме місто
+   * або ще не опубліковане (TripPoint.hasLocalTransport) для не-адміна — 404, відповідь надсилає сам хелпер.
+   */
+  const cityFor = async (req: Request, res: Response, raw: unknown): Promise<TransportCityAccess | null> => {
+    const city = await resolveTransportCity(prisma, req, raw);
+    if (!city) res.status(404).json({ error: 'Unknown city' });
+    return city;
+  };
+  /** Відкриті дані (GTFS, RSS, журнал, календар) публікуються лише для Малина; для іншого міста — 404 */
+  const openDataOnly = (req: Request, res: Response): boolean => {
+    if (parseTransportCity(req.query.city) === DEFAULT_TRANSPORT_CITY) return true;
+    res.status(404).json({ error: 'Open data is not published for this city' });
+    return false;
+  };
+  /** Адмінські читання й службові записи: будь-яке відоме місто; невідоме — 404 */
+  const adminCity = (res: Response, raw: unknown): string | null => {
+    const cityCode = parseTransportCity(raw);
+    if (!cityCode) res.status(404).json({ error: 'Unknown city' });
+    return cityCode;
+  };
+  /**
+   * Запис датасету (лише адмін): будь-яке відоме місто — ключі таблиць складені з містом (tenancy M2), тож
+   * датасет одного міста не зачіпає інше. Публікацію міста вмикає окремо TripPoint.hasLocalTransport.
+   */
+  const writableCity = adminCity;
+  /** Кеш відповіді: неопубліковане місто бачить лише адмін — такі відповіді не кешуються */
+  const cacheFor = (city: TransportCityAccess, publicHeaders: Record<string, string>): Record<string, string> =>
+    city.adminOnly ? { 'Cache-Control': 'private, no-store' } : publicHeaders;
+
   /** Публічний повний датасет міського транспорту (~150 КБ). */
-  r.get('/transport/dataset', async (_req, res) => {
+  r.get('/transport/dataset', async (req, res) => {
     try {
-      const dataset = await loadTransportDataset(prisma);
-      res.set({ 'Cache-Control': 'public, max-age=300' });
+      const city = await cityFor(req, res, req.query.city);
+      if (!city) return;
+      const dataset = await loadTransportDataset(prisma, city.cityCode);
+      res.set(cacheFor(city, { 'Cache-Control': 'public, max-age=300' }));
       res.json(dataset);
     } catch (e) {
       console.error('[GET /transport/dataset]', e);
@@ -59,7 +112,8 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
    * Публічний GTFS Static фід (Docs/transport-open-data-2026-10.md): той самий генератор, що й `npm run export:gtfs`,
    * кеш у пам'яті за revision; feed_version = revision; порожня БД — 404.
    */
-  r.get('/transport/gtfs.zip', async (_req, res) => {
+  r.get('/transport/gtfs.zip', async (req, res) => {
+    if (!openDataOnly(req, res)) return;
     try {
       const cached = await gtfs.get();
       if (!cached) {
@@ -81,6 +135,7 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
   /** Один файл фіду без zip (feed_info.txt — перевірити версію, stops.txt — curl); невідоме ім'я — 404 */
   r.get('/transport/gtfs/:file', async (req, res) => {
     const name = req.params.file;
+    if (!openDataOnly(req, res)) return;
     if (!isGtfsFeedFile(name)) {
       res.status(404).json({ error: 'Unknown GTFS file' });
       return;
@@ -105,7 +160,8 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
    * тіло кешується в пам'яті на revision.
    */
   let rssCache: { revision: string; body: string } | null = null;
-  r.get('/transport/changes.rss', async (_req, res) => {
+  r.get('/transport/changes.rss', async (req, res) => {
+    if (!openDataOnly(req, res)) return;
     try {
       const cached = await gtfs.get();
       if (!cached) {
@@ -129,6 +185,7 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
    * Порожній журнал — `{ revisions: [] }`; ETag = найновіша revision у відповіді.
    */
   r.get('/transport/revisions', async (req, res) => {
+    if (!openDataOnly(req, res)) return;
     try {
       const revisions = await listTransportRevisions(prisma, parseRevisionsLimit(req.query.limit));
       res.set(revisions.length ? openDataHeaders(revisions[0].revision) : { 'Cache-Control': 'public, max-age=300' });
@@ -141,6 +198,7 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
 
   /** Публічний: iCalendar маршруту — подія на кожен рейс із тижневим повтором; маршруту немає у фіді → 404 */
   r.get('/transport/route/:id/calendar.ics', async (req, res) => {
+    if (!openDataOnly(req, res)) return;
     try {
       const cached = await gtfs.get();
       if (!cached) {
@@ -168,10 +226,12 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
    * Публічний: мапа «старий id зупинки → чинний» (Docs/transport-open-protocols-2026-10.md, фаза 3) — злиті чи
    * видалені зупинки; споживачі GTFS/JSON читають її, бо в самому фіді старого stop_id більше немає.
    */
-  r.get('/transport/stop-redirects', async (_req, res) => {
+  r.get('/transport/stop-redirects', async (req, res) => {
     try {
-      const dataset = await loadTransportDataset(prisma);
-      res.set(dataset.revision ? openDataHeaders(dataset.revision) : { 'Cache-Control': 'public, max-age=300' });
+      const city = await cityFor(req, res, req.query.city);
+      if (!city) return;
+      const dataset = await loadTransportDataset(prisma, city.cityCode);
+      res.set(cacheFor(city, dataset.revision ? openDataHeaders(dataset.revision) : { 'Cache-Control': 'public, max-age=300' }));
       res.json(stopRedirectsOf(dataset));
     } catch (e) {
       console.error('[GET /transport/stop-redirects]', e);
@@ -185,18 +245,21 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
    */
   r.get('/transport/stops/:id', async (req, res) => {
     try {
-      const dataset = await loadTransportDataset(prisma);
+      const city = await cityFor(req, res, req.query.city);
+      if (!city) return;
+      const dataset = await loadTransportDataset(prisma, city.cityCode);
       const found = lookupStop(dataset, req.params.id);
       if (found.kind === 'redirect') {
-        res.set({ 'Cache-Control': 'public, max-age=86400' });
-        res.redirect(301, `/transport/stops/${encodeURIComponent(found.to)}`);
+        res.set(cacheFor(city, { 'Cache-Control': 'public, max-age=86400' }));
+        const query = city.isDefault ? '' : `?city=${encodeURIComponent(city.cityCode)}`;
+        res.redirect(301, `/transport/stops/${encodeURIComponent(found.to)}${query}`);
         return;
       }
       if (found.kind === 'unknown') {
         res.status(404).json({ error: 'Unknown stop' });
         return;
       }
-      res.set(dataset.revision ? openDataHeaders(dataset.revision) : { 'Cache-Control': 'public, max-age=300' });
+      res.set(cacheFor(city, dataset.revision ? openDataHeaders(dataset.revision) : { 'Cache-Control': 'public, max-age=300' }));
       res.json(found.stop);
     } catch (e) {
       console.error('[GET /transport/stops/:id]', e);
@@ -216,9 +279,11 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
         res.status(400).json({ error: 'Body must be { redirects: { oldStopId: newStopId } }' });
         return;
       }
+      const cityCode = writableCity(res, req.query.city);
+      if (!cityCode) return;
       const [stops, meta] = await Promise.all([
-        prisma.transportStop.findMany({ select: { id: true } }),
-        prisma.transportMeta.findUnique({ where: { id: 1 } }),
+        prisma.transportStop.findMany({ where: { cityCode }, select: { id: true } }),
+        prisma.transportMeta.findUnique({ where: { cityCode } }),
       ]);
       if (!meta) {
         res.status(409).json({ error: 'Transport dataset is empty' });
@@ -230,10 +295,10 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
         return;
       }
       const payload = { ...((meta.payload as Record<string, unknown>) ?? {}), [STOP_REDIRECTS_META_KEY]: redirects };
-      const previous = await snapshotTransportDataset(prisma);
-      await prisma.transportMeta.update({ where: { id: 1 }, data: { payload: payload as Prisma.InputJsonValue } });
-      await recordTransportRevision(prisma, { source: 'stop-redirects', previous });
-      res.json({ ok: true, redirects, revision: await currentTransportRevision(prisma) });
+      const previous = await snapshotTransportDataset(prisma, cityCode);
+      await prisma.transportMeta.update({ where: { cityCode }, data: { payload: payload as Prisma.InputJsonValue } });
+      await recordTransportRevision(prisma, { source: 'stop-redirects', previous, cityCode });
+      res.json({ ok: true, redirects, revision: await currentTransportRevision(prisma, cityCode) });
     } catch (e) {
       console.error('[PUT /admin/transport/stop-redirects]', e);
       res.status(500).json({ error: 'Failed to save stop redirects' });
@@ -248,9 +313,11 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
    */
   r.put('/transport/dataset', requireAdmin, async (req, res) => {
     try {
+      const cityCode = writableCity(res, req.query.city);
+      if (!cityCode) return;
       const baseRevision = typeof req.body?.baseRevision === 'string' ? req.body.baseRevision : null;
       if (baseRevision) {
-        const revision = await currentTransportRevision(prisma);
+        const revision = await currentTransportRevision(prisma, cityCode);
         if (revision && revision !== baseRevision) {
           res.status(409).json({
             error: 'Transport dataset changed since it was loaded — reload and repeat the edit',
@@ -259,15 +326,15 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
           return;
         }
       }
-      await fillOmittedRouteFields(prisma, req.body);
+      await fillOmittedRouteFields(prisma, req.body, cityCode);
       const { errors, dataset } = validateTransportDataset(req.body);
       if (errors.length || !dataset) {
         res.status(400).json({ error: 'Invalid transport dataset', details: errors });
         return;
       }
-      const previous = await snapshotTransportDataset(prisma);
-      await replaceTransportDataset(prisma, dataset);
-      await recordTransportRevision(prisma, { source: 'dataset', previous });
+      const previous = await snapshotTransportDataset(prisma, cityCode);
+      await replaceTransportDataset(prisma, dataset, cityCode);
+      await recordTransportRevision(prisma, { source: 'dataset', previous, cityCode });
       res.json({
         ok: true,
         counts: {
@@ -278,7 +345,7 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
           segments: dataset.segments.length,
           variants: dataset.routes.reduce((n, route) => n + (route.variants?.length ?? 0), 0),
         },
-        revision: await currentTransportRevision(prisma),
+        revision: await currentTransportRevision(prisma, cityCode),
       });
     } catch (e) {
       console.error('[PUT /transport/dataset]', e);
@@ -297,9 +364,11 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
         typeof req.body?.routeId === 'string' && req.body.routeId.trim()
           ? req.body.routeId.trim()
           : null;
-      const previous = await snapshotTransportDataset(prisma);
-      const result = await recalculateSegmentDurations(prisma, { routeId });
-      await recordTransportRevision(prisma, { source: 'recalculate', previous });
+      const cityCode = writableCity(res, req.query.city ?? req.body?.city);
+      if (!cityCode) return;
+      const previous = await snapshotTransportDataset(prisma, cityCode);
+      const result = await recalculateSegmentDurations(prisma, { routeId, cityCode });
+      await recordTransportRevision(prisma, { source: 'recalculate', previous, cityCode });
       res.json({ ok: true, ...result });
     } catch (e) {
       console.error('[POST /admin/transport/recalculate-segments]', e);
@@ -319,16 +388,19 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
       return;
     }
     try {
-      const stop = await prisma.transportStop.findUnique({ where: { id: scan.stopId }, select: { id: true } });
+      const city = await cityFor(req, res, req.body?.city);
+      if (!city) return;
+      const { cityCode } = city;
+      const stop = await prisma.transportStop.findUnique({ where: { cityCode_id: { cityCode, id: scan.stopId } }, select: { id: true } });
       if (!stop) {
         res.status(404).json({ error: 'Unknown stop' });
         return;
       }
-      if (isRepeatScan(`${clientKey(req.headers, req.ip)}|${scan.stopId}|${scan.side}`)) {
+      if (isRepeatScan(`${cityCode}|${clientKey(req.headers, req.ip)}|${scan.stopId}|${scan.side}`)) {
         res.json({ ok: true, counted: false });
         return;
       }
-      await prisma.stickerScan.create({ data: scan });
+      await prisma.stickerScan.create({ data: { ...scan, cityCode } });
       res.status(201).json({ ok: true, counted: true });
     } catch (e) {
       console.error('[POST /transport/sticker-scans]', e);
@@ -347,11 +419,13 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
       return;
     }
     try {
-      if (isRepeatReturn(ret.clientId)) {
+      const city = await cityFor(req, res, req.body?.city);
+      if (!city) return;
+      if (isRepeatReturn(`${city.cityCode}|${ret.clientId}`)) {
         res.json({ ok: true, counted: false });
         return;
       }
-      await prisma.stickerReturn.create({ data: ret });
+      await prisma.stickerReturn.create({ data: { ...ret, cityCode: city.cityCode } });
       res.status(201).json({ ok: true, counted: true });
     } catch (e) {
       console.error('[POST /transport/sticker-returns]', e);
@@ -365,10 +439,48 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
    */
   r.get('/admin/transport/sticker-scans', requireAdmin, async (req, res) => {
     try {
-      res.json(await stickerScanStats(prisma, { days: parseStatsDays(req.query.days) }));
+      const cityCode = adminCity(res, req.query.city);
+      if (!cityCode) return;
+      res.json(await stickerScanStats(prisma, { days: parseStatsDays(req.query.days), cityCode }));
     } catch (e) {
       console.error('[GET /admin/transport/sticker-scans]', e);
       res.status(500).json({ error: 'Failed to load sticker scans' });
+    }
+  });
+
+  /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */
+  r.get('/admin/transport/sources', requireAdmin, async (_req, res) => {
+    try {
+      res.json({ sources: await listWatchedSources(prisma, sourceWatchDeps.sources) });
+    } catch (e) {
+      console.error('[GET /admin/transport/sources]', e);
+      res.status(500).json({ error: 'Failed to load watched sources' });
+    }
+  });
+
+  /** Адмін: перевірити джерела зараз (те саме, що робить таймер; сповіщення про зміну — не більше одного) */
+  r.post('/admin/transport/sources/check', requireAdmin, async (_req, res) => {
+    try {
+      const results = await runSourceWatch(prisma, sourceWatchDeps);
+      res.json({ results, sources: await listWatchedSources(prisma, sourceWatchDeps.sources) });
+    } catch (e) {
+      console.error('[POST /admin/transport/sources/check]', e);
+      res.status(500).json({ error: 'Failed to check watched sources' });
+    }
+  });
+
+  /** Адмін: «Переглянуто» — зміну джерела враховано */
+  r.post('/admin/transport/sources/:key/ack', requireAdmin, async (req, res) => {
+    try {
+      const key = String(req.params.key);
+      if (!sourceWatchDeps.sources.some((s) => s.key === key) || !(await acknowledgeWatchedSource(prisma, key, sourceWatchDeps.now()))) {
+        res.status(404).json({ error: 'Unknown source' });
+        return;
+      }
+      res.json({ ok: true, sources: await listWatchedSources(prisma, sourceWatchDeps.sources) });
+    } catch (e) {
+      console.error('[POST /admin/transport/sources/:key/ack]', e);
+      res.status(500).json({ error: 'Failed to acknowledge source' });
     }
   });
 
@@ -389,7 +501,9 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
       return;
     }
     try {
-      res.json(await stickerWallSnapshot(prisma, { after: Number(req.query.after) || 0 }));
+      const cityCode = adminCity(res, req.query.city);
+      if (!cityCode) return;
+      res.json(await stickerWallSnapshot(prisma, { after: Number(req.query.after) || 0, cityCode }));
     } catch (e) {
       console.error('[GET /transport/sticker-wall]', e);
       res.status(500).json({ error: 'Failed to load sticker wall' });
@@ -404,8 +518,10 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
       return;
     }
     try {
+      const cityCode = adminCity(res, req.body?.city);
+      if (!cityCode) return;
       await prisma.stickerPrint.createMany({
-        data: print.sides.map((side) => ({ stopId: print.stopId, side, size: print.size })),
+        data: print.sides.map((side) => ({ cityCode, stopId: print.stopId, side, size: print.size })),
       });
       res.status(201).json({ ok: true, count: print.sides.length });
     } catch (e) {
@@ -428,9 +544,12 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
       return;
     }
     try {
+      const city = await cityFor(req, res, req.body?.city);
+      if (!city) return;
+      const { cityCode } = city;
       const [trip, stop] = await Promise.all([
-        prisma.transportTrip.findUnique({ where: { id: input.tripId }, select: { routeId: true } }),
-        prisma.transportStop.findUnique({ where: { id: input.stopId }, select: { id: true } }),
+        prisma.transportTrip.findUnique({ where: { cityCode_id: { cityCode, id: input.tripId } }, select: { routeId: true } }),
+        prisma.transportStop.findUnique({ where: { cityCode_id: { cityCode, id: input.stopId } }, select: { id: true } }),
       ]);
       if (!trip || trip.routeId !== input.routeId || !stop) {
         res.status(404).json({ error: 'Unknown trip or stop' });
@@ -447,7 +566,7 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
       // Ідемпотентність для черги в браузері: той самий запис уже збережено — відповідаємо тим, що є
       if (row.clientId && row.clientEventId) {
         const stored = await prisma.transportArrivalReport.findFirst({
-          where: { clientId: row.clientId, clientEventId: row.clientEventId },
+          where: { cityCode, clientId: row.clientId, clientEventId: row.clientEventId },
           select: { actualTime: true, delayMin: true },
         });
         if (stored) {
@@ -455,13 +574,13 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
           return;
         }
       }
-      const dedupeKey = `${clientKey(req.headers, req.ip)}|${row.tripId}|${row.stopId}|${row.serviceDate}|${row.kind}`;
+      const dedupeKey = `${cityCode}|${clientKey(req.headers, req.ip)}|${row.tripId}|${row.stopId}|${row.serviceDate}|${row.kind}`;
       if (isRepeatArrival(dedupeKey)) {
         res.json({ ok: true, counted: false, actualTime: row.actualTime, delayMin: row.delayMin });
         return;
       }
       try {
-        await prisma.transportArrivalReport.create({ data: row });
+        await prisma.transportArrivalReport.create({ data: { ...row, cityCode } });
       } catch (e) {
         // Гонка двох вкладок з тим самим clientEventId — унікальний індекс (clientId, clientEventId)
         if ((e as { code?: string })?.code !== 'P2002') throw e;
@@ -478,7 +597,9 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
   /** Адмін: звіти пасажирів про факт прибуття — зведення по рейсах на зупинках і останні звіти за ?days=1|7|30|90 */
   r.get('/admin/transport/arrival-reports', requireAdmin, async (req, res) => {
     try {
-      res.json(await arrivalReportStats(prisma, { days: parseReportDays(req.query.days) }));
+      const cityCode = adminCity(res, req.query.city);
+      if (!cityCode) return;
+      res.json(await arrivalReportStats(prisma, { days: parseReportDays(req.query.days), cityCode }));
     } catch (e) {
       console.error('[GET /admin/transport/arrival-reports]', e);
       res.status(500).json({ error: 'Failed to load arrival reports' });
@@ -493,7 +614,9 @@ export function createTransportRouter(deps: { prisma: PrismaClient; adminPasswor
       return;
     }
     try {
-      const { count } = await prisma.transportArrivalReport.deleteMany({ where: { id } });
+      const cityCode = adminCity(res, req.query.city);
+      if (!cityCode) return;
+      const { count } = await prisma.transportArrivalReport.deleteMany({ where: { id, cityCode } });
       if (!count) {
         res.status(404).json({ error: 'Report not found' });
         return;

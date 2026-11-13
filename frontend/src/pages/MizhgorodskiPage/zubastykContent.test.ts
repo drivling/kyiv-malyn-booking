@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Schedule } from '@/types';
 import { ZUBASTYK_PHONES, buildZubastykFaq, priceRange, scheduleRange } from './zubastykContent';
 
-const row = (route: string, departureTime: string, priceUah: number | null = 280): Schedule =>
+const row = (route: string, departureTime: string, priceUah: number | null = 310): Schedule =>
   ({ id: Math.random(), route, departureTime, maxSeats: 14, supportPhone: null, priceUah, createdAt: '', updatedAt: '' }) as unknown as Schedule;
 
 describe('zubastykContent', () => {
@@ -15,7 +15,7 @@ describe('zubastykContent', () => {
   it('computes first/last/count and price range', () => {
     const rows = [row('Malyn-Kyiv-Irpin', '17:30'), row('Malyn-Kyiv-Bucha', '05:00'), row('Malyn-Kyiv-Irpin', '08:30', null)];
     expect(scheduleRange(rows)).toEqual({ first: '05:00', last: '17:30', count: 3 });
-    expect(priceRange(rows)).toEqual({ min: 280, max: 280 });
+    expect(priceRange(rows)).toEqual({ min: 310, max: 310 });
     expect(scheduleRange([])).toBeNull();
     expect(priceRange([row('Malyn-Kyiv-Irpin', '08:30', null)])).toBeNull();
   });
@@ -28,7 +28,7 @@ describe('zubastykContent', () => {
     expect(faq[0].a).toContain('093 170 18 35 (резервний)');
     expect(faq.find((f) => f.q.includes('з Малина до Києва'))?.a).toContain('Перший рейс о 05:00, останній о 17:30; 2 рейсів щодня');
     expect(faq.find((f) => f.q.includes('з Києва до Малина'))?.a).toContain('08:00');
-    expect(faq.find((f) => f.q.includes('Скільки коштує'))?.a).toContain('280 грн за місце');
+    expect(faq.find((f) => f.q.includes('Скільки коштує'))?.a).toContain('310 грн за місце');
     expect(qs.at(-1)).toBe('Чи це той самий «Зубастик»?');
   });
 

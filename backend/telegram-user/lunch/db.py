@@ -191,6 +191,15 @@ class LunchDB:
             )
             return 5
 
+    async def catalog_dish_names(self, limit: int = 300) -> list[str]:
+        """Назви страв каталогу, свіжіші першими — підказка OCR, щоб страви з фото лягали на наявні."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """SELECT name FROM "LunchDish" ORDER BY "updatedAt" DESC, id DESC LIMIT $1""",
+                limit,
+            )
+            return [r["name"] for r in rows]
+
     async def _find_or_create_dish(self, conn: asyncpg.Connection, name: str, price: int) -> dict[str, Any]:
         nn = normalize_dish_name(name)
         row = await conn.fetchrow(
@@ -486,6 +495,80 @@ class LunchDB:
                 int(reply_message_id),
             )
             return int(val) if val is not None else None
+
+    async def day_order_texts(self, day_id: int, *, exclude_telegram_user_id: str) -> list[str]:
+        """Тексти сьогоднішніх замовлень інших людей — звірити з ними нумерований підсумок оператора."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT o."rawText" FROM "LunchOrder" o
+                JOIN "LunchParticipant" p ON p.id = o."participantId"
+                WHERE o."dayId" = $1 AND o.status = 'active' AND p."telegramUserId" <> $2
+                ORDER BY o.id
+                """,
+                day_id,
+                exclude_telegram_user_id,
+            )
+            return [r["rawText"] for r in rows if r["rawText"]]
+
+    async def get_order_reply_message_id(self, day_id: int, participant_id: int) -> Optional[int]:
+        """Наша відповідь у групі на замовлення людини за день (навіть прибраного — його можна оживити)."""
+        async with self.pool.acquire() as conn:
+            val = await conn.fetchval(
+                """
+                SELECT "replyMessageId" FROM "LunchOrder"
+                WHERE "dayId" = $1 AND "participantId" = $2
+                """,
+                day_id,
+                participant_id,
+            )
+            return int(val) if val is not None else None
+
+    async def get_order_for_reply(self, day_id: int, participant_id: int) -> Optional[dict[str, Any]]:
+        """Активне замовлення людини за день таким, як воно зараз у БД, — щоб переписати нашу відповідь у групі
+        (оплата з чату). Назви страв — канонічні з каталогу, як в адмінці."""
+        async with self.pool.acquire() as conn:
+            o = await conn.fetchrow(
+                """
+                SELECT o.id, o."replyMessageId", o."totalUah", o."trayCount", o."trayTotalUah", o."unmatchedText",
+                       p."displayName"
+                FROM "LunchOrder" o
+                JOIN "LunchParticipant" p ON p.id = o."participantId"
+                WHERE o."dayId" = $1 AND o."participantId" = $2 AND o.status = 'active'
+                """,
+                day_id,
+                participant_id,
+            )
+            if not o:
+                return None
+            rows = await conn.fetch(
+                """
+                SELECT COALESCE(d.name, l."rawName") AS name, l.qty, l."unitPriceUah", l."lineTotalUah", l.unavailable
+                FROM "LunchOrderLine" l
+                LEFT JOIN "LunchDish" d ON d.id = l."dishId"
+                WHERE l."orderId" = $1
+                ORDER BY l.id
+                """,
+                int(o["id"]),
+            )
+        return {
+            "reply_message_id": int(o["replyMessageId"]) if o["replyMessageId"] is not None else None,
+            "display_name": o["displayName"],
+            "total_uah": int(o["totalUah"] or 0),
+            "tray_count": int(o["trayCount"] or 0),
+            "tray_total_uah": int(o["trayTotalUah"] or 0),
+            "unmatched_text": o["unmatchedText"],
+            "lines": [
+                {
+                    "menuItemName": r["name"],
+                    "qty": int(r["qty"] or 1),
+                    "unitPriceUah": int(r["unitPriceUah"]),
+                    "lineTotalUah": int(r["lineTotalUah"]),
+                    "unavailable": bool(r["unavailable"]),
+                }
+                for r in rows
+            ],
+        }
 
     async def set_order_reply_message_id(self, order_id: int, reply_message_id: int) -> None:
         async with self.pool.acquire() as conn:

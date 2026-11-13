@@ -98,7 +98,8 @@ class DzhuraDB:
         async with self.pool.acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT id, "tgChatId", kind, title, "relayToSaved", "lastCapturedTgMessageId"
+                SELECT id, "tgChatId", kind, title, "relayToSaved", "lastCapturedTgMessageId",
+                       "autoReplyEnabled", "autoReplyDelaySec", "autoReplyNote"
                 FROM "DzhuraChat"
                 WHERE "captureEnabled" = TRUE
                 """
@@ -110,6 +111,9 @@ class DzhuraDB:
                 "kind": r["kind"],
                 "title": r["title"],
                 "relay_to_saved": bool(r["relayToSaved"]),
+                "auto_reply": bool(r["autoReplyEnabled"]),
+                "auto_reply_delay_sec": int(r["autoReplyDelaySec"]),
+                "auto_reply_note": r["autoReplyNote"],
                 "last_captured_tg_message_id": int(r["lastCapturedTgMessageId"])
                 if r["lastCapturedTgMessageId"] is not None
                 else None,
@@ -360,6 +364,61 @@ class DzhuraDB:
                     )
                     marked += 1
         return marked
+
+    # ---------- автовідповідь ----------
+
+    async def recent_messages(self, chat_id: int, limit: int) -> list[dict[str, Any]]:
+        """Останні повідомлення чату від старих до нових — контекст і приклади стилю для автовідповіді."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT "tgMessageId", "isOutgoing", "isAutoReply", text, "mediaKind",
+                       "replyToTgMessageId", "sentAt", "deletedAt"
+                FROM "DzhuraMessage"
+                WHERE "chatId" = $1
+                ORDER BY "sentAt" DESC, "tgMessageId" DESC
+                LIMIT $2
+                """,
+                int(chat_id),
+                int(limit),
+            )
+        return [
+            {
+                "tg_message_id": int(r["tgMessageId"]),
+                "is_outgoing": bool(r["isOutgoing"]),
+                "is_auto_reply": bool(r["isAutoReply"]),
+                "text": r["text"] or "",
+                "media_kind": r["mediaKind"],
+                "reply_to_tg_message_id": int(r["replyToTgMessageId"]) if r["replyToTgMessageId"] is not None else None,
+                "sent_at": r["sentAt"],
+                "deleted_at": r["deletedAt"],
+            }
+            for r in reversed(rows)
+        ]
+
+    async def mark_auto_reply(self, chat_id: int, tg_message_id: int) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                'UPDATE "DzhuraMessage" SET "isAutoReply" = TRUE WHERE "chatId" = $1 AND "tgMessageId" = $2',
+                int(chat_id),
+                int(tg_message_id),
+            )
+
+    async def count_auto_replies_since(self, chat_id: int, since: datetime) -> int:
+        async with self.pool.acquire() as conn:
+            n = await conn.fetchval(
+                'SELECT COUNT(*) FROM "DzhuraMessage" WHERE "chatId" = $1 AND "isAutoReply" = TRUE AND "sentAt" >= $2',
+                int(chat_id),
+                naive_utc(since),
+            )
+        return int(n or 0)
+
+    async def person_access_hash(self, tg_user_id: int) -> Optional[int]:
+        async with self.pool.acquire() as conn:
+            value = await conn.fetchval(
+                'SELECT "accessHash" FROM "DzhuraPerson" WHERE "tgUserId" = $1', int(tg_user_id)
+            )
+        return int(value) if value is not None else None
 
     # ---------- reactions ----------
 

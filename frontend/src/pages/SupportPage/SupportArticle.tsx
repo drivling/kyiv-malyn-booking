@@ -3,6 +3,12 @@ import { Link, Navigate, useLocation, useParams } from 'react-router-dom';
 import { FaqAnswerText } from '@/components/FaqAnswerText';
 import { SiteContactBlock } from '@/components/SiteContactBlock/SiteContactBlock';
 import { CityFareChip } from './CityFareChip';
+import {
+  KYIV_MALYN_FARE_PREVIOUS_UAH,
+  KYIV_MALYN_FARE_ROUND_TRIP_UAH,
+  KYIV_MALYN_FARE_SINCE,
+  KYIV_MALYN_FARE_UAH,
+} from '@/utils/fares';
 import { usePageSeo } from '@/hooks';
 import { COMPANY_LEGAL_PATH } from '@/legal/companyLegal';
 import {
@@ -538,7 +544,7 @@ function PricesArticle() {
         <p className="support-lead support-lead--follow">
           Для Малина це майже завжди <em>інший</em> продукт.
           <br />
-          Локальна маршрутка Малин ↔ Київ у нашій базі — <strong>280 грн</strong> за місце; попутки —
+          Локальна маршрутка Малин ↔ Київ у нашій базі — <strong>{KYIV_MALYN_FARE_UAH} грн</strong> за місце; попутки —
           ціна водія в картці. Дивіться пошук на{' '}
           <Link to="/mizhgorodski">malin.kiev.ua/mizhgorodski</Link>.
         </p>
@@ -561,7 +567,7 @@ function PricesArticle() {
                 ШІ).
               </li>
               <li>
-                <strong>Локальна маршрутка</strong> Малин ↔ Київ — <strong>280 грн</strong> у базі
+                <strong>Локальна маршрутка</strong> Малин ↔ Київ — <strong>{KYIV_MALYN_FARE_UAH} грн</strong> у базі
                 malin.kiev.ua.
               </li>
               <li>
@@ -580,19 +586,23 @@ function PricesArticle() {
             <Link to="/mizhgorodski/kyiv-malyn">Київ → Малин</Link>.
           </p>
 
-          <div className="support-fare-chip" aria-label="Тариф маршрутки 280 гривень">
+          <div className="support-fare-chip" aria-label={`Тариф маршрутки ${KYIV_MALYN_FARE_UAH} гривень`}>
             <span className="support-fare-chip__label">Маршрутка Малин ↔ Київ</span>
             <span className="support-fare-chip__amount">
-              280<span aria-hidden>₴</span>
+              {KYIV_MALYN_FARE_UAH}<span aria-hidden>₴</span>
             </span>
-            <span className="support-fare-chip__meta">за місце · у базі розкладу</span>
+            <span className="support-fare-chip__meta">
+              за місце · з {KYIV_MALYN_FARE_SINCE} (раніше {KYIV_MALYN_FARE_PREVIOUS_UAH}) · у базі розкладу
+            </span>
           </div>
 
           <div className="support-how-grid">
             <article className="support-how-card">
               <h3>Маршрутка</h3>
               <p>
-                Регулярні рейси з бронюванням місця на сайті / у боті — тариф <strong>280 грн</strong>.
+                Регулярні рейси з бронюванням місця на сайті / у боті — тариф <strong>{KYIV_MALYN_FARE_UAH} грн</strong>
+                в одну сторону, однаковий в обидва боки (туди й назад — {KYIV_MALYN_FARE_ROUND_TRIP_UAH} грн). З{' '}
+                {KYIV_MALYN_FARE_SINCE} — було {KYIV_MALYN_FARE_PREVIOUS_UAH} грн.
               </p>
               <p>
                 У Києві орієнтири: <strong>ст. м. Академмістечко</strong> (часто через Ірпінь) або{' '}

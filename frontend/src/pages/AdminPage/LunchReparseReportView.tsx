@@ -44,7 +44,11 @@ export const LunchReparseReportView: React.FC<{
         {report.summaries ? ` · підсумків: ${report.summaries}` : ''} · пропущено: {report.skipped ?? 0}
         {report.source ? ` · джерело: ${SOURCE_LABEL[report.source] ?? report.source}` : ''}
         {report.replaced ? ' · замінено наявне замовлення' : ''}
-        {report.notified ? ' · підтвердження поставлено в чергу для групи' : ''}
+        {report.notified
+          ? report.notifiedEdit
+            ? ' · нашу відповідь у групі поставлено в чергу на правку'
+            : ' · підтвердження поставлено в чергу для групи'
+          : ''}
       </p>
       {(report.warnings ?? []).map((w) => (
         <p key={w} className="lunch-report__warn">

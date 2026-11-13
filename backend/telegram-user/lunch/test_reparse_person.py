@@ -177,6 +177,37 @@ class FakeDB:
         self.payments.append({"pid": pid, "amount": amount, "source": source_message_id})
         return len(self.payments)
 
+    async def participant_balance(self, day_id, pid):
+        o = self.orders.get(pid)
+        ordered = o["total"] if o and pid not in self.cancelled else 0
+        paid = sum(p["amount"] for p in self.payments if p["pid"] == pid)
+        return ordered, paid, ordered - paid
+
+    async def day_order_texts(self, day_id, *, exclude_telegram_user_id):
+        own = self.participants.get(str(exclude_telegram_user_id), {}).get("id")
+        return [o["raw"] for pid, o in self.orders.items() if pid != own and pid not in self.cancelled and o["raw"]]
+
+    async def get_order_reply_message_id(self, day_id, pid):
+        return self.orders.get(pid, {}).get("reply")
+
+    async def get_order_for_reply(self, day_id, pid):
+        o = self.orders.get(pid)
+        if not o or pid in self.cancelled:
+            return None
+        return {
+            "reply_message_id": o.get("reply"),
+            "display_name": o.get("name", "Людина"),
+            "total_uah": o["total"],
+            "tray_count": o.get("trays", 0),
+            "tray_total_uah": o.get("trays", 0) * 5,
+            "unmatched_text": o["unmatched"],
+            "lines": [
+                {"menuItemName": l.raw_name, "qty": l.qty, "unitPriceUah": l.unit_price_uah,
+                 "lineTotalUah": l.line_total_uah, "unavailable": l.unavailable}
+                for l in o.get("lines_in", [])
+            ],
+        }
+
     async def set_payee_card(self, day_id, card):
         self.cards.append(card)
 
@@ -644,6 +675,18 @@ def test_edit_or_reply_posts_new_reply_when_old_one_was_deleted():
     assert db.orders[pid]["reply"] == 9001  # наступні правки вже б'ють у живе повідомлення
 
 
+class MessageNotModifiedError(Exception):
+    """Те саме ім'я, що в telethon.errors: правка тим самим текстом."""
+
+
+def test_edit_or_reply_same_text_is_done_not_retried():
+    """«Розібрати» нічого не змінив — правка тим самим текстом: не помилка, нової відповіді теж не пишемо."""
+    db = FakeDB()
+    client = FakeEditClient(MessageNotModifiedError("Content of the message was not modified"))
+    out = run(edit_or_reply(client, object(), db, {"telegram_message_id": 555, "text": "те саме"}))
+    assert out is None and client.sent == []
+
+
 def test_edit_or_reply_reraises_other_errors_and_unknown_orders():
     db = FakeDB()
     client = FakeEditClient(RuntimeError("flood"))
@@ -832,6 +875,210 @@ def test_leftover_not_attributed_when_it_looks_like_a_persons_edited_order():
     assert db.orders == {}
 
 
+# ---------- відповідь у групі: правка замість нової, «✅ Оплатив» ----------
+
+
+def test_person_reparse_edits_our_previous_reply_instead_of_posting_a_new_one():
+    """«Розібрати» в адмінці: ми вже відповідали людині — правимо ту відповідь, як при ручній правці."""
+    db = FakeDB()
+    pid = run(db.upsert_participant(str(UID), "Аліна"))
+    run(db.upsert_order(1, pid, "Пюре", 45, [OrderLineInput(1, "Пюре", 1, 40, 40)], source_message_id=10))
+    db.orders[pid]["reply"] = 900
+    client = FakeClient([FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36))])
+    out = run(reparse_person(client, object(), db, group_id=GROUP, tg_user_id=UID))
+    assert out["notified"] is True and out["notifiedEdit"] is True
+    assert len(db.outbound) == 1
+    assert db.outbound[0]["kind"] == "edit" and db.outbound[0]["edit_id"] == 900
+    assert db.outbound[0]["reply_to"] is None
+    assert "Котлети курячі" in db.outbound[0]["text"]
+
+
+def test_person_reparse_keeps_paid_mark_in_the_reply():
+    """Людина вже оплатила (кнопка «Оплатив» / «оплатив …» у чаті) — правка відповіді не стирає позначку."""
+    db = FakeDB()
+    pid = run(db.upsert_participant(str(UID), "Аліна"))
+    run(db.upsert_order(1, pid, "Пюре", 45, [OrderLineInput(1, "Пюре", 1, 40, 40)], source_message_id=11))
+    db.orders[pid]["reply"] = 900
+    run(db.add_payment(1, pid, 45, "admin"))
+    client = FakeClient([FakeMsg(11, "Пюре", _today_at(10, 36))])
+    run(reparse_person(client, object(), db, group_id=GROUP, tg_user_id=UID))
+    assert db.outbound[-1]["kind"] == "edit"
+    assert "Разом: 45 грн\n✅ Оплатив" in db.outbound[-1]["text"]
+
+
+def test_person_reparse_counts_payment_found_in_the_same_pass():
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре", _today_at(10, 36)),
+        FakeMsg(12, "оплатив 20", _today_at(10, 40)),
+    ])
+    out = run(reparse_person(client, object(), db, group_id=GROUP, tg_user_id=UID))
+    assert db.outbound[-1]["reply_to"] == 11 and out["notifiedEdit"] is False  # відповіді ще не було — пишемо нову
+    assert "Оплатив 20 грн, залишок 25 грн" in db.outbound[-1]["text"]
+
+
+def test_paid_line_variants():
+    from lunch.formatters import format_paid_line
+
+    assert format_paid_line(155, 0) is None
+    assert format_paid_line(155, 155) == "✅ Оплатив"
+    assert format_paid_line(155, 100) == "Оплатив 100 грн, залишок 55 грн"
+    assert format_paid_line(155, 200) == "✅ Оплатив (переплата 45 грн)"
+
+
+def test_catch_up_edit_keeps_paid_mark():
+    db = FakeDB(menu=_today_menu())
+    pid = _seed(db, 6, "Пюре\nМакарони", [_line(36, "Пюре", 45)], unmatched="Макарони")
+    run(db.add_payment(1, pid, 90, "admin"))
+    run(resolve_incomplete_orders(db, 1, db.menu))
+    assert db.outbound[-1]["kind"] == "edit"
+    assert "Разом: 90 грн\n✅ Оплатив" in db.outbound[-1]["text"]
+
+
+# ---------- «оплатив …» у чаті: ✅ у нашій відповіді на замовлення ----------
+
+
+def _order_with_reply(db, reply=900):
+    pid = run(db.upsert_participant(str(UID), "Аліна"))
+    run(db.upsert_order(1, pid, "Пюре", 45, [OrderLineInput(1, "Пюре", 1, 40, 40)], source_message_id=11))
+    db.orders[pid].update(reply=reply, name="Аліна")
+    return pid
+
+
+def test_refresh_order_reply_marks_paid_in_our_reply():
+    from lunch.order_reply import refresh_order_reply
+
+    db = FakeDB()
+    pid = _order_with_reply(db)
+    run(db.add_payment(1, pid, 45, "оплатив 45"))
+    assert run(refresh_order_reply(db, 1, pid)) is True
+    assert db.outbound == [{
+        "text": "Аліна, заказ:\n• Пюре — 40 грн (40/шт)\nЛотки: 1 × 5 = 5 грн\nРазом: 45 грн\n✅ Оплатив",
+        "reply_to": None, "kind": "edit", "edit_id": 900,
+    }]
+
+
+def test_refresh_order_reply_does_nothing_without_order_or_reply():
+    from lunch.order_reply import refresh_order_reply
+
+    db = FakeDB()
+    pid = run(db.upsert_participant(str(UID), "Аліна"))
+    assert run(refresh_order_reply(db, 1, pid)) is False  # замовлення немає (оплатив наперед)
+    pid = _order_with_reply(db, reply=None)
+    assert run(refresh_order_reply(db, 1, pid)) is False  # ми ще не відповідали
+    assert db.outbound == []
+
+
+def test_catch_up_payment_from_chat_marks_paid_in_our_reply():
+    db = FakeDB()
+    pid = _order_with_reply(db)
+    client = FakeClient([FakeMsg(12, "оплатив 45", _today_at(10, 38))])
+    out = run(catch_up_today(client, object(), db, now=_now_at(10, 40)))
+    assert out["payments"] == 1
+    assert db.outbound[-1]["kind"] == "edit" and db.outbound[-1]["edit_id"] == 900
+    assert db.outbound[-1]["text"].endswith("Разом: 45 грн\n✅ Оплатив")
+
+
+def test_person_reparse_with_only_a_payment_marks_paid_in_our_reply():
+    db = FakeDB()
+    pid = _order_with_reply(db)
+    client = FakeClient([FakeMsg(12, "оплатив 45", _today_at(10, 38))])
+    out = run(reparse_person(client, object(), db, group_id=GROUP, tg_user_id=UID))
+    assert out["payments"] == 1 and out["notifiedEdit"] is True
+    assert db.orders[pid]["lines"] == ["Пюре"]  # замовлення не чіпали
+    assert db.outbound[-1]["kind"] == "edit" and "✅ Оплатив" in db.outbound[-1]["text"]
+
+
+# ---------- 2026-11-05: підсумок оператора з порожніми пунктами, «Розібрати» на самому операторі ----------
+
+# Як сьогоднішній: свої страви оператор пише першим пунктом, далі люди, 5–8 — порожні місця на виріст
+SUMMARY_2026_11_05 = (
+    "1. Пюре\nФиле куриное с помидором\nСирники\n\n2.Пюре\nБиток Київський\n\n"
+    "3.Каша пшона с грибами\nКапуста молода\nФиле З помідором\n\n4.Сметана\n\n5.\n\n6.\n\n7.\n\n8."
+)
+OPERATOR_UID = 465
+
+
+def _seed_people_orders(db, texts):
+    for i, t in enumerate(texts):
+        pid = run(db.upsert_participant(str(900 + i), f"Людина{i}"))
+        run(db.upsert_order(1, pid, t, 50, [OrderLineInput(36, "Пюре", 1, 45, 45, dish_id=36)], source_message_id=500 + i))
+
+
+def _operator_client():
+    return FakeClient([
+        FakeMsg(112481, "", _today_at(11, 20), sender_id=OPERATOR_UID, photo=True, sender_name="Святослав"),
+        FakeMsg(112494, SUMMARY_2026_11_05, _today_at(11, 32), sender_id=OPERATOR_UID, sender_name="Святослав"),
+        FakeMsg(112495, "", _today_at(11, 33), sender_id=OPERATOR_UID, photo=True, sender_name="Святослав"),
+    ])
+
+
+def _menu_with_smetana():
+    return _summary_menu() + [MenuItemRow(54, 1, "Сметана", normalize_dish_name("Сметана"), 25, dish_id=54)]
+
+
+def test_empty_placeholder_entries_are_ignored_and_reformatted_entries_still_match():
+    from lunch.summary_owner import pick_author_entry
+
+    entries = parse_numbered_summary(SUMMARY_2026_11_05)
+    assert len(entries) == 8 and entries[4:] == ["", "", "", ""]
+    # люди писали в один рядок, оператор переписав рядками — це ті самі замовлення
+    people = ["Пюре Биток Київський", "Каша пшона с грибами Капуста молода Филе З помідором", "Сметана"]
+    assert pick_author_entry(entries, people, _menu_with_smetana()) == (0, "")
+
+
+def test_first_entry_goes_to_author_on_explicit_action_even_with_another_unexplained():
+    from lunch.summary_owner import pick_author_entry
+
+    entries = parse_numbered_summary(SUMMARY_2026_11_05)
+    people = ["Пюре\nБиток Київський", "Сметана"]  # третю людину не знайшли
+    menu = _menu_with_smetana()
+    idx, reason = pick_author_entry(entries, people, menu)
+    assert idx is None and "2 пунктів" in reason  # фоновий дозбір лишається суворим
+    assert pick_author_entry(entries, people, menu, first_is_author=True) == (0, "")
+    # але не коли підсумок майже ні з чим не збігається
+    idx, reason = pick_author_entry(entries, ["Сметана"], menu, first_is_author=True)
+    assert idx is None and "майже не збігається" in reason
+
+
+def test_person_reparse_of_the_operator_takes_his_own_entry_from_the_summary():
+    """Регрес 2026-11-05: «Розібрати» на Святославі — orders=0, бо його страви лише в підсумку."""
+    db = FakeDB(menu=_menu_with_smetana())
+    _seed_people_orders(db, ["Пюре\nБиток Київський", "Каша пшона с грибами\nКапуста молода\nФиле З помідором", "Сметана"])
+    out = run(reparse_person(_operator_client(), object(), db, group_id=GROUP, tg_user_id=OPERATOR_UID))
+    assert out["orders"] == 1 and not out["errors"]
+    sv = db.participants[str(OPERATOR_UID)]["id"]
+    assert sorted(db.orders[sv]["lines"]) == sorted(["Пюре", "Філе курки запечене з ананасом або помідором", "Сирники"])
+    assert db.orders[sv]["source"] == 112494
+    assert any("свій пункт нумерованого підсумку" in d["reason"] for d in out["details"])
+    assert db.outbound[-1]["reply_to"] == 112494 and "Святослав, заказ:" in db.outbound[-1]["text"]
+
+
+def test_person_reparse_of_the_operator_when_his_entry_is_someone_elses():
+    db = FakeDB(menu=_menu_with_smetana())
+    # перший пункт збігається із замовленням людини, інших нічиїх немає — операторові нічого не приписуємо
+    _seed_people_orders(db, [
+        "Пюре\nФиле куриное с помидором\nСирники", "Пюре\nБиток Київський",
+        "Каша пшона с грибами\nКапуста молода\nФиле З помідором", "Сметана",
+    ])
+    out = run(reparse_person(_operator_client(), object(), db, group_id=GROUP, tg_user_id=OPERATOR_UID))
+    assert out["orders"] == 0 and str(OPERATOR_UID) not in db.participants
+    assert any(d["text"] == "[підсумок списком]" for d in out["details"])
+
+
+def test_day_reparse_attributes_first_entry_with_empty_placeholders():
+    db = FakeDB(menu=_menu_with_smetana())
+    msgs = [
+        FakeMsg(112482, "Пюре Биток Київський", _today_at(11, 21), sender_id=201, sender_name="Лера"),
+        FakeMsg(112486, "Каша пшона с грибами\nКапуста молода\nФиле З помідором", _today_at(11, 22), sender_id=202),
+        FakeMsg(112491, "Сметана", _today_at(11, 30), sender_id=203, sender_name="Evgeniia"),
+        FakeMsg(112494, SUMMARY_2026_11_05, _today_at(11, 32), sender_id=OPERATOR_UID, sender_name="Святослав"),
+    ]
+    run(reparse_day_with_client(FakeClient(msgs), object(), db))
+    sv = db.participants[str(OPERATOR_UID)]["id"]
+    assert sorted(db.orders[sv]["lines"]) == sorted(["Пюре", "Філе курки запечене з ананасом або помідором", "Сирники"])
+
+
 def main():
     tests = [
         test_plan_kinds_and_reasons,
@@ -864,6 +1111,7 @@ def main():
         test_catch_up_also_resolves_incomplete_orders,
         test_edit_or_reply_edits_normally,
         test_edit_or_reply_posts_new_reply_when_old_one_was_deleted,
+        test_edit_or_reply_same_text_is_done_not_retried,
         test_edit_or_reply_reraises_other_errors_and_unknown_orders,
         test_parse_numbered_summary_reads_the_real_summary,
         test_parse_numbered_summary_ignores_ordinary_texts,
@@ -876,6 +1124,20 @@ def main():
         test_catch_up_attributes_operator_order_once_and_only_from_whole_day,
         test_day_reparse_adds_operators_own_order_from_numbered_summary,
         test_day_reparse_leaves_summary_alone_when_it_cannot_be_reconciled,
+        test_person_reparse_edits_our_previous_reply_instead_of_posting_a_new_one,
+        test_person_reparse_keeps_paid_mark_in_the_reply,
+        test_person_reparse_counts_payment_found_in_the_same_pass,
+        test_paid_line_variants,
+        test_catch_up_edit_keeps_paid_mark,
+        test_refresh_order_reply_marks_paid_in_our_reply,
+        test_refresh_order_reply_does_nothing_without_order_or_reply,
+        test_catch_up_payment_from_chat_marks_paid_in_our_reply,
+        test_person_reparse_with_only_a_payment_marks_paid_in_our_reply,
+        test_empty_placeholder_entries_are_ignored_and_reformatted_entries_still_match,
+        test_first_entry_goes_to_author_on_explicit_action_even_with_another_unexplained,
+        test_person_reparse_of_the_operator_takes_his_own_entry_from_the_summary,
+        test_person_reparse_of_the_operator_when_his_entry_is_someone_elses,
+        test_day_reparse_attributes_first_entry_with_empty_placeholders,
     ]
     failed = 0
     for t in tests:

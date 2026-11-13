@@ -1,3 +1,4 @@
+import { transportProfile } from '@/site/transportCity';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useOnline } from '@/pwa/useOnline';
 import { CircleMarker, MapContainer, TileLayer, Marker, Pane, Polyline, Tooltip, useMap, useMapEvents } from 'react-leaflet';
@@ -57,8 +58,8 @@ export interface RouteMapProps {
   journey?: MapJourney | null;
 }
 
-/** Центр Малина — поки координати не завантажились */
-const MALYN_CENTER: LatLng = [50.768, 29.242];
+/** Центр карти, поки координати не завантажились: з профілю міста, інакше Малин */
+const FALLBACK_CENTER: LatLng = [50.768, 29.242];
 const DEFAULT_ZOOM = 13;
 /** Підписи вузлів видно з цього зуму (ближче — не накладаються) */
 const LABELS_FROM_ZOOM = 13;
@@ -216,7 +217,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
     return () => document.removeEventListener('keydown', onKey);
   }, [selectedStop, pickedPoint]);
 
-  const center = coordsData?.center ?? MALYN_CENTER;
+  const center = coordsData?.center ?? transportProfile().center ?? FALLBACK_CENTER;
   const stops = useMemo(() => coordsData?.stops ?? {}, [coordsData]);
   const chain = useMemo(() => stopNames.filter((n) => stops[n]), [stopNames, stops]);
   const markerNames = useMemo(

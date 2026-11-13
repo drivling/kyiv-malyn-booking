@@ -13,8 +13,23 @@ import { computeTripTiming, parseTimepoints, type SegSecFn, type TripTiming } fr
 import type { TransportRecord } from './types';
 import { parseClockToMinutes, tripDepartureMinutes } from './tripDeparture';
 
-/** Маршрути з перевіреною трасою (карта, час між зупинками з файлу segmentDurations) */
+/** Маршрути Малина з перевіреною трасою (карта, час між зупинками з файлу segmentDurations) */
 export const VERIFIED_ROUTE_IDS = ['2', '3', '5', '7', '8', '9', '10', '11', '12'] as const;
+
+/**
+ * Список вище — малинський. Інше місто (Коростень, Docs/korosten-transport-data-2026-11.md) не має «неперевірених»
+ * маршрутів: час між зупинками й лінії на карті беруться з його датасету. Місто перемикає useTransportDataset.
+ */
+const VERIFIED_LIST_CITY = 'Malyn';
+let verifiedCity = VERIFIED_LIST_CITY;
+export function setVerifiedRoutesCity(city: string): void {
+  verifiedCity = city || VERIFIED_LIST_CITY;
+}
+
+/** Маршрути, для яких малюємо лінії на загальній карті: у Малина — перевірені, в іншого міста — усі */
+export function verifiedRouteIds(allRouteIds: readonly string[]): readonly string[] {
+  return verifiedCity === VERIFIED_LIST_CITY ? VERIFIED_ROUTE_IDS : allRouteIds;
+}
 
 /** Fallback: хвилин між зупинками, коли немає даних для маршруту (розрахунок у коді) */
 export const MINS_BETWEEN_STOPS_FALLBACK = 2;
@@ -23,7 +38,7 @@ const VERIFIED_SET = new Set<string>(VERIFIED_ROUTE_IDS as unknown as string[]);
 
 /** Чи маршрут перевірений (є дані в segmentDurations) */
 export function isVerifiedRoute(routeId: string): boolean {
-  return VERIFIED_SET.has(routeId);
+  return verifiedCity !== VERIFIED_LIST_CITY || VERIFIED_SET.has(routeId);
 }
 
 /** Тривалість сегменту між двома зупинками (секунди). Якщо даних немає — 2 хв (120 с). */

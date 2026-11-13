@@ -10,6 +10,7 @@
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { buildGtfsFeed, type GtfsFeedStats } from './gtfs-feed';
 import { loadTransportDataset, type TransportDataset } from './local-transport';
+import { DEFAULT_TRANSPORT_CITY } from './transport-city-code';
 import { stopRedirectsOf } from './stop-redirects';
 
 export type TransportRevisionSource = 'initial' | 'seed' | 'dataset' | 'recalculate' | 'stop-redirects';
@@ -252,9 +253,9 @@ function toRecord(row: RevisionRow): TransportRevisionRecord {
  * Датасет до запису — для diff. null, коли датасету ще нема (порожня БД) або його не вдалося прочитати:
  * журнал не має зірвати сам запис.
  */
-export async function snapshotTransportDataset(prisma: PrismaClient): Promise<TransportDataset | null> {
+export async function snapshotTransportDataset(prisma: PrismaClient, cityCode: string = DEFAULT_TRANSPORT_CITY): Promise<TransportDataset | null> {
   try {
-    const ds = await loadTransportDataset(prisma);
+    const ds = await loadTransportDataset(prisma, cityCode);
     return ds.revision ? ds : null;
   } catch (e) {
     console.error('[transport-revisions] snapshot before write failed', e);
@@ -269,17 +270,19 @@ export async function snapshotTransportDataset(prisma: PrismaClient): Promise<Tr
  */
 export async function recordTransportRevision(
   prisma: PrismaClient,
-  options: { source: TransportRevisionSource; previous: TransportDataset | null }
+  options: { source: TransportRevisionSource; previous: TransportDataset | null; cityCode?: string }
 ): Promise<TransportRevisionRecord | null> {
+  const cityCode = options.cityCode ?? DEFAULT_TRANSPORT_CITY;
   try {
-    const current = await loadTransportDataset(prisma);
+    const current = await loadTransportDataset(prisma, cityCode);
     if (!current.revision) return null;
     if (options.previous?.revision === current.revision) return null;
     const diff = options.previous ? diffTransportDatasets(options.previous, current) : null;
     const stats = transportRevisionStats(current);
     const row = await prisma.transportRevision.upsert({
-      where: { revision: current.revision },
+      where: { cityCode_revision: { cityCode, revision: current.revision } },
       create: {
+        cityCode,
         revision: current.revision,
         source: options.source,
         stats: stats as unknown as Prisma.InputJsonValue,
@@ -295,20 +298,27 @@ export async function recordTransportRevision(
 }
 
 /** При старті: журнал порожній, а датасет є → перший рядок із поточного стану без diff */
-export async function ensureInitialTransportRevision(prisma: PrismaClient): Promise<TransportRevisionRecord | null> {
+export async function ensureInitialTransportRevision(
+  prisma: PrismaClient,
+  cityCode: string = DEFAULT_TRANSPORT_CITY,
+): Promise<TransportRevisionRecord | null> {
   try {
-    if ((await prisma.transportRevision.count()) > 0) return null;
+    if ((await prisma.transportRevision.count({ where: { cityCode } })) > 0) return null;
   } catch (e) {
     console.error('[transport-revisions] count failed', e);
     return null;
   }
-  return recordTransportRevision(prisma, { source: 'initial', previous: null });
+  return recordTransportRevision(prisma, { source: 'initial', previous: null, cityCode });
 }
 
 /** Останні рядки журналу, новіші першими (revision — ISO, тож сортується як час) */
-export async function listTransportRevisions(prisma: PrismaClient, limit = TRANSPORT_REVISIONS_DEFAULT_LIMIT): Promise<TransportRevisionRecord[]> {
+export async function listTransportRevisions(
+  prisma: PrismaClient,
+  limit = TRANSPORT_REVISIONS_DEFAULT_LIMIT,
+  cityCode: string = DEFAULT_TRANSPORT_CITY,
+): Promise<TransportRevisionRecord[]> {
   const take = Math.min(Math.max(1, Math.floor(limit)), TRANSPORT_REVISIONS_MAX_LIMIT);
-  const rows = await prisma.transportRevision.findMany({ orderBy: { revision: 'desc' }, take });
+  const rows = await prisma.transportRevision.findMany({ where: { cityCode }, orderBy: { revision: 'desc' }, take });
   return rows.map(toRecord);
 }
 

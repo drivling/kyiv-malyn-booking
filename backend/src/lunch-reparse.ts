@@ -37,6 +37,8 @@ export type LunchReparseResult = {
   replaced?: boolean;
   placeholder?: boolean;
   notified?: boolean;
+  /** підтвердження — правка нашої попередньої відповіді в групі, а не нова */
+  notifiedEdit?: boolean;
 };
 
 export type LunchJobType = 'reparse_today' | 'reparse_person';

@@ -796,6 +796,8 @@ export interface LunchReparseReport {
   replaced?: boolean;
   placeholder?: boolean;
   notified?: boolean;
+  /** підтвердження — правка нашої попередньої відповіді в групі, а не нова */
+  notifiedEdit?: boolean;
 }
 
 export interface LunchPersonMessage {
@@ -852,10 +854,23 @@ export interface DzhuraChatRow {
   isLunchGroup: boolean;
   captureEnabled: boolean;
   relayToSaved: boolean;
+  /** «Автовідповідь» (лише особисті чати): не відповіли за autoReplyDelaySec секунд — відповідає Claude */
+  autoReplyEnabled: boolean;
+  autoReplyDelaySec: number;
+  autoReplyNote: string | null;
   lastMessageAt: string | null;
   lastCapturedAt: string | null;
   dialogSyncedAt: string | null;
   messagesCount: number;
+}
+
+/** PATCH /admin/dzhura/chats/:id */
+export interface DzhuraChatPatch {
+  captureEnabled?: boolean;
+  relayToSaved?: boolean;
+  autoReplyEnabled?: boolean;
+  autoReplyDelaySec?: number;
+  autoReplyNote?: string | null;
 }
 
 /** Черга дублів у «Обране» */
@@ -872,6 +887,8 @@ export interface DzhuraStatus {
   dialogsSyncedAt: string | null;
   meTgUserId: string | null;
   queue: DzhuraQueueStats;
+  /** чи є в бекенда ключ Claude (без нього автовідповідь не працює) */
+  autoReplyAvailable: boolean;
 }
 
 /** Рядок збереженого повідомлення для перегляду в адмінці */
@@ -881,6 +898,8 @@ export interface DzhuraMessageRow {
   sentAt: string;
   sender: { tgUserId: string; name: string; username: string | null } | null;
   isOutgoing: boolean;
+  /** вихідне повідомлення написала автовідповідь, а не власник */
+  isAutoReply: boolean;
   text: string;
   mediaKind: string | null;
   replyToTgMessageId: string | null;
@@ -896,7 +915,7 @@ export interface DzhuraMessagesPage {
   nextBeforeId: number | null;
 }
 
-export type DzhuraJobType = 'sync_dialogs' | 'backfill';
+export type DzhuraJobType = 'sync_dialogs' | 'backfill' | 'autoreply_preview';
 export type DzhuraJobStatus = 'pending' | 'running' | 'done' | 'failed';
 
 export interface DzhuraJob {
@@ -914,7 +933,8 @@ export interface DzhuraJob {
 
 export type DzhuraJobRequest =
   | { type: 'sync_dialogs' }
-  | { type: 'backfill'; chatId: number; from: string; to: string };
+  | { type: 'backfill'; chatId: number; from: string; to: string }
+  | { type: 'autoreply_preview'; chatId: number };
 
 export type SmsMatchTypeThreshold = 'exact' | 'exact_approximate' | 'all';
 
@@ -1104,6 +1124,29 @@ export interface ArrivalReportView {
   /** Id запису в outbox браузера; null — надіслано одразу або старий клієнт */
   clientEventId?: string | null;
   createdAt: string;
+}
+
+/** Зовнішнє джерело розкладу, за яким стежить бекенд (GET /admin/transport/sources) */
+export interface WatchedSource {
+  key: string;
+  kind: 'html-tables' | 'ckan';
+  cityCode: string;
+  label: string;
+  url: string;
+  /** Дата зміни за даними самого джерела */
+  modified: string | null;
+  lastCheckedAt: string | null;
+  lastChangedAt: string | null;
+  acknowledgedAt: string | null;
+  /** Є зміна, яку ще не позначено переглянутою */
+  pending: boolean;
+  /** Що змінилось востаннє: номери маршрутів або файли набору */
+  changed: string[];
+  /** Докладно, якщо джерело розбирається парсером: «№6: − 07:00–07:25 …», «№6: + 07:05–07:30 …» */
+  changeLines?: string[];
+  parts: number;
+  failCount: number;
+  lastError: string | null;
 }
 
 /** GET /admin/transport/arrival-reports — зведення по рейсах на зупинках і останні звіти */

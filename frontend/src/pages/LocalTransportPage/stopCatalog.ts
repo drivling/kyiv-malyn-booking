@@ -1,6 +1,7 @@
 /**
  * Каталог зупинок (st_XXXX) — стабільні ідентифікатори для URL, координат і сегментів.
  */
+import { transportProfile } from '@/site/transportCity';
 import type { RouteStopWithOrder, TransportData } from './types';
 import type { VariantsByRoute } from './routeVariants';
 
@@ -112,7 +113,8 @@ export function buildSortedStopIds(
     variants?.forEach((v) => v.stops.filter((p) => !p.map_only).forEach((p) => stopSet.add(p.id)));
   });
 
-  ['Малинівка', 'Юрівка', 'БАМ', 'Царське село'].forEach((legacy) => {
+  // Старі народні назви — лише для міста, де вони є (профіль транспорту)
+  transportProfile().legacyStopNames.forEach((legacy) => {
     const id = nameToId.get(legacy);
     if (id) stopSet.add(id);
     else stopSet.add(legacy);

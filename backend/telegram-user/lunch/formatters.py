@@ -36,6 +36,18 @@ def format_menu(items: Sequence[MenuItemRow | tuple[str, int]], tray_price_uah: 
     return "\n".join(lines)
 
 
+def format_paid_line(total_uah: int, paid_uah: int) -> str | None:
+    """Рядок про оплату в нашій відповіді на замовлення (той самий у backend/src/lunch.ts: formatPaidLine).
+    None — оплат ще немає."""
+    if paid_uah <= 0:
+        return None
+    if paid_uah == total_uah:
+        return "✅ Оплатив"
+    if paid_uah > total_uah:
+        return f"✅ Оплатив (переплата {paid_uah - total_uah} грн)"
+    return f"Оплатив {paid_uah} грн, залишок {total_uah - paid_uah} грн"
+
+
 def format_order_confirm(
     display_name: str,
     lines: Sequence[Any],
@@ -47,7 +59,10 @@ def format_order_confirm(
     tray_total_uah: int = 0,
     unavailable: Sequence[str] = (),
     ambiguous: dict[str, Sequence[str]] | None = None,
+    paid_uah: int = 0,
 ) -> str:
+    """paid_uah — скільки людина вже заплатила за день: дописуємо «✅ Оплатив», щоб правка відповіді
+    (розбір, дозбір) не стирала позначку, яку поставила кнопка «Оплатив» в адмінці."""
     parts = [f"{display_name}, заказ:"]
     for line in lines:
         name = _line_dish_name(line)
@@ -69,6 +84,9 @@ def format_order_confirm(
     if tray_count > 0:
         parts.append(f"Лотки: {tray_count} × {tray_price_uah} = {tray_total_uah} грн")
     parts.append(f"Разом: {total} грн")
+    paid_line = format_paid_line(total, paid_uah)
+    if paid_line:
+        parts.append(paid_line)
     if unavailable:
         parts.append("Сьогодні немає: " + ", ".join(unavailable) + ".")
     if unmatched:

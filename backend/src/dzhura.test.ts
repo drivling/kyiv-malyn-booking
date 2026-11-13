@@ -15,6 +15,7 @@ import {
   kyivDayRangeUtc,
   kyivMidnightUtc,
   listMessages,
+  isAutoReplyAvailable,
   parseChatPatch,
   parseIsoDate,
   parseJobRequest,
@@ -81,6 +82,21 @@ describe('parsers', () => {
     expect(parseChatPatch({ relayToSaved: true })).toEqual({ relayToSaved: true });
     expect(() => parseChatPatch({ captureEnabled: 'yes' })).toThrow(/boolean/);
     expect(() => parseChatPatch({})).toThrow(/Нема що/);
+    expect(parseChatPatch({ autoReplyEnabled: true, autoReplyDelaySec: 80, autoReplyNote: ' подруга ' })).toEqual({
+      autoReplyEnabled: true,
+      autoReplyDelaySec: 80,
+      autoReplyNote: 'подруга',
+    });
+    expect(parseChatPatch({ autoReplyNote: null })).toEqual({ autoReplyNote: null });
+    expect(() => parseChatPatch({ autoReplyDelaySec: 2 })).toThrow(/від 5 до 3600/);
+    expect(() => parseChatPatch({ autoReplyNote: 5 })).toThrow(/рядком/);
+  });
+
+  test('isAutoReplyAvailable: ключ є і вимикач не «0»', () => {
+    expect(isAutoReplyAvailable({ ANTHROPIC_API_KEY: 'sk' })).toBe(true);
+    expect(isAutoReplyAvailable({ ANTHROPIC_API_KEY: ' ' })).toBe(false);
+    expect(isAutoReplyAvailable({})).toBe(false);
+    expect(isAutoReplyAvailable({ ANTHROPIC_API_KEY: 'sk', DZHURA_AUTOREPLY_ENABLED: '0' })).toBe(false);
   });
 
   test('parseJobRequest', () => {
@@ -92,6 +108,8 @@ describe('parsers', () => {
       to: '2026-09-02',
     });
     expect(() => parseJobRequest({ type: 'backfill', chatId: 0, from: '2026-09-01', to: '2026-09-02' })).toThrow(/chatId/);
+    expect(parseJobRequest({ type: 'autoreply_preview', chatId: 3 })).toEqual({ type: 'autoreply_preview', chatId: 3 });
+    expect(() => parseJobRequest({ type: 'autoreply_preview' })).toThrow(/chatId/);
     expect(() => parseJobRequest({ type: 'nope' })).toThrow(/Невідомий/);
   });
 });

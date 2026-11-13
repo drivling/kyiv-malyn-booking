@@ -1,4 +1,5 @@
 import type { PrismaClient } from '@prisma/client';
+import { DEFAULT_TRANSPORT_CITY } from './transport-city-code';
 
 /**
  * Факт прибуття міського автобуса від пасажирів (frontend: довге натискання на час рейсу на
@@ -260,14 +261,15 @@ const RECENT_LIMIT = 200;
  */
 export async function arrivalReportStats(
   prisma: PrismaClient,
-  opts: { days?: ReportDays; now?: Date } = {}
+  opts: { days?: ReportDays; now?: Date; cityCode?: string } = {}
 ): Promise<ArrivalReportStats> {
   const now = opts.now ?? new Date();
   const days = opts.days ?? 30;
+  const cityCode = opts.cityCode ?? DEFAULT_TRANSPORT_CITY;
   const where =
     days === 1
-      ? { serviceDate: { gte: kyivClock(now).date } }
-      : { createdAt: { gte: new Date(now.getTime() - days * DAY_MS) } };
+      ? { cityCode, serviceDate: { gte: kyivClock(now).date } }
+      : { cityCode, createdAt: { gte: new Date(now.getTime() - days * DAY_MS) } };
   const rows = await prisma.transportArrivalReport.findMany({ where, orderBy: { id: 'desc' } });
   const views: ArrivalReportView[] = rows.map((r) => ({
     id: r.id,

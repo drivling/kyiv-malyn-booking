@@ -1,6 +1,8 @@
 import { API_URL } from '@/utils/constants';
 import { telegramLoginHeaders } from '@/utils/telegramLogin';
 import { configureRouteNames } from '@/utils/routeNames';
+import { configureRouteColors } from '@/pages/LocalTransportPage/routeColors';
+import { DEFAULT_TRANSPORT_CITY, cityField, cityQuery } from '@/site/transportCity';
 import type {
   Schedule,
   Booking,
@@ -51,6 +53,7 @@ import type {
   ArrivalReportResult,
   ArrivalReportDays,
   ArrivalReportStats,
+  WatchedSource,
   DeleteAccountResponse,
 } from '@/types';
 import type { TransportDataset } from './transportDataset';
@@ -936,10 +939,14 @@ class ApiClient {
     return this.request(`/admin/lunch/orders/${orderId}`, { method: 'DELETE' });
   }
 
+  /** Оплата + «✅ Оплатив» у нашій відповіді в групі (правка, як при ручному редагуванні). */
   async payLunchDebt(participantId: number, amountUah?: number): Promise<{
     ok: boolean;
     payment: { amountUah: number; ordered: number; paid: number; debt: number };
     summary: LunchDaySummary;
+    telegramQueued?: boolean;
+    telegramError?: string | null;
+    hasReply?: boolean;
   }> {
     return this.request('/admin/lunch/pay', {
       method: 'POST',
@@ -1032,7 +1039,7 @@ class ApiClient {
 
   async updateDzhuraChat(
     id: number,
-    patch: { captureEnabled?: boolean; relayToSaved?: boolean },
+    patch: import('@/types').DzhuraChatPatch,
   ): Promise<import('@/types').DzhuraChatRow> {
     return this.request(`/admin/dzhura/chats/${id}`, {
       method: 'PATCH',
@@ -1115,20 +1122,22 @@ class ApiClient {
    * Датасет міського транспорту. fresh — повз HTTP-кеш браузера (GET кешується на 5 хв): адмінка редагує
    * датасет і має бачити останній запис, інакше збереження відкотить чужі зміни (revision / 409).
    */
-  async getTransportDataset(opts: { fresh?: boolean } = {}): Promise<TransportDataset> {
+  async getTransportDataset(opts: { fresh?: boolean; city?: string } = {}): Promise<TransportDataset> {
+    const city = opts.city ?? DEFAULT_TRANSPORT_CITY;
     // Таймаут: на «ніби є мережа» (lie-fi) запит інакше висить хвилинами, а сторінка має перейти на локальну копію
     const signal = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(TRANSPORT_DATASET_TIMEOUT_MS) : undefined;
-    const dataset = await this.request<TransportDataset>('/transport/dataset', {
+    const dataset = await this.request<TransportDataset>(`/transport/dataset${cityQuery(city)}`, {
       ...(opts.fresh ? { cache: 'no-store' as const } : {}),
       ...(signal ? { signal } : {}),
     });
     // Номери маршрутів для показу («11/1») — для всіх, хто завантажує датасет (сайт, адмінка, стіна)
-    configureRouteNames(dataset?.routes);
+    configureRouteNames(dataset?.routes, city);
+    configureRouteColors(dataset?.meta, city);
     return dataset;
   }
 
   /** Відкриття табло з QR-наклейки (stickerScan.ts шле один раз за сесію при завантаженні табло) */
-  async trackStickerScan(scan: { stopId: string; side: StickerSide; clientId?: string }): Promise<{ ok: boolean; counted: boolean }> {
+  async trackStickerScan(scan: { stopId: string; side: StickerSide; clientId?: string; city?: string }): Promise<{ ok: boolean; counted: boolean }> {
     return this.request('/transport/sticker-scans', {
       method: 'POST',
       body: JSON.stringify(scan),
@@ -1152,23 +1161,38 @@ class ApiClient {
   }
 
   /** Адмін: звіти про факт прибуття — зведення по рейсах на зупинках і останні звіти за `days` */
-  async getArrivalReports(days: ArrivalReportDays = 30): Promise<ArrivalReportStats> {
-    return this.request(`/admin/transport/arrival-reports?days=${days}`);
+  async getArrivalReports(days: ArrivalReportDays = 30, city?: string): Promise<ArrivalReportStats> {
+    return this.request(`/admin/transport/arrival-reports?days=${days}${cityQuery(city, '&')}`);
   }
 
   /** Адмін: видалити хибний звіт */
-  async deleteArrivalReport(id: number): Promise<{ ok: boolean }> {
-    return this.request(`/admin/transport/arrival-reports/${id}`, { method: 'DELETE' });
+  async deleteArrivalReport(id: number, city?: string): Promise<{ ok: boolean }> {
+    return this.request(`/admin/transport/arrival-reports/${id}${cityQuery(city)}`, { method: 'DELETE' });
+  }
+
+  /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */
+  async getWatchedSources(): Promise<{ sources: WatchedSource[] }> {
+    return this.request('/admin/transport/sources');
+  }
+
+  /** Адмін: перевірити джерела зараз — те саме, що робить таймер на сервері */
+  async checkWatchedSources(): Promise<{ sources: WatchedSource[] }> {
+    return this.request('/admin/transport/sources/check', { method: 'POST' });
+  }
+
+  /** Адмін: «Переглянуто» — зміну джерела враховано */
+  async acknowledgeWatchedSource(key: string): Promise<{ sources: WatchedSource[] }> {
+    return this.request(`/admin/transport/sources/${encodeURIComponent(key)}/ack`, { method: 'POST' });
   }
 
   /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */
-  async getStickerScanStats(days: StickerStatsDays = 30): Promise<StickerScanStats> {
-    return this.request(`/admin/transport/sticker-scans?days=${days}`);
+  async getStickerScanStats(days: StickerStatsDays = 30, city?: string): Promise<StickerScanStats> {
+    return this.request(`/admin/transport/sticker-scans?days=${days}${cityQuery(city, '&')}`);
   }
 
   /** Віджет на стіну: сьогоднішні відкриття з QR + нові скани з id > after (доступ за ключем посилання) */
-  async getStickerWall(key: string, after = 0): Promise<StickerWallSnapshot> {
-    return this.request(`/transport/sticker-wall?key=${encodeURIComponent(key)}&after=${after}`);
+  async getStickerWall(key: string, after = 0, city?: string): Promise<StickerWallSnapshot> {
+    return this.request(`/transport/sticker-wall?key=${encodeURIComponent(key)}&after=${after}${cityQuery(city, '&')}`);
   }
 
   /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні */
@@ -1177,10 +1201,13 @@ class ApiClient {
   }
 
   /** Адмін: друк або SVG наклейок зупинки — для статистики («наклейка є») */
-  async recordStickerPrint(print: { stopId: string; sides: StickerSide[]; size: 'A5' | 'A4' }): Promise<{ ok: boolean; count: number }> {
+  async recordStickerPrint(
+    print: { stopId: string; sides: StickerSide[]; size: 'A5' | 'A4' },
+    city?: string
+  ): Promise<{ ok: boolean; count: number }> {
     return this.request('/admin/transport/sticker-prints', {
       method: 'POST',
-      body: JSON.stringify(print),
+      body: JSON.stringify({ ...print, ...cityField(city) }),
     });
   }
 
@@ -1189,7 +1216,7 @@ class ApiClient {
    * відтоді змінився (інша вкладка, перерахунок часу, скрипт), сервер відповідає 409 і нічого не пише.
    * Без baseRevision перевірки немає (скрипти).
    */
-  async putTransportDataset(dataset: TransportDataset, baseRevision?: string | null): Promise<{
+  async putTransportDataset(dataset: TransportDataset, baseRevision?: string | null, city?: string): Promise<{
     ok: boolean;
     counts: {
       stops: number;
@@ -1206,13 +1233,13 @@ class ApiClient {
     const body: Record<string, unknown> = { ...dataset };
     delete body.revision;
     if (baseRevision) body.baseRevision = baseRevision;
-    return this.request('/transport/dataset', {
+    return this.request(`/transport/dataset${cityQuery(city)}`, {
       method: 'PUT',
       body: JSON.stringify(body),
     });
   }
 
-  async recalculateTransportSegments(routeId?: string): Promise<{
+  async recalculateTransportSegments(routeId?: string, city?: string): Promise<{
     ok: boolean;
     routes: string[];
     segmentsWritten: number;
@@ -1221,7 +1248,7 @@ class ApiClient {
     osrmFailed: number;
     corrections: string[];
   }> {
-    return this.request('/admin/transport/recalculate-segments', {
+    return this.request(`/admin/transport/recalculate-segments${cityQuery(city)}`, {
       method: 'POST',
       body: JSON.stringify(routeId ? { routeId } : {}),
     });

@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
+import { transportProfile } from '@/site/transportCity';
 import './LocalTransportPage.css';
 
 type Props = {
@@ -60,13 +61,16 @@ export function LocalTransportSubNav({ searchDate, searchTime, fromStopId }: Pro
       >
         Зупинка
       </Link>
-      <Link
-        className={`lt-subnav-link ${isScheme ? 'lt-subnav-link--active' : ''}`}
-        to={`/transport/scheme${suffix}`}
-        aria-current={isScheme ? 'page' : undefined}
-      >
-        Схема
-      </Link>
+      {/* схема є лише в міста з намальованою схемою (Малин); Коростеня — фаза 12 */}
+      {transportProfile().hasScheme && (
+        <Link
+          className={`lt-subnav-link ${isScheme ? 'lt-subnav-link--active' : ''}`}
+          to={`/transport/scheme${suffix}`}
+          aria-current={isScheme ? 'page' : undefined}
+        >
+          Схема
+        </Link>
+      )}
     </nav>
   );
 }
