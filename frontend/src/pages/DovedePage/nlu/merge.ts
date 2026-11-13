@@ -4,6 +4,7 @@
  * чекаємо Claude. Сервер уже відкинув id, яких немає в словнику; тут — ще одна перевірка тим самим словником.
  */
 import { resolvePlace } from './places';
+import { withHouseFromText } from './streets';
 import type { LocalParse, TripIntent } from './types';
 
 /** Чи два розбори ведуть до тієї самої відповіді (те саме правило, що `intentsAgree` на сервері) */
@@ -42,8 +43,17 @@ export function usableAiIntent(ai: TripIntent | null | undefined): ai is TripInt
  * Який розбір показати, коли місцевий не впевнений. Claude має перевагу, крім випадку, коли він сам не
  * зрозумів (low і жодного місця), а словник хоч одне місце знайшов.
  */
-export function pickIntent(local: TripIntent, ai: TripIntent | null | undefined): TripIntent {
-  if (!usableAiIntent(ai)) return local;
+/** Claude ставить id вулиці, а номер будинку лишає в словах людини — переносимо його в id */
+export function withHouses(intent: TripIntent): TripIntent {
+  const fix = (r: TripIntent['from']) => (r && r.id.startsWith('street.') ? { ...r, id: withHouseFromText(r.id, r.text) } : r);
+  const from = fix(intent.from);
+  const to = fix(intent.to);
+  return from === intent.from && to === intent.to ? intent : { ...intent, from, to };
+}
+
+export function pickIntent(local: TripIntent, aiRaw: TripIntent | null | undefined): TripIntent {
+  if (!usableAiIntent(aiRaw)) return local;
+  const ai = withHouses(aiRaw);
   if (ai.confidence === 'low' && !ai.from && !ai.to && (local.from || local.to)) return local;
   return ai;
 }

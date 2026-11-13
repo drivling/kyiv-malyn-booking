@@ -7,7 +7,7 @@
  *   DOVEDE_EVAL_STOPS=dataset.json …                                       # свіжі зупинки (GET /transport/dataset) замість знімка
  *   DOVEDE_EVAL_REPORT=/tmp/dovede-eval.txt …                              # звіт ще й у файл
  *
- * Критерії фази: ≥ 90% слотів на питаннях `scope: "mvp"`, `"stops"` і `"routes"`, медіана < 3 с, з другого виклику кеш читається.
+ * Критерії фази: ≥ 90% слотів на питаннях усіх зон, крім `"later"`, медіана < 3 с, з другого виклику кеш читається.
  */
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
@@ -25,7 +25,7 @@ interface GoldenCase {
   id: string;
   text: string;
   expect: { intent?: string; from?: string | null; to?: string | null; when?: Partial<TripIntent['when']>; modes?: string[]; routes?: string[]; unknown?: string[]; confidence?: string };
-  scope: 'mvp' | 'stops' | 'routes' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'later';
 }
 
 /**
@@ -65,7 +65,7 @@ test.skipIf(!ENABLED)(
     const stops = (JSON.parse(fs.readFileSync(stopsFile, 'utf8')) as { stops: Array<{ id: string; name: string }> }).stops.map((x) => ({ id: x.id, name: x.name }));
     const routes = (JSON.parse(fs.readFileSync(path.resolve(path.dirname(GOLDEN), 'malyn-routes.json'), 'utf8')) as { routes: Array<{ id: string; no: string; fromName: string; toName: string }> }).routes;
     const all = (JSON.parse(fs.readFileSync(GOLDEN, 'utf8')) as { cases: GoldenCase[] }).cases;
-    const cases = process.env.DOVEDE_EVAL_SCOPE === 'all' ? all : all.filter((c) => c.scope === 'mvp' || c.scope === 'stops' || c.scope === 'routes');
+    const cases = process.env.DOVEDE_EVAL_SCOPE === 'all' ? all : all.filter((c) => c.scope !== 'later');
 
     let ok = 0;
     let total = 0;

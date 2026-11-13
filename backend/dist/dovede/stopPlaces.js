@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.stopBaseName = stopBaseName;
+exports.wordMatchesName = wordMatchesName;
 exports.buildStopPlaces = buildStopPlaces;
 exports.matchStopPlace = matchStopPlace;
 /**
@@ -34,7 +35,8 @@ function stem(word) {
         return word;
     return word.slice(0, word.length >= 7 ? -2 : -1);
 }
-function wordMatches(word, token) {
+/** Чи слово питання — це слово назви в якомусь відмінку (спільне для зупинок і вулиць) */
+function wordMatchesName(word, token) {
     if (NUMBER_RE.test(word) || word.length <= 4)
         return token === word;
     return token.startsWith(stem(word));
@@ -79,7 +81,7 @@ function matchFrom(entry, toks, i) {
         while (pos < toks.length && last >= 0 && SKIP.has(toks[pos].n))
             pos++;
         const tok = toks[pos];
-        if (tok && wordMatches(word, tok.n)) {
+        if (tok && wordMatchesName(word, tok.n)) {
             last = pos;
             pos++;
             continue;

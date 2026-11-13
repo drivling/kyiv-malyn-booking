@@ -16,11 +16,13 @@ import { anchorFor, type AnchorStop, type IntercityMode } from '../data/anchors'
 import { KYIV_POINTS, TRAIN_POS, kyivStopText, mapsTransitUrl, metroHint } from '../data/kyiv';
 import { placeById, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
 import { resolvePlace } from '../nlu/places';
+import { streetIsApprox } from '../nlu/streets';
 import { addDays, partEndMins, partStartMins } from '../nlu/parseLocal';
 import type { KyivNow, TripIntent, TripMode } from '../nlu/types';
 import { intercityTrips, type IntercityTrip } from './intercity';
 import { clock, leadFor } from './narrate';
 import type { RouteLike } from '../nlu/routes';
+import type { Endpoint } from '@/pages/LocalTransportPage/journey';
 import type { ComposeOutcome, LocalPlanner, RouteBoard, Story, StoryLeg } from './types';
 
 // ─── Форма поїздки ────────────────────────────────────────────────────────────────────────────
@@ -113,10 +115,39 @@ interface LocalPick {
   transfers: number;
 }
 
+/**
+ * Кінець міської ділянки: зупинка або точка (вулиця, будинок — Docs/dovede-roadmap.md, фаза 4). Планувальник
+ * уміє обидва; від точки до найближчих зупинок він сам рахує пішу ділянку.
+ */
+interface Spot {
+  ep: Endpoint;
+  label: string;
+  coords: [number, number] | null;
+}
+
+function spotOf(planner: LocalPlanner | null, place: GazetteerPlace): Spot | null {
+  const stopId = place.stopIds?.[0];
+  if (stopId) return { ep: { kind: 'stop', stopId }, label: planner?.stopName(stopId) ?? place.label, coords: planner?.stopCoords(stopId) ?? null };
+  if (place.latLng) return { ep: { kind: 'point', lat: place.latLng[0], lng: place.latLng[1] }, label: place.label, coords: place.latLng };
+  return null;
+}
+
+function stopSpot(planner: LocalPlanner, stopId: string): Spot {
+  return { ep: { kind: 'stop', stopId }, label: planner.stopName(stopId), coords: planner.stopCoords(stopId) };
+}
+
+/** Примітка під відповіддю, коли адреса приблизна: будинку немає в даних, точка — середина вулиці чи сусідній номер */
+function approxNote(place: GazetteerPlace): string | null {
+  if (!place.id.startsWith('street.') || !streetIsApprox(place.id)) return null;
+  return place.id.includes(':')
+    ? 'Точного будинку в моїх даних немає — показую найближче відоме місце на цій вулиці.'
+    : 'Номер будинку не названо — показую до середини вулиці. Назвіть будинок або зупинку поруч, і буде точніше.';
+}
+
 /** Пішки по прямій × 1,5 (як у планувальнику), 72 м/хв */
-function longWalk(planner: LocalPlanner, fromStop: string, toStop: string): { meters: number; minutes: number } | null {
-  const a = planner.stopCoords(fromStop);
-  const b = planner.stopCoords(toStop);
+function longWalk(from: Spot, to: Spot): { meters: number; minutes: number } | null {
+  const a = from.coords;
+  const b = to.coords;
   if (!a || !b) return null;
   const meters = Math.round((haversineDistance(a[0], a[1], b[0], b[1]) * 1.5) / 10) * 10;
   return { meters, minutes: Math.max(1, Math.round(meters / 72)) };
@@ -126,12 +157,13 @@ function placeName(planner: LocalPlanner, p: Place): string | null {
   return 'stopId' in p ? planner.stopName(p.stopId) : null;
 }
 
-function journeyLegs(j: Journey, planner: LocalPlanner): StoryLeg[] {
+/** `pointLabel` — як назвати кінець пішої ділянки, що веде до точки (адреси), а не до зупинки */
+function journeyLegs(j: Journey, planner: LocalPlanner, pointLabel: string | null = null): StoryLeg[] {
   const legs: StoryLeg[] = [];
   for (const l of j.legs) {
     if (l.kind === 'walk') {
       if (l.meters < 40) continue;
-      legs.push({ kind: 'walk', meters: Math.round(l.meters / 10) * 10, minutes: Math.max(1, Math.round(l.arrMins - l.depMins)), toLabel: placeName(planner, l.to), late: false });
+      legs.push({ kind: 'walk', meters: Math.round(l.meters / 10) * 10, minutes: Math.max(1, Math.round(l.arrMins - l.depMins)), toLabel: placeName(planner, l.to) ?? pointLabel, late: false });
     } else {
       legs.push({
         kind: 'bus',
@@ -157,20 +189,21 @@ function firstBus(j: Journey) {
 function afterAlight(
   planner: LocalPlanner,
   stopId: string,
-  destStop: string,
+  dest: Spot,
   at: number,
   atMax: number,
   buffer: number,
   approx: boolean,
 ): LocalPick | null {
-  const plan = planner.plan({ kind: 'stop', stopId }, { kind: 'stop', stopId: destStop });
+  const plan = planner.plan({ kind: 'stop', stopId }, dest.ep);
+  const destPoint = dest.ep.kind === 'point' ? dest.label : null;
   const readyMax = atMax + buffer;
   const readyTyp = at + buffer;
   const j = plan.journeys.find((x) => x.departMins >= readyMax) ?? null;
   const walk = plan.directWalk;
   if (walk && (!j || at + walk.minutes <= j.arriveMins + 2)) {
     return {
-      legs: [{ kind: 'walk', meters: Math.round(walk.meters / 10) * 10, minutes: walk.minutes, toLabel: planner.stopName(destStop), late: false }],
+      legs: [{ kind: 'walk', meters: Math.round(walk.meters / 10) * 10, minutes: walk.minutes, toLabel: dest.label, late: false }],
       departMins: at,
       arriveMins: at + walk.minutes,
       approx,
@@ -179,7 +212,7 @@ function afterAlight(
     };
   }
   if (j) {
-    const legs = journeyLegs(j, planner);
+    const legs = journeyLegs(j, planner, destPoint);
     const earlier = plan.journeys.find((x) => x.departMins >= readyTyp && x.departMins < readyMax && x.arriveMins < j.arriveMins);
     const eb = earlier ? firstBus(earlier) : undefined;
     const bus = legs.find((l): l is Extract<StoryLeg, { kind: 'bus' }> => l.kind === 'bus');
@@ -188,10 +221,10 @@ function afterAlight(
     }
     return { legs, departMins: j.departMins, arriveMins: j.arriveMins, approx: false, worst: j.arriveMins, transfers: j.transfers };
   }
-  const lw = longWalk(planner, stopId, destStop);
+  const lw = longWalk(stopSpot(planner, stopId), dest);
   if (!lw) return null;
   return {
-    legs: [{ kind: 'walk', meters: lw.meters, minutes: lw.minutes, toLabel: planner.stopName(destStop), late: true }],
+    legs: [{ kind: 'walk', meters: lw.meters, minutes: lw.minutes, toLabel: dest.label, late: true }],
     departMins: at,
     arriveMins: at + lw.minutes,
     approx,
@@ -201,8 +234,8 @@ function afterAlight(
 }
 
 /** До посадки на маршрутку / електричку: виїхати якомога пізніше, але бути на зупинці до deadline */
-function beforeBoard(planner: LocalPlanner, originStop: string, stopId: string, deadline: number): LocalPick | null {
-  const plan = planner.plan({ kind: 'stop', stopId: originStop }, { kind: 'stop', stopId });
+function beforeBoard(planner: LocalPlanner, origin: Spot, stopId: string, deadline: number): LocalPick | null {
+  const plan = planner.plan(origin.ep, { kind: 'stop', stopId });
   const fit = plan.journeys.filter((x) => x.arriveMins <= deadline);
   const j = fit.reduce<Journey | null>((best, x) => (!best || x.departMins > best.departMins ? x : best), null);
   const walk = plan.directWalk;
@@ -217,7 +250,7 @@ function beforeBoard(planner: LocalPlanner, originStop: string, stopId: string, 
     };
   }
   if (j) return { legs: journeyLegs(j, planner), departMins: j.departMins, arriveMins: j.arriveMins, approx: false, worst: j.arriveMins, transfers: j.transfers };
-  const lw = longWalk(planner, originStop, stopId);
+  const lw = longWalk(origin, stopSpot(planner, stopId));
   if (!lw || lw.minutes > 50) return null;
   return {
     legs: [{ kind: 'walk', meters: lw.meters, minutes: lw.minutes, toLabel: planner.stopName(stopId), late: false }],
@@ -324,7 +357,7 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
   const { planner, date } = input;
   const out: Option[] = [];
   const dest = shape.dest;
-  const destStop = dest.stopIds?.[0] ?? null;
+  const destSpot = spotOf(planner, dest);
   const fromLabel = shape.kyivPoint ? placeLabel(placeById(shape.kyivPoint)!) : 'Київ';
   for (const trip of intercityTrips(input.schedules, 'to_malyn', date)) {
     if (!modeAllowed(trip.mode, input.intent.modes)) continue;
@@ -351,13 +384,13 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
       const atMax = trip.arrMaxMins + a.offsetMin;
       const approx = !trip.exact;
       let cand: MalynPick | null = null;
-      if (!destStop || dest.isCity) {
+      if (!destSpot || dest.isCity) {
         if (a.offsetMin !== 0) continue; // «у Малин» — до головної зупинки
         cand = { a, legs: [], arrive: at, approx, worst: atMax };
       } else if (dest.id === a.placeId || dest.stopIds?.includes(a.stopId)) {
         cand = { a, legs: [], arrive: at, approx, worst: atMax };
       } else if (planner) {
-        const pick = afterAlight(planner, a.stopId, destStop, at, atMax, anchor.bufferAfterAlight, approx);
+        const pick = afterAlight(planner, a.stopId, destSpot, at, atMax, anchor.bufferAfterAlight, approx);
         if (!pick) continue;
         const wait: StoryLeg = {
           kind: 'wait',
@@ -383,7 +416,7 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
       arrive: best.arrive,
       approx: best.approx,
       endLabel,
-      endNote: late ? 'міські автобуси вже не ходять' : null,
+      endNote: late ? 'міські автобуси вже не ходять' : approxNote(dest),
       price: trip.schedule.priceUah ?? null,
     });
     out.push({ story, mode: trip.mode, leave: board.mins, worst: best.worst, confirmed: best.a.confirmed });
@@ -395,7 +428,7 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
   const { planner, date } = input;
   const out: Option[] = [];
   const origin = shape.origin;
-  const originStop = origin.isCity ? null : origin.stopIds?.[0] ?? null;
+  const originSpot = origin.isCity ? null : spotOf(planner, origin);
   const toLabel = shape.kyivPoint ? placeLabel(placeById(shape.kyivPoint)!) : 'Київ';
   for (const trip of intercityTrips(input.schedules, 'from_malyn', date)) {
     if (!modeAllowed(trip.mode, input.intent.modes)) continue;
@@ -405,13 +438,13 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
       const boardAt = trip.depMins + a.offsetMin;
       const deadline = boardAt - anchor.bufferBeforeBoard;
       let cand: BoardPick | null = null;
-      if (!originStop) {
+      if (!originSpot) {
         if (a.offsetMin !== 0) continue;
         cand = { a, legs: [], leave: deadline, board: boardAt };
       } else if (origin.id === a.placeId || origin.stopIds?.includes(a.stopId)) {
         cand = { a, legs: [], leave: deadline, board: boardAt };
       } else if (planner) {
-        const pick = beforeBoard(planner, originStop, a.stopId, deadline);
+        const pick = beforeBoard(planner, originSpot, a.stopId, deadline);
         if (!pick) continue;
         const spare = boardAt - pick.arriveMins;
         const wait: StoryLeg = { kind: 'wait', text: `Чекайте ${a.label}: до відправлення ${spare} хв.` };
@@ -501,12 +534,14 @@ function pickPerMode(options: Option[], win: SearchWindow): { stories: Story[]; 
 
 function intraOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'intra' }>, win: SearchWindow): ComposeOutcome {
   const { planner } = input;
-  const a = shape.origin.stopIds?.[0];
-  const b = shape.dest.stopIds?.[0];
+  const a = spotOf(planner, shape.origin);
+  const b = spotOf(planner, shape.dest);
   if (!planner || !a || !b) return { kind: 'empty', reason: 'no_trips' };
   const fromLabel = placeLabel(shape.origin);
   const toLabel = placeLabel(shape.dest);
-  const plan = planner.plan({ kind: 'stop', stopId: a }, { kind: 'stop', stopId: b });
+  const plan = planner.plan(a.ep, b.ep);
+  const destPoint = b.ep.kind === 'point' ? shape.dest.label : null;
+  const endNote = approxNote(shape.dest) ?? approxNote(shape.origin)?.replace('показую до середини', 'рахую від середини').replace('показую найближче', 'рахую від найближчого') ?? null;
   // Людина назвала маршрут («пʼятіркою до вокзалу») — спершу поїздки ним; якщо ним не доїхати, чесно кажемо й показуємо інші
   const wanted = input.intent.routes ?? [];
   const usesWanted = (j: Journey) => j.legs.some((l) => l.kind === 'transit' && wanted.includes(l.routeId));
@@ -520,12 +555,12 @@ function intraOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'in
   const routeMissed = wanted.length > 0 && picks.length === 0;
   if (routeMissed) picks = inWindow(plan.journeys);
   const stories = picks.map((j, i) =>
-    makeStory(`city-${i}-${j.departMins}`, 'city_bus', input.date, fromLabel, toLabel, journeyLegs(j, planner), {
+    makeStory(`city-${i}-${j.departMins}`, 'city_bus', input.date, fromLabel, toLabel, journeyLegs(j, planner, destPoint), {
       leave: j.departMins,
       arrive: j.arriveMins,
       approx: false,
       endLabel: toLabel,
-      endNote: null,
+      endNote,
       price: null,
     }),
   );
@@ -538,7 +573,7 @@ function intraOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'in
         arrive: leave + w.minutes,
         approx: false,
         endLabel: toLabel,
-        endNote: null,
+        endNote,
         price: null,
       }),
     );

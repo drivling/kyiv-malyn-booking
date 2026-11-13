@@ -48,7 +48,8 @@ describe('«Доведе» — зупинки з розкладу як місц�
     expect(parse('з Чорновола 36 на вокзал').from?.id).toBe('st_0110');
     expect(parse('з Чорновола 10 на вокзал').from?.id).toBe('st_0111');
     expect(parse('з Чорновола на вокзал').from?.id).toBe('st_0110');
-    expect(parse('з Чорновола 99 на вокзал').from).toBeNull();
+    // такої зупинки немає — це вже адреса на вулиці (nlu/streets.ts), а не зупинка
+    expect(parse('з Чорновола 99 на вокзал').from?.id).toBe('street.viacheslava-chornovola:99');
   });
 
   it('вулиця, яку вже знає кураторський словник, без номера лишається за ним', () => {

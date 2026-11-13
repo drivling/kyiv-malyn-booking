@@ -5,6 +5,7 @@
  */
 import { placeById, type GazetteerPlace } from './gazetteer';
 import type { StopPlace } from './stopPlaces';
+import { streetPlace } from './streets';
 
 let stopIndex: StopPlace[] = [];
 let byId = new Map<string, GazetteerPlace>();
@@ -18,7 +19,7 @@ export function getStopPlaces(): StopPlace[] {
   return stopIndex;
 }
 
-/** Місце за id: `city.Kyiv`, `malyn.vokzal` або зупинка `st_0071` */
+/** Місце за id: `city.Kyiv`, `malyn.vokzal`, зупинка `st_0071` або адреса `street.horodyshchanska:20` */
 export function resolvePlace(id: string): GazetteerPlace | undefined {
-  return placeById(id) ?? byId.get(id);
+  return placeById(id) ?? byId.get(id) ?? (id.startsWith('street.') ? streetPlace(id) : undefined);
 }

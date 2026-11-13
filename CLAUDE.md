@@ -160,7 +160,12 @@ of `dist` in a commit.
   by the displayed number and puts route **ids** into `TripIntent.routes`; a route named without a from–to pair is
   intent `route` and answers with `ui/RouteCard.tsx` (`DayPlanner.routeDepartures`), and the endpoint lists the
   city's routes (no `unreliable`) in the prompt. Golden questions have scopes `mvp` / `stops` / `routes` with the
-  snapshots `eval/malyn-stops.json` and `eval/malyn-routes.json`.
+  snapshots `eval/malyn-stops.json` and `eval/malyn-routes.json`. Streets and house addresses are places without
+  stops: `nlu/streets.ts` + `data/malyn-streets.json` (generated from the OSM snapshot by
+  `data/malyn-transport/dovede-streets/build.py`, never edited by hand; backend copy of the names in
+  `src/dovede/streets.ts`). Such a place carries `latLng`, its id is `street.<slug>` or `street.<slug>:<house>`, and
+  the composer hands the planner a point (`Spot`). The house number never goes into the URL, no geocoder is called
+  at answer time, and an address missing from the data is answered as «приблизно».
 
 ### In-process scheduled jobs (no external cron)
 

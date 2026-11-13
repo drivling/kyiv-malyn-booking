@@ -5,9 +5,10 @@
  */
 import { CITY_LABEL, PLACES, type GazetteerPlace } from './gazetteer';
 import { buildStopPlaces, type StopLike } from './stopPlaces';
+import { MALYN_STREETS } from './streets';
 
 /** Міняти разом зі змістом промпту: видно в журналі DovedeQuery, щоб порівнювати розбори між версіями */
-export const PROMPT_VERSION = 'dovede-understand-v3';
+export const PROMPT_VERSION = 'dovede-understand-v4';
 
 /** Маршрут міського автобуса: id — ключ у базі, no — номер, який бачить людина («11/1») */
 export interface RouteLike {
@@ -54,6 +55,7 @@ const byId = <T extends { id: string }>(a: T, b: T) => (a.id < b.id ? -1 : a.id 
  * лише тоді, коли в адмінці міняють зупинки, тож між запитами лишається байт-у-байт однаковим.
  */
 export function buildSystemPrompt(stops: StopLike[] = [], routes: RouteLike[] = []): string {
+  const streetLines = [...MALYN_STREETS].sort(byId).map((s) => `- ${s.id} — ${s.kind} ${s.name}${s.old.length ? ` (кол. ${s.old.join(', ')})` : ''}`);
   const routeLines = [...routes].sort(byId).map((r) => {
     const ends = [r.fromName, r.toName].filter(Boolean).join(' — ');
     return `- ${r.id} — автобус №${r.no}${ends ? `: ${ends}` : ''}`;
@@ -73,7 +75,7 @@ export function buildSystemPrompt(stops: StopLike[] = [], routes: RouteLike[] = 
     'тож ти їх не знаєш і не називаєш: ти лише кажеш, що людина спитала.',
     '',
     '## Словник місць',
-    'У полях from і to дозволені лише id з цього розділу й зі списку зупинок нижче. Скопіюй id точно.',
+    'У полях from і to дозволені лише id з цього розділу та зі списків зупинок і вулиць нижче. Скопіюй id точно.',
     ...places,
     ...(stopLines.length
       ? [
@@ -86,6 +88,14 @@ export function buildSystemPrompt(stops: StopLike[] = [], routes: RouteLike[] = 
           ...stopLines,
         ]
       : []),
+    '',
+    '## Вулиці Малина',
+    'Для адрес і вулиць, де немає зупинки з такою назвою. Якщо людина назвала вулицю з номером будинку — постав id',
+    'вулиці (street.…), а номер лиши в text так, як вона написала («Городищанської 20»): координати підставить',
+    'програма. Вулицю без номера став сюди лише тоді, коли в словнику місць і серед зупинок немає місця з такою',
+    'назвою (інакше — те місце чи зупинку). У дужках — колишні назви: людина може сказати по-старому. Провулок',
+    'бери лише тоді, коли сказано «провулок». Вулиці, якої тут немає, — у unknown.',
+    ...streetLines,
     ...(routeLines.length
       ? [
           '',
@@ -112,7 +122,7 @@ export function buildSystemPrompt(stops: StopLike[] = [], routes: RouteLike[] = 
     '  Малина, але «до Києва на вокзал» чи «з вокзалу в Києві» — kyiv.pas.',
     '- Якщо людина не сказала, звідки їде, from = null. Не вгадуй: програма підставить рідне місто сама. Те',
     '  саме для to.',
-    '- Місце, якого немає ні в словнику, ні серед зупинок (інше місто, село, незнайома вулиця): у from/to постав null,',
+    '- Місце, якого немає ні в словнику, ні серед зупинок і вулиць (інше місто, село, магазин): у from/to постав null,',
     '  а слова людини про нього додай у unknown. Не підміняй його найближчим схожим id — програма чесно',
     '  скаже, що цього місця ще не знає. Слова не про місця в unknown не клади.',
     '- when.day: today, tomorrow або дата YYYY-MM-DD. День тижня й «післязавтра» переведи в дату від',

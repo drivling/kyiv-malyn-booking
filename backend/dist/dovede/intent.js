@@ -8,6 +8,14 @@ exports.validateIntent = validateIntent;
  * не довіряє відповіді: чужі id місць переносить у `unknown`, зайве відкидає. Чисел розкладу тут немає.
  */
 const gazetteer_1 = require("./gazetteer");
+const streets_1 = require("./streets");
+const STREET_IDS = new Set(streets_1.MALYN_STREETS.map((s) => s.id));
+/** `street.x` або `street.x:20` — номер будинку браузер дописує до id сам (frontend nlu/streets.ts) */
+const STREET_ID_RE = /^(street\.[a-z0-9-]+)(?::[0-9]{1,3}[а-яіїєa-z]?)?$/;
+function isStreetId(id) {
+    const m = STREET_ID_RE.exec(id);
+    return m != null && STREET_IDS.has(m[1]);
+}
 const INTENTS = ['trip', 'schedule', 'route', 'price', 'contact', 'other'];
 const MODES = ['marshrutka', 'elektrichka', 'poputka', 'city_bus'];
 const KINDS = ['depart', 'arrive', 'any'];
@@ -88,7 +96,7 @@ function validateIntent(raw, stopIds, routeIds) {
         const p = v;
         const id = typeof p.id === 'string' ? p.id.trim() : '';
         const text = clip(p.text);
-        if (!(0, gazetteer_1.placeById)(id) && !stopIds?.has(id)) {
+        if (!(0, gazetteer_1.placeById)(id) && !stopIds?.has(id) && !isStreetId(id)) {
             pushUnknown(text || id.slice(0, MAX_TEXT));
             return null;
         }

@@ -6,6 +6,7 @@
 import { PLACES, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
 import { normalizeWord } from '../nlu/normalize';
 import { getStopPlaces } from '../nlu/places';
+import { STREETS, streetPlace } from '../nlu/streets';
 
 /** [родовий («з / до чого»), знахідний («в / на що»)]; немає — вставляється назва як є */
 const FORMS: Record<string, [string, string]> = {
@@ -98,6 +99,13 @@ export function suggestPlaces(text: string, caret: number): PlaceSuggestion[] {
     if (out.length >= MAX_SUGGESTIONS) break;
     if (!words.some((x) => x.length > 1 && x.startsWith(typed)) && !normalizeWord(place.label).startsWith(typed)) continue;
     out.push({ place, label: placeLabel(place), insert: place.label, start: w.start, end: w.end });
+  }
+  // вулиці — останніми (їх багато): теперішня назва в називному відмінку
+  for (const street of STREETS) {
+    if (out.length >= MAX_SUGGESTIONS) break;
+    if (street.kind !== 'вулиця' || typed.length < 3) continue;
+    if (![street.name, ...street.old].some((n) => n.split(' ').some((w) => normalizeWord(w).startsWith(typed)))) continue;
+    out.push({ place: streetPlace(street.id)!, label: `Малин · ${street.label}`, insert: `вул. ${street.name}`, start: w.start, end: w.end });
   }
   // єдиний кандидат, який людина вже дописала сама, — підказувати нічого
   if (out.length === 1 && normalizeWord(out[0].insert) === whole) return [];
