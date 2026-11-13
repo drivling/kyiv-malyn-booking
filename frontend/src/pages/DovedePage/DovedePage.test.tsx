@@ -212,4 +212,26 @@ describe('«Доведе» — сторінка', () => {
     await user.type(field, 'у');
     expect(screen.getAllByRole('option').length).toBeGreaterThan(0);
   });
+  it('після відповіді «Розумію…» згортається в рядок-підсумок; «змінити» розгортає, нове питання — знову згортає', async () => {
+    vi.spyOn(apiClient, 'searchPoputky').mockResolvedValue(searchResult([train]));
+    const user = userEvent.setup();
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+    const field = screen.getByLabelText('Куди вам потрібно доїхати?');
+
+    await user.type(field, 'електричкою з Києва до Малина на вокзал');
+    // під час набору підсумку немає — слоти відкриті
+    expect(screen.queryByRole('button', { name: /змінити/ })).not.toBeInTheDocument();
+    await user.keyboard('{Enter}');
+
+    const summary = await screen.findByRole('button', { name: /Київ → Малин · вокзал · сьогодні, пʼятниця · електричкою.*змінити/ });
+    expect(summary).toHaveAttribute('aria-expanded', 'false');
+    await user.click(summary);
+    expect(screen.getByRole('button', { name: 'згорнути' })).toHaveAttribute('aria-expanded', 'true');
+
+    // людина дописує питання — підсумок зникає, слоти знову «живі»
+    await user.type(field, ' завтра');
+    expect(screen.queryByRole('button', { name: /змінити|згорнути/ })).not.toBeInTheDocument();
+    await user.keyboard('{Enter}');
+    expect(await screen.findByRole('button', { name: /завтра, субота.*змінити/ })).toHaveAttribute('aria-expanded', 'false');
+  });
 });

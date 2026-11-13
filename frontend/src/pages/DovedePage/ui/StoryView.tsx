@@ -6,6 +6,7 @@ import { ZUBASTYK_MAIN_PHONE, zubastykTelHref } from '@/pages/MizhgorodskiPage/p
 import { routeNo } from '@/utils/routeNames';
 import { clock } from '../compose/narrate';
 import type { Story, StoryLeg } from '../compose/types';
+import { FlapTime } from './FlapTime';
 import { durationText, metersText } from './format';
 
 type IntercityLeg = Extract<StoryLeg, { kind: 'intercity' }>;
@@ -24,30 +25,44 @@ function intercityTitle(l: IntercityLeg): string {
   return l.mode === 'elektrichka' ? `Електричка${l.tripNumber ? ` ${l.tripNumber}` : ''} · ${dir}` : `Маршрутка ${dir}`;
 }
 
+/**
+ * Міжміський рейс — як квиток (у дусі Passbook): кольорова смуга виду транспорту, перфорація і «відривний»
+ * корінець з ціною та дією. Лише міжміські: міські автобуси лишаються простими картками, щоб квиток виділявся.
+ */
 function IntercityCard({ l }: { l: IntercityLeg }) {
+  const hasStub = Boolean(l.priceUah || l.phoneOnly || l.ticketUrl);
   return (
-    <div className="dv-card">
-      <div className="dv-card__top">
-        <span className="dv-card__title">{intercityTitle(l)}</span>
-        {l.via ? <span className="dv-tag">{l.via}</span> : null}
-        {l.usual ? <span className="dv-tag dv-tag--usual">зазвичай</span> : null}
-        {l.mode === 'elektrichka' && !l.alightApprox ? <span className="dv-tag">розклад УЗ</span> : null}
-      </div>
-      <p className="dv-card__place">Відправлення {l.boardLabel}</p>
-      <p className="dv-meta">
-        <span>
-          Вийти {l.alightLabel} {clock(l.alightMins, l.alightApprox)}
-        </span>
-        <span>у дорозі {l.alightApprox || l.boardApprox ? '≈ ' : ''}{durationText(l.alightMins - l.boardMins)}</span>
-        {l.priceUah ? <span>{l.priceUah} ₴</span> : null}
-      </p>
-      {l.phoneOnly ? (
-        <p className="dv-note">
-          Зараз місця бронюють лише телефоном: <b>{ZUBASTYK_MAIN_PHONE.label}</b>
+    <div className={`dv-card dv-ticket dv-ticket--${l.mode}`}>
+      <div className="dv-ticket__main">
+        <div className="dv-card__top">
+          <span className="dv-card__title">{intercityTitle(l)}</span>
+          {l.via ? <span className="dv-tag">{l.via}</span> : null}
+          {l.usual ? <span className="dv-tag dv-tag--usual">зазвичай</span> : null}
+          {l.mode === 'elektrichka' && !l.alightApprox ? <span className="dv-tag">розклад УЗ</span> : null}
+        </div>
+        <p className="dv-card__place">Відправлення {l.boardLabel}</p>
+        <p className="dv-meta">
+          <span>
+            Вийти {l.alightLabel} {clock(l.alightMins, l.alightApprox)}
+          </span>
+          <span>у дорозі {l.alightApprox || l.boardApprox ? '≈ ' : ''}{durationText(l.alightMins - l.boardMins)}</span>
         </p>
-      ) : null}
-      {l.phoneOnly || l.ticketUrl ? (
-        <div className="dv-actions">
+        {l.phoneOnly ? (
+          <p className="dv-note">
+            Зараз місця бронюють лише телефоном: <b>{ZUBASTYK_MAIN_PHONE.label}</b>
+          </p>
+        ) : null}
+        {l.later.length ? <p className="dv-more">Інші рейси: {l.later.join(' · ')}</p> : null}
+      </div>
+      {hasStub ? (
+        <div className="dv-ticket__stub">
+          {l.priceUah ? (
+            <p className="dv-ticket__price">
+              {l.priceUah} ₴<small>за місце</small>
+            </p>
+          ) : (
+            <span />
+          )}
           {l.phoneOnly ? (
             <a className="dv-btn dv-btn--primary" href={zubastykTelHref()}>
               Подзвонити
@@ -60,7 +75,6 @@ function IntercityCard({ l }: { l: IntercityLeg }) {
           ) : null}
         </div>
       ) : null}
-      {l.later.length ? <p className="dv-more">Інші рейси: {l.later.join(' · ')}</p> : null}
     </div>
   );
 }
@@ -139,7 +153,10 @@ export function StoryView({ story, stopName }: { story: Story; stopName: (id: st
         const dots = l.kind === 'walk' || l.kind === 'wait' || l.kind === 'kyiv';
         return (
           <li key={i} className={`dv-leg${dots ? ' dv-leg--dots' : ''}`} style={legStyle(l)}>
-            <span className="dv-leg__time">{legTime(l)}</span>
+            <span className="dv-leg__time">
+              {/* перекидач спрацьовує, коли лягає картка цього кроку (ті самі 340 + i·260 мс, що в CSS) */}
+              <FlapTime text={legTime(l)} delayMs={480 + i * 260} />
+            </span>
             <span className="dv-leg__rail" aria-hidden="true" />
             <div className="dv-leg__body">
               <LegBody l={l} date={story.date} stopName={stopName} />
@@ -148,7 +165,9 @@ export function StoryView({ story, stopName }: { story: Story; stopName: (id: st
         );
       })}
       <li className="dv-leg dv-leg--end">
-        <span className="dv-leg__time">{clock(story.arriveMins, story.arriveApprox)}</span>
+        <span className="dv-leg__time">
+          <FlapTime text={clock(story.arriveMins, story.arriveApprox)} delayMs={480 + story.legs.length * 260} />
+        </span>
         <span className="dv-leg__rail" aria-hidden="true" />
         <div className="dv-leg__body">
           <p className="dv-end">

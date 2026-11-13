@@ -26,7 +26,8 @@ import { RouteCard } from './ui/RouteCard';
 import { SlotSheet, type SlotKind } from './ui/SlotSheet';
 import { TimeStrip } from './ui/TimeStrip';
 import { DOVEDE_URL_KEYS, intentToParams, paramsToIntent } from './ui/url';
-import { dateHeading, placeRefLabel, whenLabel } from './ui/labels';
+import { routeNo } from '@/utils/routeNames';
+import { dateHeading, modeLabel, placeRefLabel, whenLabel } from './ui/labels';
 import { storySummary } from './ui/format';
 import { StoryView } from './ui/StoryView';
 import { Understanding } from './ui/Understanding';
@@ -68,6 +69,10 @@ export default function DovedePage() {
   const seq = useRef(0);
   const inputRef = useRef<QueryFieldHandle>(null);
   const [sheet, setSheet] = useState<SlotKind | null>(null);
+  // Після відповіді рядок «Розумію…» згортається «під кат» в один рядок-підсумок; розгортає сама людина
+  const [slotsOpen, setSlotsOpen] = useState(false);
+  // Номер відповіді: нова відповідь — блоки зʼявляються наново, один за одним
+  const [answerNo, setAnswerNo] = useState(0);
   const [searchParams, setSearchParams] = useSearchParams();
   const urlRead = useRef(false);
 
@@ -93,6 +98,8 @@ export default function DovedePage() {
         }
         if (id !== seq.current) return;
         setView({ kind: 'result', parse, intent, outcome, date, now, query: q });
+        setSlotsOpen(false);
+        setAnswerNo((n) => n + 1);
         // Адреса відповіді — лише id місць, дата, час і транспорт; тексту питання в ній немає
         setSearchParams(intentToParams(intent, date), { replace: true });
       } catch {
@@ -178,6 +185,8 @@ export default function DovedePage() {
   const shown: { parse: LocalParse; now: KyivNow } | null =
     view.kind !== 'idle' && textMatchesAnswer ? { parse: view.parse, now: view.now } : live ? { parse: live, now: kyivNow() } : null;
 
+  const collapsed = view.kind === 'result' && textMatchesAnswer && !slotsOpen;
+
   const pickSlot = (patch: Partial<TripIntent>) => {
     setSheet(null);
     if (!shown) return;
@@ -223,7 +232,26 @@ export default function DovedePage() {
           Куди вам потрібно доїхати?
         </label>
         <QueryField ref={inputRef} value={text} spans={live?.spans ?? []} onChange={setText} onSubmit={() => ask(text)} />
-        {shown ? <Understanding parse={shown.parse} now={shown.now} onEdit={setSheet} /> : null}
+        {shown ? (
+          <div className={`dv-cut${collapsed ? ' is-collapsed' : ''}`}>
+            <div className="dv-cut__inner">
+              <Understanding parse={shown.parse} now={shown.now} onEdit={setSheet} />
+            </div>
+          </div>
+        ) : null}
+        {view.kind === 'result' && textMatchesAnswer ? (
+          <button type="button" className={`dv-summary${collapsed ? '' : ' is-open'}`} aria-expanded={!collapsed} onClick={() => setSlotsOpen((o) => !o)}>
+            {collapsed ? (
+              <>
+                <span className="dv-summary__text">{summaryLabel(view.intent, view.date, view.now)}</span>
+                <span className="dv-summary__act">змінити</span>
+              </>
+            ) : (
+              <span className="dv-summary__act">згорнути</span>
+            )}
+            <span className="dv-summary__chev" aria-hidden="true" />
+          </button>
+        ) : null}
       </form>
 
       {view.kind === 'idle' ? (
@@ -247,7 +275,8 @@ export default function DovedePage() {
         </section>
       ) : null}
 
-      <section className="dv-out" aria-live="polite">
+      {/* key: нова відповідь або інший варіант — блоки зʼявляються наново, один за одним (dv-out--in у CSS) */}
+      <section className={`dv-out${view.kind === 'result' ? ' dv-out--in' : ''}`} aria-live="polite" key={view.kind === 'result' ? `${answerNo}-${chosenId ?? ''}` : 'wait'}>
         {view.kind === 'loading' ? <Loading parse={view.parse} waitingForCity={!ready} thinking={view.thinking === true} /> : null}
         {view.kind === 'error' ? <Panel title="Щось пішло не так">{view.message}</Panel> : null}
         {view.kind === 'result' && suggestion ? (
@@ -305,6 +334,16 @@ function intentLabel(intent: TripIntent, now: KyivNow): string {
   const to = placeRefLabel(intent.to);
   const places = from && to ? `${from} → ${to}` : to ? `до: ${to}` : from ? `з: ${from}` : '';
   return [places, whenLabel(intent.when, now).text].filter(Boolean).join(' · ');
+}
+
+/** Підсумок згорнутого «Розумію…»: «Малин · з-д «Прожектор» → Малин · Царське село · сьогодні, пʼятниця о 16:00» */
+function summaryLabel(intent: TripIntent, date: string, now: KyivNow): string {
+  const from = placeRefLabel(intent.from);
+  const to = placeRefLabel(intent.to);
+  const places = from && to ? `${from} → ${to}` : to ? `до: ${to}` : from ? `з: ${from}` : '';
+  const time = intent.when.time ? `${intent.when.kind === 'arrive' ? 'до' : 'о'} ${intent.when.time}` : '';
+  const mode = modeLabel(intent.modes, (intent.routes ?? []).map((id) => routeNo(id)));
+  return [places, [dateHeading(date, now), time].filter(Boolean).join(' '), mode.guessed ? '' : mode.text].filter(Boolean).join(' · ');
 }
 
 function Loading({ parse, waitingForCity, thinking }: { parse: LocalParse; waitingForCity: boolean; thinking: boolean }) {
@@ -441,7 +480,6 @@ function Result({
   if (outcome.askMode && !chosenId) {
     return (
       <>
-        <TripHead story={stories[0]} now={now} />
         {outcome.notice ? <p className="dv-notice">{outcome.notice}</p> : null}
         <ChoiceCards question="Як вам зручніше?" choices={modeChoices} hint="«маршруткою» чи «електричкою»" onChoose={onChoose} />
       </>
@@ -454,7 +492,6 @@ function Result({
   const scaleTo = Math.max(...stories.map((s) => s.arriveMins));
   return (
     <>
-      <TripHead story={main} now={now} />
       {outcome.notice ? <p className="dv-notice">{outcome.notice}</p> : null}
       <p className="dv-lead">{main.lead}</p>
       <StoryView story={main} stopName={stopName} />
@@ -489,16 +526,5 @@ function Result({
         </button>
       </div>
     </>
-  );
-}
-
-function TripHead({ story, now }: { story: Story; now: KyivNow }) {
-  return (
-    <p className="dv-trip-head">
-      <b>
-        {story.fromLabel} → {story.toLabel}
-      </b>
-      <span>{dateHeading(story.date, now)}</span>
-    </p>
   );
 }

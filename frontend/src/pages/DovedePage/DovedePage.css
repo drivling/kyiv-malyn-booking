@@ -441,7 +441,7 @@
 }
 .dv-leg {
   display: grid;
-  grid-template-columns: 4.4rem 26px minmax(0, 1fr);
+  grid-template-columns: 5.2rem 26px minmax(0, 1fr);
   column-gap: 10px;
 }
 .dv-leg__time {
@@ -910,4 +910,380 @@ button.dv-slot::after {
 
 .dv-route .dv-btn {
   justify-self: start;
+}
+
+/* ── «Під кат»: після відповіді рядок «Розумію…» згортається в один рядок-підсумок ── */
+.dv-cut {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.5s cubic-bezier(0.3, 0.7, 0.2, 1), opacity 0.36s ease;
+}
+.dv-cut__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+.dv-cut.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+/* згорнуті слоти не мають ловити фокус і кліки; visibility перемикається після згортання */
+.dv-cut.is-collapsed .dv-cut__inner {
+  visibility: hidden;
+  transition: visibility 0s 0.5s;
+}
+.dv-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 10px;
+  padding: 8px 14px;
+  border: 1px solid var(--dv-line);
+  border-radius: 14px;
+  background: var(--dv-surface);
+  color: var(--dv-ink);
+  text-align: left;
+  cursor: pointer;
+  animation: dv-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.dv-summary.is-open {
+  width: auto;
+  margin-left: auto;
+  border-color: transparent;
+  background: transparent;
+  min-height: 44px;
+  animation: none;
+}
+.dv-summary:hover {
+  border-color: var(--dv-accent);
+}
+.dv-summary__text {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.dv-summary__act {
+  flex: none;
+  font-size: 14px;
+  color: var(--dv-accent-ink);
+}
+.dv-summary__chev {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid var(--dv-accent-ink);
+  border-bottom: 2px solid var(--dv-accent-ink);
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.3s ease;
+}
+.dv-summary.is-open .dv-summary__chev {
+  transform: translateY(2px) rotate(-135deg);
+}
+
+/* ── Відповідь «роздається» картка за карткою, як квитки на стіл (у дусі iOS 6): картка лягає з легким нахилом
+   і перельотом, тінь під нею «сідає», потім від неї вниз малюється лінія маршруту й падає «шпилька» зупинки.
+   Не поспішаючи: крок між картками 260 мс, історія з трьох кроків — близько двох секунд. ── */
+@keyframes dv-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dv-deal {
+  0% {
+    opacity: 0;
+    transform: perspective(900px) translateY(38px) rotateX(-16deg) scale(0.95);
+  }
+  55% {
+    opacity: 1;
+    transform: perspective(900px) translateY(-5px) rotateX(2.5deg) scale(1.006);
+  }
+  78% {
+    transform: perspective(900px) translateY(1.5px) rotateX(-0.6deg) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* поки картка «в повітрі», тінь велика й мʼяка; лягла — звичайна */
+@keyframes dv-settle {
+  0%,
+  35% {
+    box-shadow: 0 26px 44px rgba(5, 71, 82, 0.22);
+  }
+  100% {
+    box-shadow: var(--dv-shadow);
+  }
+}
+@keyframes dv-rail {
+  from {
+    transform: translateX(-50%) scaleY(0);
+  }
+  to {
+    transform: translateX(-50%) scaleY(1);
+  }
+}
+/* кружечок зупинки падає згори й раз підстрибує, як шпилька на карті */
+@keyframes dv-dot {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-22px) scale(0.6);
+  }
+  55% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1.18, 0.86);
+  }
+  75% {
+    transform: translateX(-50%) translateY(-5px) scale(0.96, 1.05);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+.dv-out--in > * {
+  animation: dv-in 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--dv-i, 0) * 160ms);
+}
+.dv-out--in > :nth-child(2) { --dv-i: 1; }
+.dv-out--in > :nth-child(3) { --dv-i: 2; }
+/* блоки після історії чекають, поки вона «роздасться» */
+.dv-out--in > :nth-child(4) { --dv-i: 8; }
+.dv-out--in > :nth-child(5) { --dv-i: 9; }
+.dv-out--in > :nth-child(n + 6) { --dv-i: 10; }
+/* сама історія не «виїжджає» цілою — її кроки лягають по одному */
+.dv-out--in > .dv-story {
+  animation: none;
+}
+.dv-out--in .dv-story > li {
+  transform-origin: 50% 0;
+  animation: dv-deal 0.78s cubic-bezier(0.25, 0.8, 0.3, 1) both;
+  animation-delay: calc(340ms + var(--dv-s, 0) * 260ms);
+}
+.dv-out--in .dv-story > li:nth-child(2) { --dv-s: 1; }
+.dv-out--in .dv-story > li:nth-child(3) { --dv-s: 2; }
+.dv-out--in .dv-story > li:nth-child(4) { --dv-s: 3; }
+.dv-out--in .dv-story > li:nth-child(5) { --dv-s: 4; }
+.dv-out--in .dv-story > li:nth-child(6) { --dv-s: 5; }
+.dv-out--in .dv-story > li:nth-child(n + 7) { --dv-s: 6; }
+.dv-out--in .dv-story .dv-card {
+  animation: dv-settle 0.78s ease-out both;
+  animation-delay: calc(340ms + var(--dv-s, 0) * 260ms);
+}
+.dv-out--in .dv-leg__rail::before {
+  transform-origin: top center;
+  animation: dv-rail 0.62s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+  animation-delay: calc(700ms + var(--dv-s, 0) * 260ms);
+}
+.dv-out--in .dv-leg__rail::after {
+  animation: dv-dot 0.56s cubic-bezier(0.3, 0.9, 0.4, 1) both;
+  animation-delay: calc(560ms + var(--dv-s, 0) * 260ms);
+}
+/* картки вибору, картка маршруту й інші варіанти — теж роздаються по одній */
+.dv-out--in .dv-choices > .dv-choice,
+.dv-out--in .dv-alts > .dv-alt {
+  transform-origin: 50% 0;
+  animation: dv-deal 0.78s cubic-bezier(0.25, 0.8, 0.3, 1) both, dv-settle 0.78s ease-out both;
+  animation-delay: calc(200ms + var(--dv-c, 0) * 240ms);
+}
+.dv-out--in .dv-choices > .dv-choice:nth-of-type(2),
+.dv-out--in .dv-alts > .dv-alt:nth-of-type(2) { --dv-c: 1; }
+.dv-out--in .dv-choices > .dv-choice:nth-of-type(3),
+.dv-out--in .dv-alts > .dv-alt:nth-of-type(3) { --dv-c: 2; }
+.dv-out--in .dv-choices > .dv-choice:nth-of-type(n + 4) { --dv-c: 3; }
+.dv-out--in > .dv-route {
+  transform-origin: 50% 0;
+  animation: dv-deal 0.78s cubic-bezier(0.25, 0.8, 0.3, 1) both, dv-settle 0.78s ease-out both;
+}
+.dv-out--in .dv-route__dir {
+  animation: dv-in 0.5s ease-out both;
+  animation-delay: 420ms;
+}
+.dv-out--in .dv-route__dir + .dv-route__dir {
+  animation-delay: 620ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-cut,
+  .dv-cut.is-collapsed .dv-cut__inner,
+  .dv-summary__chev {
+    transition: none;
+  }
+  .dv-summary,
+  .dv-out--in > *,
+  .dv-out--in .dv-story > li,
+  .dv-out--in .dv-story .dv-card,
+  .dv-out--in .dv-leg__rail::before,
+  .dv-out--in .dv-leg__rail::after,
+  .dv-out--in .dv-choices > .dv-choice,
+  .dv-out--in .dv-alts > .dv-alt,
+  .dv-out--in > .dv-route,
+  .dv-out--in .dv-route__dir {
+    animation: none;
+  }
+}
+
+/* ── Паперова фактура карток: ледь помітне зерно й світлий відблиск зверху (не колір — текст лишається чітким) ── */
+.dv-card {
+  background-image:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 46px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .02 0 0 0 0 .28 0 0 0 0 .32 0 0 0 .045 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Міжміський рейс як квиток: смуга кольору транспорту, перфорація й відривний корінець ── */
+.dv-ticket {
+  position: relative;
+  padding: 0;
+  gap: 0;
+  border-top: 6px solid var(--dv-c, var(--dv-ink));
+}
+.dv-ticket__main {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px 14px;
+}
+.dv-ticket__stub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px 14px;
+  border-top: 2px dashed var(--dv-line);
+  background: linear-gradient(to bottom, rgba(5, 71, 82, 0.035), rgba(5, 71, 82, 0));
+  border-radius: 0 0 var(--dv-r) var(--dv-r);
+}
+/* вирізи по краях перфорації: кружечки кольору сторінки, видно лише внутрішню половину */
+.dv-ticket__stub::before,
+.dv-ticket__stub::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--pb-bg-page, #f3f4f5);
+  border: 1px solid var(--dv-line);
+  box-shadow: inset 0 1px 2px rgba(5, 71, 82, 0.12);
+}
+.dv-ticket__stub::before {
+  left: -10px;
+  clip-path: inset(0 0 0 50%);
+}
+.dv-ticket__stub::after {
+  right: -10px;
+  clip-path: inset(0 50% 0 0);
+}
+.dv-ticket__price {
+  flex: none;
+  white-space: nowrap;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.dv-ticket__price small {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dv-muted);
+}
+
+/* ── Час на лінії маршруту — вокзальне табло-перекидач: темні пластинки, шов посередині ── */
+.dv-flap__row {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.dv-flap__pre {
+  margin-right: 1px;
+  font-size: 15px;
+  color: var(--dv-muted);
+}
+.dv-flap__colon {
+  width: 5px;
+  text-align: center;
+  font-weight: 800;
+}
+.dv-flap__cell {
+  position: relative;
+  display: inline-block;
+  width: 15px;
+  height: 26px;
+  border-radius: 4px;
+  background: linear-gradient(to bottom, #164e59 0 49%, #06343d 51% 100%);
+  box-shadow: 0 1px 2px rgba(5, 71, 82, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  perspective: 80px;
+  overflow: hidden;
+}
+/* шов між половинками пластинки */
+.dv-flap__cell::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.28);
+}
+.dv-flap__face {
+  display: block;
+  font-size: 17px;
+  line-height: 26px;
+  font-weight: 700;
+  text-align: center;
+  color: #f4fbfc;
+  transform-origin: 50% 50%;
+  backface-visibility: hidden;
+}
+.dv-flap__face.is-flip {
+  animation: dv-flap 0.13s ease-out both;
+}
+@keyframes dv-flap {
+  from {
+    transform: rotateX(88deg);
+    filter: brightness(0.6);
+  }
+  to {
+    transform: none;
+    filter: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-flap__face.is-flip {
+    animation: none;
+  }
+}
+
+/* на телефоні колонка часу ширша за колишні 3.7rem (у неї тепер пластинки), а самі пластинки трохи менші */
+@media (max-width: 420px) {
+  .dv-leg {
+    grid-template-columns: 4.5rem 22px minmax(0, 1fr);
+    column-gap: 8px;
+  }
+  .dv-flap__row {
+    gap: 1.5px;
+  }
+  .dv-flap__cell {
+    width: 14px;
+    height: 24px;
+  }
+  .dv-flap__face {
+    font-size: 16px;
+    line-height: 24px;
+  }
+  .dv-flap__pre {
+    font-size: 13px;
+    margin-right: 0;
+  }
 }

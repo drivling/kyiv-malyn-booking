@@ -70,6 +70,11 @@ test.describe('«Доведе» (/dovede, лише адмін)', () => {
     await page.goto('/dovede?t=malyn.vokzal&d=2026-11-13');
     await expect(page.getByText('Звідки вирушаєте?')).toBeVisible();
 
+    // після відповіді рядок «Розумію…» згорнутий «під кат» — слоти відкриває рядок-підсумок
+    const summary = page.getByRole('button', { name: /змінити/ });
+    await expect(summary).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('button', { name: /Змінити, звідки/ })).toBeHidden();
+    await summary.click();
     await page.getByRole('button', { name: /Змінити, звідки/ }).click();
     const dialog = page.getByRole('dialog', { name: 'Звідки вирушаєте?' });
     await expect(dialog).toBeVisible();
@@ -78,6 +83,8 @@ test.describe('«Доведе» (/dovede, лише адмін)', () => {
 
     await page.getByRole('button', { name: /Змінити, звідки/ }).click();
     await page.getByRole('dialog').getByRole('button', { name: 'Святошин' }).click();
+    // нова відповідь — слоти знову згорнуті, у підсумку нове місце
+    await expect(page.getByRole('button', { name: /Київ · Святошин → Малин · вокзал.*змінити/ })).toBeVisible();
     await expect(page.getByText('Електричка 6613 · Київ — Малин')).toBeVisible();
     await expect(page).toHaveURL(/f=kyiv\.sviatoshyn&t=malyn\.vokzal/);
   });
