@@ -138,8 +138,8 @@ function AppContent() {
           />
         </Routes>
       </main>
-      {/* на «Доведе» підвал «під катом»: видно лише рядок розробника */}
-      {showPublicLegalFooter ? <PublicLegalFooter collapsible={isDovede} /> : null}
+      {/* підвал «під катом»: видно лише рядок розробника, решта — за кнопкою «Більше» */}
+      {showPublicLegalFooter ? <PublicLegalFooter collapsible /> : null}
       {!pathname.startsWith('/admin') ? <CookieNotice /> : null}
       <UpdateBanner />
     </div>

@@ -135,7 +135,7 @@ of `dist` in a commit.
   sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
 
-- «Доведе» (`/dovede`, hidden page with no site header and the footer folded to the developer line, `PublicLegalFooter collapsible` — `Docs/dovede-roadmap.md` is the recovery file; research in
+- «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; research in
   `Docs/dovede/research/`): a person asks in plain words and gets a story of cards built in the browser
   (`frontend/src/pages/DovedePage/`: `nlu/parseLocal` dictionary parse → `compose/` with `/poputky/search`, anchors
   and the Malyn RAPTOR planner → template text). **AI only understands the text, it never names a time, route or
@@ -392,7 +392,11 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   scenarios, page SEO).
 - `src/components/` — small reusable UI primitives (Button, Input, Select, Combobox, Alert, etc.) plus
   a few cross-page pieces (TelegramLoginButton, ProtectedRoute for admin-only routes, legal/cookie
-  footers).
+  footers). The public footer (`PublicLegalFooter collapsible`, every public page) shows only «Розробник — ТОВ
+  «Технології».» and «Більше»; the links and the owner line stay in the HTML under the fold. Once open it folds back on
+  the button / Esc, on typing in a field outside it and on navigation — never on a plain click elsewhere (the page
+  would jump under the pointer). Pages that fill the screen (`/transport*` on a computer) size themselves to
+  `100dvh − --app-nav-height`, so the footer starts right under them (an e2e test guards the old grey strip).
 - `src/content/stops/` — static content data for local-transport stop pages.
 - Stop names are string foreign keys: `TransportRoute.fromName/toName` and `TransportTrip.headsign`
   hold stop names as text and the public site resolves termini back to ids by name
