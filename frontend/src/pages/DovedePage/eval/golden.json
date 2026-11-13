@@ -25,6 +25,7 @@
     { "id": "mk-09", "text": "з Малина до Києва в неділю", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "2026-11-15" } }, "tags": ["malyn-kyiv", "weekday"], "scope": "mvp" },
     { "id": "mk-10", "text": "з центру Малина до метро Житомирська", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "kyiv.zhytomyrska" }, "tags": ["malyn-kyiv", "metro"], "scope": "mvp" },
     { "id": "mk-11", "text": "з Грушевського до Києва вранці", "expect": { "intent": "trip", "from": "malyn.hrushevskoho", "to": "city.Kyiv", "when": { "part": "morning" } }, "tags": ["malyn-kyiv", "street", "time"], "scope": "mvp" },
+    { "id": "mk-12", "text": "з ПТУ до Києва", "expect": { "intent": "trip", "from": "malyn.ptl", "to": "city.Kyiv" }, "tags": ["malyn-kyiv", "landmark", "abbreviation"], "scope": "mvp" },
 
     { "id": "t-01", "text": "з Києва до Малина о 18:00", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "today", "time": "18:00", "kind": "depart" } }, "tags": ["time", "exact-time"], "scope": "mvp" },
     { "id": "t-02", "text": "щоб бути в Малині до 9 ранку з Києва", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "tomorrow", "time": "09:00", "kind": "arrive" } }, "tags": ["time", "arrive-by", "do-ambiguity", "rollover"], "scope": "mvp" },
@@ -40,6 +41,7 @@
     { "id": "m-03", "text": "чи є попутка з Києва в Малин сьогодні", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "today" }, "modes": ["poputka"] }, "tags": ["mode", "poputka"], "scope": "later" },
     { "id": "m-04", "text": "автобусом з Царського села на вокзал", "expect": { "intent": "trip", "from": "malyn.tsarske", "to": "malyn.vokzal", "modes": ["city_bus"] }, "tags": ["mode", "intra-city", "avtobus-ambiguity"], "scope": "mvp" },
     { "id": "m-05", "text": "потягом у Київ", "expect": { "intent": "trip", "from": null, "to": "city.Kyiv", "modes": ["elektrichka"] }, "tags": ["mode", "implicit-from"], "scope": "mvp" },
+    { "id": "m-06", "text": "попутка з центру Малина до Києва ввечері", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "city.Kyiv", "when": { "part": "evening" }, "modes": ["poputka"]}, "tags": ["mode", "poputka"], "scope": "later" },
 
     { "id": "l-01", "text": "как доехать из Киева в Малин на вокзал", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "malyn.vokzal" }, "tags": ["russian"], "scope": "mvp" },
     { "id": "l-02", "text": "с Малина в Киев завтра утром", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "tomorrow", "part": "morning" } }, "tags": ["russian", "time"], "scope": "mvp" },
