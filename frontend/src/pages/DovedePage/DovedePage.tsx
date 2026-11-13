@@ -22,6 +22,7 @@ import { buildStopPlaces } from './nlu/stopPlaces';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
 import { QueryField, type QueryFieldHandle } from './ui/QueryField';
+import { RouteCard } from './ui/RouteCard';
 import { SlotSheet, type SlotKind } from './ui/SlotSheet';
 import { TimeStrip } from './ui/TimeStrip';
 import { DOVEDE_URL_KEYS, intentToParams, paramsToIntent } from './ui/url';
@@ -50,7 +51,7 @@ function kyivNow(): KyivNow {
 
 export default function DovedePage() {
   usePageSeo({ title: 'Доведе', canonicalUrl: 'https://malin.kiev.ua/dovede', robots: 'noindex, nofollow' });
-  const { ready, plannerFor, stops } = usePlannerModel(DEFAULT_TRANSPORT_CITY);
+  const { ready, plannerFor, stops, routes } = usePlannerModel(DEFAULT_TRANSPORT_CITY);
   // Зупинки з розкладу стають місцями словника («Поворот на Коновальця»); список «поточний», як номери маршрутів
   const stopIndex = useMemo(() => {
     const index = buildStopPlaces(stops);
@@ -78,11 +79,11 @@ export default function DovedePage() {
       const schedulesFor = async (d: string) => (cities ? (await apiClient.searchPoputky({ from: cities.from, to: cities.to, date: d })).schedules : []);
       try {
         let date = resolveDate(intent.when.day, now);
-        let outcome = composeStories({ intent, now, date, schedules: await schedulesFor(date), planner: plannerFor(date) }, shape);
+        let outcome = composeStories({ intent, now, date, schedules: await schedulesFor(date), planner: plannerFor(date), routes }, shape);
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);
           const next = composeStories(
-            { intent: { ...intent, when: { day: 'tomorrow', kind: 'depart' } }, now, date: tomorrow, schedules: await schedulesFor(tomorrow), planner: plannerFor(tomorrow) },
+            { intent: { ...intent, when: { day: 'tomorrow', kind: 'depart' } }, now, date: tomorrow, schedules: await schedulesFor(tomorrow), planner: plannerFor(tomorrow), routes },
             shape,
           );
           if (next.kind === 'stories') {
@@ -99,14 +100,14 @@ export default function DovedePage() {
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [plannerFor, setSearchParams],
+    [plannerFor, setSearchParams, routes],
   );
 
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
   const run = useCallback(
     async (q: string, chosen?: TripIntent) => {
       const now = kyivNow();
-      const parse = parseLocal(q, now, stopIndex);
+      const parse = parseLocal(q, now, stopIndex, routes);
       const id = ++seq.current;
       setChosenId(null);
       setSuggestion(null);
@@ -135,7 +136,7 @@ export default function DovedePage() {
       const intent = pickIntent(parse.intent, r?.intent);
       await answer(id, q, withIntent(parse, intent), intent, now);
     },
-    [ready, answer, stopIndex],
+    [ready, answer, stopIndex, routes],
   );
 
   // Датасет міста ще вантажився, коли людина спитала, — відповідаємо, щойно він є
@@ -171,7 +172,7 @@ export default function DovedePage() {
   }, [searchParams, run, ready]);
 
   // Розбір під час набору: підсвічування в полі й рядок «Розумію…» ще до кнопки «Знайти»
-  const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow(), stopIndex) : null), [text, stopIndex]);
+  const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow(), stopIndex, routes) : null), [text, stopIndex, routes]);
   const answeredFor = view.kind === 'result' ? view.query : null;
   const textMatchesAnswer = answeredFor == null || text.trim() === answeredFor || (answeredFor === '' && !text.trim());
   const shown: { parse: LocalParse; now: KyivNow } | null =
@@ -419,6 +420,17 @@ function Result({
             ))}
           </div>
         </Panel>
+      );
+    case 'route_info':
+      return (
+        <>
+          <RouteCard info={outcome} date={view.date} today={view.date === now.date} stopName={stopName} />
+          <div className="dv-foot">
+            <button type="button" className="dv-btn dv-btn--ghost" onClick={onReset}>
+              Нове питання
+            </button>
+          </div>
+        </>
       );
     case 'empty':
       return <Panel title="Рейсів не знайшов">На цю дату нічого не їде. Спробуйте інший день.</Panel>;

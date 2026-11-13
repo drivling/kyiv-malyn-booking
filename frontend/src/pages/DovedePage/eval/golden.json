@@ -1,7 +1,7 @@
 {
   "version": 1,
   "defaultNow": "2026-11-13T14:20:00+02:00",
-  "about": "Еталонні питання «Доведе» (Docs/dovede-roadmap.md). Перевіряються лише поля з expect. from/to — id словника або null (не сказано). defaultNow — п'ятниця, 14:20 за Києвом. scope: mvp — Київ ↔ Малин і міський транспорт Малина; later — після MVP.",
+  "about": "Еталонні питання «Доведе» (Docs/dovede-roadmap.md). Перевіряються лише поля з expect. from/to — id словника або null (не сказано). defaultNow — п'ятниця, 14:20 за Києвом. scope: mvp — Київ ↔ Малин і міський транспорт Малина; stops — зупинки з розкладу (eval/malyn-stops.json); routes — маршрути міських автобусів (eval/malyn-routes.json); later — після MVP.",
   "cases": [
     { "id": "km-01", "text": "Як доїхати з Києва (Святошин) до Малина на вокзал", "expect": { "intent": "trip", "from": "kyiv.sviatoshyn", "to": "malyn.vokzal", "when": { "day": "today" }, "modes": [] }, "tags": ["kyiv-malyn", "place-in-city"], "scope": "mvp" },
     { "id": "km-02", "text": "з Києва в Малин", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "modes": [] }, "tags": ["kyiv-malyn", "city-only"], "scope": "mvp" },
@@ -63,6 +63,30 @@
 
     { "id": "n-01", "text": "скільки коштує маршрутка до Києва", "expect": { "intent": "price", "to": "city.Kyiv", "modes": ["marshrutka"] }, "tags": ["not-trip", "price"], "scope": "later" },
     { "id": "n-02", "text": "телефон зубастика", "expect": { "intent": "contact", "modes": ["marshrutka"] }, "tags": ["not-trip", "contact", "brand"], "scope": "later" },
-    { "id": "n-03", "text": "яка погода в Малині", "expect": { "intent": "other" }, "tags": ["not-trip"], "scope": "mvp" }
+    { "id": "n-03", "text": "яка погода в Малині", "expect": { "intent": "other" }, "tags": ["not-trip"], "scope": "mvp" },
+
+    { "id": "s-01", "text": "Як доїхати з  поворот на коновальця до паперова фабрика о 17:00", "expect": { "intent": "trip", "from": "st_0071", "to": "malyn.paperova", "when": { "day": "today", "time": "17:00", "kind": "depart" } }, "tags": ["stops", "owner-question"], "scope": "stops" },
+    { "id": "s-02", "text": "з вокзалу до повороту на Коновальця", "expect": { "intent": "trip", "from": "malyn.vokzal", "to": "st_0071" }, "tags": ["stops", "declension"], "scope": "stops" },
+    { "id": "s-03", "text": "від швейної фабрики на вокзал завтра зранку", "expect": { "intent": "trip", "from": "st_0095", "to": "malyn.vokzal", "when": { "day": "tomorrow", "part": "morning" } }, "tags": ["stops", "declension", "time"], "scope": "stops" },
+    { "id": "s-04", "text": "з центру в сільпо", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "st_0051" }, "tags": ["stops", "shop"], "scope": "stops" },
+    { "id": "s-05", "text": "від хлібзаводу до лікарні", "expect": { "intent": "trip", "from": "st_0089", "to": "malyn.likarnia" }, "tags": ["stops"], "scope": "stops" },
+    { "id": "s-06", "text": "з Києва до будмаркету", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "st_0040" }, "tags": ["stops", "kyiv-malyn"], "scope": "stops" },
+    { "id": "s-07", "text": "з Чорновола 36 на автостанцію", "expect": { "intent": "trip", "from": "st_0093", "to": "malyn.avtostantsiya" }, "tags": ["stops", "house-number"], "scope": "stops" },
+    { "id": "s-08", "text": "з молокозаводу до кооперативного ринку о 8", "expect": { "intent": "trip", "from": "st_0060", "to": "st_0031", "when": { "time": "08:00" } }, "tags": ["stops", "time"], "scope": "stops" },
+    { "id": "s-09", "text": "как доехать от поворота на коновальца до бумажной фабрики", "expect": { "intent": "trip", "from": "st_0071", "to": "malyn.paperova" }, "tags": ["stops", "russian"], "scope": "stops" },
+    { "id": "s-10", "text": "з швейки на ливарний", "expect": { "intent": "trip", "from": "st_0095", "to": "st_0033" }, "tags": ["stops", "slang"], "scope": "stops" },
+    { "id": "s-11", "text": "з Грушевського на вокзал", "expect": { "intent": "trip", "from": "malyn.hrushevskoho", "to": "malyn.vokzal" }, "tags": ["stops", "curated-wins"], "scope": "stops" },
+    { "id": "s-12", "text": "з Ковалівки до молокозаводу", "expect": { "intent": "trip", "from": null, "to": "st_0060", "unknown": ["Ковалівки"] }, "tags": ["stops", "unknown"], "scope": "stops" },
+
+    { "id": "r-01", "text": "куди їде автобус №5", "expect": { "intent": "route", "routes": ["5"], "from": null, "to": null }, "tags": ["routes"], "scope": "routes" },
+    { "id": "r-02", "text": "коли 9-ка з Царського села", "expect": { "intent": "route", "routes": ["9"], "from": "malyn.tsarske" }, "tags": ["routes", "stop-board"], "scope": "routes" },
+    { "id": "r-03", "text": "сімкою від лікарні до вокзалу", "expect": { "intent": "trip", "routes": ["7"], "from": "malyn.likarnia", "to": "malyn.vokzal" }, "tags": ["routes", "trip"], "scope": "routes" },
+    { "id": "r-04", "text": "розклад маршруту 11/1", "expect": { "intent": "route", "routes": ["11"] }, "tags": ["routes", "short-name"], "scope": "routes" },
+    { "id": "r-05", "text": "о котрій наступна десятка від поліклініки", "expect": { "intent": "route", "routes": ["10"], "from": "malyn.likarnia" }, "tags": ["routes", "word-number"], "scope": "routes" },
+    { "id": "r-06", "text": "автобус 8 завтра зранку", "expect": { "intent": "route", "routes": ["8"], "when": { "day": "tomorrow", "part": "morning" } }, "tags": ["routes", "time"], "scope": "routes" },
+    { "id": "r-07", "text": "какой автобус идет от швейной фабрики до вокзала, двенадцатый?", "expect": { "intent": "trip", "routes": ["12"], "from": "st_0095", "to": "malyn.vokzal" }, "tags": ["routes", "russian"], "scope": "routes" },
+    { "id": "r-08", "text": "з центру на вокзал о 5", "expect": { "intent": "trip", "routes": [], "from": "malyn.tsentr", "to": "malyn.vokzal" }, "tags": ["routes", "time-not-route"], "scope": "routes" },
+    { "id": "r-09", "text": "до скількох ходить трійка", "expect": { "intent": "route", "routes": ["3"] }, "tags": ["routes", "word-number"], "scope": "routes" },
+    { "id": "r-10", "text": "чи їде 2 маршрут до паперової фабрики", "expect": { "intent": "route", "routes": ["2"], "to": "malyn.paperova" }, "tags": ["routes", "number-before-word"], "scope": "routes" }
   ]
 }

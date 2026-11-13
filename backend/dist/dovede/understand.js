@@ -48,14 +48,20 @@ function createUnderstand(deps) {
     const clock = deps.clock ?? Date.now;
     // Промпт будується один раз на список зупинок: той самий масив — той самий рядок, кеш Claude не збивається
     let built = null;
-    const promptFor = (stops) => {
-        if (!built || built.stops !== stops) {
-            built = { stops, system: (0, prompt_1.buildSystemPrompt)(stops ?? []), stopIds: new Set((0, stopPlaces_1.buildStopPlaces)(stops ?? []).map((e) => e.place.id)) };
+    const promptFor = (stops, routes) => {
+        if (!built || built.stops !== stops || built.routes !== routes) {
+            built = {
+                stops,
+                routes,
+                system: (0, prompt_1.buildSystemPrompt)(stops ?? [], routes ?? []),
+                stopIds: new Set((0, stopPlaces_1.buildStopPlaces)(stops ?? []).map((e) => e.place.id)),
+                routeIds: new Set((routes ?? []).map((r) => r.id)),
+            };
         }
         return built;
     };
-    return async (text, now, stops) => {
-        const { system, stopIds } = promptFor(stops);
+    return async (text, now, stops, routes) => {
+        const { system, stopIds, routeIds } = promptFor(stops, routes);
         const started = clock();
         const base = { model, promptVersion: prompt_1.PROMPT_VERSION };
         const fail = (failure, message, usage) => ({
@@ -87,7 +93,7 @@ function createUnderstand(deps) {
             const raw = block && block.type === 'text' ? block.text : '';
             let intent;
             try {
-                intent = (0, intent_1.validateIntent)(JSON.parse(raw), stopIds);
+                intent = (0, intent_1.validateIntent)(JSON.parse(raw), stopIds, routeIds);
             }
             catch (e) {
                 const why = e instanceof intent_1.IntentShapeError ? e.message : 'відповідь — не JSON';

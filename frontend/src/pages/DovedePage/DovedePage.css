@@ -884,3 +884,30 @@ button.dv-slot::after {
 .dv-page .dv-input textarea:focus-visible {
   outline: none;
 }
+
+/* Картка маршруту («куди їде №5»): напрямки з найближчими відправленнями */
+.dv-route {
+  display: grid;
+  gap: 10px;
+}
+.dv-route__dir {
+  border-top: 1px solid var(--dv-line);
+  padding-top: 10px;
+}
+.dv-route__head {
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+.dv-route__times {
+  margin: 0 0 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-route .dv-btn {
+  justify-self: start;
+}

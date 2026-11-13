@@ -27,9 +27,15 @@ const GOOD = {
   to: { id: 'malyn.vokzal', text: 'вокзал' },
   when: { day: 'today', time: null, kind: 'depart', part: null },
   modes: [],
+  routes: [],
   unknown: [],
   confidence: 'high',
 };
+
+const ROUTES = [
+  { id: '5', no: '5', fromName: 'Лікарня', toName: 'Залізничний вокзал' },
+  { id: '11', no: '11/1', fromName: 'Паперова фабрика', toName: 'Залізничний вокзал' },
+];
 
 test('validateIntent: чистий намір проходить, null-поля часу зникають', () => {
   const i = validateIntent(GOOD);
@@ -220,4 +226,29 @@ test('understand: зупинки міста йдуть у системний п�
   assert.equal((calls[1].body.system as Array<{ text: string }>)[0].text, system, 'той самий список — той самий промпт (кеш)');
   const without = await understand('без зупинок', NOW);
   assert.equal(without.ok && without.intent.from, null, 'без списку id зупинки відкидається');
+});
+
+test('промпт із маршрутами міста: id, номер з борту й кінцеві; порядок у базі не важить', () => {
+  const p = buildSystemPrompt(STOPS, ROUTES);
+  assert.ok(p.includes('- 11 — автобус №11/1: Паперова фабрика — Залізничний вокзал'));
+  assert.ok(p.includes('- 5 — автобус №5: Лікарня — Залізничний вокзал'));
+  assert.equal(p, buildSystemPrompt(STOPS, [...ROUTES].reverse()));
+  assert.ok(!buildSystemPrompt(STOPS).includes('## Маршрути міських автобусів'));
+});
+
+test('validateIntent: маршрути — лише зі списку міста; «route» без маршруту стає звичайним питанням', () => {
+  const ids = new Set(['5', '11']);
+  const about = validateIntent({ ...GOOD, intent: 'route', from: null, to: null, routes: ['5', '99', '5'] }, undefined, ids);
+  assert.deepEqual([about.intent, about.routes, about.confidence], ['route', ['5'], 'high']);
+  const none = validateIntent({ ...GOOD, intent: 'route', routes: ['99'] }, undefined, ids);
+  assert.deepEqual([none.intent, none.routes], ['trip', undefined]);
+  assert.equal(validateIntent({ ...GOOD, routes: ['5'] }).routes, undefined, 'без списку маршрутів id не приймаємо');
+});
+
+test('understand: маршрути йдуть у промпт, їхні id проходять перевірку', async () => {
+  const reply = { ...GOOD, intent: 'route', from: null, to: null, routes: ['11'] };
+  const { client, calls } = stubClient(message({ content: [{ type: 'text', text: JSON.stringify(reply) }] }));
+  const r = await createUnderstand({ client })('розклад 11/1', NOW, STOPS, ROUTES);
+  assert.deepEqual(r.ok && [r.intent.intent, r.intent.routes], ['route', ['11']]);
+  assert.equal((calls[0].body.system as Array<{ text: string }>)[0].text, buildSystemPrompt(STOPS, ROUTES));
 });

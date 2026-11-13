@@ -56,6 +56,15 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
       findMany: async ({ where }: { where: { cityCode: string } }) =>
         where.cityCode === 'Malyn' ? [{ id: 'st_0071', name: 'Поворот на Коновальця' }, { id: 'st_0160', name: '№5 т.3' }] : [],
     },
+    transportRoute: {
+      findMany: async ({ where }: { where: { cityCode: string; unreliable: boolean } }) =>
+        where.cityCode === 'Malyn' && where.unreliable === false
+          ? [
+              { id: '11', shortName: '11/1', fromName: 'Паперова фабрика', toName: 'Залізничний вокзал ' },
+              { id: '5', shortName: '', fromName: 'Лікарня', toName: 'Залізничний вокзал' },
+            ]
+          : [],
+    },
   } as unknown as PrismaClient;
   return { prisma, rows, countWhere };
 }
@@ -256,4 +265,28 @@ test('зупинки міста з бази: Claude отримує їх усі, 
   assert.equal(res.body.agree, true);
   assert.deepEqual(seen, [[{ id: 'st_0071', name: 'Поворот на Коновальця' }, { id: 'st_0160', name: '№5 т.3' }]]);
   assert.equal((rows[0].localIntent as TripIntent).from?.id, 'st_0071');
+});
+
+test('маршрути міста з бази: Claude отримує номер для показу й кінцеві; id маршруту проходить, чужий — відкидається', async () => {
+  const { prisma, rows } = fakePrisma();
+  const seen: unknown[] = [];
+  const about5: TripIntent = { ...INTENT, intent: 'route', from: null, to: null, routes: ['5', '99'], confidence: 'high' };
+  const app = appWith({
+    prisma,
+    understand: async (_text, _now, _stops, routes) => {
+      seen.push(routes);
+      return okResult({ ...about5, routes: ['5'] });
+    },
+  });
+  const res = await request(app).post('/admin/dovede/understand').set('Authorization', AUTH).send({ text: 'куди їде автобус №5', local: about5 });
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body.intent.routes, ['5']);
+  assert.equal(res.body.agree, true, 'чужий маршрут 99 з місцевого розбору відкинуто — розбори збіглися');
+  assert.deepEqual(seen, [
+    [
+      { id: '11', no: '11/1', fromName: 'Паперова фабрика', toName: 'Залізничний вокзал' },
+      { id: '5', no: '5', fromName: 'Лікарня', toName: 'Залізничний вокзал' },
+    ],
+  ]);
+  assert.deepEqual((rows[0].localIntent as TripIntent).routes, ['5']);
 });
