@@ -99,6 +99,25 @@ export interface RouteInfoItem {
   boards: RouteBoard[];
 }
 
+/** Оголошення водія на дошці попуток — без телефону: контакт людина відкриває на дошці */
+export interface PoputkaRide {
+  id: number;
+  /** як написав водій: «18:00», «18:00-19:00»; null — час не вказано */
+  time: string | null;
+  seats: number | null;
+  priceUah: number | null;
+  notes: string | null;
+  name: string | null;
+}
+
+export interface PriceLine {
+  /** «Маршрутка Київ ↔ Малин» */
+  label: string;
+  /** «310 грн», «60–75 грн»; null — ціни в даних немає */
+  price: string | null;
+  note?: string;
+}
+
 export type ComposeOutcome =
   | { kind: 'stories'; stories: Story[]; askMode: boolean; notice: string | null }
   | { kind: 'empty'; reason: 'no_trips' | 'too_late' }
@@ -106,7 +125,12 @@ export type ComposeOutcome =
   | { kind: 'ask_to' }
   | { kind: 'unknown_place'; words: string[] }
   | { kind: 'outside'; city: string | null }
-  | { kind: 'poputka_soon' }
+  /** Попутки на цей день: оголошення водіїв з дошки сайту; контакт — на дошці */
+  | { kind: 'poputky'; fromCity: string; toCity: string; fromLabel: string; toLabel: string; rides: PoputkaRide[]; more: number; passengers: number; boardUrl: string; notice?: string }
+  /** «Скільки коштує»: ціни з розкладу сайту й тарифу міста */
+  | { kind: 'price'; lines: PriceLine[] }
+  /** «Телефон»: куди дзвонити */
+  | { kind: 'contact' }
   /** Питання про сам маршрут: кінцеві, найближчі відправлення (з названої зупинки або з кінцевих) */
   | { kind: 'route_info'; atStopId: string | null; atStopLabel: string | null; items: RouteInfoItem[] }
-  | { kind: 'not_trip'; intent: 'schedule' | 'price' | 'contact' | 'other' };
+  | { kind: 'not_trip'; intent: 'schedule' | 'other' };

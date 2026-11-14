@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { DirectWalk, Endpoint, Journey } from '@/pages/LocalTransportPage/journey';
-import type { Schedule } from '@/types';
+import type { Schedule, ViberListing } from '@/types';
 import { parseLocal } from '../nlu/parseLocal';
 import type { KyivNow } from '../nlu/types';
-import { classify, composeStories, resolveDate } from './composeStories';
+import { classify, composeStories, corridorCities, resolveDate } from './composeStories';
 import type { LocalPlanner, Story, StoryLeg } from './types';
 
 /** п'ятниця 13.11.2026, 14:20 */
@@ -201,9 +201,81 @@ describe('форма поїздки', () => {
     expect(shape('мені в Київ на Святошин')).toMatchObject({ kind: 'from_malyn', kyivPoint: 'kyiv.sviatoshyn' });
     expect(shape('до Малина').kind).toBe('ask_from');
     expect(shape('з Житомира в Малин')).toEqual({ kind: 'outside', city: 'Zhytomyr' });
-    expect(shape('чи є попутка з Києва в Малин сьогодні').kind).toBe('poputka_soon');
+    expect(shape('чи є попутка з Києва в Малин сьогодні')).toEqual({ kind: 'poputky', fromCity: 'Kyiv', toCity: 'Malyn' });
+    expect(shape('попутка до Києва ввечері')).toEqual({ kind: 'poputky', fromCity: 'Malyn', toCity: 'Kyiv' });
     expect(shape('автобусом з Царського села на вокзал').kind).toBe('intra');
     expect(shape('з Ковалівки до Малина')).toEqual({ kind: 'unknown_place', words: ['Ковалівки'] });
     expect(shape('яка погода в Малині').kind).toBe('not_trip');
+  });
+});
+
+describe('попутки, ціна, контакти', () => {
+  const ask = (text: string, extra: Partial<Parameters<typeof composeStories>[0]> = {}) =>
+    composeStories({ intent: parseLocal(text, NOW).intent, now: NOW, date: NOW.date, schedules: [], planner: null, ...extra });
+  const listing = (over: Partial<ViberListing>): ViberListing =>
+    ({ id: 1, senderName: 'Олег', listingType: 'driver', route: 'Kyiv-Malyn', date: NOW.date, departureTime: '18:00', seats: 2, notes: 'від м. Житомирська', priceUah: 250, isActive: true, createdAt: '', updatedAt: '', ...over }) as ViberListing;
+
+  it('попутки: оголошення водіїв за часом, без телефонів; пасажирів лише рахуємо; посилання на дошку', () => {
+    const out = ask('чи є попутка з Києва в Малин сьогодні', {
+      listings: [
+        listing({ id: 3, departureTime: '19:30', phone: '380501112233' }),
+        listing({ id: 2, departureTime: '17:00', notes: null, priceUah: null, seats: null, senderName: null }),
+        listing({ id: 4, listingType: 'passenger' }),
+        listing({ id: 5, isActive: false }),
+      ],
+    });
+    expect(out).toMatchObject({ kind: 'poputky', fromLabel: 'Київ', toLabel: 'Малин', more: 0, passengers: 1, boardUrl: '/mizhgorodski?type=carpool&from=Kyiv&to=Malyn&date=2026-11-13' });
+    if (out.kind !== 'poputky') return;
+    expect(out.rides).toEqual([
+      { id: 2, time: '17:00', seats: null, priceUah: null, notes: null, name: null },
+      { id: 3, time: '19:30', seats: 2, priceUah: 250, notes: 'від м. Житомирська', name: 'Олег' },
+    ]);
+    expect(JSON.stringify(out)).not.toContain('380501112233');
+  });
+
+  it('попуток немає — порожній список, а не вигадані рейси; понад пʼять — «ще N»', () => {
+    expect(ask('попутка до Києва завтра')).toMatchObject({ kind: 'poputky', fromCity: 'Malyn', toCity: 'Kyiv', rides: [], more: 0 });
+    const many = ask('попутка до Києва', { listings: Array.from({ length: 7 }, (_, i) => listing({ id: i + 1 })) });
+    expect(many.kind === 'poputky' && [many.rides.length, many.more]).toEqual([5, 2]);
+  });
+
+  it('попутки на частину дня чи час: лише відповідні; якщо таких немає — усі за день з приміткою', () => {
+    const listings = [listing({ id: 1, departureTime: '06:00' }), listing({ id: 2, departureTime: '08:20-08:30' }), listing({ id: 3, departureTime: '14:11' }), listing({ id: 4, departureTime: null })];
+    const morning = ask('попутка до Києва завтра зранку', { listings });
+    expect(morning.kind === 'poputky' && morning.rides.map((r) => r.id)).toEqual([1, 2, 4]);
+    expect(morning.kind === 'poputky' && morning.notice).toBeUndefined();
+    const after = ask('попутка до Києва завтра о 14:00', { listings });
+    expect(after.kind === 'poputky' && after.rides.map((r) => r.id)).toEqual([3, 4]);
+    const evening = ask('попутка до Києва завтра ввечері', { listings: listings.slice(0, 3) });
+    expect(evening.kind === 'poputky' && [evening.rides.length, evening.notice]).toEqual([3, 'На цей час оголошень немає — ось усі за день.']);
+  });
+
+  it('ціна — лише з даних: розклад коридору й тариф міста; чого немає — так і кажемо', () => {
+    const rows = [
+      { vehicleType: 'marshrutka', priceUah: 310 },
+      { vehicleType: 'marshrutka', priceUah: 310 },
+      { vehicleType: 'elektrichka', priceUah: 60 },
+      { vehicleType: 'elektrichka', priceUah: 75 },
+    ] as Schedule[];
+    expect(ask('скільки коштує маршрутка до Києва', { schedules: rows })).toEqual({
+      kind: 'price',
+      lines: [{ label: 'Маршрутка Київ ↔ Малин', price: '310 грн', note: 'за місце, в один бік' }],
+    });
+    const all = ask('скільки коштує проїзд', { schedules: rows, cityFare: 25 });
+    expect(all.kind === 'price' && all.lines.map((l) => [l.label, l.price])).toEqual([
+      ['Маршрутка Київ ↔ Малин', '310 грн'],
+      ['Електричка Київ ↔ Малин', '60–75 грн'],
+      ['Попутка', 'за домовленістю'],
+      ['Міський автобус Малина', '25 грн'],
+    ]);
+    const city = ask('скільки коштує автобус з Царського села на вокзал', { schedules: rows });
+    expect(city).toEqual({ kind: 'price', lines: [{ label: 'Міський автобус Малина', price: null, note: 'одна поїздка' }] });
+  });
+
+  it('«телефон зубастика» — картка контактів; ціна й контакти розклад коридору питають самі', () => {
+    expect(ask('телефон зубастика')).toEqual({ kind: 'contact' });
+    expect(corridorCities(classify(parseLocal('скільки коштує маршрутка до Києва', NOW).intent))).toEqual({ from: 'Malyn', to: 'Kyiv' });
+    expect(corridorCities(classify(parseLocal('скільки коштує автобус з Царського села на вокзал', NOW).intent))).toBeNull();
+    expect(corridorCities(classify(parseLocal('телефон зубастика', NOW).intent))).toBeNull();
   });
 });

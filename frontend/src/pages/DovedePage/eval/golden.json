@@ -38,10 +38,10 @@
 
     { "id": "m-01", "text": "електричкою з Києва до Малина", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "modes": ["elektrichka"] }, "tags": ["mode"], "scope": "mvp" },
     { "id": "m-02", "text": "маршрутка Малин Київ завтра", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "tomorrow" }, "modes": ["marshrutka"] }, "tags": ["mode", "no-prepositions"], "scope": "mvp" },
-    { "id": "m-03", "text": "чи є попутка з Києва в Малин сьогодні", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "today" }, "modes": ["poputka"] }, "tags": ["mode", "poputka"], "scope": "later" },
+    { "id": "m-03", "text": "чи є попутка з Києва в Малин сьогодні", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Malyn", "when": { "day": "today" }, "modes": ["poputka"] }, "tags": ["mode", "poputka"], "scope": "mvp" },
     { "id": "m-04", "text": "автобусом з Царського села на вокзал", "expect": { "intent": "trip", "from": "malyn.tsarske", "to": "malyn.vokzal", "modes": ["city_bus"] }, "tags": ["mode", "intra-city", "avtobus-ambiguity"], "scope": "mvp" },
     { "id": "m-05", "text": "потягом у Київ", "expect": { "intent": "trip", "from": null, "to": "city.Kyiv", "modes": ["elektrichka"] }, "tags": ["mode", "implicit-from"], "scope": "mvp" },
-    { "id": "m-06", "text": "попутка з центру Малина до Києва ввечері", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "city.Kyiv", "when": { "part": "evening" }, "modes": ["poputka"]}, "tags": ["mode", "poputka"], "scope": "later" },
+    { "id": "m-06", "text": "попутка з центру Малина до Києва ввечері", "expect": { "intent": "trip", "from": "malyn.tsentr", "to": "city.Kyiv", "when": { "part": "evening" }, "modes": ["poputka"]}, "tags": ["mode", "poputka"], "scope": "mvp" },
 
     { "id": "l-01", "text": "как доехать из Киева в Малин на вокзал", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "malyn.vokzal" }, "tags": ["russian"], "scope": "mvp" },
     { "id": "l-02", "text": "с Малина в Киев завтра утром", "expect": { "intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "when": { "day": "tomorrow", "part": "morning" } }, "tags": ["russian", "time"], "scope": "mvp" },
@@ -61,8 +61,8 @@
     { "id": "o-04", "text": "з Києва в Коростень", "expect": { "intent": "trip", "from": "city.Kyiv", "to": "city.Korosten" }, "tags": ["korosten", "no-data"], "scope": "later" },
     { "id": "o-05", "text": "з Ковалівки до Малина", "expect": { "intent": "trip", "from": null, "to": "city.Malyn", "unknown": ["Ковалівки"] }, "tags": ["unknown-place"], "scope": "mvp" },
 
-    { "id": "n-01", "text": "скільки коштує маршрутка до Києва", "expect": { "intent": "price", "to": "city.Kyiv", "modes": ["marshrutka"] }, "tags": ["not-trip", "price"], "scope": "later" },
-    { "id": "n-02", "text": "телефон зубастика", "expect": { "intent": "contact", "modes": ["marshrutka"] }, "tags": ["not-trip", "contact", "brand"], "scope": "later" },
+    { "id": "n-01", "text": "скільки коштує маршрутка до Києва", "expect": { "intent": "price", "to": "city.Kyiv", "modes": ["marshrutka"] }, "tags": ["not-trip", "price"], "scope": "mvp" },
+    { "id": "n-02", "text": "телефон зубастика", "expect": { "intent": "contact", "modes": ["marshrutka"] }, "tags": ["not-trip", "contact", "brand"], "scope": "mvp" },
     { "id": "n-03", "text": "яка погода в Малині", "expect": { "intent": "other" }, "tags": ["not-trip"], "scope": "mvp" },
 
     { "id": "s-01", "text": "Як доїхати з  поворот на коновальця до паперова фабрика о 17:00", "expect": { "intent": "trip", "from": "st_0071", "to": "malyn.paperova", "when": { "day": "today", "time": "17:00", "kind": "depart" } }, "tags": ["stops", "owner-question"], "scope": "stops" },

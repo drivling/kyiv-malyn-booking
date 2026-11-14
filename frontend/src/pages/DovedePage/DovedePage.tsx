@@ -24,6 +24,9 @@ import { buildStopPlaces } from './nlu/stopPlaces';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
 import { QueryField, type QueryFieldHandle } from './ui/QueryField';
+import type { Schedule, ViberListing } from '@/types';
+import { ContactCard, PriceCard } from './ui/InfoCards';
+import { PoputkyCard } from './ui/RideBoard';
 import { RouteCard } from './ui/RouteCard';
 import { SlotSheet, type SlotKind } from './ui/SlotSheet';
 import { TimeStrip } from './ui/TimeStrip';
@@ -137,7 +140,7 @@ function Lock({ checking, error, busy, onLogin }: { checking: boolean; error: st
 }
 
 function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
-  const { ready, plannerFor, stops, routes } = usePlannerModel(DEFAULT_TRANSPORT_CITY);
+  const { ready, plannerFor, stops, routes, fare } = usePlannerModel(DEFAULT_TRANSPORT_CITY);
   // Зупинки з розкладу стають місцями словника («Поворот на Коновальця»); список «поточний», як номери маршрутів
   const stopIndex = useMemo(() => {
     const index = buildStopPlaces(stops);
@@ -175,10 +178,18 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
     async (id: number, q: string, parse: LocalParse, intent: TripIntent, now: KyivNow) => {
       const shape = classify(intent);
       const cities = corridorCities(shape);
-      const schedulesFor = async (d: string) => (cities ? (await apiClient.searchPoputky({ from: cities.from, to: cities.to, date: d })).schedules ?? [] : []);
+      // один запит: розклад коридору й оголошення попуток на цей день
+      const found = new Map<string, Promise<{ schedules: Schedule[]; listings: ViberListing[] }>>();
+      const searchFor = (d: string) => {
+        if (!found.has(d)) {
+          found.set(d, cities ? apiClient.searchPoputky({ from: cities.from, to: cities.to, date: d }).then((r) => ({ schedules: r.schedules ?? [], listings: r.listings ?? [] })) : Promise.resolve({ schedules: [], listings: [] }));
+        }
+        return found.get(d)!;
+      };
+      const schedulesFor = async (d: string) => (await searchFor(d)).schedules;
       try {
         let date = resolveDate(intent.when.day, now);
-        let outcome = composeStories({ intent, now, date, schedules: await schedulesFor(date), planner: plannerFor(date), routes }, shape);
+        let outcome = composeStories({ intent, now, date, schedules: await schedulesFor(date), planner: plannerFor(date), routes, listings: (await searchFor(date)).listings, cityFare: fare }, shape);
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);
           const next = composeStories(
@@ -187,6 +198,15 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
           );
           if (next.kind === 'stories') {
             outcome = { ...next, notice: 'Сьогодні вже нічого не їде — найближчі варіанти завтра.' };
+            date = tomorrow;
+          }
+        }
+        // сьогодні попуток уже немає — показуємо завтрашні й кажемо про це
+        if (outcome.kind === 'poputky' && outcome.rides.length === 0 && date === now.date && intent.when.day === 'today') {
+          const tomorrow = addDays(now.date, 1);
+          const next = composeStories({ intent, now, date: tomorrow, schedules: [], planner: null, routes, listings: (await searchFor(tomorrow)).listings }, shape);
+          if (next.kind === 'poputky' && next.rides.length) {
+            outcome = { ...next, notice: 'На сьогодні оголошень немає — ось завтрашні.' };
             date = tomorrow;
           }
         }
@@ -206,7 +226,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [plannerFor, setSearchParams, routes],
+    [plannerFor, setSearchParams, routes, fare],
   );
 
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
@@ -540,14 +560,41 @@ function Result({
           У першій версії «Доведе» знає дорогу Київ — Малин і міські автобуси Малина. Житомир, Коростень і попутки — далі.
         </Panel>
       );
-    case 'poputka_soon':
+    case 'poputky':
       return (
-        <Panel title="Попутки — згодом">
-          <p>Поки підказую маршрутки й електрички.</p>
-          <button type="button" className="dv-btn" onClick={() => onRetry({ modes: [] })}>
-            Показати маршрутки й електрички
-          </button>
-        </Panel>
+        <>
+          <PoputkyCard info={outcome} dateLabel={dateHeading(view.date, now)} />
+          <div className="dv-foot">
+            <button type="button" className="dv-btn dv-btn--ghost" onClick={() => onRetry({ modes: [] })}>
+              Показати маршрутки й електрички
+            </button>
+            <button type="button" className="dv-btn dv-btn--ghost" onClick={onReset}>
+              Нове питання
+            </button>
+          </div>
+        </>
+      );
+    case 'price':
+      return (
+        <>
+          <PriceCard lines={outcome.lines} />
+          <div className="dv-foot">
+            <button type="button" className="dv-btn dv-btn--ghost" onClick={onReset}>
+              Нове питання
+            </button>
+          </div>
+        </>
+      );
+    case 'contact':
+      return (
+        <>
+          <ContactCard />
+          <div className="dv-foot">
+            <button type="button" className="dv-btn dv-btn--ghost" onClick={onReset}>
+              Нове питання
+            </button>
+          </div>
+        </>
       );
     case 'not_trip':
       return (

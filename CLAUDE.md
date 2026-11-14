@@ -166,6 +166,10 @@ of `dist` in a commit.
   the question's words always ride along in `q=` in full (owner's decision: a reload or a shared link shows the same
   highlighted phrase and the same answer; the house number is read back from those words). Opening a link never calls
   Claude. The tab also keeps its question in sessionStorage (`rememberQuestion` / `recallQuestion`) as a fallback. Slot edits and id links do not call Claude.
+  Three more question kinds answer from site data only: rides («чи є попутка…» → `poputky`: driver listings of the day
+  from the same `/poputky/search`, drawn as a pinboard of paper notes in `ui/RideBoard.tsx`; the phone comes only after
+  «Відірвати номер» — a tear-off strip that calls the board's `GET /viber-listings/:id/contact`), price (`Schedule.priceUah` + `meta.fare`) and
+  contacts (`ZUBASTYK_PHONES`) — `ui/InfoCards.tsx`. New card classes must not reuse `.dv-note` (the yellow hint).
   Every city stop is a place: the curated gazetteer covers districts and synonyms, the rest come from the dataset
   (`nlu/stopPlaces.ts` + `normalize.ts`, byte-identical in `backend/src/dovede/`; ids `st_XXXX`, phrase matching).
   The browser registers them with `setStopPlaces` (look places up with `resolvePlace`, not `placeById`); the
