@@ -70,10 +70,20 @@ npm run fixtures
 ## Монтаж
 
 ```bash
-npm run studio        # Remotion Studio: перегляд, перемотка, пропси (showSafe — безпечні зони Reels)
-npm run render:test   # out/studio-test.mp4 — перевірка студії, 5 с
+npm run studio            # Remotion Studio: перегляд, перемотка, пропси (showSafe, click)
+npm run metronome         # public/audio/metronome-125.wav — клік замість музики для чернеток
+npm run render:teaser     # out/teaser.mp4 — майстер 53,76 с, 1080 × 1920
+npm run render:teaser15   # out/teaser-15.mp4 — версія 15 с
+npm run render:draft -- --props='{"showSafe":false,"click":true,"shots":["B1","B2","C1"]}' --output=out/draft-b.mp4
+npm run render:test       # out/studio-test.mp4 — перевірка студії, 5 с
 npm run typecheck
 ```
+
+Хід ролика — `src/teaser/timeline.ts` (кадри з `script.md`, тривалості в бітах; `MASTER` — 112 бітів, `SHORT` —
+32). Кожен кадр починається на своєму біті; склейка `in: 'iris'` («через крапку») стартує рівно на біті вхідного
+кадру. Готові кадри — у `src/teaser/shots/<розділ>.tsx` і в `READY` у `ShotsPlayer.tsx`; решта показується
+заглушкою, тож майстер рендериться цілим завжди. Титри кадрів (`caption` у таймлайні) малює `ShotsPlayer`.
+`Draft` — кілька кадрів поспіль із тривалостями майстра (чернетка 810 × 1440 для перегляду на телефоні).
 
 Бренд-кит (`src/brand/`):
 - `tokens.ts` — кадр 1080 × 1920 @ 30, кольори `--dv-*`, безпечні зони Meta (14 % / 35 % / 6 %);

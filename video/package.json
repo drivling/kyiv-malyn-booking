@@ -6,6 +6,10 @@
     "studio": "remotion studio src/index.ts",
     "capture": "node capture/run.mjs",
     "fixtures": "node capture/refresh-fixtures.mjs",
+    "metronome": "node scripts/metronome.mjs",
+    "render:teaser": "remotion render src/index.ts Teaser out/teaser.mp4",
+    "render:teaser15": "remotion render src/index.ts Teaser15 out/teaser-15.mp4",
+    "render:draft": "remotion render src/index.ts Draft out/draft.mp4 --scale=0.75",
     "render:test": "remotion render src/index.ts StudioTest out/studio-test.mp4",
     "still:test": "remotion still src/index.ts StudioTest out/studio-test.png --frame=120",
     "typecheck": "tsc --noEmit"

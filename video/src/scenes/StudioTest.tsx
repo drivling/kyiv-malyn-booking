@@ -4,7 +4,7 @@ import { linearTiming, TransitionSeries } from '@remotion/transitions';
 import { Caption } from '../brand/Caption';
 import { Capture } from '../brand/Capture';
 import { dotIris } from '../brand/dotIris';
-import { Logo } from '../brand/Logo';
+import { Logo, LOGO_DOT, LOGO_SIZE } from '../brand/Logo';
 import { PhoneFrame } from '../brand/PhoneFrame';
 import { SafeZones } from '../brand/SafeZones';
 import { COLORS } from '../brand/tokens';
@@ -17,8 +17,7 @@ const LOGO = 72;
 const IRIS = 14;
 const BOARD = 92;
 export const STUDIO_TEST_FRAMES = LOGO + BOARD - IRIS;
-/** Де крапка логотипа (розмір 230, по центру кадру) — звідси росте склейка */
-const DOT = { x: 0.889, y: 0.528 };
+const DOT = LOGO_DOT;
 /** Кадр зйомки «rides», з якого починається дошка (Enter — на 30-му) */
 const RIDES_FROM = 26;
 
@@ -27,7 +26,7 @@ export const StudioTest: React.FC<{ showSafe: boolean }> = ({ showSafe }) => (
     <TransitionSeries>
       <TransitionSeries.Sequence durationInFrames={LOGO}>
         <AbsoluteFill style={{ background: COLORS.paper, alignItems: 'center', justifyContent: 'center' }}>
-          <Logo size={230} dot="drop" from={12} />
+          <Logo size={LOGO_SIZE} dot="drop" from={12} />
         </AbsoluteFill>
       </TransitionSeries.Sequence>
       <TransitionSeries.Transition presentation={dotIris(DOT)} timing={linearTiming({ durationInFrames: IRIS })} />
