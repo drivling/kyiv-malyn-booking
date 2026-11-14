@@ -7,6 +7,7 @@ import { Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders, screen, within } from '@/test/utils';
 import { userState } from '@/utils/userState';
+import { ADMIN_TOKEN_STORAGE_KEY } from '@/utils/adminTokenStorage';
 import { NavBar } from './NavBar';
 
 function LocationProbe() {
@@ -58,7 +59,7 @@ describe('NavBar', () => {
       expect(city()).toBe('Коростеня');
       document.body.innerHTML = '';
       window.history.replaceState({}, '', '/transport?city=Korosten');
-      localStorage.setItem('adminToken', 'token');
+      localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'token');
       renderNav();
       expect(city()).toBe('Коростеня');
     } finally {

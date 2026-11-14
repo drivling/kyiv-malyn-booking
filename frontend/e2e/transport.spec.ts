@@ -330,6 +330,28 @@ test.describe('transport', () => {
     expect(cardsBox!.y).toBeLessThan(faqBox!.y);
   });
 
+  test.describe('route page on a computer', () => {
+    test.use({ viewport: { width: 1280, height: 800 } });
+
+    test('the footer starts right under the panel and the map: no grey strip; the footer is folded to the developer line', async ({ page }) => {
+      await page.goto('/transport/route/2?stop=st_a&to=st_c&d=16.09.26&h=08%3A00');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(/№2/);
+      await page.getByRole('button', { name: 'Повний розклад' }).click();
+      await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+      const container = await page.locator('.lt-container').boundingBox();
+      const page_ = await page.locator('.lt-page').boundingBox();
+      const footer = page.getByRole('contentinfo');
+      const footerBox = await footer.boundingBox();
+      // раніше .lt-page була на весь екран, а панель з картою — на екран мінус шапка: під картою лишалась сіра смуга
+      expect(Math.round(page_!.y + page_!.height)).toBe(Math.round(container!.y + container!.height));
+      expect(Math.round(footerBox!.y)).toBe(Math.round(container!.y + container!.height));
+      await expect(footer.getByRole('link', { name: 'ТОВ «Технології»' })).toBeVisible();
+      await expect(footer.getByRole('link', { name: 'Допомога' })).toBeHidden();
+      await footer.getByRole('button', { name: 'Більше' }).click();
+      await expect(footer.getByRole('link', { name: 'Допомога' })).toBeVisible();
+    });
+  });
+
   test.describe('route page on a phone', () => {
     test.use({ viewport: { width: 390, height: 844 } });
 

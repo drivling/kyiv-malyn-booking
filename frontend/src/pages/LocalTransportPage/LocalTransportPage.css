@@ -100,9 +100,11 @@
 }
 
 /* ========== Split layout: світла BBC-панель + карта ========== */
+/* Висота — як у .lt-container (екран мінус шапка). Було 100dvh: на компʼютері під картою лишалась порожня
+   сіра смуга заввишки з шапку — її видно, коли сторінку докручують до підвалу */
 .lt-page.lt-layout {
-  min-height: 100vh;
-  min-height: 100dvh;
+  min-height: calc(100vh - var(--app-nav-height));
+  min-height: calc(100dvh - var(--app-nav-height));
   padding: 0;
   background: var(--lt-bg);
   font-family: var(--lt-font);
