@@ -22,4 +22,14 @@ export default {
   // Плашка «Зараз місця бронюють лише телефоном» — тимчасова: перевізник уже робить онлайн-бронювання на своєму
   // боці (рішення власника 2026-11-14), тож у ролику її не показуємо. На сайті вона лишається, доки не змінимо код.
   css: '.dv-ticket .dv-note { display: none !important; }',
+  // І кнопка квитка — «Забронювати», як буде після інтеграції перевізника (на сайті поки «Подзвонити»)
+  prepare: (page) =>
+    page.evaluate(() => {
+      const fix = () =>
+        document.querySelectorAll('.dv-ticket__stub a[href^="tel:"]').forEach((a) => {
+          if (a.textContent !== 'Забронювати') a.textContent = 'Забронювати';
+        });
+      new MutationObserver(fix).observe(document.body, { childList: true, subtree: true, characterData: true });
+      fix();
+    }),
 };
