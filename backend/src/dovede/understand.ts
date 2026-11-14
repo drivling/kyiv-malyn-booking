@@ -6,6 +6,7 @@
  */
 import Anthropic from '@anthropic-ai/sdk';
 import { INTENT_SCHEMA, IntentShapeError, validateIntent, type TripIntent } from './intent';
+import type { DovedeSynonymEntry } from './synonyms';
 import { PROMPT_VERSION, buildSystemPrompt, buildUserText, type KyivNow, type RouteLike } from './prompt';
 import { buildStopPlaces, type StopLike } from './stopPlaces';
 
@@ -28,7 +29,7 @@ export type UnderstandResult =
   | { ok: false; failure: UnderstandFailure; message: string; model: string; latencyMs: number; usage?: UnderstandUsage; promptVersion: string };
 
 /** `stops` — зупинки міста з бази: Claude бачить їх усі, а `validateIntent` дозволяє їхні id */
-export type UnderstandFn = (text: string, now: KyivNow, stops?: StopLike[], routes?: RouteLike[]) => Promise<UnderstandResult>;
+export type UnderstandFn = (text: string, now: KyivNow, stops?: StopLike[], routes?: RouteLike[], synonyms?: DovedeSynonymEntry[]) => Promise<UnderstandResult>;
 
 /** Лише claude-*: значення з env не має відкривати довільну модель */
 export function dovedeModelName(raw: string | undefined | null): string {
@@ -77,7 +78,7 @@ export function createUnderstand(deps: { client: DovedeMessagesClient; model?: s
     return built;
   };
 
-  return async (text, now, stops, routes) => {
+  return async (text, now, stops, routes, synonyms) => {
     const { system, stopIds, routeIds } = promptFor(stops, routes);
     const started = clock();
     const base = { model, promptVersion: PROMPT_VERSION };
@@ -98,7 +99,7 @@ export function createUnderstand(deps: { client: DovedeMessagesClient; model?: s
           fallbacks: 'default',
           system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
           output_config: { effort: 'low', format: { type: 'json_schema', schema: INTENT_SCHEMA } },
-          messages: [{ role: 'user', content: buildUserText(text, now) }],
+          messages: [{ role: 'user', content: buildUserText(text, now, synonyms) }],
         },
         { timeout: TIMEOUT_MS, maxRetries: 1 },
       );

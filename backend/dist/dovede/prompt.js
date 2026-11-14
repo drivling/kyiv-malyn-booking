@@ -160,8 +160,15 @@ function weekdayUk(date) {
     return WEEKDAYS_UK[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
 }
 /** Змінна частина запиту: «зараз» за Києвом і саме питання */
-function buildUserText(text, now) {
+/**
+ * `synonyms` — місцеві назви з адмінки («епіцентр» → id місця). Вони йдуть сюди, а не в системний промпт: той
+ * лишається байт-у-байт однаковим, і його кеш не збивається щоразу, коли власник додає слово.
+ */
+function buildUserText(text, now, synonyms = []) {
     const hh = String(Math.floor(now.mins / 60)).padStart(2, '0');
     const mm = String(now.mins % 60).padStart(2, '0');
-    return `Зараз у Києві: ${now.date}, ${weekdayUk(now.date)}, ${hh}:${mm}.\n\nПитання:\n<question>\n${text}\n</question>`;
+    const local = synonyms.length
+        ? `Місцеві назви (як кажуть люди → id місця; якщо в питанні є така назва в будь-якому відмінку — це те місце):\n${synonyms.map((s) => `- ${s.phrase} → ${s.placeId}`).join('\n')}\n\n`
+        : '';
+    return `Зараз у Києві: ${now.date}, ${weekdayUk(now.date)}, ${hh}:${mm}.\n\n${local}Питання:\n<question>\n${text}\n</question>`;
 }

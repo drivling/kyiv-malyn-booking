@@ -924,62 +924,6 @@ button.dv-slot::after {
   justify-self: start;
 }
 
-/* Довідкові картки: попутки на день, ціни, телефони */
-.dv-info {
-  display: grid;
-  gap: 10px;
-}
-.dv-info .dv-btn {
-  justify-self: start;
-}
-.dv-info__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.dv-info__row {
-  display: flex;
-  gap: 12px;
-  align-items: baseline;
-  padding: 10px 0;
-  border-top: 1px solid var(--dv-line);
-}
-.dv-info__row--price {
-  justify-content: space-between;
-}
-.dv-info__time {
-  flex: 0 0 auto;
-  min-width: 64px;
-  font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-.dv-info__body {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-.dv-info__facts {
-  font-weight: 600;
-}
-.dv-info__price {
-  flex: 0 0 auto;
-  font-size: 18px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
-}
-.dv-info__phone {
-  font-size: 20px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: inherit;
-}
-.dv-info__empty {
-  margin: 0;
-  font-weight: 600;
-}
-
 /* ── Попутки як дошка оголошень: фетр у рамці, паперові записки на шпильках, відривний корінець з номером ── */
 .dv-board {
   --dv-felt: #dde7ea;
@@ -1422,6 +1366,262 @@ button.dv-tear__slip:active {
   }
 }
 
+/* ── Телефони перевізника: та сама дошка, корінці одразу з номерами (2 × 2), кожен — «подзвонити» ── */
+.dv-ad__who--title {
+  font-size: 20px;
+  font-weight: 800;
+}
+.dv-tabs {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-auto-rows: 1fr;
+}
+/* перфорація над корінцями — як у записках попуток */
+.dv-tabs::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: radial-gradient(circle, var(--dv-felt) 0 2.2px, transparent 2.6px) 0 0 / 11px 6px repeat-x;
+  pointer-events: none;
+}
+.dv-tabs__tab {
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 14px 12px 13px 16px;
+  background-color: #fffdf6;
+  color: inherit;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform 0.14s ease-out,
+    box-shadow 0.14s ease-out;
+}
+/* лінії розрізу між корінцями */
+.dv-tabs li:nth-child(odd) .dv-tabs__tab {
+  border-right: 1.5px dashed color-mix(in srgb, var(--dv-ink) 26%, transparent);
+}
+.dv-tabs li:nth-child(n + 3) .dv-tabs__tab {
+  border-top: 1.5px dashed color-mix(in srgb, var(--dv-ink) 26%, transparent);
+}
+.dv-tabs__tab:focus-visible {
+  outline: 3px solid var(--dv-accent);
+  outline-offset: -3px;
+}
+/* корінець трохи відстає від аркуша, коли його беруть */
+.dv-tabs__tab:hover,
+.dv-tabs__tab:active {
+  position: relative;
+  z-index: 2;
+  transform: translateY(3px) rotate(-1.2deg);
+  box-shadow: 0 6px 10px rgba(5, 71, 82, 0.18);
+}
+.dv-tabs__num {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dv-tabs__num::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  background: var(--dv-accent-ink);
+  -webkit-mask: var(--dv-ico) center / contain no-repeat;
+  mask: var(--dv-ico) center / contain no-repeat;
+  --dv-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25c1.1.37 2.3.57 3.6.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z'/%3E%3C/svg%3E");
+}
+.dv-tabs__note {
+  padding-left: 22px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--dv-muted);
+}
+@media (max-width: 420px) {
+  .dv-tabs__tab {
+    padding: 13px 8px 12px 12px;
+  }
+  .dv-tabs__num {
+    font-size: 16px;
+    gap: 5px;
+  }
+  .dv-tabs__note {
+    padding-left: 20px;
+  }
+}
+
+/* ── «Скільки коштує» — касовий чек: щілина принтера, термопапір, рядки з крапками, рваний край ── */
+.dv-till {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  padding: 0 6px 10px;
+  /* тінь тут, а не на папері: маска рваного краю зрізала б її */
+  filter: drop-shadow(0 9px 12px rgba(5, 71, 82, 0.2)) drop-shadow(0 1px 1px rgba(5, 71, 82, 0.2));
+}
+.dv-till__slot {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 372px);
+  height: 16px;
+  border-radius: 9px;
+  background: linear-gradient(to bottom, #0b3a43, #06262c 55%, #0f4a55);
+  box-shadow:
+    inset 0 2px 3px rgba(0, 0, 0, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.14),
+    0 1px 0 rgba(255, 255, 255, 0.9),
+    0 4px 8px rgba(5, 71, 82, 0.16);
+}
+.dv-receipt {
+  --dv-z: 5px;
+  position: relative;
+  width: min(calc(100% - 28px), 340px);
+  margin-top: -8px;
+  padding: 26px 18px calc(18px + var(--dv-z));
+  display: grid;
+  gap: 14px;
+  background:
+    linear-gradient(to bottom, rgba(5, 71, 82, 0.1), rgba(5, 71, 82, 0) 16px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .02 0 0 0 0 .28 0 0 0 0 .32 0 0 0 .04 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
+    #fdfdfb;
+  font-family: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.35;
+  color: #1c2f33;
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--dv-z)) 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--dv-z)) 100%;
+}
+.dv-receipt p {
+  margin: 0;
+}
+.dv-receipt__head {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px dashed rgba(28, 47, 51, 0.45);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 12px;
+}
+.dv-receipt__head strong {
+  font-size: 18px;
+  letter-spacing: 0.16em;
+}
+.dv-receipt__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 12px;
+}
+.dv-receipt__row {
+  display: grid;
+  gap: 1px;
+}
+.dv-receipt__line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.dv-receipt__what {
+  min-width: 0;
+  font-weight: 700;
+}
+/* крапки між назвою й ціною тягнуться на всю вільну ширину */
+.dv-receipt__dots {
+  flex: 1 1 12px;
+  min-width: 12px;
+  height: 0.9em;
+  border-bottom: 2px dotted rgba(28, 47, 51, 0.4);
+}
+.dv-receipt__sum {
+  flex: 0 0 auto;
+  font-size: 17px;
+  font-weight: 800;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.dv-receipt__sum--none {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(28, 47, 51, 0.6);
+}
+.dv-receipt__note {
+  font-size: 12px;
+  color: rgba(28, 47, 51, 0.66);
+}
+.dv-receipt__foot {
+  padding-top: 12px;
+  border-top: 1.5px dashed rgba(28, 47, 51, 0.45);
+  font-size: 12px;
+  text-align: center;
+  color: rgba(28, 47, 51, 0.72);
+}
+/* штрих-код — лише прикраса чека */
+.dv-receipt__bars {
+  justify-self: center;
+  width: 150px;
+  height: 30px;
+  opacity: 0.82;
+  background: repeating-linear-gradient(
+    to right,
+    #1c2f33 0 2px,
+    transparent 2px 4px,
+    #1c2f33 4px 5px,
+    transparent 5px 9px,
+    #1c2f33 9px 12px,
+    transparent 12px 14px,
+    #1c2f33 14px 15px,
+    transparent 15px 17px
+  );
+}
+/* чек «друкується»: виїжджає зі щілини ривками, рядок за рядком */
+.dv-out--in .dv-receipt {
+  animation: dv-print 1.15s steps(16, end) both;
+  animation-delay: 220ms;
+}
+.dv-out--in .dv-receipt__row {
+  animation: dv-ink 0.3s ease-out both;
+  animation-delay: calc(520ms + var(--dv-n, 0) * 170ms);
+}
+@keyframes dv-print {
+  from {
+    clip-path: inset(0 0 100% 0);
+    transform: translateY(-100%);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-out--in .dv-receipt,
+  .dv-out--in .dv-receipt__row {
+    animation: none;
+  }
+  .dv-tabs__tab {
+    transition: none;
+  }
+}
+
 /* маршрут у картці; кілька маршрутів («5 і 7 з лікарні») — розділи один під одним */
 .dv-route__item {
   display: grid;
@@ -1633,8 +1833,7 @@ button.dv-tear__slip:active {
 .dv-out--in .dv-choices > .dv-choice:nth-of-type(3),
 .dv-out--in .dv-alts > .dv-alt:nth-of-type(3) { --dv-c: 2; }
 .dv-out--in .dv-choices > .dv-choice:nth-of-type(n + 4) { --dv-c: 3; }
-.dv-out--in > .dv-route,
-.dv-out--in > .dv-info {
+.dv-out--in > .dv-route {
   transform-origin: 50% 0;
   animation: dv-deal 0.78s cubic-bezier(0.25, 0.8, 0.3, 1) both, dv-settle 0.78s ease-out both;
 }
@@ -1661,7 +1860,6 @@ button.dv-tear__slip:active {
   .dv-out--in .dv-choices > .dv-choice,
   .dv-out--in .dv-alts > .dv-alt,
   .dv-out--in > .dv-route,
-  .dv-out--in > .dv-info,
   .dv-out--in .dv-route__dir {
     animation: none;
   }

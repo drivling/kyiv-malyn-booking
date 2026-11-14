@@ -1216,6 +1216,16 @@ model DzhuraState {
   updatedAt       DateTime  @updatedAt
 }
 
+/// «Доведе» — синоніми з адмінки: як люди називають місце («епіцентр») → id місця словника. Діють без деплою.
+model DovedeSynonym {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  /// нормалізована фраза (малі літери, один пробіл)
+  phrase    String   @unique
+  /// id місця: кураторський словник, зупинка `st_…`, вулиця `street.…`, орієнтир `lm.…`
+  placeId   String
+}
+
 /// «Доведе» — журнал розуміння питань (Docs/dovede-roadmap.md, фаза 2): що зрозумів браузер, що — Claude,
 /// скільки це коштувало. Лише адмін; строк зберігання текстів визначимо перед публічним запуском (фаза 5).
 model DovedeQuery {

@@ -286,3 +286,12 @@ test('«крім сімки»: avoidRoutes лише зі списку маршр
   assert.equal(validateIntent({ ...GOOD, intent: 'route', routes: ['7'], avoidRoutes: ['7'] }, undefined, ids).intent, 'trip');
   assert.ok(buildSystemPrompt().includes('avoidRoutes'));
 });
+
+test('синоніми йдуть у повідомлення з питанням, а системний промпт від них не залежить', () => {
+  const plain = buildUserText('до епіцентру', NOW);
+  const taught = buildUserText('до епіцентру', NOW, [{ phrase: 'епіцентр', placeId: 'malyn.tsentr' }]);
+  assert.ok(!plain.includes('Місцеві назви'));
+  assert.ok(taught.includes('- епіцентр → malyn.tsentr'));
+  assert.ok(taught.indexOf('Місцеві назви') < taught.indexOf('<question>'));
+  assert.ok(!buildSystemPrompt().includes('епіцентр'));
+});

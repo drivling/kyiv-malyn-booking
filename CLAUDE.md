@@ -157,7 +157,10 @@ of `dist` in a commit.
   to `unknown`. `src/dovede/gazetteer.ts` is a byte-identical copy of the frontend `nlu/gazetteer.ts` (a frontend
   test diffs them) — edit both. Calls are logged in `DovedeQuery`; the admin tab `/admin/dovede`
   (`AdminPage/DovedeLogTab.tsx`, lazy chunk; `GET /admin/dovede/queries`, pure `src/dovede/log.ts`) shows the summary, the
-  words nobody recognised and the latest questions with both parses — read-only. Tests never reach the API: `vitest.setup.ts`
+  words nobody recognised and the latest questions with both parses. The same tab teaches synonyms without a deploy
+  (`DovedeSynonym`, `DovedeSynonymsPanel.tsx`, `/admin/dovede/synonyms`): the page reads `GET /dovede/synonyms` on open
+  (`nlu/synonyms.ts`, matched before every other dictionary), and Claude gets the list in the user message, so the
+  cached system prompt never changes with them. Tests never reach the API: `vitest.setup.ts`
   drops `ANTHROPIC_API_KEY`, `createApp({ dovedeUnderstand })` takes a stub; the real-model run over
   `eval/golden.json` is manual (`DOVEDE_EVAL=1`, `src/dovede/eval.test.ts`). Page UX (`DovedePage/ui/`):
   `QueryField` highlights recognised words in a layer under the transparent textarea and suggests gazetteer places
@@ -169,7 +172,7 @@ of `dist` in a commit.
   Three more question kinds answer from site data only: rides («чи є попутка…» → `poputky`: driver listings of the day
   from the same `/poputky/search`, drawn as a pinboard of paper notes in `ui/RideBoard.tsx`; the phone comes only after
   «Відірвати номер» — a tear-off strip that calls the board's `GET /viber-listings/:id/contact`), price (`Schedule.priceUah` + `meta.fare`) and
-  contacts (`ZUBASTYK_PHONES`) — `ui/InfoCards.tsx`. New card classes must not reuse `.dv-note` (the yellow hint).
+  contacts (`ZUBASTYK_PHONES`) — `ui/InfoCards.tsx` (prices as a printed receipt, phones as a pinned notice with tabs). New card classes must not reuse `.dv-note` (the yellow hint).
   Every city stop is a place: the curated gazetteer covers districts and synonyms, the rest come from the dataset
   (`nlu/stopPlaces.ts` + `normalize.ts`, byte-identical in `backend/src/dovede/`; ids `st_XXXX`, phrase matching).
   The browser registers them with `setStopPlaces` (look places up with `resolvePlace`, not `placeById`); the

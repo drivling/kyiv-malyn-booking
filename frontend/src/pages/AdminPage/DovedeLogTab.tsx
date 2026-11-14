@@ -6,6 +6,7 @@ import { resolvePlace } from '@/pages/DovedePage/nlu/places';
 import type { PlaceRef } from '@/pages/DovedePage/nlu/types';
 import type { DovedeLog, DovedeLogDays, DovedeLogFlag, DovedeLogItem } from '@/types';
 import { intentLine } from './dovedeLogText';
+import { DovedeSynonymsPanel } from './DovedeSynonymsPanel';
 import './DovedeLogTab.css';
 
 const PERIODS: DovedeLogDays[] = [1, 7, 30, 90];
@@ -67,13 +68,18 @@ const DovedeLogTab: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [stopNames, setStopNames] = useState<Map<string, string>>(new Map());
+  const [stops, setStops] = useState<Array<{ id: string; name: string }>>([]);
+  /** слово з «Чого не впізнали», яке власник узяв навчити */
+  const [seed, setSeed] = useState<{ word: string; n: number } | null>(null);
 
   useEffect(() => {
     let alive = true;
     apiClient
       .getTransportDataset({ city: DEFAULT_TRANSPORT_CITY })
       .then((d) => {
-        if (alive) setStopNames(new Map(d.stops.map((s) => [s.id, s.name])));
+        if (!alive) return;
+        setStopNames(new Map(d.stops.map((s) => [s.id, s.name])));
+        setStops(d.stops.map((s) => ({ id: s.id, name: s.name })));
       })
       .catch(() => undefined);
     return () => {
@@ -203,6 +209,7 @@ const DovedeLogTab: React.FC = () => {
                     <th>Слово</th>
                     <th>Разів</th>
                     <th>Приклад питання</th>
+                    <th />
                   </tr>
                 </thead>
                 <tbody>
@@ -213,12 +220,19 @@ const DovedeLogTab: React.FC = () => {
                       </td>
                       <td className="dovede-log-num">{u.count}</td>
                       <td className="dovede-log-text">{u.example}</td>
+                      <td>
+                        <button type="button" className="dovede-log-chip" onClick={() => setSeed((prev) => ({ word: u.word, n: (prev?.n ?? 0) + 1 }))}>
+                          навчити
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           )}
+
+          <DovedeSynonymsPanel stops={stops} seed={seed} />
 
           <div className="dovede-log-head">
             <h3>Питання</h3>

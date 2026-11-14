@@ -38,8 +38,9 @@ const okResult = (intent: TripIntent = INTENT): UnderstandResult => ({
 
 type Row = Record<string, unknown>;
 
-function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countWhere: unknown[] } {
+function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countWhere: unknown[]; synonymRows: Row[] } {
   const rows: Row[] = [];
+  const synonymRows: Row[] = [];
   const countWhere: unknown[] = [];
   const prisma = {
     dovedeQuery: {
@@ -50,6 +51,22 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
       count: async ({ where }: { where: unknown }) => {
         countWhere.push(where);
         return callsToday;
+      },
+    },
+    // синоніми з адмінки: маленька таблиця в памʼяті з унікальною фразою
+    dovedeSynonym: {
+      findMany: async () => [...synonymRows].sort((x, y) => String(x.phrase).localeCompare(String(y.phrase))),
+      upsert: async ({ where, create, update }: { where: { phrase: string }; create: Row; update: Row }) => {
+        const hit = synonymRows.find((x) => x.phrase === where.phrase);
+        if (hit) return Object.assign(hit, update);
+        const row = { id: synonymRows.length + 1, createdAt: new Date('2026-11-14T08:00:00.000Z'), ...create };
+        synonymRows.push(row);
+        return row;
+      },
+      deleteMany: async ({ where }: { where: { id: number } }) => {
+        const at = synonymRows.findIndex((x) => x.id === where.id);
+        if (at >= 0) synonymRows.splice(at, 1);
+        return { count: at >= 0 ? 1 : 0 };
       },
     },
     transportStop: {
@@ -66,7 +83,7 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
           : [],
     },
   } as unknown as PrismaClient;
-  return { prisma, rows, countWhere };
+  return { prisma, rows, countWhere, synonymRows };
 }
 
 function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null; enabled?: boolean; cap?: number }) {
@@ -364,4 +381,50 @@ test('журнал: only=problems і only=<позначка> фільтруют�
   assert.deepEqual(problems.body.items.map((i: { id: number }) => i.id), [2]);
   const fails = await request(app).get('/admin/dovede/queries?only=fail').set('Authorization', AUTH);
   assert.equal(fails.body.matched, 0);
+});
+
+test('синоніми: лише адмін додає й видаляє; фраза нормалізується, місце має бути у словнику', async () => {
+  const { prisma, synonymRows } = fakePrisma();
+  const app = appWith({ prisma });
+  assert.equal((await request(app).post('/admin/dovede/synonyms').send({ phrase: 'епіцентр', placeId: 'malyn.tsentr' })).status, 401);
+  assert.equal((await request(app).get('/admin/dovede/synonyms')).status, 401);
+
+  const saved = await request(app).post('/admin/dovede/synonyms').set('Authorization', AUTH).send({ phrase: '  «Епіцентр»,  ', placeId: 'malyn.tsentr' });
+  assert.equal(saved.status, 200);
+  assert.equal(saved.body.phrase, 'епіцентр');
+  // зупинка міста з бази теж місце; та сама фраза вдруге — міняє місце, а не додає другий рядок
+  const moved = await request(app).post('/admin/dovede/synonyms').set('Authorization', AUTH).send({ phrase: 'Епіцентр', placeId: 'st_0071' });
+  assert.equal(moved.body.placeId, 'st_0071');
+  assert.equal(synonymRows.length, 1);
+
+  for (const bad of [{ phrase: 'x', placeId: 'malyn.tsentr' }, { phrase: '12 34', placeId: 'malyn.tsentr' }, { phrase: 'а'.repeat(61), placeId: 'malyn.tsentr' }, { phrase: 'епіцентр', placeId: 'lm.nema-takoho' }, { phrase: 'епіцентр' }]) {
+    assert.equal((await request(app).post('/admin/dovede/synonyms').set('Authorization', AUTH).send(bad)).status, 400, JSON.stringify(bad));
+  }
+  assert.equal(synonymRows.length, 1);
+
+  const list = await request(app).get('/admin/dovede/synonyms').set('Authorization', AUTH);
+  assert.deepEqual(list.body.synonyms.map((x: Row) => [x.phrase, x.placeId]), [['епіцентр', 'st_0071']]);
+  assert.equal((await request(app).delete('/admin/dovede/synonyms/abc').set('Authorization', AUTH)).status, 400);
+  assert.equal((await request(app).delete(`/admin/dovede/synonyms/${saved.body.id}`).set('Authorization', AUTH)).status, 200);
+  assert.equal(synonymRows.length, 0);
+});
+
+test('синоніми діють одразу: сторінка читає їх з /dovede/synonyms, Claude отримує з питанням', async () => {
+  const { prisma } = fakePrisma();
+  const seen: unknown[] = [];
+  const app = appWith({
+    prisma,
+    understand: async (_text, _now, _stops, _routes, synonyms) => {
+      seen.push(synonyms);
+      return okResult();
+    },
+  });
+  assert.deepEqual((await request(app).get('/dovede/synonyms').set('Authorization', AUTH)).body, { synonyms: [] });
+  await request(app).post('/admin/dovede/synonyms').set('Authorization', AUTH).send({ phrase: 'Епіцентр', placeId: 'malyn.tsentr' });
+  // кеш скинуто записом — без очікування
+  assert.deepEqual((await request(app).get('/dovede/synonyms').set('Authorization', AUTH)).body, { synonyms: [{ phrase: 'епіцентр', placeId: 'malyn.tsentr' }] });
+  await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'до епіцентру' });
+  assert.deepEqual(seen, [[{ phrase: 'епіцентр', placeId: 'malyn.tsentr' }]]);
+  // без доступу до «Доведе» список не віддаємо
+  assert.equal((await request(app).get('/dovede/synonyms')).status, 401);
 });

@@ -60,7 +60,7 @@ function createUnderstand(deps) {
         }
         return built;
     };
-    return async (text, now, stops, routes) => {
+    return async (text, now, stops, routes, synonyms) => {
         const { system, stopIds, routeIds } = promptFor(stops, routes);
         const started = clock();
         const base = { model, promptVersion: prompt_1.PROMPT_VERSION };
@@ -80,7 +80,7 @@ function createUnderstand(deps) {
                 fallbacks: 'default',
                 system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
                 output_config: { effort: 'low', format: { type: 'json_schema', schema: intent_1.INTENT_SCHEMA } },
-                messages: [{ role: 'user', content: (0, prompt_1.buildUserText)(text, now) }],
+                messages: [{ role: 'user', content: (0, prompt_1.buildUserText)(text, now, synonyms) }],
             }, { timeout: TIMEOUT_MS, maxRetries: 1 });
             const usage = usageOf(resp.usage);
             // відповідати могла запасна модель — у журнал пишемо ту, що справді відповіла
