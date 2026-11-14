@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { ListingContactReveal } from '@/components/ListingContactReveal';
+import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { ZUBASTYK_PHONES } from '@/pages/MizhgorodskiPage/zubastykContent';
 import type { ComposeOutcome, PriceLine } from '../compose/types';
 
@@ -6,7 +8,8 @@ type Poputky = Extract<ComposeOutcome, { kind: 'poputky' }>;
 
 /**
  * Попутки на день (Docs/dovede-roadmap.md): оголошення водіїв з дошки сайту — час, місця, ціна й примітка так, як
- * написав водій. Телефонів тут немає: контакт людина відкриває на дошці, де діють її правила.
+ * написав водій. Номер — як на дошці: у розмітці його немає, він приходить окремим запитом після «Показати номер»
+ * (`ListingContactReveal`); імʼя скорочене тим самим правилом, що й на дошці.
  */
 export function PoputkyCard({ info, dateLabel }: { info: Poputky; dateLabel: string }) {
   const none = info.rides.length === 0;
@@ -29,9 +32,10 @@ export function PoputkyCard({ info, dateLabel }: { info: Poputky; dateLabel: str
               <span className="dv-info__time">{r.time ?? 'час не вказано'}</span>
               <span className="dv-info__body">
                 <span className="dv-info__facts">
-                  {[r.name, r.seats ? `місць: ${r.seats}` : null, r.priceUah ? `${r.priceUah} грн` : null].filter(Boolean).join(' · ') || 'водій'}
+                  {[r.name ? maskSenderNameForDisplay(r.name) : null, r.seats ? `місць: ${r.seats}` : null, r.priceUah ? `${r.priceUah} грн` : null].filter(Boolean).join(' · ') || 'водій'}
                 </span>
                 {r.notes ? <span className="dv-meta">{r.notes}</span> : null}
+                <ListingContactReveal listingId={r.id} className="dv-info__call" />
               </span>
             </li>
           ))}
@@ -40,7 +44,7 @@ export function PoputkyCard({ info, dateLabel }: { info: Poputky; dateLabel: str
       {info.more > 0 ? <p className="dv-meta">і ще {info.more} на дошці</p> : null}
       {info.passengers > 0 ? <p className="dv-meta">Шукають попутку цього дня: {info.passengers}.</p> : null}
       <Link className="dv-btn" to={info.boardUrl}>
-        {none ? 'Відкрити дошку попуток →' : 'Контакти водіїв — на дошці попуток →'}
+        {none ? 'Відкрити дошку попуток →' : 'Усі оголошення — на дошці попуток →'}
       </Link>
     </div>
   );

@@ -975,6 +975,24 @@ button.dv-slot::after {
   font-variant-numeric: tabular-nums;
   color: inherit;
 }
+.dv-info__call {
+  justify-self: start;
+  margin-top: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--dv-line);
+  border-radius: 999px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.dv-info__call:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .dv-info__empty {
   margin: 0;
   font-weight: 600;
