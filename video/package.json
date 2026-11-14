@@ -12,7 +12,8 @@
     "render:draft": "remotion render src/index.ts Draft out/draft.mp4 --scale=0.75",
     "render:test": "remotion render src/index.ts StudioTest out/studio-test.mp4",
     "still:test": "remotion still src/index.ts StudioTest out/studio-test.png --frame=120",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "assets": "node scripts/assets.mjs"
   },
   "dependencies": {
     "@remotion/cli": "4.0.539",

@@ -4,3 +4,5 @@ out/
 public/captures/
 # метроном для чернеток — `npm run metronome`
 public/audio/metronome-125.wav
+# копії схем і фото наклейки — `npm run assets`
+public/assets/
