@@ -1,0 +1,9 @@
+{
+  "file": "audio/music/track.m4a",
+  "bpm": 124.9,
+  "drop": 6.256,
+  "edits": {
+    "master": { "dropBeat": 16, "bars": [[-3.1, 16], [20, 28.25]] },
+    "short": { "dropBeat": 2, "bars": [[-0.5, 2.75], [23.75, 28.25]] }
+  }
+}

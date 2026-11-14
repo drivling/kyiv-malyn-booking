@@ -77,7 +77,8 @@ export function fadeEdges(data, ms = 3) {
   return data;
 }
 
-export async function writeWav(file, data) {
+/** 16 біт, 48 кГц; `channels` = 2 — відліки впереміш (L, R, L, R…) */
+export async function writeWav(file, data, channels = 1) {
   const pcm = new Int16Array(data.length);
   for (let i = 0; i < data.length; i++) pcm[i] = Math.max(-32767, Math.min(32767, Math.round(data[i] * 32767)));
   const body = Buffer.from(pcm.buffer);
@@ -88,10 +89,10 @@ export async function writeWav(file, data) {
   h.write('fmt ', 12);
   h.writeUInt32LE(16, 16);
   h.writeUInt16LE(1, 20);
-  h.writeUInt16LE(1, 22);
+  h.writeUInt16LE(channels, 22);
   h.writeUInt32LE(RATE, 24);
-  h.writeUInt32LE(RATE * 2, 28);
-  h.writeUInt16LE(2, 32);
+  h.writeUInt32LE(RATE * 2 * channels, 28);
+  h.writeUInt16LE(2 * channels, 32);
   h.writeUInt16LE(16, 34);
   h.write('data', 36);
   h.writeUInt32LE(body.length, 40);

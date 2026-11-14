@@ -1,9 +1,10 @@
 /**
- * Темп і сітка справжнього треку: `npm run analyze -- public/audio/<трек>.mp3 [--drop <секунда дропу>]`.
+ * Темп і карта треку: `npm run analyze -- public/audio/music/<трек> [--drop <секунда дропу>]`.
  * Декодує ffmpeg-ом у моно 22 050 Гц, рахує «силу атак» (прирости енергії), шукає темп автокореляцією в межах
- * 100–150 BPM і фазу біта; підказує `bpm` і `start` для src/audio/music.ts — так, щоб дроп треку ліг на 20-й біт
- * ролика (початок B2, 0:09,6 при 125 BPM). Секунду дропу краще перевірити на слух і передати `--drop`; без неї беремо найсильніший
- * сплеск енергії між 5-ю і 25-ю секундами.
+ * 100–150 BPM і фазу біта; підказує `bpm` і `drop` для src/audio/music.json і друкує енергію кожного такту від дропу
+ * (низ < 150 Гц — бас і бочка, середина, верх > 4 кГц) — по ній видно частини треку, затишшя, стоп-паузи й кінець,
+ * тобто де різати монтаж (`edits`). Секунду дропу краще почути самому й передати `--drop`; без неї беремо
+ * найсильніший сплеск енергії між 5-ю і 25-ю секундами (буває й не той).
  */
 import { spawnSync } from 'node:child_process';
 
@@ -88,11 +89,40 @@ else {
 }
 // дроп — на найближчий біт сітки
 const dropOnGrid = phase.off + Math.round((drop - phase.off) / beat) * beat;
-// дроп ролика — початок B2: 16 бітів «старого світу» + 4 біти B1
-const DROP_BEAT = 20;
-const start = dropOnGrid - DROP_BEAT * beat;
 
 console.log(`темп: ${bpm} BPM (біт ${beat.toFixed(3)} с), перший біт сітки: ${phase.off.toFixed(3)} с`);
 console.log(`дроп: ${drop.toFixed(2)} с → на сітці ${dropOnGrid.toFixed(3)} с`);
-console.log(`для src/audio/music.ts: bpm: ${bpm}, start: ${start.toFixed(3)}${start < -0.05 ? '  (від\'ємний: дроп зарано — ролик почнеться раніше за трек, вступ буде тихим)' : ''}`);
-console.log(`довжина ролика з цим темпом: ${((112 * beat)).toFixed(2)} с`);
+console.log(`для src/audio/music.json: "bpm": ${bpm}, "drop": ${dropOnGrid.toFixed(3)}`);
+
+// енергія тактів у смугах: двічі однополюсний фільтр — грубо, але частини треку видно
+function lowpass(sig, fc) {
+  const a = Math.exp((-2 * Math.PI * fc) / SR);
+  const y = new Float32Array(sig.length);
+  for (let pass = 0, src = sig; pass < 2; pass++, src = y) {
+    let s = 0;
+    for (let i = 0; i < src.length; i++) {
+      s = (1 - a) * src[i] + a * s;
+      y[i] = s;
+    }
+  }
+  return y;
+}
+const low = lowpass(x, 150);
+const upTo2k = lowpass(x, 2000);
+const upTo4k = lowpass(x, 4000);
+const db = (sig, t0, sub) => {
+  const a = Math.max(0, Math.round(t0 * SR));
+  const b = Math.min(x.length, Math.round((t0 + beat * 4) * SR));
+  let e = 0;
+  for (let i = a; i < b; i++) {
+    const v = sub ? sig[i] - sub[i] : sig[i];
+    e += v * v;
+  }
+  return (10 * Math.log10(e / Math.max(1, b - a) + 1e-12)).toFixed(1).padStart(6);
+};
+console.log('\nтакти від дропу (дБ): такт, секунда, низ, середина, верх, усе');
+const firstBar = -Math.floor(dropOnGrid / (beat * 4));
+for (let r = firstBar; dropOnGrid + r * beat * 4 < x.length / SR; r++) {
+  const t0 = dropOnGrid + r * beat * 4;
+  console.log(`${String(r).padStart(4)} ${t0.toFixed(2).padStart(7)} ${db(low, t0)} ${db(upTo2k, t0, low)} ${db(x, t0, upTo4k)} ${db(x, t0)}`);
+}

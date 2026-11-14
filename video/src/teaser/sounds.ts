@@ -31,8 +31,9 @@ const CUES: Record<string, CueFn> = {
   A2: ({ dur }) => [{ name: 'whoosh', at: 3, volume: 0.22 }, ...Array.from({ length: 9 }, (_, k) => ({ name: 'pop' as SfxName, at: ((k + 1) / 12) * dur, volume: 0.18 }))],
   A3: ({ dur }) => Array.from({ length: 8 }, (_, i) => ({ name: 'ding' as SfxName, at: i * beats(0.5), volume: 0.28 })).filter((c) => c.at < dur),
   A4: () => [{ name: 'bonk', at: beats(1), volume: 0.5 }],
-  A5: () => [0, 1, 2].map((b) => ({ name: 'tick' as SfxName, at: beats(b), volume: 0.25 })),
-  A6: ({ dur }) => [{ name: 'riser', at: 0, volume: 0.45 }, ...Array.from({ length: Math.floor(dur / 3) }, (_, i) => ({ name: 'tick' as SfxName, at: i * 3, volume: 0.1 }))],
+  // райзер (2 біти) закінчується на початку B1: стартує за біт до кінця A5 (A6 — один біт)
+  A5: ({ dur }) => [...[0, 1, 2].map((b) => ({ name: 'tick' as SfxName, at: beats(b), volume: 0.25 })), { name: 'riser', at: dur - beats(1), volume: 0.45 }],
+  A6: ({ dur }) => Array.from({ length: Math.floor(dur / 3) }, (_, i) => ({ name: 'tick' as SfxName, at: i * 3, volume: 0.1 })),
   B1: ({ dur }) => [0, 1, 2, 3].map((i) => ({ name: 'hit' as SfxName, at: (i * dur) / 4, volume: 0.42 })),
   B2: () => [
     { name: 'impact', at: 0, volume: 0.75 },
@@ -88,10 +89,10 @@ const CUES: Record<string, CueFn> = {
   ],
   // H1: крапка падає з 1-го біта — удари на біти 1,5 / 2,5 / 3,5 / 4,5
   H1: () => [1.5, 2.5, 3.5, 4.5].map((b, i) => ({ name: 'tup' as SfxName, at: beats(b), volume: 0.45 - i * 0.08 })),
-  // H2: адреса друкується за два біти; на останні пів біта крапка зникає — дзвіночок
+  // H2: адреса друкується за два біти; остання доля — фінальний удар треку: дзвіночок, адреса гасне, крапка зникає
   H2: ({ dur }) => [
     ...Array.from({ length: 20 }, (_, i) => ({ name: KEYS[i % 3], at: ((i + 1) * beats(2)) / 20, volume: 0.15 })),
-    { name: 'ting', at: dur - beats(0.5), volume: 0.5 },
+    { name: 'ting', at: dur - beats(1), volume: 0.5 },
   ],
 };
 

@@ -1,18 +1,23 @@
+import music from './music.json';
+
 /**
- * Музика ролика. Сітка кадрів рахується від її темпу (`brand/beat.ts`): поміняли трек — склейки самі стали на
- * його біти. Справжній ШІ-трек: покласти в public/audio/, `npm run analyze -- public/audio/<файл>` підкаже `bpm`
- * і `start`, вписати сюди й прибрати `temp`.
+ * Музика ролика — `music.json` (його читає й `scripts/music-edit.mjs`, тому JSON):
+ * - `file` — трек у public/ (не в git: права на ШІ-трек — лише для ролика, а репозиторій публічний);
+ * - `bpm` — темп треку. Сітка кадрів рахується від нього (`brand/beat.ts`): поміняли трек — склейки самі стали на
+ *   його біти;
+ * - `drop` — секунда дропу у файлі (сильна доля): від неї рахуються такти монтажу. `npm run analyze` підкаже, але
+ *   краще почути самому;
+ * - `edits` — монтаж треку під кожну версію ролика: шматки `[від, до)` у тактах від дропу (0 — дроп, −3 — за три
+ *   такти до нього, 28,25 — перша доля 28-го такту й ще одна доля), склеєні впритул зі швом 10 мс. `dropBeat` — біт
+ *   ролика, на який лягає дроп (початок B2); `Teaser.tsx` звіряє його з таймлайном.
+ *
+ * `npm run music` складає з треку `public/audio/music/<версія>.wav` — уже з тишею на початку, рівно під кадри ролика,
+ * і з гучністю тимчасового треку (−21,2 LUFS), під яку зведено звуки кадрів.
  */
-export const MUSIC = {
-  /** Файл у public/ */
-  file: 'audio/temp-125.wav',
-  /** Темп треку */
-  bpm: 125,
-  /**
-   * Секунда треку, що звучить у кадрі 0 майстра. Дроп треку має лягти на початок B2 (20-й біт ролика, 0:09,6):
-   * start = (секунда дропу в треку) − 20 × 60 / bpm.
-   */
-  start: 0,
-  /** Тимчасова музика, згенерована кодом (`npm run sound`) — до справжнього треку */
-  temp: true,
-} as const;
+export type MusicEditName = 'master' | 'short';
+export type MusicEdit = { dropBeat: number; bars: [number, number][] };
+
+export const MUSIC = music as { file: string; bpm: number; drop: number; edits: Record<MusicEditName, MusicEdit> };
+
+/** Змонтована музика версії: файл у public/ */
+export const musicEditFile = (name: MusicEditName) => `audio/music/${name}.wav`;

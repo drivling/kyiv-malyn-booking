@@ -16,7 +16,8 @@
     "assets": "node scripts/assets.mjs",
     "sound": "node scripts/sound.mjs",
     "analyze": "node scripts/analyze-track.mjs",
-    "master": "node scripts/master.mjs"
+    "master": "node scripts/master.mjs",
+    "music": "node scripts/music-edit.mjs"
   },
   "dependencies": {
     "@remotion/cli": "4.0.539",

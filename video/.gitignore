@@ -9,3 +9,5 @@ public/assets/
 # звуки й тимчасова музика — `npm run sound`
 public/audio/sfx/
 public/audio/temp-125.wav
+# трек і його монтаж — ШІ-музика з правами лише на ролик (репозиторій публічний); `npm run music`
+public/audio/music/

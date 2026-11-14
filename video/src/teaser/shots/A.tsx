@@ -215,7 +215,7 @@ export const A5: React.FC<{ shot: Placed }> = ({ shot }) => {
   );
 };
 
-/** A6 — райзер: старий світ миготить по 3 кадри, наприкінці — біла вспишка в слоган */
+/** A6 — старий світ миготить по 3 кадри, наприкінці — біла вспишка в слоган */
 export const A6: React.FC<{ shot: Placed }> = ({ shot }) => {
   const frame = useCurrentFrame();
   const stills: [React.FC<{ shot: Placed }>, number][] = [
@@ -225,7 +225,9 @@ export const A6: React.FC<{ shot: Placed }> = ({ shot }) => {
     [A4, 40],
   ];
   const [Comp, at] = stills[Math.floor(frame / 3) % stills.length];
-  const flash = clamp01((frame - (shot.dur - 9)) / 8);
+  // вспишка — останні 9 кадрів (у кадрі на один біт — половина), повний білий на останньому кадрі
+  const fl = Math.min(9, Math.round(shot.dur / 2));
+  const flash = clamp01((frame - (shot.dur - fl)) / (fl - 1));
   return (
     <AbsoluteFill>
       <AbsoluteFill style={{ transform: `scale(${1 + 0.04 * (frame % 3)})` }}>
