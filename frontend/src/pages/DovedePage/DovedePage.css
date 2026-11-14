@@ -975,27 +975,451 @@ button.dv-slot::after {
   font-variant-numeric: tabular-nums;
   color: inherit;
 }
-.dv-info__call {
-  justify-self: start;
-  margin-top: 6px;
-  padding: 8px 14px;
-  border: 1px solid var(--dv-line);
-  border-radius: 999px;
-  background: #fff;
-  color: inherit;
-  font: inherit;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-.dv-info__call:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-
 .dv-info__empty {
   margin: 0;
   font-weight: 600;
+}
+
+/* ── Попутки як дошка оголошень: фетр у рамці, паперові записки на шпильках, відривний корінець з номером ── */
+.dv-board {
+  --dv-felt: #dde7ea;
+  position: relative;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: 14px 14px 16px;
+  border: 5px solid transparent;
+  border-radius: 22px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.15' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .02 0 0 0 0 .28 0 0 0 0 .32 0 0 0 .16 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23f)'/%3E%3C/svg%3E") padding-box,
+    radial-gradient(120% 80% at 50% 0%, #e9f0f2, var(--dv-felt) 70%) padding-box,
+    linear-gradient(to bottom, #ffffff, #c8d3d7) border-box;
+  box-shadow:
+    inset 0 2px 7px rgba(5, 71, 82, 0.2),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.75),
+    0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 24px rgba(5, 71, 82, 0.12);
+}
+.dv-board p {
+  margin: 0;
+}
+
+/* табличка на двох гвинтиках */
+.dv-board__plate {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 10px;
+  padding: 9px 30px;
+  border-radius: 10px;
+  background: linear-gradient(to bottom, #ffffff, #eef3f4);
+  border: 1px solid #cdd8dc;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 1px 2px rgba(5, 71, 82, 0.16);
+}
+.dv-board__plate::before,
+.dv-board__plate::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background:
+    linear-gradient(45deg, transparent 44%, rgba(5, 71, 82, 0.45) 44% 56%, transparent 56%),
+    radial-gradient(circle at 35% 30%, #ffffff, #b9c6ca 70%);
+  box-shadow: 0 1px 1px rgba(5, 71, 82, 0.3);
+}
+.dv-board__plate::before {
+  left: 10px;
+}
+.dv-board__plate::after {
+  right: 10px;
+}
+.dv-board__kind {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--dv-muted);
+}
+.dv-board__route {
+  font-size: 18px;
+  font-weight: 800;
+}
+.dv-board__date {
+  margin-left: auto;
+  font-size: 14px;
+  color: var(--dv-muted);
+}
+
+/* жовтий стікер із приміткою («На сьогодні немає — ось завтрашні») */
+.dv-board__sticky {
+  justify-self: start;
+  max-width: 100%;
+  padding: 9px 12px;
+  rotate: -1deg;
+  background: linear-gradient(to bottom, #fff3bf, #ffe98f);
+  color: var(--dv-note-ink);
+  font-weight: 600;
+  font-size: 15px;
+  border-radius: 2px 2px 10px 2px;
+  box-shadow: 0 5px 8px rgba(5, 71, 82, 0.16);
+}
+
+.dv-board__notes {
+  min-width: 0;
+  margin: 0;
+  padding: 6px 2px 0;
+  list-style: none;
+  display: grid;
+  gap: 22px;
+}
+
+/* записка: папір + корінець; нахил у кожної свій, шпилька — кольорова */
+.dv-ad {
+  min-width: 0;
+  --dv-tilt: -0.7deg;
+  --dv-pin: #e2574c;
+  position: relative;
+  rotate: var(--dv-tilt);
+  filter: drop-shadow(0 7px 9px rgba(5, 71, 82, 0.17)) drop-shadow(0 1px 1px rgba(5, 71, 82, 0.14));
+}
+.dv-ad:nth-child(3n + 2) {
+  --dv-tilt: 0.6deg;
+  --dv-pin: #00aff5;
+}
+.dv-ad:nth-child(3n + 3) {
+  --dv-tilt: -0.25deg;
+  --dv-pin: #f5b800;
+}
+.dv-ad__pin {
+  position: absolute;
+  z-index: 2;
+  top: -8px;
+  left: 50%;
+  width: 17px;
+  height: 17px;
+  margin-left: -8.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ffffff 0 9%, color-mix(in srgb, var(--dv-pin) 70%, #fff) 16%, var(--dv-pin) 52%, color-mix(in srgb, var(--dv-pin) 62%, #000) 100%);
+  box-shadow:
+    0 4px 5px rgba(0, 0, 0, 0.28),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.18);
+}
+.dv-ad__paper,
+.dv-tear__slip {
+  background-color: #fffdf6;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .28 0 0 0 0 .12 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.dv-ad__paper {
+  display: grid;
+  gap: 8px;
+  padding: 20px 16px 13px;
+  border-radius: 3px 3px 0 0;
+}
+.dv-ad__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 12px;
+}
+.dv-ad__time {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.dv-ad__time small {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--dv-muted);
+}
+.dv-ad__time--none {
+  font-size: 17px;
+  color: var(--dv-muted);
+}
+.dv-ad__who {
+  font-size: 17px;
+  font-weight: 700;
+}
+.dv-ad__stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+/* «місць: 3», «250 грн» — як відтиск штампа */
+.dv-ad__stamp {
+  padding: 2px 8px 1px;
+  border: 1.5px solid color-mix(in srgb, var(--dv-ink) 55%, transparent);
+  border-radius: 5px;
+  color: color-mix(in srgb, var(--dv-ink) 82%, transparent);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  rotate: -1.2deg;
+}
+.dv-ad__stamp + .dv-ad__stamp {
+  rotate: 0.8deg;
+}
+.dv-ad__text {
+  padding-left: 10px;
+  border-left: 2px solid color-mix(in srgb, var(--dv-ink) 18%, transparent);
+  color: var(--dv-muted);
+  font-size: 15px;
+  overflow-wrap: anywhere;
+}
+
+/* корінець: перфорація — ряд дірочок, крізь які видно фетр */
+.dv-tear {
+  position: relative;
+}
+.dv-tear::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: radial-gradient(circle, var(--dv-felt) 0 2.2px, transparent 2.6px) 0 0 / 11px 6px repeat-x;
+  pointer-events: none;
+}
+.dv-tear__slip {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 13px 16px 14px;
+  border: 0;
+  border-radius: 0 0 3px 3px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease-out;
+}
+.dv-tear__slip:focus-visible {
+  outline: 3px solid var(--dv-accent);
+  outline-offset: 2px;
+}
+button.dv-tear__slip:active {
+  transform: translateY(2px);
+}
+.dv-tear__do {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--dv-accent-ink);
+}
+/* ножиці перед «Відірвати номер» */
+.dv-tear__do::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  background: currentColor;
+  -webkit-mask: var(--dv-ico) center / contain no-repeat;
+  mask: var(--dv-ico) center / contain no-repeat;
+  --dv-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='6' cy='6' r='3'/%3E%3Ccircle cx='6' cy='18' r='3'/%3E%3Cpath d='M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12'/%3E%3C/svg%3E");
+}
+.dv-tear__num {
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.dv-tear__num--masked {
+  color: color-mix(in srgb, var(--dv-ink) 38%, transparent);
+  letter-spacing: 0.04em;
+}
+.dv-tear.is-pulling .dv-tear__slip {
+  animation: dv-tug 0.42s ease-in-out infinite;
+  cursor: progress;
+}
+@keyframes dv-tug {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(3px) rotate(0.5deg);
+  }
+}
+
+/* відірваний корінець: рваний верхній край, лежить окремо й трохи навскіс; номер проявляється цифра за цифрою */
+.dv-tear--off {
+  padding-top: 9px;
+}
+.dv-tear--off::before {
+  top: -3px;
+}
+.dv-tear--off .dv-tear__slip {
+  --dv-z: 4px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 16px 16px 14px;
+  border-radius: 0 0 4px 4px;
+  rotate: -1.6deg;
+  transform-origin: 12% 0;
+  -webkit-mask: conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--dv-z)) 100%;
+  mask: conic-gradient(from 135deg at top, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--dv-z)) 100%;
+  animation: dv-rip 0.52s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+/* слухавка замість ножиць */
+.dv-tear--off .dv-tear__do::before {
+  --dv-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25c1.1.37 2.3.57 3.6.57a1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z'/%3E%3C/svg%3E");
+}
+.dv-tear--off .dv-tear__do {
+  font-size: 14px;
+}
+.dv-tear--off .dv-tear__num {
+  font-size: 26px;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+}
+.dv-tear--off .dv-tear__num > span {
+  display: inline-block;
+  white-space: pre;
+  animation: dv-ink 0.28s ease-out both;
+  animation-delay: calc(260ms + var(--dv-k, 0) * 26ms);
+}
+@keyframes dv-rip {
+  0% {
+    transform: translateY(-9px) rotate(1.6deg);
+  }
+  35% {
+    transform: translateY(-4px) rotate(3.4deg);
+  }
+  70% {
+    transform: translateY(3px) rotate(-0.8deg);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes dv-ink {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translateY(5px) scale(1.25);
+  }
+  to {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}
+
+.dv-board__empty {
+  padding: 26px 16px;
+  border: 2px dashed color-mix(in srgb, var(--dv-ink) 22%, transparent);
+  border-radius: 6px;
+  color: var(--dv-muted);
+  font-weight: 600;
+  text-align: center;
+}
+.dv-board__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.dv-board__caption {
+  color: var(--dv-muted);
+  font-size: 14px;
+}
+.dv-board__all {
+  margin-left: auto;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, #ffffff, #eef3f4);
+  border: 1px solid #cdd8dc;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 1px 2px rgba(5, 71, 82, 0.14);
+  color: var(--dv-ink);
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+}
+
+/* записки чіпляють на дошку одну за одною: папір лягає, шпилька «втикається» */
+.dv-out--in .dv-ad {
+  animation: dv-pinup 0.6s cubic-bezier(0.2, 0.85, 0.3, 1.1) both;
+  animation-delay: calc(260ms + var(--dv-n, 0) * 150ms);
+}
+.dv-out--in .dv-ad__pin {
+  animation: dv-pin 0.36s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+  animation-delay: calc(520ms + var(--dv-n, 0) * 150ms);
+}
+.dv-out--in .dv-board__sticky {
+  animation: dv-pinup 0.5s ease-out both;
+  animation-delay: 160ms;
+}
+@keyframes dv-pinup {
+  0% {
+    opacity: 0;
+    transform: translateY(-18px) rotate(2.4deg) scale(1.05);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(2px) rotate(-0.6deg) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dv-pin {
+  0% {
+    opacity: 0;
+    transform: translateY(-16px) scale(1.5);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-out--in .dv-ad,
+  .dv-out--in .dv-ad__pin,
+  .dv-out--in .dv-board__sticky,
+  .dv-tear.is-pulling .dv-tear__slip,
+  .dv-tear--off .dv-tear__slip,
+  .dv-tear--off .dv-tear__num > span {
+    animation: none;
+  }
+}
+@media (max-width: 420px) {
+  .dv-ad__time {
+    font-size: 25px;
+  }
+  .dv-tear__num {
+    font-size: 14px;
+    letter-spacing: 0;
+  }
+  .dv-tear--off .dv-tear__num {
+    font-size: 24px;
+  }
+  .dv-board__date {
+    margin-left: 0;
+    flex-basis: 100%;
+  }
 }
 
 /* маршрут у картці; кілька маршрутів («5 і 7 з лікарні») — розділи один під одним */

@@ -1,54 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ListingContactReveal } from '@/components/ListingContactReveal';
-import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import { ZUBASTYK_PHONES } from '@/pages/MizhgorodskiPage/zubastykContent';
-import type { ComposeOutcome, PriceLine } from '../compose/types';
-
-type Poputky = Extract<ComposeOutcome, { kind: 'poputky' }>;
-
-/**
- * Попутки на день (Docs/dovede-roadmap.md): оголошення водіїв з дошки сайту — час, місця, ціна й примітка так, як
- * написав водій. Номер — як на дошці: у розмітці його немає, він приходить окремим запитом після «Показати номер»
- * (`ListingContactReveal`); імʼя скорочене тим самим правилом, що й на дошці.
- */
-export function PoputkyCard({ info, dateLabel }: { info: Poputky; dateLabel: string }) {
-  const none = info.rides.length === 0;
-  return (
-    <div className="dv-card dv-info">
-      <div className="dv-card__top">
-        <span className="dv-badge dv-badge--poputka">Попутки</span>
-        <span className="dv-card__title">
-          {info.fromLabel} → {info.toLabel}
-        </span>
-      </div>
-      <p className="dv-meta">{dateLabel}</p>
-      {info.notice ? <p className="dv-info__empty">{info.notice}</p> : null}
-      {none ? (
-        <p className="dv-info__empty">На цей день оголошень від водіїв поки немає.</p>
-      ) : (
-        <ul className="dv-info__list">
-          {info.rides.map((r) => (
-            <li key={r.id} className="dv-info__row">
-              <span className="dv-info__time">{r.time ?? 'час не вказано'}</span>
-              <span className="dv-info__body">
-                <span className="dv-info__facts">
-                  {[r.name ? maskSenderNameForDisplay(r.name) : null, r.seats ? `місць: ${r.seats}` : null, r.priceUah ? `${r.priceUah} грн` : null].filter(Boolean).join(' · ') || 'водій'}
-                </span>
-                {r.notes ? <span className="dv-meta">{r.notes}</span> : null}
-                <ListingContactReveal listingId={r.id} className="dv-info__call" />
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {info.more > 0 ? <p className="dv-meta">і ще {info.more} на дошці</p> : null}
-      {info.passengers > 0 ? <p className="dv-meta">Шукають попутку цього дня: {info.passengers}.</p> : null}
-      <Link className="dv-btn" to={info.boardUrl}>
-        {none ? 'Відкрити дошку попуток →' : 'Усі оголошення — на дошці попуток →'}
-      </Link>
-    </div>
-  );
-}
+import type { PriceLine } from '../compose/types';
 
 /** «Скільки коштує»: ціни з розкладу сайту й тарифу міста */
 export function PriceCard({ lines }: { lines: PriceLine[] }) {
