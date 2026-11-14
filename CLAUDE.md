@@ -169,7 +169,7 @@ of `dist` in a commit.
   Three more question kinds answer from site data only: rides («чи є попутка…» → `poputky`: driver listings of the day
   from the same `/poputky/search`, drawn as a pinboard of paper notes in `ui/RideBoard.tsx`; the phone comes only after
   «Відірвати номер» — a tear-off strip that calls the board's `GET /viber-listings/:id/contact`), price (`Schedule.priceUah` + `meta.fare`) and
-  contacts (`ZUBASTYK_PHONES`) — `ui/InfoCards.tsx`. New card classes must not reuse `.dv-note` (the yellow hint).
+  contacts (`ZUBASTYK_PHONES`) — `ui/InfoCards.tsx` (prices as a printed receipt, phones as a pinned notice with tabs). New card classes must not reuse `.dv-note` (the yellow hint).
   Every city stop is a place: the curated gazetteer covers districts and synonyms, the rest come from the dataset
   (`nlu/stopPlaces.ts` + `normalize.ts`, byte-identical in `backend/src/dovede/`; ids `st_XXXX`, phrase matching).
   The browser registers them with `setStopPlaces` (look places up with `resolvePlace`, not `placeById`); the
