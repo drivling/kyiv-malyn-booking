@@ -9,7 +9,8 @@ import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 import type { ComposeOutcome } from '../compose/types';
-import { PoputkyCard, slipNumber } from './RideBoard';
+import { PoputkyCard } from './RideBoard';
+import { slipNumber } from './slipNumber';
 
 type Poputky = Extract<ComposeOutcome, { kind: 'poputky' }>;
 

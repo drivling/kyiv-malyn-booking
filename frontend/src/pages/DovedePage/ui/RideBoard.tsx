@@ -1,9 +1,10 @@
 import { useState, type CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
-import { formatListingContactDisplay, listingContactHref } from '@/utils/constants';
+import { listingContactHref } from '@/utils/constants';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import type { ComposeOutcome, PoputkaRide } from '../compose/types';
+import { slipNumber } from './slipNumber';
 
 type Poputky = Extract<ComposeOutcome, { kind: 'poputky' }>;
 
@@ -12,14 +13,6 @@ function splitTime(time: string | null): [string, string | null] | null {
   if (!time) return null;
   const [from, to] = time.split('-').map((x) => x.trim());
   return [from, to || null];
-}
-
-/** «380501234567» → «+380 50 123 45 67»; Telegram і незвичні номери — як на дошці сайту */
-export function slipNumber(contact: string): string {
-  const digits = contact.replace(/\D/g, '');
-  const m = /^380(\d{2})(\d{3})(\d{2})(\d{2})$/.exec(digits);
-  if (contact.trim().startsWith('@') || !m) return formatListingContactDisplay(contact);
-  return `+380 ${m[1]} ${m[2]} ${m[3]} ${m[4]}`;
 }
 
 /**
