@@ -19,7 +19,8 @@ import {
 import { kyivClock } from '../arrival-reports';
 import { aiCallsToday, dovedeDailyCap, isDovedeEnabled, kyivDayStart } from '../dovede/guard';
 import { DOVEDE_LOG_ROWS, DOVEDE_LOG_SCAN, parseLogDays, summarizeQueries, toLogItem, type DovedeLogFlag } from '../dovede/log';
-import { IntentShapeError, validateIntent, type TripIntent } from '../dovede/intent';
+import { IntentShapeError, isKnownPlaceId, validateIntent, type TripIntent } from '../dovede/intent';
+import { SYNONYM_LIMIT, normalizePhrase, phraseProblem, type DovedeSynonymEntry } from '../dovede/synonyms';
 import { understandFromEnv, type UnderstandFn } from '../dovede/understand';
 import type { RouteLike } from '../dovede/prompt';
 import { buildStopPlaces, type StopLike } from '../dovede/stopPlaces';
@@ -122,6 +123,80 @@ export function createAdminDovedeRouter(deps: {
     }
   };
 
+  /** Синоніми з адмінки; кеш на хвилину, запис в адмінці скидає його одразу */
+  let synCache: { at: number; list: DovedeSynonymEntry[] } | null = null;
+  const synonyms = async (at: Date): Promise<DovedeSynonymEntry[]> => {
+    if (synCache && at.getTime() - synCache.at < 60_000) return synCache.list;
+    try {
+      const rows = await prisma.dovedeSynonym.findMany({ select: { phrase: true, placeId: true }, orderBy: { phrase: 'asc' }, take: SYNONYM_LIMIT });
+      const list = rows.map((x) => ({ phrase: x.phrase, placeId: x.placeId }));
+      synCache = { at: at.getTime(), list };
+      return list;
+    } catch (e) {
+      // без синонімів сторінка працює, як до них
+      console.error('❌ Dovede: не вдалося прочитати синоніми:', e);
+      return synCache?.list ?? [];
+    }
+  };
+
+  /** Синоніми для сторінки: браузер розбирає з ними питання сам */
+  r.get('/dovede/synonyms', requireDovedeAccess(access), async (_req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ synonyms: await synonyms(clock()) });
+  });
+
+  r.get('/admin/dovede/synonyms', requireAdmin, async (_req, res) => {
+    try {
+      const rows = await prisma.dovedeSynonym.findMany({ orderBy: { id: 'desc' } });
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ synonyms: rows.map((s) => ({ id: s.id, phrase: s.phrase, placeId: s.placeId, createdAt: s.createdAt.toISOString() })) });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/synonyms:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати синоніми' });
+    }
+  });
+
+  /** Навчити: фраза → місце. Та сама фраза вдруге — міняє місце (одна фраза не може вести у два місця) */
+  r.post('/admin/dovede/synonyms', requireAdmin, async (req, res) => {
+    const body = (req.body ?? {}) as { phrase?: unknown; placeId?: unknown };
+    const phrase = normalizePhrase(body.phrase);
+    const placeId = typeof body.placeId === 'string' ? body.placeId.trim() : '';
+    const problem = phraseProblem(phrase);
+    if (problem) {
+      res.status(400).json({ error: problem });
+      return;
+    }
+    try {
+      const city = await cityData(clock());
+      if (!isKnownPlaceId(placeId, city.ids)) {
+        res.status(400).json({ error: 'Такого місця немає у словнику' });
+        return;
+      }
+      const saved = await prisma.dovedeSynonym.upsert({ where: { phrase }, create: { phrase, placeId }, update: { placeId } });
+      synCache = null;
+      res.json({ id: saved.id, phrase: saved.phrase, placeId: saved.placeId, createdAt: saved.createdAt.toISOString() });
+    } catch (e) {
+      console.error('❌ POST /admin/dovede/synonyms:', e);
+      res.status(500).json({ error: 'Не вдалося зберегти синонім' });
+    }
+  });
+
+  r.delete('/admin/dovede/synonyms/:id', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).json({ error: 'Невірний id' });
+      return;
+    }
+    try {
+      await prisma.dovedeSynonym.deleteMany({ where: { id } });
+      synCache = null;
+      res.json({ ok: true });
+    } catch (e) {
+      console.error('❌ DELETE /admin/dovede/synonyms/:id:', e);
+      res.status(500).json({ error: 'Не вдалося видалити синонім' });
+    }
+  });
+
   /** Журнал не має права зламати відповідь */
   const log = async (data: Prisma.DovedeQueryCreateInput): Promise<void> => {
     try {
@@ -171,7 +246,7 @@ export function createAdminDovedeRouter(deps: {
         return;
       }
 
-      const result = await understand(text, kyivClock(at), city.stops, city.routes);
+      const result = await understand(text, kyivClock(at), city.stops, city.routes, await synonyms(at));
       const agree = result.ok && local ? intentsAgree(local, result.intent) : null;
       await log({
         text,

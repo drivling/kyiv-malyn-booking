@@ -1218,3 +1218,11 @@ export interface DovedeLog {
   matched: number;
   items: DovedeLogItem[];
 }
+
+/** «Доведе» · синонім з адмінки: фраза, якою люди називають місце, → id місця */
+export interface DovedeSynonymRow {
+  id: number;
+  phrase: string;
+  placeId: string;
+  createdAt: string;
+}

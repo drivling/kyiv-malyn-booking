@@ -1074,6 +1074,29 @@ class ApiClient {
   }
 
   /** Адмін: журнал питань «Доведе» — зведення за `days` і останні питання (`only` — фільтр таблиці) */
+  /** «Доведе»: синоніми з адмінки для розбору в браузері; не вдалося — порожньо (сторінка працює й без них) */
+  async dovedeSynonyms(): Promise<import('@/pages/DovedePage/nlu/synonyms').Synonym[]> {
+    try {
+      const r = await this.request<{ synonyms: import('@/pages/DovedePage/nlu/synonyms').Synonym[] }>('/dovede/synonyms', { headers: this.dovedeHeaders(), cache: 'no-store' });
+      return Array.isArray(r.synonyms) ? r.synonyms : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** Адмін: синоніми «Доведе» — список, навчити (фраза → місце), забути */
+  async getDovedeSynonyms(): Promise<{ synonyms: import('@/types').DovedeSynonymRow[] }> {
+    return this.request('/admin/dovede/synonyms');
+  }
+
+  async saveDovedeSynonym(phrase: string, placeId: string): Promise<import('@/types').DovedeSynonymRow> {
+    return this.request('/admin/dovede/synonyms', { method: 'POST', body: JSON.stringify({ phrase, placeId }) });
+  }
+
+  async deleteDovedeSynonym(id: number): Promise<{ ok: boolean }> {
+    return this.request(`/admin/dovede/synonyms/${id}`, { method: 'DELETE' });
+  }
+
   async getDovedeLog(days: import('@/types').DovedeLogDays = 7, only = ''): Promise<import('@/types').DovedeLog> {
     return this.request(`/admin/dovede/queries?days=${days}${only ? `&only=${encodeURIComponent(only)}` : ''}`);
   }

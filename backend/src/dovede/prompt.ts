@@ -7,6 +7,7 @@ import { CITY_LABEL, PLACES, type GazetteerPlace } from './gazetteer';
 import { buildStopPlaces, type StopLike } from './stopPlaces';
 import { MALYN_LANDMARKS } from './landmarks';
 import { MALYN_STREETS } from './streets';
+import type { DovedeSynonymEntry } from './synonyms';
 
 /** Міняти разом зі змістом промпту: видно в журналі DovedeQuery, щоб порівнювати розбори між версіями */
 export const PROMPT_VERSION = 'dovede-understand-v6';
@@ -177,8 +178,15 @@ export function weekdayUk(date: string): string {
 }
 
 /** Змінна частина запиту: «зараз» за Києвом і саме питання */
-export function buildUserText(text: string, now: KyivNow): string {
+/**
+ * `synonyms` — місцеві назви з адмінки («епіцентр» → id місця). Вони йдуть сюди, а не в системний промпт: той
+ * лишається байт-у-байт однаковим, і його кеш не збивається щоразу, коли власник додає слово.
+ */
+export function buildUserText(text: string, now: KyivNow, synonyms: DovedeSynonymEntry[] = []): string {
   const hh = String(Math.floor(now.mins / 60)).padStart(2, '0');
   const mm = String(now.mins % 60).padStart(2, '0');
-  return `Зараз у Києві: ${now.date}, ${weekdayUk(now.date)}, ${hh}:${mm}.\n\nПитання:\n<question>\n${text}\n</question>`;
+  const local = synonyms.length
+    ? `Місцеві назви (як кажуть люди → id місця; якщо в питанні є така назва в будь-якому відмінку — це те місце):\n${synonyms.map((s) => `- ${s.phrase} → ${s.placeId}`).join('\n')}\n\n`
+    : '';
+  return `Зараз у Києві: ${now.date}, ${weekdayUk(now.date)}, ${hh}:${mm}.\n\n${local}Питання:\n<question>\n${text}\n</question>`;
 }

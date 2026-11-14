@@ -17,6 +17,11 @@ function isStreetId(id: string): boolean {
   return m != null && STREET_IDS.has(m[1]);
 }
 
+/** Чи це місце, яке знає «Доведе»: кураторський словник, зупинка міста, вулиця (з будинком чи без), орієнтир */
+export function isKnownPlaceId(id: string, stopIds?: ReadonlySet<string>): boolean {
+  return placeById(id) != null || stopIds?.has(id) === true || isStreetId(id) || LANDMARK_IDS.has(id);
+}
+
 export type TripMode = 'marshrutka' | 'elektrichka' | 'poputka' | 'city_bus';
 
 export interface TripWhen {
@@ -131,7 +136,7 @@ export function validateIntent(raw: unknown, stopIds?: ReadonlySet<string>, rout
     const p = v as Record<string, unknown>;
     const id = typeof p.id === 'string' ? p.id.trim() : '';
     const text = clip(p.text);
-    if (!placeById(id) && !stopIds?.has(id) && !isStreetId(id) && !LANDMARK_IDS.has(id)) {
+    if (!isKnownPlaceId(id, stopIds)) {
       pushUnknown(text || id.slice(0, MAX_TEXT));
       return null;
     }

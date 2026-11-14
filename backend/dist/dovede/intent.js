@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.IntentShapeError = exports.INTENT_SCHEMA = void 0;
+exports.isKnownPlaceId = isKnownPlaceId;
 exports.validateIntent = validateIntent;
 /**
  * «Доведе» — контракт TripIntent на сервері (Docs/dovede-roadmap.md, «Контракти»). Той самий, що у
@@ -17,6 +18,10 @@ const STREET_ID_RE = /^(street\.[a-z0-9-]+)(?::[0-9]{1,3}[а-яіїєa-z]?)?$/;
 function isStreetId(id) {
     const m = STREET_ID_RE.exec(id);
     return m != null && STREET_IDS.has(m[1]);
+}
+/** Чи це місце, яке знає «Доведе»: кураторський словник, зупинка міста, вулиця (з будинком чи без), орієнтир */
+function isKnownPlaceId(id, stopIds) {
+    return (0, gazetteer_1.placeById)(id) != null || stopIds?.has(id) === true || isStreetId(id) || LANDMARK_IDS.has(id);
 }
 const INTENTS = ['trip', 'schedule', 'route', 'price', 'contact', 'other'];
 const MODES = ['marshrutka', 'elektrichka', 'poputka', 'city_bus'];
@@ -99,7 +104,7 @@ function validateIntent(raw, stopIds, routeIds) {
         const p = v;
         const id = typeof p.id === 'string' ? p.id.trim() : '';
         const text = clip(p.text);
-        if (!(0, gazetteer_1.placeById)(id) && !stopIds?.has(id) && !isStreetId(id) && !LANDMARK_IDS.has(id)) {
+        if (!isKnownPlaceId(id, stopIds)) {
             pushUnknown(text || id.slice(0, MAX_TEXT));
             return null;
         }

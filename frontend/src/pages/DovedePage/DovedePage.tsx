@@ -20,6 +20,7 @@ import type { ComposeOutcome, Story } from './compose/types';
 import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withHouses, withIntent } from './nlu/merge';
 import { addDays, parseLocal } from './nlu/parseLocal';
 import { setStopPlaces } from './nlu/places';
+import { setSynonyms } from './nlu/synonyms';
 import { buildStopPlaces } from './nlu/stopPlaces';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
@@ -150,6 +151,19 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
   const [searchParams, setSearchParams] = useSearchParams();
   // Слова питання з посилання (чи з памʼяті вкладки) — у полі з першого кадру; відповідь будує ефект нижче.
   // Пошук монтується вже після перевірки доступу: слова, поставлені лише в ефекті, приходили б пізніше за відповідь
+  // Синоніми з адмінки: приходять раз на відкриття сторінки; номер версії перезапускає розбір уже набраного
+  const [taught, setTaught] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    void apiClient.dovedeSynonyms().then((list) => {
+      if (!alive) return;
+      setSynonyms(list);
+      setTaught((n) => n + 1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const [text, setText] = useState(() =>
     paramsToIntent(searchParams, kyivNow()) ? questionFromParams(searchParams) || recallQuestion(searchParams) : '',
   );
@@ -306,7 +320,8 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
   }, [searchParams, run, ready, stopIndex, routes]);
 
   // Розбір під час набору: підсвічування в полі й рядок «Розумію…» ще до кнопки «Знайти»
-  const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow(), stopIndex, routes) : null), [text, stopIndex, routes]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- `taught`: нові синоніми міняють розбір того самого тексту
+  const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow(), stopIndex, routes) : null), [text, stopIndex, routes, taught]);
   const answeredFor = view.kind === 'result' ? view.query : null;
   const textMatchesAnswer = answeredFor == null || text.trim() === answeredFor || (answeredFor === '' && !text.trim());
   const shown: { parse: LocalParse; now: KyivNow } | null =

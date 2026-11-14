@@ -6,6 +6,7 @@ import { CITY_LABEL, findPlaceByToken, type GazetteerPlace, placeById } from './
 import { tokenize, type Token } from './normalize';
 import { resolvePlace } from './places';
 import { findRouteMentions, type RouteLike } from './routes';
+import { matchSynonym } from './synonyms';
 import { matchStopPlace, type StopPlace } from './stopPlaces';
 import { landmarkPlace, matchLandmark } from './landmarks';
 import { matchStreet, streetPlace, streetPlaceId, streetWins } from './streets';
@@ -114,6 +115,20 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     const next = toks[i + 1];
     const n = t.n;
     if (routeMentions.some((m) => t.start >= m.start && t.end <= m.end)) continue;
+
+    // Синонім з адмінки («епіцентр» → місце): власник навчив саме так, тому він сильніший за решту словників
+    const taught = matchSynonym(toks, i);
+    if (taught) {
+      const lastTok = toks[taught.end];
+      const whole: Token = { raw: text.slice(t.start, lastTok.end), n, start: t.start, end: lastTok.end };
+      const hit: PlaceHit = { place: taught.place, token: whole, spanStart: t.start, role: null };
+      hits.push(hit);
+      const prep = prepBefore(toks, i);
+      if (prep && FROM_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('from', hit.place, hit); }
+      else if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', hit.place, hit); }
+      i = taught.end;
+      continue;
+    }
 
     // Назва зупинки з розкладу — кілька слів, тому раніше за час («до 14 ОМБ») і за прийменники («поворот на…»)
     const stop = stops.length ? matchStopPlace(stops, toks, i) : null;
