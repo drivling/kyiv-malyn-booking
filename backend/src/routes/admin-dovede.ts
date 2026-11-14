@@ -1,12 +1,21 @@
 /**
- * Адмін-API «Доведе» (Docs/dovede-roadmap.md, фаза 2): POST /admin/dovede/understand — текст питання →
- * TripIntent від Claude. Таємність сторінки тримає саме цей requireAdmin. Будь-яка причина, з якої ШІ не
+ * API «Доведе» (Docs/dovede-roadmap.md, фаза 2 і «Доступ»): POST /dovede/understand — текст питання →
+ * TripIntent від Claude. Доступ тримає сервер (`dovede/access.ts`): `DOVEDE_PUBLIC=ON` — усім, інакше пароль
+ * `DOVEDE_PASSWORD` (GET /dovede/access, POST /dovede/login) або токен адміна. Будь-яка причина, з якої ШІ не
  * відповів (вимкнено, немає ключа, денний ліміт, збій API), повертається з `fallback: 'local'`: сторінка
- * тоді відповідає з місцевого розбору, людина помилки не бачить. GET /admin/dovede/queries — журнал цих питань.
+ * тоді відповідає з місцевого розбору, людина помилки не бачить. GET /admin/dovede/queries — журнал цих питань (лише адмін).
  */
 import express, { type Router } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { requireAdmin } from '../middleware/require-admin';
+import { requireAdmin, safeEqual } from '../middleware/require-admin';
+import {
+  createLoginFailures,
+  dovedeAccessFromEnv,
+  dovedeAccessToken,
+  hasDovedeAccess,
+  requireDovedeAccess,
+  type DovedeAccessConfig,
+} from '../dovede/access';
 import { kyivClock } from '../arrival-reports';
 import { aiCallsToday, dovedeDailyCap, isDovedeEnabled, kyivDayStart } from '../dovede/guard';
 import { DOVEDE_LOG_ROWS, DOVEDE_LOG_SCAN, parseLogDays, summarizeQueries, toLogItem, type DovedeLogFlag } from '../dovede/log';
@@ -44,13 +53,43 @@ export function createAdminDovedeRouter(deps: {
   enabled?: () => boolean;
   dailyCap?: () => number;
   now?: () => Date;
+  /** Хто відкриває сторінку; типово з середовища (DOVEDE_PUBLIC, DOVEDE_PASSWORD) */
+  access?: DovedeAccessConfig;
 }): Router {
   const { prisma } = deps;
   const understand = deps.understand === undefined ? understandFromEnv() : deps.understand;
   const enabled = deps.enabled ?? (() => isDovedeEnabled());
   const dailyCap = deps.dailyCap ?? (() => dovedeDailyCap());
   const clock = deps.now ?? (() => new Date());
+  const access = deps.access ?? dovedeAccessFromEnv();
+  const loginFailures = createLoginFailures(() => clock().getTime());
   const r = express.Router();
+
+  /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
+  r.get('/dovede/access', (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    res.json({ open: access.isPublic(), allowed: hasDovedeAccess(req, access) });
+  });
+
+  /** Пароль запрошених → токен для `X-Dovede-Token` */
+  r.post('/dovede/login', (req, res) => {
+    const password = access.password();
+    if (!password) {
+      res.status(503).json({ error: 'Вхід за паролем вимкнено' });
+      return;
+    }
+    if (loginFailures.blocked()) {
+      res.status(429).json({ error: 'Забагато спроб. Спробуйте за кілька хвилин.' });
+      return;
+    }
+    const given = (req.body ?? {}).password;
+    if (!safeEqual(given, password)) {
+      loginFailures.fail();
+      res.status(401).json({ error: 'Невірний пароль' });
+      return;
+    }
+    res.json({ token: dovedeAccessToken(password) });
+  });
 
   /**
    * Усі зупинки й маршрути міського транспорту з бази — Claude має знати кожну, а не лише кураторський словник.
@@ -92,7 +131,7 @@ export function createAdminDovedeRouter(deps: {
     }
   };
 
-  r.post('/admin/dovede/understand', requireAdmin, async (req, res) => {
+  r.post('/dovede/understand', requireDovedeAccess(access), async (req, res) => {
     const body = (req.body ?? {}) as { text?: unknown; local?: unknown };
     const text = typeof body.text === 'string' ? body.text.trim() : '';
     if (!text) {
@@ -156,7 +195,7 @@ export function createAdminDovedeRouter(deps: {
       }
       res.json({ intent: result.intent, agree, model: result.model, latencyMs: result.latencyMs });
     } catch (e) {
-      console.error('❌ POST /admin/dovede/understand:', e);
+      console.error('❌ POST /dovede/understand:', e);
       res.status(503).json({ fallback: 'local', reason: 'api_error' });
     }
   });

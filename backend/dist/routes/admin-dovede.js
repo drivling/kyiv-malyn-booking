@@ -7,13 +7,15 @@ exports.DOVEDE_MAX_TEXT = void 0;
 exports.intentsAgree = intentsAgree;
 exports.createAdminDovedeRouter = createAdminDovedeRouter;
 /**
- * Адмін-API «Доведе» (Docs/dovede-roadmap.md, фаза 2): POST /admin/dovede/understand — текст питання →
- * TripIntent від Claude. Таємність сторінки тримає саме цей requireAdmin. Будь-яка причина, з якої ШІ не
+ * API «Доведе» (Docs/dovede-roadmap.md, фаза 2 і «Доступ»): POST /dovede/understand — текст питання →
+ * TripIntent від Claude. Доступ тримає сервер (`dovede/access.ts`): `DOVEDE_PUBLIC=ON` — усім, інакше пароль
+ * `DOVEDE_PASSWORD` (GET /dovede/access, POST /dovede/login) або токен адміна. Будь-яка причина, з якої ШІ не
  * відповів (вимкнено, немає ключа, денний ліміт, збій API), повертається з `fallback: 'local'`: сторінка
- * тоді відповідає з місцевого розбору, людина помилки не бачить. GET /admin/dovede/queries — журнал цих питань.
+ * тоді відповідає з місцевого розбору, людина помилки не бачить. GET /admin/dovede/queries — журнал цих питань (лише адмін).
  */
 const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
+const access_1 = require("../dovede/access");
 const arrival_reports_1 = require("../arrival-reports");
 const guard_1 = require("../dovede/guard");
 const log_1 = require("../dovede/log");
@@ -44,7 +46,33 @@ function createAdminDovedeRouter(deps) {
     const enabled = deps.enabled ?? (() => (0, guard_1.isDovedeEnabled)());
     const dailyCap = deps.dailyCap ?? (() => (0, guard_1.dovedeDailyCap)());
     const clock = deps.now ?? (() => new Date());
+    const access = deps.access ?? (0, access_1.dovedeAccessFromEnv)();
+    const loginFailures = (0, access_1.createLoginFailures)(() => clock().getTime());
     const r = express_1.default.Router();
+    /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
+    r.get('/dovede/access', (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        res.json({ open: access.isPublic(), allowed: (0, access_1.hasDovedeAccess)(req, access) });
+    });
+    /** Пароль запрошених → токен для `X-Dovede-Token` */
+    r.post('/dovede/login', (req, res) => {
+        const password = access.password();
+        if (!password) {
+            res.status(503).json({ error: 'Вхід за паролем вимкнено' });
+            return;
+        }
+        if (loginFailures.blocked()) {
+            res.status(429).json({ error: 'Забагато спроб. Спробуйте за кілька хвилин.' });
+            return;
+        }
+        const given = (req.body ?? {}).password;
+        if (!(0, require_admin_1.safeEqual)(given, password)) {
+            loginFailures.fail();
+            res.status(401).json({ error: 'Невірний пароль' });
+            return;
+        }
+        res.json({ token: (0, access_1.dovedeAccessToken)(password) });
+    });
     /**
      * Усі зупинки й маршрути міського транспорту з бази — Claude має знати кожну, а не лише кураторський словник.
      * Той самий масив повертається до закінчення TTL (і після нього, якщо назви не змінились): промпт стабільний.
@@ -87,7 +115,7 @@ function createAdminDovedeRouter(deps) {
             console.error('❌ DovedeQuery log:', e);
         }
     };
-    r.post('/admin/dovede/understand', require_admin_1.requireAdmin, async (req, res) => {
+    r.post('/dovede/understand', (0, access_1.requireDovedeAccess)(access), async (req, res) => {
         const body = (req.body ?? {});
         const text = typeof body.text === 'string' ? body.text.trim() : '';
         if (!text) {
@@ -152,7 +180,7 @@ function createAdminDovedeRouter(deps) {
             res.json({ intent: result.intent, agree, model: result.model, latencyMs: result.latencyMs });
         }
         catch (e) {
-            console.error('❌ POST /admin/dovede/understand:', e);
+            console.error('❌ POST /dovede/understand:', e);
             res.status(503).json({ fallback: 'local', reason: 'api_error' });
         }
     });
