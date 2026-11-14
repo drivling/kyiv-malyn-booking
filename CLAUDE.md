@@ -16,6 +16,10 @@ Three deployables:
 - `viberparser/` — standalone Python service (not deployed with the two above) that scrapes/parses a
   Viber chat and posts parsed rides to the backend's admin API.
 
+Not deployed: `video/` — the «Доведе.» promo teaser (Remotion 4 + a frame-by-frame Playwright capture of the real
+frontend on fixtures; `video/README.md`, plan in `Docs/dovede-teaser/roadmap.md`). Its own `package.json`, outside
+`npm test`, CI and husky; captures and renders are git-ignored.
+
 There's also `backend/telegram-user/` (Python/Telethon scripts for one-off "userbot" actions: promo
 DMs, fetching messages, lunch OCR listener) and `backend/opendatabot-fop-parser/` /
 `backend/internet-phone-search/` (Python phone-lookup helpers invoked by the backend via `spawn`).

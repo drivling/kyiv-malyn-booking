@@ -1,0 +1,3088 @@
+{
+ "from": {
+  "id": 2,
+  "code": "Malyn",
+  "nameUk": "Малин"
+ },
+ "to": {
+  "id": 1,
+  "code": "Kyiv",
+  "nameUk": "Київ"
+ },
+ "date": "2026-11-17",
+ "listings": [],
+ "schedules": [
+  {
+   "id": 58,
+   "route": "Malyn-Kyiv",
+   "departureTime": "05:45",
+   "maxSeats": 20,
+   "supportPhone": null,
+   "priceUah": 60,
+   "tripRouteId": 1,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [],
+   "vehicleType": "elektrichka",
+   "boardingPlace": "Малин",
+   "alightingPlace": "Київ-Пас. (Приміський)",
+   "tripNumber": "856",
+   "arrivalTime": "07:42",
+   "durationMinutes": 117,
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe",
+   "timetableSourceUrl": "https://swrailway.gov.ua/timetable/eltrain/?gid=1&rid=68&reverse=2&half=1&count=4",
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "createdAt": "2026-08-12T22:00:16.627Z",
+   "updatedAt": "2026-08-12T22:00:16.627Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 1,
+    "slug": "Malyn-Kyiv",
+    "labelUk": "Малин → Київ",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": null,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": null,
+    "stops": [
+     {
+      "id": 1,
+      "tripRouteId": 1,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 15,
+      "tripRouteId": 1,
+      "pointId": 1,
+      "position": 1,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 59,
+   "route": "Malyn-Kyiv",
+   "departureTime": "06:58",
+   "maxSeats": 20,
+   "supportPhone": null,
+   "priceUah": 60,
+   "tripRouteId": 1,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [],
+   "vehicleType": "elektrichka",
+   "boardingPlace": "Малин",
+   "alightingPlace": "Борщагівка",
+   "tripNumber": "6610",
+   "arrivalTime": "09:06",
+   "durationMinutes": 128,
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe",
+   "timetableSourceUrl": "https://swrailway.gov.ua/timetable/eltrain/?gid=1&rid=68&reverse=2&half=1&count=4",
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "createdAt": "2026-08-12T22:00:16.627Z",
+   "updatedAt": "2026-08-12T22:00:16.627Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 1,
+    "slug": "Malyn-Kyiv",
+    "labelUk": "Малин → Київ",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": null,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": null,
+    "stops": [
+     {
+      "id": 1,
+      "tripRouteId": 1,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 15,
+      "tripRouteId": 1,
+      "pointId": 1,
+      "position": 1,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 60,
+   "route": "Malyn-Kyiv",
+   "departureTime": "09:48",
+   "maxSeats": 20,
+   "supportPhone": null,
+   "priceUah": 60,
+   "tripRouteId": 1,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [],
+   "vehicleType": "elektrichka",
+   "boardingPlace": "Малин",
+   "alightingPlace": "Святошин",
+   "tripNumber": "6614",
+   "arrivalTime": "11:47",
+   "durationMinutes": 119,
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe",
+   "timetableSourceUrl": "https://swrailway.gov.ua/timetable/eltrain/?gid=1&rid=68&reverse=2&half=1&count=4",
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-08-12T22:00:16.627Z",
+   "updatedAt": "2026-08-12T22:00:16.627Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 1,
+    "slug": "Malyn-Kyiv",
+    "labelUk": "Малин → Київ",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": null,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": null,
+    "stops": [
+     {
+      "id": 1,
+      "tripRouteId": 1,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 15,
+      "tripRouteId": 1,
+      "pointId": 1,
+      "position": 1,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 61,
+   "route": "Malyn-Kyiv",
+   "departureTime": "11:47",
+   "maxSeats": 20,
+   "supportPhone": null,
+   "priceUah": 60,
+   "tripRouteId": 1,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [],
+   "vehicleType": "elektrichka",
+   "boardingPlace": "Малин",
+   "alightingPlace": "Святошин",
+   "tripNumber": "6616",
+   "arrivalTime": "13:42",
+   "durationMinutes": 115,
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe",
+   "timetableSourceUrl": "https://swrailway.gov.ua/timetable/eltrain/?gid=1&rid=68&reverse=2&half=1&count=4",
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-08-12T22:00:16.627Z",
+   "updatedAt": "2026-08-12T22:00:16.627Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 1,
+    "slug": "Malyn-Kyiv",
+    "labelUk": "Малин → Київ",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": null,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": null,
+    "stops": [
+     {
+      "id": 1,
+      "tripRouteId": 1,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 15,
+      "tripRouteId": 1,
+      "pointId": 1,
+      "position": 1,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 62,
+   "route": "Malyn-Kyiv",
+   "departureTime": "14:20",
+   "maxSeats": 20,
+   "supportPhone": null,
+   "priceUah": 60,
+   "tripRouteId": 1,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [],
+   "vehicleType": "elektrichka",
+   "boardingPlace": "Малин",
+   "alightingPlace": "Київ-Пас. (Приміський)",
+   "tripNumber": "860",
+   "arrivalTime": "16:23",
+   "durationMinutes": 123,
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe",
+   "timetableSourceUrl": "https://swrailway.gov.ua/timetable/eltrain/?gid=1&rid=68&reverse=2&half=1&count=4",
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5
+   ],
+   "createdAt": "2026-08-12T22:00:16.627Z",
+   "updatedAt": "2026-08-12T22:00:16.627Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 1,
+    "slug": "Malyn-Kyiv",
+    "labelUk": "Малин → Київ",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": null,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": null,
+    "stops": [
+     {
+      "id": 1,
+      "tripRouteId": 1,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 15,
+      "tripRouteId": 1,
+      "pointId": 1,
+      "position": 1,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 63,
+   "route": "Malyn-Kyiv",
+   "departureTime": "19:32",
+   "maxSeats": 20,
+   "supportPhone": null,
+   "priceUah": 60,
+   "tripRouteId": 1,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [],
+   "vehicleType": "elektrichka",
+   "boardingPlace": "Малин",
+   "alightingPlace": "Київ-Пас. (Приміський)",
+   "tripNumber": "6626",
+   "arrivalTime": "22:11",
+   "durationMinutes": 159,
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe",
+   "timetableSourceUrl": "https://swrailway.gov.ua/timetable/eltrain/?gid=1&rid=68&reverse=2&half=1&count=4",
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-08-12T22:00:16.627Z",
+   "updatedAt": "2026-08-12T22:00:16.627Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 1,
+    "slug": "Malyn-Kyiv",
+    "labelUk": "Малин → Київ",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": null,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": null,
+    "stops": [
+     {
+      "id": 1,
+      "tripRouteId": 1,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 15,
+      "tripRouteId": 1,
+      "pointId": 1,
+      "position": 1,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 2,
+   "route": "Malyn-Kyiv-Bucha",
+   "departureTime": "05:00",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 11,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    6
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": "м. Святошино",
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-01-26T12:38:12.726Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 11,
+    "slug": "Malyn-Kyiv-Bucha",
+    "labelUk": "Малин → Київ (через Бучу)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 9,
+      "tripRouteId": 11,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 13,
+      "tripRouteId": 11,
+      "pointId": 6,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 6,
+       "code": "Bucha",
+       "nameUk": "Буча",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 60,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T03:00:21.119Z"
+      }
+     },
+     {
+      "id": 23,
+      "tripRouteId": 11,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 4,
+   "route": "Malyn-Kyiv-Bucha",
+   "departureTime": "06:00",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 11,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    6
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": "м. Святошино",
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "createdAt": "2026-01-26T18:35:06.942Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 11,
+    "slug": "Malyn-Kyiv-Bucha",
+    "labelUk": "Малин → Київ (через Бучу)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 9,
+      "tripRouteId": 11,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 13,
+      "tripRouteId": 11,
+      "pointId": 6,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 6,
+       "code": "Bucha",
+       "nameUk": "Буча",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 60,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T03:00:21.119Z"
+      }
+     },
+     {
+      "id": 23,
+      "tripRouteId": 11,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 7,
+   "route": "Malyn-Kyiv-Bucha",
+   "departureTime": "10:30",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 11,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    6
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": "м. Святошино",
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-01-26T18:53:42.718Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 11,
+    "slug": "Malyn-Kyiv-Bucha",
+    "labelUk": "Малин → Київ (через Бучу)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 9,
+      "tripRouteId": 11,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 13,
+      "tripRouteId": 11,
+      "pointId": 6,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 6,
+       "code": "Bucha",
+       "nameUk": "Буча",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 60,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T03:00:21.119Z"
+      }
+     },
+     {
+      "id": 23,
+      "tripRouteId": 11,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 10,
+   "route": "Malyn-Kyiv-Bucha",
+   "departureTime": "16:30",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 11,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    6
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": "м. Святошино",
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-01-26T19:02:03.759Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 11,
+    "slug": "Malyn-Kyiv-Bucha",
+    "labelUk": "Малин → Київ (через Бучу)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 9,
+      "tripRouteId": 11,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 13,
+      "tripRouteId": 11,
+      "pointId": 6,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 6,
+       "code": "Bucha",
+       "nameUk": "Буча",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 60,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T03:00:21.119Z"
+      }
+     },
+     {
+      "id": 23,
+      "tripRouteId": 11,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 3,
+   "route": "Malyn-Kyiv-Irpin",
+   "departureTime": "05:30",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 12,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    5
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": null,
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-01-26T18:34:37.516Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 12,
+    "slug": "Malyn-Kyiv-Irpin",
+    "labelUk": "Малин → Київ (через Ірпінь)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 10,
+      "tripRouteId": 12,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 14,
+      "tripRouteId": 12,
+      "pointId": 5,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 5,
+       "code": "Irpin",
+       "nameUk": "Ірпінь",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 50,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T02:58:56.881Z"
+      }
+     },
+     {
+      "id": 24,
+      "tripRouteId": 12,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 5,
+   "route": "Malyn-Kyiv-Irpin",
+   "departureTime": "07:30",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 12,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    5
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": null,
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+   ],
+   "createdAt": "2026-01-26T18:35:31.023Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 12,
+    "slug": "Malyn-Kyiv-Irpin",
+    "labelUk": "Малин → Київ (через Ірпінь)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 10,
+      "tripRouteId": 12,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 14,
+      "tripRouteId": 12,
+      "pointId": 5,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 5,
+       "code": "Irpin",
+       "nameUk": "Ірпінь",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 50,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T02:58:56.881Z"
+      }
+     },
+     {
+      "id": 24,
+      "tripRouteId": 12,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 6,
+   "route": "Malyn-Kyiv-Irpin",
+   "departureTime": "08:30",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 12,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    5
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": null,
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-01-26T18:52:43.243Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 12,
+    "slug": "Malyn-Kyiv-Irpin",
+    "labelUk": "Малин → Київ (через Ірпінь)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 10,
+      "tripRouteId": 12,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 14,
+      "tripRouteId": 12,
+      "pointId": 5,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 5,
+       "code": "Irpin",
+       "nameUk": "Ірпінь",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 50,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T02:58:56.881Z"
+      }
+     },
+     {
+      "id": 24,
+      "tripRouteId": 12,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 8,
+   "route": "Malyn-Kyiv-Irpin",
+   "departureTime": "12:30",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 12,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    5
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": null,
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-01-26T18:55:12.905Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 12,
+    "slug": "Malyn-Kyiv-Irpin",
+    "labelUk": "Малин → Київ (через Ірпінь)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 10,
+      "tripRouteId": 12,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 14,
+      "tripRouteId": 12,
+      "pointId": 5,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 5,
+       "code": "Irpin",
+       "nameUk": "Ірпінь",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 50,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T02:58:56.881Z"
+      }
+     },
+     {
+      "id": 24,
+      "tripRouteId": 12,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 9,
+   "route": "Malyn-Kyiv-Irpin",
+   "departureTime": "14:30",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 12,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    5
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": null,
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-01-26T19:01:50.935Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 12,
+    "slug": "Malyn-Kyiv-Irpin",
+    "labelUk": "Малин → Київ (через Ірпінь)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 10,
+      "tripRouteId": 12,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 14,
+      "tripRouteId": 12,
+      "pointId": 5,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 5,
+       "code": "Irpin",
+       "nameUk": "Ірпінь",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 50,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T02:58:56.881Z"
+      }
+     },
+     {
+      "id": 24,
+      "tripRouteId": 12,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": 11,
+   "route": "Malyn-Kyiv-Irpin",
+   "departureTime": "17:30",
+   "maxSeats": 14,
+   "supportPhone": "+380(93)1920008 +380(96)1420008 +380(66)1620008",
+   "priceUah": 310,
+   "tripRouteId": 12,
+   "startPointId": 2,
+   "endPointId": 1,
+   "viaPointIds": [
+    5
+   ],
+   "vehicleType": "marshrutka",
+   "boardingPlace": "Автостанція Малин",
+   "alightingPlace": null,
+   "tripNumber": null,
+   "arrivalTime": null,
+   "durationMinutes": null,
+   "ticketPurchaseUrl": null,
+   "timetableSourceUrl": null,
+   "activeWeekdays": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+   ],
+   "createdAt": "2026-01-26T19:02:14.250Z",
+   "updatedAt": "2026-11-04T14:51:21.308Z",
+   "startPoint": {
+    "id": 2,
+    "code": "Malyn",
+    "nameUk": "Малин",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": true,
+    "quickDirectPointIds": [
+     1,
+     3,
+     4
+    ],
+    "sortOrder": 20,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-15T22:12:46.914Z"
+   },
+   "endPoint": {
+    "id": 1,
+    "code": "Kyiv",
+    "nameUk": "Київ",
+    "requiredOnTrip": false,
+    "appearInFromTo": true,
+    "appearInPoputky": true,
+    "hasLocalTransport": false,
+    "quickDirectPointIds": [
+     2,
+     3,
+     4
+    ],
+    "sortOrder": 10,
+    "createdAt": "2026-08-11T22:07:47.146Z",
+    "updatedAt": "2026-08-12T20:18:39.712Z"
+   },
+   "tripRoute": {
+    "id": 12,
+    "slug": "Malyn-Kyiv-Irpin",
+    "labelUk": "Малин → Київ (через Ірпінь)",
+    "startPointId": 2,
+    "endPointId": 1,
+    "corridorTripRouteId": 1,
+    "createdAt": "2026-08-12T00:12:17.490Z",
+    "updatedAt": "2026-08-12T00:12:17.490Z",
+    "startPoint": {
+     "id": 2,
+     "code": "Malyn",
+     "nameUk": "Малин",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": true,
+     "quickDirectPointIds": [
+      1,
+      3,
+      4
+     ],
+     "sortOrder": 20,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-15T22:12:46.914Z"
+    },
+    "endPoint": {
+     "id": 1,
+     "code": "Kyiv",
+     "nameUk": "Київ",
+     "requiredOnTrip": false,
+     "appearInFromTo": true,
+     "appearInPoputky": true,
+     "hasLocalTransport": false,
+     "quickDirectPointIds": [
+      2,
+      3,
+      4
+     ],
+     "sortOrder": 10,
+     "createdAt": "2026-08-11T22:07:47.146Z",
+     "updatedAt": "2026-08-12T20:18:39.712Z"
+    },
+    "corridorRoute": {
+     "id": 1,
+     "slug": "Malyn-Kyiv",
+     "labelUk": "Малин → Київ",
+     "startPointId": 2,
+     "endPointId": 1,
+     "corridorTripRouteId": null,
+     "createdAt": "2026-08-12T00:12:17.490Z",
+     "updatedAt": "2026-08-12T00:12:17.490Z"
+    },
+    "stops": [
+     {
+      "id": 10,
+      "tripRouteId": 12,
+      "pointId": 2,
+      "position": 0,
+      "role": "start",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 2,
+       "code": "Malyn",
+       "nameUk": "Малин",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": true,
+       "quickDirectPointIds": [
+        1,
+        3,
+        4
+       ],
+       "sortOrder": 20,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-15T22:12:46.914Z"
+      }
+     },
+     {
+      "id": 14,
+      "tripRouteId": 12,
+      "pointId": 5,
+      "position": 1,
+      "role": "via",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 5,
+       "code": "Irpin",
+       "nameUk": "Ірпінь",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        1,
+        2,
+        4
+       ],
+       "sortOrder": 50,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T02:58:56.881Z"
+      }
+     },
+     {
+      "id": 24,
+      "tripRouteId": 12,
+      "pointId": 1,
+      "position": 2,
+      "role": "end",
+      "departureOffsetMinutes": null,
+      "point": {
+       "id": 1,
+       "code": "Kyiv",
+       "nameUk": "Київ",
+       "requiredOnTrip": false,
+       "appearInFromTo": true,
+       "appearInPoputky": true,
+       "hasLocalTransport": false,
+       "quickDirectPointIds": [
+        2,
+        3,
+        4
+       ],
+       "sortOrder": 10,
+       "createdAt": "2026-08-11T22:07:47.146Z",
+       "updatedAt": "2026-08-12T20:18:39.712Z"
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "availability": {
+  "2": {
+   "scheduleId": 2,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "3": {
+   "scheduleId": 3,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "4": {
+   "scheduleId": 4,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "5": {
+   "scheduleId": 5,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "6": {
+   "scheduleId": 6,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "7": {
+   "scheduleId": 7,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "8": {
+   "scheduleId": 8,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "9": {
+   "scheduleId": 9,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "10": {
+   "scheduleId": 10,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "11": {
+   "scheduleId": 11,
+   "maxSeats": 14,
+   "bookedSeats": 0,
+   "availableSeats": 14,
+   "isAvailable": true
+  },
+  "58": {
+   "scheduleId": 58,
+   "maxSeats": 20,
+   "bookedSeats": 0,
+   "availableSeats": 0,
+   "isAvailable": false,
+   "vehicleType": "elektrichka",
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe"
+  },
+  "59": {
+   "scheduleId": 59,
+   "maxSeats": 20,
+   "bookedSeats": 0,
+   "availableSeats": 0,
+   "isAvailable": false,
+   "vehicleType": "elektrichka",
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe"
+  },
+  "60": {
+   "scheduleId": 60,
+   "maxSeats": 20,
+   "bookedSeats": 0,
+   "availableSeats": 0,
+   "isAvailable": false,
+   "vehicleType": "elektrichka",
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe"
+  },
+  "61": {
+   "scheduleId": 61,
+   "maxSeats": 20,
+   "bookedSeats": 0,
+   "availableSeats": 0,
+   "isAvailable": false,
+   "vehicleType": "elektrichka",
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe"
+  },
+  "62": {
+   "scheduleId": 62,
+   "maxSeats": 20,
+   "bookedSeats": 0,
+   "availableSeats": 0,
+   "isAvailable": false,
+   "vehicleType": "elektrichka",
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe"
+  },
+  "63": {
+   "scheduleId": 63,
+   "maxSeats": 20,
+   "bookedSeats": 0,
+   "availableSeats": 0,
+   "isAvailable": false,
+   "vehicleType": "elektrichka",
+   "ticketPurchaseUrl": "https://lnk.ua/8iLMTuFpe"
+  }
+ }
+}

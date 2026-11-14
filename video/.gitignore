@@ -1,0 +1,4 @@
+node_modules/
+out/
+# кадри зйомки — сотні МБ, відтворюються командою `npm run capture -- <сцена>`
+public/captures/

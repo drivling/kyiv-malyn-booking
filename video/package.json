@@ -1,0 +1,27 @@
+{
+  "name": "dovede-teaser-video",
+  "private": true,
+  "description": "Тизер «Доведе.»: зйомка інтерфейсу (capture/) і монтаж у Remotion (src/). Docs/dovede-teaser/roadmap.md",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "capture": "node capture/run.mjs",
+    "fixtures": "node capture/refresh-fixtures.mjs",
+    "render:test": "remotion render src/index.ts StudioTest out/studio-test.mp4",
+    "still:test": "remotion still src/index.ts StudioTest out/studio-test.png --frame=120",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.539",
+    "@remotion/google-fonts": "4.0.539",
+    "@remotion/transitions": "4.0.539",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.539"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "typescript": "5.9.3"
+  }
+}
