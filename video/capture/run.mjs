@@ -161,8 +161,10 @@ async function run() {
 
     const total = limit ?? scene.frames;
     const taps = [];
+    const scroll = [];
     let vt = 0;
     let typing = null;
+    let scrolling = null;
     for (let f = 0; f < total; f++) {
       for (const a of scene.actions.filter((x) => x.frame === f)) {
         if (a.type) {
@@ -180,7 +182,22 @@ async function run() {
           taps.push({ frame: f, x: x / VIEWPORT.width, y: y / VIEWPORT.height });
         }
         if (a.scrollBy) await page.mouse.wheel(0, a.scrollBy);
+        if (a.scrollTo) {
+          // плавна прокрутка за `frames` кадрів: верх елемента стає на `align` висоти екрана
+          const box = await locate(page, a.scrollTo).boundingBox();
+          if (!box) throw new Error(`кадр ${f}: не бачу ${JSON.stringify(a.scrollTo)}`);
+          const from = await page.evaluate(() => window.scrollY);
+          const max = await page.evaluate(() => document.documentElement.scrollHeight - window.innerHeight);
+          const to = Math.max(0, Math.min(max, from + box.y - VIEWPORT.height * (a.scrollTo.align ?? 0.3)));
+          scrolling = { from, to, start: f, frames: a.scrollTo.frames ?? 30 };
+        }
         if (a.run) await a.run(page);
+      }
+      if (scrolling) {
+        const k = Math.min(1, (f - scrolling.start + 1) / scrolling.frames);
+        const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+        await page.evaluate((y) => window.scrollTo(0, y), scrolling.from + (scrolling.to - scrolling.from) * e);
+        if (k >= 1) scrolling = null;
       }
       if (typing) {
         const want = Math.min(typing.text.length, Math.round(((f - typing.from + 1) / FPS) * typing.cps));
@@ -195,9 +212,17 @@ async function run() {
       vt += step;
       await page.evaluate((t) => window.__teaserSync(t), vt);
       await page.screenshot({ path: path.join(out, `f${String(f).padStart(4, '0')}.jpg`), type: 'jpeg', quality: 92, caret: 'hide', animations: 'allow' });
+      scroll.push(await page.evaluate(() => window.scrollY));
       if (f % 30 === 0) console.log(`  кадр ${f}/${total}`);
     }
-    const manifest = { scene: scene.name, fps: FPS, width: VIEWPORT.width * DPR, height: VIEWPORT.height * DPR, frames: total, taps, now: scene.now, url: scene.url };
+    // знімки всієї сторінки після останнього кадру (напр. для зум-ауту всієї історії)
+    const stills = {};
+    for (const s of scene.stills ?? []) {
+      const height = await page.evaluate(() => document.documentElement.scrollHeight);
+      await page.screenshot({ path: path.join(out, `${s.name}.jpg`), type: 'jpeg', quality: 92, caret: 'hide', animations: 'allow', fullPage: true });
+      stills[s.name] = { width: VIEWPORT.width * DPR, height: height * DPR, cssHeight: height };
+    }
+    const manifest = { scene: scene.name, fps: FPS, width: VIEWPORT.width * DPR, height: VIEWPORT.height * DPR, frames: total, taps, scroll, stills, now: scene.now, url: scene.url };
     await writeFile(path.join(out, 'manifest.json'), JSON.stringify(manifest, null, 2));
     console.log(`✓ ${scene.name}: ${total} кадрів → public/captures/${scene.name}/`);
   } finally {

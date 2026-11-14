@@ -7,10 +7,11 @@ export default {
   url: '/dovede',
   now: '2026-11-16T05:40:00Z',
   ready: { label: 'Куди вам потрібно доїхати?' },
-  frames: 165,
+  // E1 — набір (0–28), E2 — дошка (28–114), E3 — тап на 118 і відривний корінець
+  frames: 190,
   actions: [
     { frame: 0, type: { label: 'Куди вам потрібно доїхати?', text: 'попутка з Києва в Малин', cps: 26 } },
     { frame: 30, press: 'Enter' },
-    { frame: 84, tap: { role: 'button', name: /Відірвати номер/, nth: 0, atX: 0.3 } },
+    { frame: 118, tap: { role: 'button', name: /Відірвати номер/, nth: 0, atX: 0.3 } },
   ],
 };

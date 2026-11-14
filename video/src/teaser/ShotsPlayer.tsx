@@ -5,13 +5,16 @@ import { dotIris } from '../brand/dotIris';
 import { LOGO_DOT } from '../brand/Logo';
 import { Placeholder } from './Placeholder';
 import { B1, B2 } from './shots/B';
+import { C1, C2, C3, C4 } from './shots/C';
+import { D1, D2, D3, D4 } from './shots/D';
+import { E1, E2, E3 } from './shots/E';
 import { H1, H2 } from './shots/H';
 import type { Placed } from './timeline';
 
 type ShotComponent = React.FC<{ shot: Placed }>;
 
 /** Готові кадри; решта — заглушки. Нова сцена = компонент у shots/<розділ>.tsx + рядок тут */
-const READY: Record<string, ShotComponent> = { B1, B2, H1, H2 };
+const READY: Record<string, ShotComponent> = { B1, B2, C1, C2, C3, C4, D1, D2, D3, D4, E1, E2, E3, H1, H2 };
 
 const IRIS_FRAMES = 14;
 
@@ -20,7 +23,7 @@ const ShotView: React.FC<{ shot: Placed }> = ({ shot }) => {
   return (
     <>
       <Component shot={shot} />
-      {shot.caption ? <Caption text={shot.caption} from={3} to={shot.dur} /> : null}
+      {shot.caption ? <Caption text={shot.caption} from={3} to={Math.round(shot.dur * (shot.captionTo ?? 1))} /> : null}
     </>
   );
 };
