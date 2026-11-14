@@ -78,6 +78,23 @@ npm run fixtures
 Оголошення попуток із проду не зберігаються: їх підміняє `fixtures/rides.mjs` (вигадані імена, номер
 `+380 00 123 45 67`, якого не може існувати).
 
+## Звук
+
+```bash
+npm run sound                          # public/audio/sfx/*.wav (28 звуків) + temp-125.wav — усе згенеровано кодом
+npm run analyze -- public/audio/track.mp3 [--drop 10.4]   # темп, фаза, start для src/audio/music.ts
+npm run master -- out/teaser.mp4       # → out/teaser-final.mp4: −14 LUFS, пік ≈ −1,5 dBTP, AAC 48 кГц
+```
+
+- Музика — `src/audio/music.ts`: `file`, `bpm`, `start` (секунда треку в кадрі 0). Сітка ролика (`brand/beat.ts`)
+  бере темп звідти: інший темп — інші кадри склейок, ролик довшає чи коротшає сам (112 бітів).
+- Дроп треку має лягти на початок B2 — 20-й біт ролика (0:09,6 при 125 BPM). `analyze` рахує `start` саме так;
+  секунду дропу краще почути самому й передати `--drop` (автоматично — найсильніший сплеск 5–25 с).
+- Звуки подій — `src/teaser/sounds.ts` (кадр, звук, гучність) для кожного кадру; синтез — `scripts/sound.mjs`.
+- Пропси композицій: `sound` (музика й звуки, типово увімкнено), `click` (метроном поверх — перевірити біт).
+- Справжній трек: згенерувати на платному тарифі (комерційні права), покласти в `public/audio/`, `npm run analyze`,
+  вписати `bpm`/`start`/`file` і `temp: false`, `npm run render:teaser`, `npm run master -- out/teaser.mp4`.
+
 ## Монтаж
 
 ```bash

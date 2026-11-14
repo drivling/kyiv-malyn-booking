@@ -13,7 +13,10 @@
     "render:test": "remotion render src/index.ts StudioTest out/studio-test.mp4",
     "still:test": "remotion still src/index.ts StudioTest out/studio-test.png --frame=120",
     "typecheck": "tsc --noEmit",
-    "assets": "node scripts/assets.mjs"
+    "assets": "node scripts/assets.mjs",
+    "sound": "node scripts/sound.mjs",
+    "analyze": "node scripts/analyze-track.mjs",
+    "master": "node scripts/master.mjs"
   },
   "dependencies": {
     "@remotion/cli": "4.0.539",

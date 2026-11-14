@@ -6,3 +6,6 @@ public/captures/
 public/audio/metronome-125.wav
 # копії схем і фото наклейки — `npm run assets`
 public/assets/
+# звуки й тимчасова музика — `npm run sound`
+public/audio/sfx/
+public/audio/temp-125.wav

@@ -16,7 +16,7 @@ export const Root: React.FC = () => (
       component={Draft}
       durationInFrames={draftFrames(['B1', 'B2'])}
       {...size}
-      defaultProps={{ showSafe: false, click: true, shots: ['B1', 'B2'] } satisfies DraftProps}
+      defaultProps={{ showSafe: false, click: false, shots: ['B1', 'B2'] } satisfies DraftProps}
       calculateMetadata={({ props }) => ({ durationInFrames: draftFrames(props.shots) })}
     />
     <Composition id="StudioTest" component={StudioTest} durationInFrames={STUDIO_TEST_FRAMES} {...size} defaultProps={{ showSafe: false }} />

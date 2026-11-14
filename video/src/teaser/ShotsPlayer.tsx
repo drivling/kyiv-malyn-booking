@@ -3,7 +3,9 @@ import { linearTiming, TransitionSeries } from '@remotion/transitions';
 import { Caption } from '../brand/Caption';
 import { dotIris } from '../brand/dotIris';
 import { LOGO_DOT } from '../brand/Logo';
+import { SfxCues } from '../audio/Sfx';
 import { Placeholder } from './Placeholder';
+import { cuesFor } from './sounds';
 import { A1, A2, A3, A4, A5, A6 } from './shots/A';
 import { B1, B2 } from './shots/B';
 import { C1, C2, C3, C4 } from './shots/C';
@@ -30,12 +32,13 @@ const READY: Record<string, ShotComponent> = {
 
 const IRIS_FRAMES = 14;
 
-const ShotView: React.FC<{ shot: Placed }> = ({ shot }) => {
+const ShotView: React.FC<{ shot: Placed; sound: boolean }> = ({ shot, sound }) => {
   const Component = READY[shot.id] ?? Placeholder;
   return (
     <>
       <Component shot={shot} />
       {shot.caption ? <Caption text={shot.caption} from={3} to={Math.round(shot.dur * (shot.captionTo ?? 1))} /> : null}
+      {sound ? <SfxCues cues={cuesFor(shot)} /> : null}
     </>
   );
 };
@@ -44,14 +47,14 @@ const ShotView: React.FC<{ shot: Placed }> = ({ shot }) => {
  * Кадри один за одним. Склейка на вході кадру (`in: 'iris'`) починається рівно на його біті: попередній кадр
  * подовжується на тривалість склейки, тож початки всіх кадрів лишаються на сітці.
  */
-export const ShotsPlayer: React.FC<{ shots: Placed[] }> = ({ shots }) => (
+export const ShotsPlayer: React.FC<{ shots: Placed[]; sound?: boolean }> = ({ shots, sound = true }) => (
   <TransitionSeries>
     {shots.flatMap((shot, i) => {
       const next = shots[i + 1];
       const iris = next?.in === 'iris' ? IRIS_FRAMES : 0;
       const items = [
         <TransitionSeries.Sequence key={`${shot.id}-${i}`} durationInFrames={shot.dur + iris}>
-          <ShotView shot={shot} />
+          <ShotView shot={shot} sound={sound} />
         </TransitionSeries.Sequence>,
       ];
       if (iris) {

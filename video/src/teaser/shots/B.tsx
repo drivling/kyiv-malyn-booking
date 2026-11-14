@@ -33,11 +33,12 @@ const lineStyle = (y: number, size: number): React.CSSProperties => ({
   whiteSpace: 'nowrap',
 });
 
-export const B1: React.FC<{ shot: Placed }> = () => {
+export const B1: React.FC<{ shot: Placed }> = ({ shot }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
+  // чотири слова на тривалість кадру: у майстрі — по слову на біт, у версії 15 с — на пів біта
   const pop = (i: number) => {
-    const f = frame - beats(i);
+    const f = frame - Math.round((i * shot.dur) / 4);
     return f < 0 ? 0 : spring({ frame: f, fps, config: { damping: 13, mass: 0.45, stiffness: 240 } });
   };
   const word = (k: number): React.CSSProperties => ({
