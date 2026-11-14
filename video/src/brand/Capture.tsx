@@ -3,21 +3,21 @@ import { useEffect, useState } from 'react';
 import { AbsoluteFill, cancelRender, continueRender, delayRender, Img, staticFile, useCurrentFrame } from 'remotion';
 import { COLORS } from './tokens';
 
-type Manifest = { scene: string; fps: number; width: number; height: number; frames: number; taps: { frame: number; x: number; y: number }[] };
+export type Manifest = {
+  scene: string;
+  fps: number;
+  width: number;
+  height: number;
+  frames: number;
+  taps: { frame: number; x: number; y: number }[];
+  /** Прокрутка сторінки в кожному кадрі, CSS px */
+  scroll?: number[];
+  /** Знімки всієї сторінки після останнього кадру */
+  stills?: Record<string, { width: number; height: number; cssHeight: number }>;
+};
 
-/**
- * Кадри зйомки (`npm run capture -- <name>` → public/captures/<name>/). `from` — кадр зйомки, що показується в
- * кадрі 0 цієї Sequence; `rate` — швидкість (2 — удвічі швидше). Після останнього кадру тримаємо останній.
- * Тапи з manifest.json малюємо кружечком у тому місці, де «палець» торкнувся екрана.
- */
-export const Capture: React.FC<{ name: string; from?: number; rate?: number; taps?: boolean; style?: React.CSSProperties }> = ({
-  name,
-  from = 0,
-  rate = 1,
-  taps = true,
-  style,
-}) => {
-  const frame = useCurrentFrame();
+/** manifest.json зйомки; рендер чекає, доки він завантажиться */
+export function useCaptureManifest(name: string): Manifest | null {
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [handle] = useState(() => delayRender(`зйомка ${name}`));
   useEffect(() => {
@@ -32,6 +32,23 @@ export const Capture: React.FC<{ name: string; from?: number; rate?: number; tap
       })
       .catch((e) => cancelRender(e));
   }, [name, handle]);
+  return manifest;
+}
+
+/**
+ * Кадри зйомки (`npm run capture -- <name>` → public/captures/<name>/). `from` — кадр зйомки, що показується в
+ * кадрі 0 цієї Sequence; `rate` — швидкість (2 — удвічі швидше). Після останнього кадру тримаємо останній.
+ * Тапи з manifest.json малюємо кружечком у тому місці, де «палець» торкнувся екрана.
+ */
+export const Capture: React.FC<{ name: string; from?: number; rate?: number; taps?: boolean; style?: React.CSSProperties }> = ({
+  name,
+  from = 0,
+  rate = 1,
+  taps = true,
+  style,
+}) => {
+  const frame = useCurrentFrame();
+  const manifest = useCaptureManifest(name);
   if (!manifest) return null;
   const idx = Math.min(manifest.frames - 1, Math.max(0, Math.round(from + frame * rate)));
   return (

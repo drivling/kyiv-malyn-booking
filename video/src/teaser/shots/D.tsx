@@ -1,6 +1,7 @@
 import type React from 'react';
 import { AbsoluteFill, Img, staticFile, useCurrentFrame } from 'remotion';
 import { ease } from '../../brand/camera';
+import { useCaptureManifest } from '../../brand/Capture';
 import { FullBleed } from '../../brand/FullBleed';
 import { WIDTH } from '../../brand/tokens';
 import type { Placed } from '../timeline';
@@ -12,9 +13,6 @@ import type { Placed } from '../timeline';
  * однією смугою (знімок сторінки `full.jpg`).
  */
 const HERO = 'hero';
-/** Прокрутка в кінці дубля (CSS px) і висота сторінки — з manifest.json зйомки «hero» */
-const LAST_SCROLL = 789;
-const PAGE_HEIGHT = 1747;
 
 export const D1: React.FC<{ shot: Placed }> = ({ shot }) => {
   const frame = useCurrentFrame();
@@ -32,6 +30,11 @@ export const D3: React.FC<{ shot: Placed }> = ({ shot }) => {
 
 export const D4: React.FC<{ shot: Placed }> = ({ shot }) => {
   const frame = useCurrentFrame();
+  const manifest = useCaptureManifest(HERO);
+  if (!manifest) return null;
+  // прокрутка в кінці дубля і висота сторінки — з manifest.json зйомки
+  const LAST_SCROLL = manifest.scroll?.[manifest.scroll.length - 1] ?? 0;
+  const PAGE_HEIGHT = manifest.stills?.full?.cssHeight ?? 844;
   const k = ease(frame, 0, shot.dur * 0.55, 0, 1);
   // старт: сторінка на всю ширину, видно той самий шматок, що в кінці дубля; фініш — уся смуга під титром
   const fullH = (PAGE_HEIGHT * WIDTH) / 390;

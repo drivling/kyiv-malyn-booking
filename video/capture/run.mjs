@@ -152,6 +152,8 @@ async function run() {
     await page.clock.install({ time: new Date(scene.now) });
     await page.goto(`${SITE}${scene.url}`);
     await locate(page, scene.ready).waitFor({ timeout: 30000 });
+    // правки вигляду лише для зйомки (напр. сховати тимчасову плашку) — сайт не змінюється
+    if (scene.css) await page.addStyleTag({ content: scene.css });
     // дати сторінці «влягтися» (шрифти, датасет, перші анімації), далі годинник лише покроково
     await page.evaluate(() => document.fonts.ready);
     await page.waitForTimeout(scene.settleMs ?? 1500);
