@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
+import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 import { API_BASE } from './api-base.mjs';
 
@@ -144,7 +144,8 @@ const server = http.createServer((req, res) => {
   }
 
   const site = resolveSite(req.headers.host);
-  const extraHeaders = site.isPrimary ? {} : NOINDEX_HEADERS;
+  // «Доведе» до запуску не індексується ні на якому домені (сторінка, ролик, постер)
+  const extraHeaders = { ...(site.isPrimary ? {} : NOINDEX_HEADERS), ...robotsHeadersFor(splitUrl(urlPath).pathname) };
 
   if (!site.isPrimary) {
     const { pathname, search } = splitUrl(urlPath);
