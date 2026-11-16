@@ -19,6 +19,7 @@ function legPhrase(l: StoryLeg): string | null {
     return `${name} о ${clock(l.boardMins, l.boardApprox)} ${l.boardLabel}`;
   }
   if (l.kind === 'bus') return `автобус №${routeNo(l.routeId)} о ${clock(l.depMins)}`;
+  if (l.kind === 'ride') return `попутка о ${clock(l.depMins)} ${l.boardLabel}`;
   return null;
 }
 
@@ -43,6 +44,9 @@ export function shareText(story: Story, stopName: (id: string) => string, header
       lines.push(`${clock(l.alightMins, l.alightApprox)} — вийти ${l.alightLabel}`);
     } else if (l.kind === 'bus') {
       lines.push(`${clock(l.depMins)} — автобус №${routeNo(l.routeId)} від «${stopName(l.fromStopId)}» до «${stopName(l.toStopId)}»`);
+    } else if (l.kind === 'ride') {
+      // телефону тут немає: номер людина відриває сама на сторінці
+      lines.push(`${clock(l.depMins)} — попутка ${l.boardLabel}${l.ride.priceUah ? `, ${l.ride.priceUah} ₴` : ''} (місце уточніть у водія)`);
     } else if (l.kind === 'walk') {
       lines.push(`пішки ${l.meters} м${l.toLabel ? ` до «${l.toLabel}»` : ''}`);
     }

@@ -25,6 +25,8 @@ import { understandFromEnv, type UnderstandFn } from '../dovede/understand';
 import type { RouteLike } from '../dovede/prompt';
 import { buildStopPlaces, type StopLike } from '../dovede/stopPlaces';
 import { DEFAULT_TRANSPORT_CITY } from '../transport-city';
+import { DEFAULT_CAR_MINUTES, driveTimeFromEnv, type DriveTimeFn } from '../drive-time';
+import { kyivWallToUtc } from '../viber-listing-expiry';
 
 export const DOVEDE_MAX_TEXT = 300;
 /** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
@@ -56,6 +58,8 @@ export function createAdminDovedeRouter(deps: {
   now?: () => Date;
   /** Хто відкриває сторінку; типово з середовища (DOVEDE_PUBLIC, DOVEDE_PASSWORD) */
   access?: DovedeAccessConfig;
+  /** Час у дорозі авто; типово Google Routes за ключем із середовища, інакше сталий */
+  driveTime?: DriveTimeFn;
 }): Router {
   const { prisma } = deps;
   const understand = deps.understand === undefined ? understandFromEnv() : deps.understand;
@@ -64,6 +68,7 @@ export function createAdminDovedeRouter(deps: {
   const clock = deps.now ?? (() => new Date());
   const access = deps.access ?? dovedeAccessFromEnv();
   const loginFailures = createLoginFailures(() => clock().getTime());
+  const driveTime = deps.driveTime ?? driveTimeFromEnv();
   const r = express.Router();
 
   /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
@@ -194,6 +199,77 @@ export function createAdminDovedeRouter(deps: {
     } catch (e) {
       console.error('❌ DELETE /admin/dovede/synonyms/:id:', e);
       res.status(500).json({ error: 'Не вдалося видалити синонім' });
+    }
+  });
+
+  /**
+   * Скільки їде попутка: `times` — години виїзду за Києвом (до шести). За доступом «Доведе», бо за ним стоїть
+   * платний сервіс. Сталий час — з маршруту в адмінці; `source` каже, чи врахувано затори.
+   */
+  r.get('/dovede/drive-time', requireDovedeAccess(access), async (req, res) => {
+    const from = String(req.query.from ?? '').trim();
+    const to = String(req.query.to ?? '').trim();
+    const date = String(req.query.date ?? '').trim();
+    const times = [...new Set(String(req.query.times ?? '').split(',').map((t) => t.trim()).filter((t) => /^([01]\d|2[0-3]):[0-5]\d$/.test(t)))].slice(0, 6);
+    if (!/^[A-Za-z]{2,20}$/.test(from) || !/^[A-Za-z]{2,20}$/.test(to) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      res.status(400).json({ error: 'from, to та date (YYYY-MM-DD) обовʼязкові' });
+      return;
+    }
+    let fixedMinutes = DEFAULT_CAR_MINUTES;
+    try {
+      const route = await prisma.tripRoute.findUnique({ where: { slug: `${from}-${to}` }, select: { carDurationMinutes: true } });
+      if (route?.carDurationMinutes) fixedMinutes = route.carDurationMinutes;
+    } catch (e) {
+      console.error('❌ GET /dovede/drive-time: маршрут не прочитано, беру типовий час:', e);
+    }
+    const [y, m, d] = date.split('-').map(Number);
+    // години питаємо разом: кожна має свій тайм-аут, людина не чекає їх по черзі
+    const got = await Promise.all(
+      times.map((t) => {
+        const [hh, mm] = t.split(':').map(Number);
+        return driveTime({ fromCode: from, toCode: to, departAt: kyivWallToUtc(y, m - 1, d, hh, mm), fixedMinutes });
+      }),
+    );
+    const minutes: Record<string, number> = {};
+    times.forEach((t, i) => (minutes[t] = got[i].minutes));
+    const source: 'traffic' | 'fixed' = got.some((g) => g.source === 'traffic') ? 'traffic' : 'fixed';
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ fixedMinutes, source, minutes });
+  });
+
+  /**
+   * «Звідки забирають попутки»: примітки оголошень водіїв за період, згруповані за напрямком і текстом.
+   * Без імен і телефонів; місця в примітках розбирає адмінка тим самим словником, що й сторінка.
+   */
+  r.get('/admin/dovede/pickups', requireAdmin, async (req, res) => {
+    try {
+      const days = parseLogDays(req.query.days ?? 90);
+      const since = new Date(clock().getTime() - days * 24 * 60 * 60_000);
+      const rows = await prisma.viberListing.findMany({ where: { listingType: 'driver', createdAt: { gte: since } }, select: { route: true, notes: true }, take: 20000 });
+      const groups = new Map<string, { route: string; note: string; count: number }>();
+      const byRoute = new Map<string, { route: string; total: number; withNote: number }>();
+      for (const row of rows) {
+        const note = (row.notes ?? '').replace(/\s+/g, ' ').trim();
+        const r0 = byRoute.get(row.route) ?? { route: row.route, total: 0, withNote: 0 };
+        r0.total++;
+        if (note) r0.withNote++;
+        byRoute.set(row.route, r0);
+        if (!note) continue;
+        const key = `${row.route}|${note.toLowerCase()}`;
+        const g = groups.get(key);
+        if (g) g.count++;
+        else groups.set(key, { route: row.route, note, count: 1 });
+      }
+      res.set('Cache-Control', 'private, no-store');
+      res.json({
+        days,
+        total: rows.length,
+        routes: [...byRoute.values()].sort((a, b) => b.total - a.total),
+        notes: [...groups.values()].sort((a, b) => b.count - a.count || a.note.localeCompare(b.note, 'uk')).slice(0, 1000),
+      });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/pickups:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати оголошення' });
     }
   });
 

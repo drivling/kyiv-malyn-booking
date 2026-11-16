@@ -214,12 +214,21 @@ export function createTripRoutesRouter(deps: { prisma: PrismaClient }): Router {
         ? String(body.labelUk).trim() || defaultLabelUk(start.code, end.code, viaCodes)
         : existing.labelUk;
 
+    // «Авто в дорозі, хв»: порожнє — прибрати; без ключа в тілі — лишити як було
+    let carDurationMinutes: number | null | undefined;
+    if (body.carDurationMinutes !== undefined) {
+      const n = body.carDurationMinutes === null || body.carDurationMinutes === '' ? null : Number(body.carDurationMinutes);
+      if (n !== null && (!Number.isInteger(n) || n < 5 || n > 1440)) return res.status(400).json({ error: 'Авто в дорозі: від 5 до 1440 хв' });
+      carDurationMinutes = n;
+    }
+
     try {
       await prisma.tripRoute.update({
         where: { id },
         data: {
           slug: nextSlug,
           labelUk,
+          ...(carDurationMinutes !== undefined ? { carDurationMinutes } : {}),
           startPointId,
           endPointId,
           corridorTripRouteId,

@@ -92,6 +92,7 @@ export const AdminPage: React.FC = () => {
     endPointId: undefined as number | undefined,
     viaPointIds: [] as number[],
     labelUk: '',
+    carDurationMinutes: '',
     stopOffsets: [] as Array<{ pointId: number; departureOffsetMinutes: number | null }>,
   });
   const [isTripPointModalOpen, setIsTripPointModalOpen] = useState(false);
@@ -1071,6 +1072,7 @@ export const AdminPage: React.FC = () => {
         endPointId: route.endPointId,
         viaPointIds: vias,
         labelUk: route.labelUk,
+        carDurationMinutes: route.carDurationMinutes ? String(route.carDurationMinutes) : '',
         stopOffsets: (route.stops || []).map((s) => ({
           pointId: s.pointId,
           departureOffsetMinutes: s.departureOffsetMinutes ?? null,
@@ -1085,6 +1087,7 @@ export const AdminPage: React.FC = () => {
           ? [tripPoints.find((p) => p.code === 'Malyn')!.id]
           : [],
         labelUk: '',
+        carDurationMinutes: '',
         stopOffsets: [],
       });
     }
@@ -1105,10 +1108,18 @@ export const AdminPage: React.FC = () => {
         labelUk: tripRouteForm.labelUk.trim() || undefined,
         stopOffsets: tripRouteForm.stopOffsets,
       };
+      // «Авто в дорозі»: порожнє поле прибирає значення
+      const car = tripRouteForm.carDurationMinutes.trim();
+      const carDurationMinutes = car ? Number(car) : null;
+      if (carDurationMinutes != null && (!Number.isInteger(carDurationMinutes) || carDurationMinutes < 5 || carDurationMinutes > 1440)) {
+        alert('Авто в дорозі: ціле число хвилин від 5 до 1440');
+        return;
+      }
       if (editingTripRoute) {
-        await apiClient.updateTripRoute(editingTripRoute.id, payload);
+        await apiClient.updateTripRoute(editingTripRoute.id, { ...payload, carDurationMinutes });
       } else {
-        await apiClient.createTripRoute(payload);
+        const created = await apiClient.createTripRoute(payload);
+        if (carDurationMinutes != null) await apiClient.updateTripRoute(created.id, { carDurationMinutes });
       }
       invalidateCatalogCache();
       setIsTripRouteModalOpen(false);
@@ -3371,6 +3382,19 @@ export const AdminPage: React.FC = () => {
                   onChange={(e) => setTripRouteForm({ ...tripRouteForm, labelUk: e.target.value })}
                   placeholder="Київ — Коростень (через Малин)"
                 />
+                <Input
+                  label="Авто в дорозі, хв"
+                  type="number"
+                  min={5}
+                  max={1440}
+                  value={tripRouteForm.carDurationMinutes}
+                  onChange={(e) => setTripRouteForm({ ...tripRouteForm, carDurationMinutes: e.target.value })}
+                  placeholder="95"
+                />
+                <p style={{ margin: '-6px 0 12px', fontSize: 13, color: '#666' }}>
+                  Скільки їде легковик — з цього «Доведе» рахує час прибуття попуток, коли сервіс заторів не відповів.
+                  Порожньо — 1 год 35 хв.
+                </p>
                 <div className="form-group" style={{ marginBottom: 12 }}>
                   <label style={{ display: 'block', marginBottom: 6, fontWeight: 500 }}>
                     Зсув часу посадки на зупинках (хв від старту)

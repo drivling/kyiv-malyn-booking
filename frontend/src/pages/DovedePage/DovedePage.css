@@ -22,6 +22,7 @@
   --dv-bad-soft: rgba(220, 38, 38, 0.12);
   --dv-marsh: #0b5c69;
   --dv-train: #4757c9;
+  --dv-ride: #b9552a;
   --dv-walk: #93a9ad;
   --dv-shadow: 0 2px 12px rgba(5, 71, 82, 0.08);
   --dv-r: 16px;
@@ -875,6 +876,9 @@ button.dv-slot::after {
 }
 .dv-strip__seg--elektrichka {
   background: var(--dv-train);
+}
+.dv-strip__seg--poputka {
+  background: var(--dv-ride);
 }
 .dv-strip__seg--bus {
   background: var(--lt-route-color, var(--dv-ink));
@@ -2020,4 +2024,55 @@ button.dv-tear__slip:active {
     font-size: 13px;
     margin-right: 0;
   }
+}
+
+/* ─── Попутка серед варіантів: записка водія в кроці історії ─── */
+.dv-ride {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding-top: 8px;
+}
+.dv-ride > .dv-ad {
+  --dv-tilt: -0.5deg;
+  max-width: min(460px, 100%);
+}
+.dv-ride__facts {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.dv-ride__facts > div {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 10px;
+}
+.dv-ride__facts dt {
+  color: var(--dv-muted);
+}
+.dv-ride__facts dd {
+  margin: 0;
+  color: var(--dv-ink);
+  font-variant-numeric: tabular-nums;
+}
+.dv-ride__facts small {
+  color: var(--dv-muted);
+  font-size: 13px;
+}
+.dv-rides-more {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--dv-muted);
+}
+.dv-rides-more a {
+  color: var(--dv-ink);
+  font-weight: 600;
+}
+/* у вузькій колонці історії номер не має вилазити за папір — переноситься під підпис */
+.dv-ride .dv-tear__slip {
+  flex-wrap: wrap;
+  gap: 4px 10px;
 }

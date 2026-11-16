@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
+import { getRouteLabel } from '@/utils/constants';
 import { resolvePlace } from '@/pages/DovedePage/nlu/places';
 import type { PlaceRef } from '@/pages/DovedePage/nlu/types';
 import type { DovedeLog, DovedeLogDays, DovedeLogFlag, DovedeLogItem } from '@/types';
 import { intentLine } from './dovedeLogText';
 import { DovedeSynonymsPanel } from './DovedeSynonymsPanel';
+import { DovedePickupsPanel } from './DovedePickupsPanel';
 import './DovedeLogTab.css';
 
 const PERIODS: DovedeLogDays[] = [1, 7, 30, 90];
@@ -51,6 +53,9 @@ const KYIV_DT = new Intl.DateTimeFormat('uk-UA', {
   hour: '2-digit',
   minute: '2-digit',
 });
+
+/** Напрямок оголошень для панелі «Звідки забирають»: «Малин → Київ» */
+const pickupRouteLabel = (slug: string) => getRouteLabel(slug);
 
 const num = (n: number) => n.toLocaleString('uk-UA');
 
@@ -233,6 +238,8 @@ const DovedeLogTab: React.FC = () => {
           )}
 
           <DovedeSynonymsPanel stops={stops} seed={seed} />
+
+          <DovedePickupsPanel stops={stops} routeLabel={pickupRouteLabel} />
 
           <div className="dovede-log-head">
             <h3>Питання</h3>
