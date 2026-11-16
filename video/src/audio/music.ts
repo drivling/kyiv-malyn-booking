@@ -14,7 +14,8 @@ import music from './music.json';
  * `npm run music` складає з треку `public/audio/music/<версія>.wav` — уже з тишею на початку, рівно під кадри ролика,
  * і з гучністю тимчасового треку (−21,2 LUFS), під яку зведено звуки кадрів.
  */
-export type MusicEditName = 'master' | 'short';
+/** Монтажі: майстер, версія 15 с і три сторіс-натяки перед запуском (`src/hints/`) */
+export type MusicEditName = 'master' | 'short' | 'hint1' | 'hint2' | 'hint3';
 export type MusicEdit = { dropBeat: number; bars: [number, number][] };
 
 export const MUSIC = music as { file: string; bpm: number; drop: number; edits: Record<MusicEditName, MusicEdit> };

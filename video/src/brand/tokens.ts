@@ -17,3 +17,6 @@ export const COLORS = {
 
 /** Безпечні зони реклами Meta (частки кадру): зверху й знизу інтерфейс Reels перекриває кадр */
 export const SAFE = { top: 0.14, bottom: 0.35, side: 0.06 } as const;
+
+/** Безпечні зони сторіс Facebook / Instagram: зверху імʼя й смужки прогресу, знизу рядок відповіді */
+export const SAFE_STORY = { top: 0.14, bottom: 0.2, side: 0.06 } as const;

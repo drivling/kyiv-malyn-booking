@@ -1,6 +1,7 @@
 import type React from 'react';
 import { Composition } from 'remotion';
 import { FPS, HEIGHT, WIDTH } from './brand/tokens';
+import { Hint1, Hint2, Hint3, hintFrames } from './hints/Hints';
 import { STUDIO_TEST_FRAMES, StudioTest } from './scenes/StudioTest';
 import { Draft, draftFrames, type DraftProps, MASTER_PLACED, SHORT_PLACED, Teaser, Teaser15 } from './teaser/Teaser';
 import { totalFrames } from './teaser/timeline';
@@ -19,6 +20,9 @@ export const Root: React.FC = () => (
       defaultProps={{ showSafe: false, click: false, shots: ['B1', 'B2'] } satisfies DraftProps}
       calculateMetadata={({ props }) => ({ durationInFrames: draftFrames(props.shots) })}
     />
+    <Composition id="Hint1" component={Hint1} durationInFrames={hintFrames('hint1')} {...size} defaultProps={{ showSafe: false }} />
+    <Composition id="Hint2" component={Hint2} durationInFrames={hintFrames('hint2')} {...size} defaultProps={{ showSafe: false }} />
+    <Composition id="Hint3" component={Hint3} durationInFrames={hintFrames('hint3')} {...size} defaultProps={{ showSafe: false, date: '' }} />
     <Composition id="StudioTest" component={StudioTest} durationInFrames={STUDIO_TEST_FRAMES} {...size} defaultProps={{ showSafe: false }} />
   </>
 );

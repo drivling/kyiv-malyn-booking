@@ -165,6 +165,28 @@ const sfx = {
     }
     return d;
   },
+  /** Компостер (сторіс «Квиток»): металеве клацання — шум крізь смуговий фільтр — і глухий удар, як на сайті (punchSound.ts) */
+  clack() {
+    const d = buffer(0.18);
+    const bp = biquad('bp', 2600, 1.4);
+    let ph = 0;
+    for (let i = 0; i < d.length; i++) {
+      ph += (TAU * (55 + 115 * Math.exp(-t(i) / 0.04))) / RATE;
+      d[i] = bp.run(noise()) * Math.exp(-t(i) / 0.012) * 1.8 + Math.sin(ph) * Math.exp(-t(i) / 0.05) * 0.7;
+    }
+    return d;
+  },
+  /** Штамп «щасливий»: глухий удар гумою об папір */
+  thud() {
+    const d = buffer(0.22);
+    const lp = biquad('lp', 900, 0.8);
+    let ph = 0;
+    for (let i = 0; i < d.length; i++) {
+      ph += (TAU * (48 + 70 * Math.exp(-t(i) / 0.05))) / RATE;
+      d[i] = Math.sin(ph) * Math.exp(-t(i) / 0.07) + lp.run(noise()) * Math.exp(-t(i) / 0.01) * 0.6;
+    }
+    return d;
+  },
   ting() {
     const d = buffer(1.8);
     for (let i = 0; i < d.length; i++) d[i] = (Math.sin(TAU * 1760 * t(i)) + 0.5 * Math.sin(TAU * 2640 * t(i)) + 0.22 * Math.sin(TAU * 4185 * t(i))) * Math.exp(-t(i) / 0.5) * Math.min(1, t(i) / 0.002) * 0.5;
@@ -318,6 +340,8 @@ const files = {
   beep: sfx.beep(),
   pop: sfx.pop(),
   ting: sfx.ting(),
+  clack: sfx.clack(),
+  thud: sfx.thud(),
 };
 for (let n = 0; n < 10; n++) files[`plink${n}`] = sfx.plink(n);
 for (const [name, data] of Object.entries(files)) await writeWav(path.join(OUT, 'sfx', `${name}.wav`), fadeEdges(normalize(data, 0.9), 2));

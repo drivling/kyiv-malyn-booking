@@ -102,6 +102,22 @@ npm run master -- out/teaser.mp4       # → out/teaser-final.mp4: −14 LUFS, �
 - Пропси композицій: `sound` (музика й звуки, типово увімкнено), `click` (метроном 125 BPM поверх — перевірити біт).
 - `temp-125.wav` — тимчасова музика першої чернетки, у ролику більше не звучить.
 
+## Сторіс-натяки перед запуском
+
+```bash
+npm run music                 # монтажі hint1–3 з треку (audio/music.json)
+npm run render:hint1          # out/hint-1.mp4 «Крапка», 16 бітів ≈ 7,7 с
+npm run render:hint2          # out/hint-2.mp4 «Язик до Києва…», 24 біти ≈ 11,5 с
+npm run render:hint3          # out/hint-3.mp4 «Квиток», 25 бітів ≈ 12 с; дата: --props='{"date":"24.11"}'
+npm run master -- out/hint-1.mp4
+```
+
+Код — `src/hints/` (`Hints.tsx`, `Dot.tsx`, `Talon.tsx`). Ні посилання, ні назви сервісу: лише підпис серії — крапка падає,
+тричі підскакує на біт і гасне з «дзинь», як у фіналі реклами (H1–H2), — і шматки того самого треку. Талон —
+порт `.dv-talon` із сайту (`frontend/.../DovedePage/intro/DovedeIntro.css`), але із заголовком «Куди скажете.» замість
+назви. Безпечні зони сторіс — `SAFE_STORY` (зверху 14 %, знизу 20 %), підсвітка — `showSafe`. Нові звуки `clack`
+(компостер) і `thud` (штамп) — у `scripts/sound.mjs`.
+
 ## Монтаж
 
 ```bash
