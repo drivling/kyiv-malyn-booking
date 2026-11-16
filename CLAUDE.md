@@ -272,11 +272,16 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 
   New Telethon call sites must go through `withTelegramUserSessionExclusive` or
   `awaitTelegramSession()`.
-- Photos and PDFs posted in the lunch group are read by Claude (`ANTHROPIC_API_KEY`, `LUNCH_OCR_MODEL`, default the
-  cheap `claude-haiku-5-5`; `ANTHROPIC_WORKSPACE_ID` only for an organization-level key not bound to a workspace;
-  `lunch/ocr_menu.py` → `scan_media_bytes`) in the Python lunch listener. One request answers `kind`: `menu` (≥ 5
-  priced dishes, merged into the day's menu, never replacing it), `receipt` (the transfer amount) or `other`.
-  Haiku 5.5 has no server-side `fallbacks`, so that parameter is sent only to models that support it.
+- Photos and PDFs posted in the lunch group are read by Claude (`ANTHROPIC_API_KEY`; `ANTHROPIC_WORKSPACE_ID` only for
+  an organization-level key not bound to a workspace; `lunch/ocr_menu.py` → `scan_media_bytes`) in the Python lunch
+  listener. One request answers `kind`: `menu` (≥ 5 priced dishes, merged into the day's menu, never replacing it),
+  `receipt` (the transfer amount) or `other`. **Two models:** `LUNCH_OCR_MODEL` (default the cheap
+  `claude-haiku-5-5`) looks at every file and reads receipts; when it says «menu», the menu is read again by
+  `LUNCH_MENU_MODEL` (default `claude-opus-5-5`) and that result is used. Do not put the menu on the cheap model: on
+  the real photos of 13 and 16 Nov 2026 Haiku read receipt amounts exactly like Opus (14 of 14) but shifted menu
+  prices by a row (16 wrong prices of 34 in one day). Haiku 5.5 has no server-side `fallbacks`, so that parameter is
+  sent only to models that support it. Bank PDF receipts are rejected by the API as documents («The PDF specified was
+  not valid»), so the first page is rendered to a JPEG with `pypdfium2` and sent as an image.
   **Payment evidence** (`lunch/evidence.py`): a receipt photo/PDF becomes a `LunchPayment` with `source = 'receipt'`
   (the same amount already recorded from «оплатив 150» or the admin button is only confirmed, never doubled, and
   vice versa); a `check.monobank.ua/p/…` link cannot be read (captcha), so it pays the person's whole current debt

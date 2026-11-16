@@ -1371,9 +1371,36 @@ def test_catch_up_scans_missed_menu_photo_and_receipts_once():
         assert [m.name for m in db.menu][:2] == ["Пюре", "Котлети курячі"] and db.menu_message_id == 10
         assert db.outbound[0]["reply_to"] == 10 and db.outbound[0]["text"].startswith("Меню на сьогодні:")
         assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "receipt")]
-        assert len(scanner.calls) == 2
+        # меню: дешева модель впізнала, дорога перечитала; чек — лише дешева
+        assert [c["model"] for c in scanner.calls] == [None, "claude-opus-5-5", None]
         out2 = run(catch_up_today(client, object(), db, now=_now_at(10, 50)))
-        assert len(scanner.calls) == 2 and out2["payments"] == 0 and len(db.payments) == 1
+        assert len(scanner.calls) == 3 and out2["payments"] == 0 and len(db.payments) == 1
+
+
+def test_menu_is_reread_by_the_expensive_model_and_its_prices_win():
+    """Порівняння 16.11.2026: Haiku впізнає меню, але зсуває ціни на рядок. Страви й ціни бере Opus."""
+    shifted = {"kind": "menu", "amount": 0, "items": [{**it, "price": it["price"] + 10} for it in MENU_RAW["items"]]}
+    db = FakeDB(menu=[])
+    client = FakeClient([FakeMsg(10, "", _today_at(10, 30), photo=True, data=b"menu", sender_id=555)])
+    with with_scanner({b"menu": {"claude-opus-5-5": MENU_RAW, "items": shifted["items"], "kind": "menu", "amount": 0}}) as scanner:
+        out = run(catch_up_today(client, object(), db, now=_now_at(10, 45)))
+        assert out["menu"] == 6
+        assert [c["model"] for c in scanner.calls] == [None, "claude-opus-5-5"]
+        assert [(m.name, m.price_uah) for m in db.menu][:2] == [("Пюре", 40), ("Котлети курячі", 75)]  # ціни дорогої
+        assert db.scans[10]["model"] == "claude-opus-5-5" and db.scans[10]["kind"] == "menu"
+    # LUNCH_MENU_MODEL = та сама дешева → другого запиту немає
+    prev = os.environ.get("LUNCH_MENU_MODEL")
+    os.environ["LUNCH_MENU_MODEL"] = "claude-haiku-5-5"
+    try:
+        db = FakeDB(menu=[])
+        with with_scanner({b"menu": MENU_RAW}) as scanner:
+            run(catch_up_today(client, object(), db, now=_now_at(10, 45)))
+            assert len(scanner.calls) == 1
+    finally:
+        if prev is None:
+            os.environ.pop("LUNCH_MENU_MODEL", None)
+        else:
+            os.environ["LUNCH_MENU_MODEL"] = prev
 
 
 def test_catch_up_receipt_marks_paid_in_our_reply_even_when_day_is_closed():
@@ -1514,6 +1541,7 @@ def main():
         test_cash_promise_marks_order_reply_and_debts,
         test_catch_up_cash_message_edits_our_reply,
         test_catch_up_scans_missed_menu_photo_and_receipts_once,
+        test_menu_is_reread_by_the_expensive_model_and_its_prices_win,
         test_catch_up_receipt_marks_paid_in_our_reply_even_when_day_is_closed,
         test_person_reparse_takes_link_and_cash,
         test_compare_day_reports_where_models_disagree,

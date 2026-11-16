@@ -33,7 +33,7 @@ from lunch.evidence import (  # noqa: E402
     media_of,
     settle_pending_links,
 )
-from lunch.ocr_menu import COMPARE_MODELS, ocr_model_name  # noqa: E402
+from lunch.ocr_menu import COMPARE_MODELS, menu_model_name, ocr_model_name  # noqa: E402
 from lunch.parse_order import looks_like_order, parse_order_contextual  # noqa: E402
 from lunch.parse_payment import (  # noqa: E402
     is_cash_promise,
@@ -208,7 +208,7 @@ async def run() -> None:
     entity = await client.get_entity(group_id)
     print(f"[lunch] listening group={getattr(entity, 'title', group_id)} id={group_id} me={me_id}")
     if ocr_enabled(os.environ.get("ANTHROPIC_API_KEY")):
-        print(f"[lunch] фото й PDF (меню, чеки) розбирає {ocr_model_name()}")
+        print(f"[lunch] фото й PDF розбирає {ocr_model_name()} (чеки), меню перечитує {menu_model_name()}")
     stale = await db.fail_running_jobs("слухача перезапущено — запустіть ще раз")
     if stale:
         print(f"[lunch] failed {stale} stale running job(s)")
@@ -295,7 +295,7 @@ async def run() -> None:
                         return
                     else:
                         # чек: «✅ Оплатив» дописано правкою нашої відповіді; у групу нічого не пишемо
-                        print(f"[lunch] media {msg.id}: {outcome.note} ({outcome.scan.model})")
+                        print(f"[lunch] media {msg.id}: {outcome.note} ({outcome.scan.model}, {outcome.scan.sent_as or 'журнал'})")
                 except Exception as e:
                     # у групу помилку не пишемо: меню завжди можна вставити в адмінці, оплату — кнопкою
                     print(f"[lunch] OCR error media={msg.id}: {e}", file=sys.stderr)

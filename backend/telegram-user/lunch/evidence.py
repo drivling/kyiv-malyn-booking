@@ -10,7 +10,9 @@
     оператор натиснув «Оплатив») на ту саму суму — чек її лише підтверджує, вдруге не зараховуємо;
   * посилання на чек → суму прочитати не можна (сторінка за капчею), тому зараховуємо весь поточний борг
     (`source = 'link'`, у тексті оплати — «суму не перевірено»). Чек прийшов раніше за замовлення —
-    зарахуємо, коли замовлення з'явиться (`settle_pending_links`).
+    зарахуємо, коли замовлення з'явиться (`settle_pending_links`);
+  * меню читають дві моделі: дешева (`LUNCH_OCR_MODEL`) впізнає, що це меню, дорога (`LUNCH_MENU_MODEL`)
+    читає страви й ціни. У журнал лягає результат дорогої.
 
 У групу про чек нічого не пишемо: «✅ Оплатив» з'являється правкою нашої відповіді на замовлення,
 так само як від кнопки в адмінці.
@@ -31,6 +33,7 @@ from .ocr_menu import (
     MAX_PDF_BYTES,
     PDF_MIME,
     MediaScan,
+    menu_model_name,
     merge_menu_items,
     scan_from_raw,
     scan_media_bytes,  # noqa: F401 — тести підміняють evidence.scan_media_bytes
@@ -124,7 +127,13 @@ async def scan_message(
     data = await download_bytes(msg, mime)
     if data is None:
         return None
-    result = await (scan or scan_media_bytes)(data, mime=mime, known_names=await db.catalog_dish_names())
+    scanner = scan or scan_media_bytes
+    known = await db.catalog_dish_names()
+    result = await scanner(data, mime=mime, known_names=known)
+    # Дешева модель лише впізнає меню; ціни в ньому вона плутає, тому меню перечитує дорога.
+    menu_model = menu_model_name()
+    if result.kind == "menu" and result.model != menu_model:
+        result = await scanner(data, mime=mime, known_names=known, model=menu_model)
     await db.save_media_scan(
         day_id,
         int(msg.id),

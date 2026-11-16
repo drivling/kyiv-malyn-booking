@@ -15,13 +15,16 @@ from lunch.ocr_menu import (
     DEFAULT_OCR_MODEL,
     anthropic_client_headers,
     menu_items_from_ocr,
+    menu_model_name,
     merge_menu_items,
     ocr_menu_from_image_bytes,
     ocr_model_name,
     parse_menu_items_payload,
+    pdf_diagnostics,
     receipt_amount,
     scan_from_raw,
     scan_media_bytes,
+    sniff_mime,
 )
 from lunch.order_reply import PersonalOrderAction, decide_personal_order_action, ocr_enabled
 from lunch.parse_order import looks_like_order, parse_order, parse_order_contextual
@@ -816,6 +819,47 @@ def test_ocr_receipt_photo_and_pdf_give_the_transfer_amount():
     assert blur.kind == "receipt" and blur.amount_uah is None  # чек, але суму не видно
 
 
+def test_pdf_receipt_goes_as_a_picture_of_its_first_page():
+    """Банківські PDF API документом не приймає («The PDF specified was not valid», прод 13 і 16.11.2026)."""
+    import io
+
+    try:
+        import pypdfium2  # noqa: F401
+        from PIL import Image
+    except ImportError:
+        return  # без рендера PDF іде документом — це перевіряє тест вище
+    page = io.BytesIO()
+    Image.new("RGB", (595, 842), "white").save(page, format="PDF")
+    fake = _FakeClaude({"kind": "receipt", "items": [], "amount": 155})
+    scan = _run(scan_media_bytes(page.getvalue(), mime="application/pdf", client=fake))
+    block = fake.request["messages"][0]["content"][0]
+    assert block["type"] == "image" and block["source"]["media_type"] == "image/jpeg"
+    assert scan.sent_as == "pdf-image" and scan.amount_uah == 155
+    # фото з заявленим mime PDF іде як фото; зіпсований PDF — документом, і помилка API каже, що це за файл
+    assert sniff_mime(b"\xff\xd8\xff\xe0") == "image/jpeg" and sniff_mime(b"\x89PNG\r\n") == "image/png"
+    fake = _FakeClaude({"kind": "other", "items": [], "amount": 0})
+    assert _run(scan_media_bytes(b"\xff\xd8\xff\xe0abc", mime="application/pdf", client=fake)).sent_as == "image"
+    assert pdf_diagnostics(b"%PDF-1.4 /Encrypt x") == "pdf 19 байт, початок b'%PDF-1.4', encrypt=True"
+
+
+def test_menu_model_is_the_expensive_one_by_default():
+    import os
+
+    old = os.environ.get("LUNCH_MENU_MODEL")
+    try:
+        os.environ.pop("LUNCH_MENU_MODEL", None)
+        assert menu_model_name() == "claude-opus-5-5" != DEFAULT_OCR_MODEL
+        os.environ["LUNCH_MENU_MODEL"] = "claude-sonnet-5-5"
+        assert menu_model_name() == "claude-sonnet-5-5"
+        os.environ["LUNCH_MENU_MODEL"] = "gpt-4o"
+        assert menu_model_name() == "claude-opus-5-5"
+    finally:
+        if old is None:
+            os.environ.pop("LUNCH_MENU_MODEL", None)
+        else:
+            os.environ["LUNCH_MENU_MODEL"] = old
+
+
 def test_ocr_ignores_photos_that_are_not_a_menu():
     """Мем, список замовлень, кілька цін — меню дня не чіпаємо."""
     scan = _run(scan_media_bytes(b"x", client=_FakeClaude({"kind": "other", "items": [], "amount": 0})))
@@ -962,6 +1006,8 @@ def main():
         test_ocr_request_uses_cheap_model_with_schema_image_and_known_names,
         test_ocr_expensive_model_keeps_server_side_fallback,
         test_ocr_receipt_photo_and_pdf_give_the_transfer_amount,
+        test_pdf_receipt_goes_as_a_picture_of_its_first_page,
+        test_menu_model_is_the_expensive_one_by_default,
         test_ocr_ignores_photos_that_are_not_a_menu,
         test_ocr_refusal_and_oversized_files_raise,
         test_cash_promise_and_receipt_link_phrases,
