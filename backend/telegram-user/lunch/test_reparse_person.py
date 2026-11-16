@@ -188,6 +188,9 @@ class FakeDB:
     async def has_payment_of_amount(self, day_id, pid, amount, sources):
         return any(p["pid"] == pid and p["amount"] == amount and p.get("kind", "text") in sources for p in self.payments)
 
+    async def has_payment_from(self, day_id, pid, sources):
+        return any(p["pid"] == pid and p.get("kind", "text") in sources for p in self.payments)
+
     async def get_media_scan(self, day_id, tg_message_id):
         return self.scans.get(int(tg_message_id))
 
@@ -1285,6 +1288,51 @@ def test_receipt_confirms_text_payment_instead_of_doubling_both_orders():
     assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "receipt"), (20, "text")]
 
 
+def test_receipt_of_another_amount_does_not_double_a_debt_already_settled():
+    # Адмін натиснув «Оплатив» (борг 115 закрито), а в чеку 120 (інакше порахована таця) — це та сама оплата.
+    from lunch.evidence import apply_receipt
+
+    db = FakeDB()
+    run(reparse_day_with_client(FakeClient([FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36))]), object(), db))
+    pid = db.participants[str(UID)]["id"]
+    run(db.add_payment(1, pid, 115, "адмінка", source="admin"))
+    assert run(apply_receipt(db, 1, pid, amount_uah=120, message_id=12, source="photo")) == "settled"
+    assert run(apply_receipt(db, 1, pid, amount_uah=115, message_id=13, source="pdf")) == "confirms"
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "admin")]
+    # «скинула гроші» закрила борг, потім чек на іншу суму → теж не друга оплата
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)),
+        FakeMsg(12, "скинула гроші", _today_at(10, 37)),
+        FakeMsg(13, "", _today_at(10, 38), photo=True, data=b"shot"),
+    ])
+    with with_scanner({b"shot": _receipt(110)}):
+        stats = run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "claim")]
+    assert "борг уже закрито" in {d["messageId"]: d for d in stats.details}[13]["reason"]
+    # борг закрито лише частково → чек зараховується; два чеки (оплата двома переказами) — обидва
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)),
+        FakeMsg(12, "оплатив 50", _today_at(10, 37)),
+        FakeMsg(13, "", _today_at(10, 38), photo=True, data=b"a"),
+        FakeMsg(14, "", _today_at(10, 39), photo=True, data=b"b"),
+    ])
+    with with_scanner({b"a": _receipt(40), b"b": _receipt(25)}):
+        run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(50, "text"), (40, "receipt"), (25, "receipt")]
+    # борг закрито чеком, другий чек (заплатив за колегу) лишається видимим як переплата
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 38), photo=True, data=b"a"),
+        FakeMsg(13, "", _today_at(10, 39), photo=True, data=b"b"),
+    ])
+    with with_scanner({b"a": _receipt(115), b"b": _receipt(90)}):
+        run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "receipt"), (90, "receipt")]
+
+
 def test_receipt_without_amount_or_failed_scan_changes_nothing():
     db = FakeDB()
     client = FakeClient([
@@ -1580,6 +1628,7 @@ def main():
         test_day_reparse_receipt_photo_and_pdf_become_payments_and_journal_is_reused,
         test_day_reparse_without_claude_key_skips_new_media_but_uses_journal,
         test_receipt_confirms_text_payment_instead_of_doubling_both_orders,
+        test_receipt_of_another_amount_does_not_double_a_debt_already_settled,
         test_receipt_without_amount_or_failed_scan_changes_nothing,
         test_receipt_link_pays_the_debt_and_waits_for_the_order,
         test_paid_claim_without_amount_settles_the_debt_like_a_link,
