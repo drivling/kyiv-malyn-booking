@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { apiRedirectPath, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, permanentRedirectLocation, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
+import { apiRedirectPath, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
 
 describe('serve-dist rules: 301 for retired public URLs', () => {
   it('/poputky lands on the intercity board with the «Попутки» filter chosen', () => {
@@ -117,6 +117,35 @@ describe('serve-dist rules: transport PWA files (Docs/transport-pwa-2026-10.md, 
     expect(isPrimaryOnlyFile('/transport.webmanifest')).toBe(true);
     expect(isPrimaryOnlyFile('/transport')).toBe(false);
     expect(isPrimaryOnlyFile('/icons/transport-192.png')).toBe(false);
+  });
+});
+
+describe('serve-dist rules: «Доведе» intro video (Range for Safari on iPhone, hashed file names)', () => {
+  it('caches the hashed intro video and poster for good, but not other files under /dovede/', () => {
+    for (const p of ['/dovede/intro-3f9a1c2b.mp4', '/dovede/intro-3f9a1c2b.jpg']) {
+      expect(cacheHeadersFor(p), p).toEqual({ 'Cache-Control': 'public, max-age=31536000, immutable' });
+    }
+    for (const p of ['/dovede/intro.mp4', '/dovede/intro-3F9A1C2B.mp4', '/dovede/intro-3f9a1c2b.mp4.bak', '/intro-3f9a1c2b.mp4']) {
+      expect(cacheControlFor(p), p).toBe('public, max-age=3600');
+    }
+  });
+
+  it('reads one byte range: start-end, open end, suffix', () => {
+    expect(parseByteRange('bytes=0-1', 1000)).toEqual({ start: 0, end: 1 });
+    expect(parseByteRange('bytes=100-', 1000)).toEqual({ start: 100, end: 999 });
+    expect(parseByteRange('bytes=-500', 1000)).toEqual({ start: 500, end: 999 });
+    expect(parseByteRange('bytes=-5000', 1000)).toEqual({ start: 0, end: 999 });
+    expect(parseByteRange('bytes=900-5000', 1000)).toEqual({ start: 900, end: 999 });
+    expect(parseByteRange(' bytes=0-0 ', 1)).toEqual({ start: 0, end: 0 });
+  });
+
+  it('answers 416 for a range past the end and the whole file for anything else', () => {
+    expect(parseByteRange('bytes=1000-', 1000)).toBe('unsatisfiable');
+    expect(parseByteRange('bytes=-0', 1000)).toBe('unsatisfiable');
+    expect(parseByteRange('bytes=0-1', 0)).toBe('unsatisfiable');
+    for (const h of [undefined, '', 'bytes=', 'bytes=-', 'bytes=5-1', 'bytes=0-1,5-6', 'items=0-1', 'bytes=a-b']) {
+      expect(parseByteRange(h, 1000), String(h)).toBeNull();
+    }
   });
 });
 

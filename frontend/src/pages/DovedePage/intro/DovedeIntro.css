@@ -1,0 +1,495 @@
+/*
+ * Ролик-вступ «Доведе» (intro/DovedeIntro.tsx). Фон — чистий білий, як основний фон ролика: поля навколо відео
+ * зливаються з кадром, і «вставленого відео» не видно. Талон — у класах .dv-talon* (.dv-ticket уже зайнятий
+ * квитком міжміської поїздки).
+ */
+.dv-intro {
+  --dvi-ink: #054752;
+  --dvi-muted: #4f6f75;
+  --dvi-accent: #00aff5;
+  --dvi-paper: #fffaf0;
+  --dvi-red: #c62828;
+  /* дірки в талоні — колір сторінки, що за ним (body), як і в тій, крізь яку відкривається сторінка */
+  --dvi-hole: var(--pb-bg-page, #f5f5f5);
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #fff;
+  color: var(--dvi-ink);
+  font-family: 'Golos Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+.dv-intro--opening {
+  pointer-events: none;
+}
+.dv-intro--leaving {
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+
+/* Смуги навколо кадру 9:16 — продовження його країв (edgeFill.ts), під відео */
+.dv-intro__fill {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+/* Відео без пульта: кліки йдуть повз нього, системні кнопки сховані */
+.dv-intro__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: transparent;
+  pointer-events: none;
+}
+.dv-intro__video::-webkit-media-controls,
+.dv-intro__video::-webkit-media-controls-panel,
+.dv-intro__video::-webkit-media-controls-start-playback-button,
+.dv-intro__video::-webkit-media-controls-overlay-play-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
+/* «▶ Дивитися» — фірмова крапка з кільцем «ви тут», як у фіналі ролика; під пошуковим рядком першого кадру */
+.dv-intro__play {
+  position: absolute;
+  left: 50%;
+  top: 70%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: max-content;
+  padding: 12px 20px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.dv-intro__dot {
+  position: relative;
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  background: var(--dvi-accent);
+  box-shadow: 0 12px 30px rgba(0, 175, 245, 0.35), inset 0 -4px 0 rgba(0, 0, 0, 0.08);
+  transition: transform 0.15s ease;
+}
+.dv-intro__dot::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin: -15px 0 0 -9px;
+  border-style: solid;
+  border-width: 15px 0 15px 26px;
+  border-color: transparent transparent transparent #fff;
+}
+.dv-intro__dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid var(--dvi-accent);
+  animation: dv-intro-ring 1.9s ease-out infinite;
+}
+.dv-intro__play:hover .dv-intro__dot {
+  transform: scale(1.05);
+}
+.dv-intro__play:active .dv-intro__dot {
+  transform: scale(0.96);
+}
+.dv-intro__play:focus-visible {
+  outline: none;
+}
+.dv-intro__play:focus-visible .dv-intro__dot {
+  outline: 3px solid var(--dvi-ink);
+  outline-offset: 5px;
+}
+.dv-intro__label {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 19px;
+  font-weight: 700;
+}
+.dv-intro__sub {
+  margin-top: -8px;
+  font-size: 14px;
+  color: var(--dvi-muted);
+}
+@keyframes dv-intro-ring {
+  from {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(1.9);
+    opacity: 0;
+  }
+}
+
+.dv-intro__wait {
+  position: absolute;
+  left: 50%;
+  bottom: max(28px, env(safe-area-inset-bottom));
+  width: 12px;
+  height: 12px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: var(--dvi-accent);
+  animation: dv-intro-wait 0.9s ease-in-out infinite alternate;
+}
+@keyframes dv-intro-wait {
+  from {
+    opacity: 0.25;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+}
+
+/* Кінець ролика: талон на білому останньому кадрі */
+.dv-intro__end {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 18px;
+  padding: 24px 16px;
+}
+.dv-intro__hint {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  animation: dv-intro-fade 0.4s ease-out both;
+}
+.dv-intro__failed {
+  margin: -6px 0 0;
+  font-size: 14px;
+  color: var(--dvi-muted);
+}
+.dv-intro__again {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 8px 18px;
+  border: 0;
+  border-radius: 999px;
+  background: none;
+  color: var(--dvi-muted);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  animation: dv-intro-fade 0.4s ease-out 0.5s both;
+}
+.dv-intro__again svg {
+  width: 20px;
+  height: 20px;
+}
+.dv-intro__again:hover:not(:disabled) {
+  background: rgba(5, 71, 82, 0.06);
+  color: var(--dvi-ink);
+}
+.dv-intro__again:focus-visible {
+  outline: 3px solid var(--dvi-accent);
+  outline-offset: 2px;
+}
+.dv-intro__again:disabled {
+  cursor: default;
+}
+@keyframes dv-intro-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Талон: тепла бумага, блакитна сітка-гільйош, перфорація по краях */
+.dv-talon-wrap {
+  position: relative;
+  display: block;
+  filter: drop-shadow(0 14px 20px rgba(5, 71, 82, 0.16)) drop-shadow(0 2px 2px rgba(5, 71, 82, 0.12));
+  animation:
+    dv-talon-in 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.15) 0.15s both,
+    dv-talon-nudge 4.5s ease-in-out 3s infinite;
+}
+.dv-intro--punching .dv-talon-wrap,
+.dv-intro--opening .dv-talon-wrap {
+  animation: none;
+}
+.dv-talon {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 18px;
+  width: min(340px, calc(100vw - 40px));
+  padding: 18px 22px 20px 26px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--dvi-ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transform: rotate(-1.5deg);
+  background:
+    radial-gradient(120% 90% at 15% 20%, rgba(255, 255, 255, 0.7), transparent 60%),
+    repeating-linear-gradient(115deg, rgba(0, 175, 245, 0.08) 0 1px, transparent 1px 6px),
+    repeating-linear-gradient(65deg, rgba(0, 175, 245, 0.06) 0 1px, transparent 1px 6px),
+    var(--dvi-paper);
+  -webkit-mask:
+    radial-gradient(circle at 0 7px, transparent 3.5px, #000 4px) left / 51% 14px repeat-y,
+    radial-gradient(circle at 100% 7px, transparent 3.5px, #000 4px) right / 51% 14px repeat-y;
+  mask:
+    radial-gradient(circle at 0 7px, transparent 3.5px, #000 4px) left / 51% 14px repeat-y,
+    radial-gradient(circle at 100% 7px, transparent 3.5px, #000 4px) right / 51% 14px repeat-y;
+}
+.dv-intro--ticket .dv-talon:hover {
+  transform: rotate(-1.5deg) translateY(-2px);
+}
+/* рамка фокусу — навколо талона (перфорація зрізала б її), і лише до компостування */
+.dv-talon:focus-visible {
+  outline: none;
+}
+.dv-intro--ticket .dv-talon-wrap:has(.dv-talon:focus-visible) {
+  outline: 3px solid var(--dvi-accent);
+  outline-offset: 8px;
+  border-radius: 8px;
+}
+.dv-intro--punching .dv-talon {
+  animation: dv-talon-hit 0.3s ease-out both;
+}
+.dv-talon[aria-disabled='true'] {
+  cursor: default;
+}
+
+.dv-talon__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.dv-talon__brand {
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+.dv-talon__brand span {
+  color: var(--dvi-accent);
+}
+.dv-talon__kind {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dvi-muted);
+}
+.dv-talon__route {
+  font-size: 15px;
+  font-weight: 600;
+}
+.dv-talon__no {
+  margin-top: 10px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  color: #a3301f;
+}
+
+/* Сітка компостера 3 × 3, як на старих талонах */
+.dv-talon__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 24px);
+  grid-auto-rows: 24px;
+  border: 1.5px solid rgba(5, 71, 82, 0.35);
+  border-radius: 3px;
+}
+.dv-talon__cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid rgba(5, 71, 82, 0.18);
+  border-bottom: 1px solid rgba(5, 71, 82, 0.18);
+}
+.dv-talon__cell:nth-child(3n) {
+  border-right: 0;
+}
+.dv-talon__cell:nth-child(n + 7) {
+  border-bottom: 0;
+}
+.dv-talon__digit {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(5, 71, 82, 0.4);
+}
+.dv-talon__hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: var(--dvi-hole);
+  box-shadow:
+    inset 0 1.5px 2px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(5, 71, 82, 0.12);
+  transform: scale(0);
+}
+.dv-intro--punching .dv-talon__hole,
+.dv-intro--opening .dv-talon__hole {
+  animation: dv-talon-hole 0.12s ease-out both;
+}
+
+/* Щелепа компостера: червона емаль зверху, сталь знизу; падає на сітку й піднімається */
+.dv-talon__jaw {
+  position: absolute;
+  z-index: 2;
+  right: 14px;
+  top: 50%;
+  width: 92px;
+  height: 92px;
+  margin-top: -46px;
+  border-radius: 10px;
+  background:
+    linear-gradient(#d8402f 0 22px, #9b231b 22px 25px, transparent 25px),
+    linear-gradient(160deg, #e6ecee 0%, #aab6ba 40%, #6b797e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  transform: translateY(-130px) rotate(-1.5deg);
+  pointer-events: none;
+}
+.dv-intro--punching .dv-talon__jaw {
+  animation: dv-talon-jaw 0.32s cubic-bezier(0.55, 0, 0.45, 1) both;
+}
+
+.dv-talon__stamp {
+  position: absolute;
+  left: 118px;
+  bottom: 12px;
+  padding: 1px 8px;
+  border: 2px solid var(--dvi-red);
+  border-radius: 4px;
+  color: var(--dvi-red);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0;
+  transform: rotate(-9deg);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.dv-intro--punching .dv-talon__stamp,
+.dv-intro--opening .dv-talon__stamp {
+  animation: dv-talon-stamp 0.22s cubic-bezier(0.3, 1.6, 0.5, 1) 0.26s both;
+}
+
+@keyframes dv-talon-in {
+  from {
+    opacity: 0;
+    transform: translateY(70px) rotate(5deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dv-talon-nudge {
+  0%,
+  86%,
+  100% {
+    transform: none;
+  }
+  90% {
+    transform: rotate(1.2deg) translateY(-2px);
+  }
+  95% {
+    transform: rotate(-0.8deg);
+  }
+}
+@keyframes dv-talon-hit {
+  0%,
+  26% {
+    transform: rotate(-1.5deg);
+  }
+  32% {
+    transform: rotate(-1.5deg) translateY(3px) scale(0.99);
+  }
+  60%,
+  100% {
+    transform: rotate(-1.5deg);
+  }
+}
+@keyframes dv-talon-hole {
+  from {
+    transform: scale(0);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes dv-talon-jaw {
+  0% {
+    opacity: 0;
+    transform: translateY(-130px) rotate(-1.5deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  28% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  42% {
+    opacity: 1;
+    transform: translateY(2px) rotate(-1.5deg) scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-150px) rotate(-1.5deg);
+  }
+}
+@keyframes dv-talon-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-9deg) scale(1.9);
+  }
+  to {
+    opacity: 0.85;
+    transform: rotate(-9deg) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dv-intro__dot::after,
+  .dv-talon-wrap,
+  .dv-intro--punching .dv-talon,
+  .dv-intro--punching .dv-talon__jaw {
+    animation: none;
+  }
+  .dv-intro__hint,
+  .dv-intro__again {
+    animation-duration: 0.01s;
+  }
+}
