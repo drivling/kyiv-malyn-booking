@@ -30,10 +30,12 @@ from lunch.order_reply import PersonalOrderAction, decide_personal_order_action,
 from lunch.parse_order import looks_like_order, parse_order, parse_order_contextual
 from lunch.parse_payment import (
     is_cash_promise,
+    is_paid_claim,
     looks_like_card_number,
     parse_payment,
     receipt_links,
     strip_cash_promise,
+    strip_paid_claim,
     strip_receipt_links,
 )
 from lunch.parse_summary import (
@@ -906,6 +908,16 @@ def test_cash_promise_and_receipt_link_phrases():
     assert strip_cash_promise("готівкою") == ""
     link = "https://check.monobank.ua/p/AbCdEfGhIjKlMnOpQrSt"
     assert receipt_links(f"ось {link} дякую") == [link] and strip_receipt_links(link) == ""
+    # «оплатив» без суми й чека: лише минулий час від першої особи
+    for text in ("скинул", "скинула гроші", "Оплатила", "я оплатив", "гроші перевела", "закинув за обід", "Сплачено"):
+        assert is_paid_claim(text), text
+    for text in (
+        "Кто забыл скинуть за обед?", "сейчас заказ сделаю и скину сразу", "я закинул андрею", "скинь кеш",
+        "Иду в столовую, кидайте деньги", "Можна писати тут оплатив і сумму і воно буде рахувати :)", "оплатив?",
+        "оплатив 150", "кинула фото меню",
+    ):
+        assert not is_paid_claim(text), text
+    assert strip_paid_claim("Пюре\nКотлета\nоплатила") == "Пюре\nКотлета"
     assert receipt_links("https://send.monobank.ua/jar/abc") == []  # посилання на оплату — не чек
 
 

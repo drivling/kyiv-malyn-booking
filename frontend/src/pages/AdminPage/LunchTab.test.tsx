@@ -374,6 +374,7 @@ describe('LunchTab · чеки, готівка і порівняння моде�
       payments: [
         { id: 1, displayName: 'Лера', amountUah: 45, rawText: 'чек (photo): 45 грн', source: 'receipt', createdAt: '2026-10-02T08:00:00.000Z' },
         { id: 2, displayName: 'Марта', amountUah: 90, rawText: 'чек за посиланням (суму не перевірено)', source: 'link', createdAt: '2026-10-02T08:01:00.000Z' },
+        { id: 3, displayName: 'Юля', amountUah: 60, rawText: 'написав(ла), що оплатив(ла) (суму не перевірено)', source: 'claim', createdAt: '2026-10-02T08:02:00.000Z' },
       ],
     };
     server.use(
@@ -387,6 +388,7 @@ describe('LunchTab · чеки, готівка і порівняння моде�
     const payments = screen.getByRole('list', { name: 'Оплати за день' });
     expect(within(payments).getByText(/сума з чека \(фото \/ PDF\)/)).toBeInTheDocument();
     expect(within(payments).getByText(/посилання на чек — суму не перевірено/)).toBeInTheDocument();
+    expect(within(payments).getByText(/написав\(ла\), що оплатив\(ла\) — суму не перевірено/)).toBeInTheDocument();
   });
 
   it('порівняння моделей: задача слухачеві, опитування, таблиця з розбіжностями й вартістю', async () => {

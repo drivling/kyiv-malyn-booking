@@ -759,7 +759,8 @@ class LunchDB:
         source_message_id: Optional[int] = None,
         source: str = "text",
     ) -> int:
-        """source: text — «оплатив 150» у чаті; receipt — сума з фото/PDF чека; link — посилання на чек."""
+        """source: text — «оплатив 150» у чаті; receipt — сума з фото/PDF чека; link — посилання на чек;
+        claim — «скинула гроші» без суми й чека."""
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
@@ -864,7 +865,7 @@ class LunchDB:
             rows = await conn.fetch(
                 """
                 SELECT s."tgMessageId" FROM "LunchMediaScan" s
-                WHERE s."dayId" = $1 AND s."senderTgId" = $2 AND s.source = 'link'
+                WHERE s."dayId" = $1 AND s."senderTgId" = $2 AND s.source IN ('link', 'claim')
                   AND NOT EXISTS (
                       SELECT 1 FROM "LunchPayment" p
                       WHERE p."dayId" = s."dayId" AND p."sourceMessageId" = s."tgMessageId"

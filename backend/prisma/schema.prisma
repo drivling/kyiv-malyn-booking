@@ -729,7 +729,8 @@ model LunchPayment {
   amountUah       Int
   sourceMessageId BigInt?
   rawText         String   @db.Text
-  /// text — «оплатив 150» у чаті | admin — кнопка «Оплатив» | receipt — сума з фото/PDF чека | link — посилання на чек, суму не перевірено
+  /// text — «оплатив 150» у чаті | admin — кнопка «Оплатив» | receipt — сума з фото/PDF чека |
+  /// link — посилання на чек, суму не перевірено | claim — «скинула гроші» без суми й чека, суму не перевірено
   source          String   @default("text")
   createdAt       DateTime @default(now())
 
@@ -748,7 +749,7 @@ model LunchMediaScan {
   dayId       Int
   tgMessageId BigInt
   senderTgId  String?
-  /// photo | pdf | link (посилання на чек: запиту до моделі немає, суми теж)
+  /// photo | pdf | link | claim (посилання на чек і слова «оплатила»: запиту до моделі немає, суми теж)
   source      String
   /// menu | receipt | other
   kind        String

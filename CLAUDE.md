@@ -286,6 +286,8 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   (the same amount already recorded from «оплатив 150» or the admin button is only confirmed, never doubled, and
   vice versa); a `check.monobank.ua/p/…` link cannot be read (captcha), so it pays the person's whole current debt
   with `source = 'link'` («суму не перевірено»; a link sent before the order is settled when the order appears);
+  «скинула гроші» / «оплатив» with no amount and no receipt does the same with `source = 'claim'` (the owner's
+  decision; past tense in the first person only — «скину», «скиньте», a question are not payments);
   «віддам готівкою» sets `LunchOrder.cashPromised` and shows «💵 Готівкою» in our reply until paid — it is not a
   payment. Every scanned message is journalled in `LunchMediaScan`, so catch-up after a listener pause (which now
   also picks up a missed menu photo and receipts) and «Розібрати день» never ask the model twice; a failed scan is

@@ -207,7 +207,7 @@ class FakeDB:
         paid = {p["source"] for p in self.payments}
         return sorted(
             mid for mid, r in self.scans.items()
-            if r["source"] == "link" and r["sender_tg_id"] == str(sender_tg_id) and mid not in paid
+            if r["source"] in ("link", "claim") and r["sender_tg_id"] == str(sender_tg_id) and mid not in paid
         )
 
     async def set_order_cash(self, day_id, pid, value=True):
@@ -1322,6 +1322,50 @@ def test_receipt_link_pays_the_debt_and_waits_for_the_order():
     assert [(p["amount"], p["kind"]) for p in db.payments] == [(40, "text")]
 
 
+def test_paid_claim_without_amount_settles_the_debt_like_a_link():
+    """«Скинула гроші» без суми й чека — рішення власника: гасить увесь борг, позначено «суму не перевірено»."""
+    assert _plan("скинула гроші").kind == "claim" and _plan("скинул").kind == "claim"
+    with_order = _plan("Пюре\nКотлети курячі\nоплатила")
+    assert with_order.kind == "order" and with_order.claim and with_order.result.unmatched == []
+    for chat in ("Кто забыл скинуть за обед?", "сейчас заказ сделаю и скину сразу", "я закинул андрею", "Иду в столовую, кидайте деньги"):
+        assert _plan(chat).kind not in ("claim", "payment") and not _plan(chat).claim, chat
+    # замовлення, потім «скинула гроші»
+    db = FakeDB()
+    client = FakeClient([FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)), FakeMsg(12, "скинула гроші", _today_at(10, 37))])
+    stats = run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"], p["source"]) for p in db.payments] == [(115, "claim", 12)]
+    assert "суму не перевірено" in db.payments[0]["raw"] and stats.payments == 1
+    # «оплатила» раніше за замовлення — чекає; скрін на ту саму суму після — лише підтверджує
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "оплатила", _today_at(10, 30)),
+        FakeMsg(12, "Пюре", _today_at(10, 36)),
+        FakeMsg(13, "", _today_at(10, 37), photo=True, data=b"shot"),
+        FakeMsg(14, "скинула", _today_at(10, 38)),
+    ])
+    with with_scanner({b"shot": _receipt(40)}):
+        run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"], p["source"]) for p in db.payments] == [(40, "claim", 11)]
+    # скрін уже погасив борг — слова «скинула» нічого не додають
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 37), photo=True, data=b"shot"),
+        FakeMsg(13, "скинула", _today_at(10, 38)),
+    ])
+    with with_scanner({b"shot": _receipt(40)}):
+        run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(40, "receipt")]
+    # дозбір: правка нашої відповіді з «✅ Оплатив», і вдруге нічого
+    db = FakeDB()
+    pid = _seed(db, UID, "Пюре", [_line(1, "Пюре", 40)])
+    db.orders[pid]["total"] = 45
+    client = FakeClient([FakeMsg(12, "скинул", _today_at(10, 38))])
+    assert run(catch_up_today(client, object(), db, now=_now_at(10, 45)))["payments"] == 1
+    assert db.outbound[-1]["kind"] == "edit" and db.outbound[-1]["text"].endswith("✅ Оплатив")
+    assert run(catch_up_today(client, object(), db, now=_now_at(10, 50)))["payments"] == 0 and len(db.payments) == 1
+
+
 def test_cash_promise_marks_order_reply_and_debts():
     db = FakeDB()
     client = FakeClient([
@@ -1538,6 +1582,7 @@ def main():
         test_receipt_confirms_text_payment_instead_of_doubling_both_orders,
         test_receipt_without_amount_or_failed_scan_changes_nothing,
         test_receipt_link_pays_the_debt_and_waits_for_the_order,
+        test_paid_claim_without_amount_settles_the_debt_like_a_link,
         test_cash_promise_marks_order_reply_and_debts,
         test_catch_up_cash_message_edits_our_reply,
         test_catch_up_scans_missed_menu_photo_and_receipts_once,
