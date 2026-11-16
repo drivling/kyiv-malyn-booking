@@ -852,6 +852,12 @@ def test_cash_promise_and_receipt_link_phrases():
     # розмова про гроші та страви зі схожими словами — не обіцянка
     for text in ("Ми так багато не заробляємо , є кеш тільки на столову", "налисники з сиром", "курка з кешʼю", "канал", "борщ і пюре"):
         assert not is_cash_promise(text), text
+    # з реальної групи (жовтень–листопад 2026): так пишуть про готівку…
+    for text in ("деньги наличкой отдам", "Я готівкою віддам", "отдам готівкою)", "Готівка", "Віддала готівкою", "Дам готівкою"):
+        assert is_cash_promise(text), text
+    # …а це питання й прохання до іншої людини, а не обіцянка
+    for text in ("А якщо готівка?)", "скинь кеш", "Написати в чат готівка", "закинь налом пж"):
+        assert not is_cash_promise(text), text
     assert strip_cash_promise("Деруни \nСалат крабовий\n\nВіддам готівкою") == "Деруни \nСалат крабовий"
     assert strip_cash_promise("готівкою") == ""
     link = "https://check.monobank.ua/p/AbCdEfGhIjKlMnOpQrSt"

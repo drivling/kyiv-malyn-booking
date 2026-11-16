@@ -93,18 +93,29 @@ _CASH_VERB_RE = re.compile(
 )
 # Довше речення зі словом «кеш» — зазвичай розмова («є кеш тільки на столову»), а не обіцянка
 _CASH_SHORT_WORDS = 3
+# Прохання до когось іншого («Юрій, скинь кеш») — не обіцянка того, хто пише
+_CASH_REQUEST_RE = re.compile(
+    r"(?<!\w)(?:скинь(?:те)?|кинь(?:те)?|закинь(?:те)?|дай(?:те)?|поверни(?:те)?|верни(?:те)?|скинеш|даси)(?!\w)",
+    re.IGNORECASE | re.UNICODE,
+)
 
 
 def _cash_segments(text: str) -> list[tuple[str, bool]]:
     """Текст частинами (рядок / речення) з позначкою, чи це обіцянка готівки."""
+    parts = re.split(r"(\n+|[.;!?]+\s*)", text or "")
     out: list[tuple[str, bool]] = []
-    for seg in re.split(r"(\n+|[.;!?]+\s*)", text or ""):
+    for i, seg in enumerate(parts):
         if not seg:
             continue
         cash = False
-        if _CASH_WORD_RE.search(seg):
+        if i % 2 == 0 and _CASH_WORD_RE.search(seg):
             words = re.findall(r"[\w'ʼ’]+", seg, re.UNICODE)
-            cash = len(words) <= _CASH_SHORT_WORDS or bool(_CASH_VERB_RE.search(seg))
+            question = i + 1 < len(parts) and "?" in parts[i + 1]  # «А якщо готівка?» — питання, не обіцянка
+            cash = (
+                not question
+                and not _CASH_REQUEST_RE.search(seg)
+                and (len(words) <= _CASH_SHORT_WORDS or bool(_CASH_VERB_RE.search(seg)))
+            )
         out.append((seg, cash))
     return out
 
