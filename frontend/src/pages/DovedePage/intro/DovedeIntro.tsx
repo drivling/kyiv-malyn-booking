@@ -2,7 +2,9 @@
  * Ролик-вступ «Доведе» (Docs/dovede-roadmap.md, «Ролик-вступ»): хто вперше відкриває /dovede, спершу дивиться
  * тизер — ще до рядка пароля. Ролик не закривається й не перемотується (noSeek.ts). Фон — білий, як основний фон
  * останнього кадру, а смуги навколо 9:16 щокадру продовжують краї кадру (edgeFill.ts) — «вставленого відео» не видно;
- * рядок браузера (theme-color) — у колір верхнього краю.
+ * рядок браузера (theme-color) і фон сторінки — у колір верхнього краю кадру. Safari на iOS 26+ власні смуги під
+ * годинником і за нижньою панеллю на ходу не перефарбовує (перевірено в симуляторі) — вони лишаються білими, як
+ * перший і останній кадр.
  *
  * Звук без дотику браузери не вмикають: пробуємо грати одразу, а ні — фірмова крапка «▶ Дивитися». Ролик
  * закінчується білим кадром, на ньому — талон: компостер пробиває його, і крізь одну з дірок відкривається сама
@@ -39,7 +41,7 @@ function reducedMotion(): boolean {
 }
 
 /** Поки вступ на екрані: білий рядок браузера й без прокрутки; білий фон сторінки — доки не почали входити */
-function useWhiteChrome(whiteBackground: boolean) {
+function useWhiteChrome(whiteBackground: boolean, tone: string) {
   useEffect(() => {
     const html = document.documentElement;
     const meta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
@@ -56,13 +58,13 @@ function useWhiteChrome(whiteBackground: boolean) {
     const html = document.documentElement;
     const body = document.body;
     const prev = [html.style.backgroundColor, body.style.backgroundColor];
-    html.style.backgroundColor = WHITE;
-    body.style.backgroundColor = WHITE;
+    html.style.backgroundColor = tone;
+    body.style.backgroundColor = tone;
     return () => {
       html.style.backgroundColor = prev[0];
       body.style.backgroundColor = prev[1];
     };
-  }, [whiteBackground]);
+  }, [whiteBackground, tone]);
 }
 
 const ReplayIcon = () => (
@@ -77,7 +79,6 @@ export function DovedeIntro({ onTicket, onDone }: { onTicket: () => void; onDone
   const fillRef = useRef<HTMLCanvasElement>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const holeRef = useRef<HTMLSpanElement>(null);
-  const ticketRef = useRef<HTMLButtonElement>(null);
   const guard = useRef<NoSeek | null>(null);
   const timers = useRef<number[]>([]);
   const frame = useRef(0);
@@ -86,10 +87,12 @@ export function DovedeIntro({ onTicket, onDone }: { onTicket: () => void; onDone
   const [failed, setFailed] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [talon] = useState(() => ({ no: luckyTicketNumber(), holes: punchCells() }));
+  /** Колір верхнього краю кадру (edgeFill.ts) — для theme-color і фону сторінки */
+  const [tone, setTone] = useState(WHITE);
   const callbacks = useRef({ onTicket, onDone });
   callbacks.current = { onTicket, onDone };
 
-  useWhiteChrome(phase !== 'punching' && phase !== 'opening');
+  useWhiteChrome(phase !== 'punching' && phase !== 'opening', tone);
 
   const showTicket = useCallback((error: boolean) => {
     setFailed(error);
@@ -138,7 +141,12 @@ export function DovedeIntro({ onTicket, onDone }: { onTicket: () => void; onDone
     }
     guard.current = guardNoSeek(video);
     const theme = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
-    const stopFill = fillRef.current ? startEdgeFill(video, fillRef.current, (tone) => theme?.setAttribute('content', tone)) : () => {};
+    const stopFill = fillRef.current
+      ? startEdgeFill(video, fillRef.current, (next) => {
+          theme?.setAttribute('content', next);
+          setTone(next);
+        })
+      : () => {};
     start(false);
     const pending = timers.current;
     return () => {
@@ -148,11 +156,6 @@ export function DovedeIntro({ onTicket, onDone }: { onTicket: () => void; onDone
       window.cancelAnimationFrame(frame.current);
     };
   }, [start]);
-
-  // талон у фокусі — Enter / пробіл з клавіатури теж компостують
-  useEffect(() => {
-    if (phase === 'ticket') ticketRef.current?.focus({ preventScroll: true });
-  }, [phase]);
 
   const replay = () => {
     const video = videoRef.current;
@@ -228,6 +231,7 @@ export function DovedeIntro({ onTicket, onDone }: { onTicket: () => void; onDone
       role="dialog"
       aria-modal="true"
       aria-label="Ролик «Доведе.»"
+      style={{ backgroundColor: tone }}
     >
       <canvas ref={fillRef} className="dv-intro__fill" aria-hidden="true" />
       <video
@@ -274,8 +278,8 @@ export function DovedeIntro({ onTicket, onDone }: { onTicket: () => void; onDone
           <p className="dv-intro__hint">Прокомпостуйте квиток, щоб увійти</p>
           <span className="dv-talon-wrap">
             <span className="dv-talon__jaw" aria-hidden="true" />
+            {/* без автофокусу: Safari на телефоні малює рамку фокусу; з клавіатури талон — перший Tab */}
             <button
-              ref={ticketRef}
               type="button"
               className="dv-talon"
               onClick={punch}

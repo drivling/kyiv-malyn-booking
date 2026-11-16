@@ -81,7 +81,7 @@ describe('ролик-вступ «Доведе»', () => {
     const { onTicket } = renderIntro();
     expect(localStorage.getItem(INTRO_SEEN_KEY)).toBeNull();
     fireEvent(video(), new Event('ended'));
-    expect(await screen.findByRole('button', { name: 'Прокомпостувати квиток і увійти' })).toHaveFocus();
+    expect(await screen.findByRole('button', { name: 'Прокомпостувати квиток і увійти' })).toBeInTheDocument();
     expect(screen.getByText('Прокомпостуйте квиток, щоб увійти')).toBeInTheDocument();
     const no = screen.getByText(/^Серія ДВ №/).textContent ?? '';
     const d = no.replace(/\D/g, '').split('').map(Number);
