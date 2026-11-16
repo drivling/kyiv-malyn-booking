@@ -207,7 +207,7 @@ class FakeDB:
         paid = {p["source"] for p in self.payments}
         return sorted(
             mid for mid, r in self.scans.items()
-            if r["source"] == "link" and r["sender_tg_id"] == str(sender_tg_id) and mid not in paid
+            if r["source"] in ("link", "claim") and r["sender_tg_id"] == str(sender_tg_id) and mid not in paid
         )
 
     async def set_order_cash(self, day_id, pid, value=True):
@@ -1322,6 +1322,50 @@ def test_receipt_link_pays_the_debt_and_waits_for_the_order():
     assert [(p["amount"], p["kind"]) for p in db.payments] == [(40, "text")]
 
 
+def test_paid_claim_without_amount_settles_the_debt_like_a_link():
+    """«Скинула гроші» без суми й чека — рішення власника: гасить увесь борг, позначено «суму не перевірено»."""
+    assert _plan("скинула гроші").kind == "claim" and _plan("скинул").kind == "claim"
+    with_order = _plan("Пюре\nКотлети курячі\nоплатила")
+    assert with_order.kind == "order" and with_order.claim and with_order.result.unmatched == []
+    for chat in ("Кто забыл скинуть за обед?", "сейчас заказ сделаю и скину сразу", "я закинул андрею", "Иду в столовую, кидайте деньги"):
+        assert _plan(chat).kind not in ("claim", "payment") and not _plan(chat).claim, chat
+    # замовлення, потім «скинула гроші»
+    db = FakeDB()
+    client = FakeClient([FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)), FakeMsg(12, "скинула гроші", _today_at(10, 37))])
+    stats = run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"], p["source"]) for p in db.payments] == [(115, "claim", 12)]
+    assert "суму не перевірено" in db.payments[0]["raw"] and stats.payments == 1
+    # «оплатила» раніше за замовлення — чекає; скрін на ту саму суму після — лише підтверджує
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "оплатила", _today_at(10, 30)),
+        FakeMsg(12, "Пюре", _today_at(10, 36)),
+        FakeMsg(13, "", _today_at(10, 37), photo=True, data=b"shot"),
+        FakeMsg(14, "скинула", _today_at(10, 38)),
+    ])
+    with with_scanner({b"shot": _receipt(40)}):
+        run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"], p["source"]) for p in db.payments] == [(40, "claim", 11)]
+    # скрін уже погасив борг — слова «скинула» нічого не додають
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 37), photo=True, data=b"shot"),
+        FakeMsg(13, "скинула", _today_at(10, 38)),
+    ])
+    with with_scanner({b"shot": _receipt(40)}):
+        run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(40, "receipt")]
+    # дозбір: правка нашої відповіді з «✅ Оплатив», і вдруге нічого
+    db = FakeDB()
+    pid = _seed(db, UID, "Пюре", [_line(1, "Пюре", 40)])
+    db.orders[pid]["total"] = 45
+    client = FakeClient([FakeMsg(12, "скинул", _today_at(10, 38))])
+    assert run(catch_up_today(client, object(), db, now=_now_at(10, 45)))["payments"] == 1
+    assert db.outbound[-1]["kind"] == "edit" and db.outbound[-1]["text"].endswith("✅ Оплатив")
+    assert run(catch_up_today(client, object(), db, now=_now_at(10, 50)))["payments"] == 0 and len(db.payments) == 1
+
+
 def test_cash_promise_marks_order_reply_and_debts():
     db = FakeDB()
     client = FakeClient([
@@ -1371,9 +1415,36 @@ def test_catch_up_scans_missed_menu_photo_and_receipts_once():
         assert [m.name for m in db.menu][:2] == ["Пюре", "Котлети курячі"] and db.menu_message_id == 10
         assert db.outbound[0]["reply_to"] == 10 and db.outbound[0]["text"].startswith("Меню на сьогодні:")
         assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "receipt")]
-        assert len(scanner.calls) == 2
+        # меню: дешева модель впізнала, дорога перечитала; чек — лише дешева
+        assert [c["model"] for c in scanner.calls] == [None, "claude-opus-5-5", None]
         out2 = run(catch_up_today(client, object(), db, now=_now_at(10, 50)))
-        assert len(scanner.calls) == 2 and out2["payments"] == 0 and len(db.payments) == 1
+        assert len(scanner.calls) == 3 and out2["payments"] == 0 and len(db.payments) == 1
+
+
+def test_menu_is_reread_by_the_expensive_model_and_its_prices_win():
+    """Порівняння 16.11.2026: Haiku впізнає меню, але зсуває ціни на рядок. Страви й ціни бере Opus."""
+    shifted = {"kind": "menu", "amount": 0, "items": [{**it, "price": it["price"] + 10} for it in MENU_RAW["items"]]}
+    db = FakeDB(menu=[])
+    client = FakeClient([FakeMsg(10, "", _today_at(10, 30), photo=True, data=b"menu", sender_id=555)])
+    with with_scanner({b"menu": {"claude-opus-5-5": MENU_RAW, "items": shifted["items"], "kind": "menu", "amount": 0}}) as scanner:
+        out = run(catch_up_today(client, object(), db, now=_now_at(10, 45)))
+        assert out["menu"] == 6
+        assert [c["model"] for c in scanner.calls] == [None, "claude-opus-5-5"]
+        assert [(m.name, m.price_uah) for m in db.menu][:2] == [("Пюре", 40), ("Котлети курячі", 75)]  # ціни дорогої
+        assert db.scans[10]["model"] == "claude-opus-5-5" and db.scans[10]["kind"] == "menu"
+    # LUNCH_MENU_MODEL = та сама дешева → другого запиту немає
+    prev = os.environ.get("LUNCH_MENU_MODEL")
+    os.environ["LUNCH_MENU_MODEL"] = "claude-haiku-5-5"
+    try:
+        db = FakeDB(menu=[])
+        with with_scanner({b"menu": MENU_RAW}) as scanner:
+            run(catch_up_today(client, object(), db, now=_now_at(10, 45)))
+            assert len(scanner.calls) == 1
+    finally:
+        if prev is None:
+            os.environ.pop("LUNCH_MENU_MODEL", None)
+        else:
+            os.environ["LUNCH_MENU_MODEL"] = prev
 
 
 def test_catch_up_receipt_marks_paid_in_our_reply_even_when_day_is_closed():
@@ -1511,9 +1582,11 @@ def main():
         test_receipt_confirms_text_payment_instead_of_doubling_both_orders,
         test_receipt_without_amount_or_failed_scan_changes_nothing,
         test_receipt_link_pays_the_debt_and_waits_for_the_order,
+        test_paid_claim_without_amount_settles_the_debt_like_a_link,
         test_cash_promise_marks_order_reply_and_debts,
         test_catch_up_cash_message_edits_our_reply,
         test_catch_up_scans_missed_menu_photo_and_receipts_once,
+        test_menu_is_reread_by_the_expensive_model_and_its_prices_win,
         test_catch_up_receipt_marks_paid_in_our_reply_even_when_day_is_closed,
         test_person_reparse_takes_link_and_cash,
         test_compare_day_reports_where_models_disagree,

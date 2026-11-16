@@ -30,7 +30,14 @@ from typing import Any, Optional
 import os
 
 from .db import LunchDB, today_kyiv
-from .evidence import MAX_SCANS_PER_RUN, apply_link, handle_media_message, media_of, settle_pending_links
+from .evidence import (
+    MAX_SCANS_PER_RUN,
+    apply_claim,
+    apply_link,
+    handle_media_message,
+    media_of,
+    settle_pending_links,
+)
 from .formatters import format_menu, format_order_confirm, format_unavailable
 from .order_reply import ocr_enabled, refresh_order_reply
 from .parse_order import parse_order
@@ -274,13 +281,16 @@ async def catch_up_today(
                 await refresh_order_reply(db, day.id, pid)
             continue
 
-        if plan.kind == "link" and plan.links:
+        if (plan.kind == "link" and plan.links) or plan.kind == "claim":
             if await db.payment_source_exists(day.id, int(msg.id)):
                 continue
             sender = await msg.get_sender()
             username = getattr(sender, "username", None) if sender else None
             pid = await db.upsert_participant(uid, _display_name(sender), f"@{username}" if username else None)
-            added = await apply_link(db, day.id, pid, uid=uid, message_id=int(msg.id), url=plan.links[0]) == "added"
+            if plan.kind == "link":
+                added = await apply_link(db, day.id, pid, uid=uid, message_id=int(msg.id), url=plan.links[0]) == "added"
+            else:
+                added = await apply_claim(db, day.id, pid, uid=uid, message_id=int(msg.id)) == "added"
             marked = plan.cash and await db.set_order_cash(day.id, pid)
             if added:
                 stats["payments"] += 1
@@ -318,6 +328,8 @@ async def catch_up_today(
             await db.set_order_cash(day.id, pid)
         # чек-посилання в цьому ж повідомленні або надісланий раніше за замовлення
         if plan.links and await apply_link(db, day.id, pid, uid=uid, message_id=int(msg.id), url=plan.links[0]) == "added":
+            stats["payments"] += 1
+        if plan.claim and await apply_claim(db, day.id, pid, uid=uid, message_id=int(msg.id)) == "added":
             stats["payments"] += 1
         stats["payments"] += await settle_pending_links(db, day.id, pid, uid)
         if notify:

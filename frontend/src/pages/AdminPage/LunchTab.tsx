@@ -14,6 +14,7 @@ const PAYMENT_SOURCE_LABEL: Record<string, string> = {
   admin: 'кнопка «Оплатив»',
   receipt: 'сума з чека (фото / PDF)',
   link: 'посилання на чек — суму не перевірено',
+  claim: 'написав(ла), що оплатив(ла) — суму не перевірено',
 };
 
 const EXAMPLE_JSON = `{"items":[{"name":"Яйце з кабачковою ікрою","price":40},{"name":"Салат «Овочевий мікс»","price":45},{"name":"Пюре","price":45},{"name":"Котлети курячі","price":70}]}`;

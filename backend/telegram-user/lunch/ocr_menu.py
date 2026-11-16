@@ -4,15 +4,21 @@
 спершу каже, що це (`kind`): `menu` → страви з цінами, `receipt` → сума переказу, `other` → нічого.
 Відповідь — JSON за схемою (structured outputs), без розбору довільного тексту.
 
-Ключ — `ANTHROPIC_API_KEY` (кредити API, що входять у план Max, або куплені). Модель — `LUNCH_OCR_MODEL`
-(лише `claude-*`), за замовчуванням дешева Claude Haiku 5.5; порівняти її з дорожчими на реальних фото дня —
-задача `ocr_compare` (`evidence.compare_day`). Ключ, не привʼязаний до одного воркспейсу (створений на рівні
+Ключ — `ANTHROPIC_API_KEY` (кредити API, що входять у план Max, або куплені). Моделей дві (обидві лише
+`claude-*`): `LUNCH_OCR_MODEL` — дешева Claude Haiku 5.5, яка дивиться кожне фото й читає чеки, і
+`LUNCH_MENU_MODEL` — Claude Opus 5.5, якою меню перечитується, щойно дешева сказала «це меню». Чому так:
+порівняння на реальних фото 13 і 16 листопада 2026 (задача `ocr_compare`, `evidence.compare_day`) — суми
+чеків Haiku прочитала як Opus (14 із 14), а в меню зсунула ціни на рядок: 16 хибних цін із 34 за день.
+
+PDF-квитанції банків API не приймає як документ («The PDF specified was not valid» — вони захищені від
+редагування), тому першу сторінку PDF малюємо картинкою (`pypdfium2`) і шлемо як фото. Ключ, не привʼязаний до одного воркспейсу (створений на рівні
 організації), API приймає лише з ID воркспейсу — тоді `ANTHROPIC_WORKSPACE_ID` (`wrkspc_…`).
 """
 
 from __future__ import annotations
 
 import base64
+import io
 import json
 import os
 import re
@@ -21,6 +27,8 @@ from pathlib import Path
 from typing import Any, Optional, Sequence
 
 DEFAULT_OCR_MODEL = "claude-haiku-5-5"
+# Меню читає дорога модель: дешева плутає, яка ціна до якого рядка (див. докстрінг)
+DEFAULT_MENU_MODEL = "claude-opus-5-5"
 # З чим порівнюємо дешеву модель на вимогу (задача ocr_compare): від дорогої до дешевої
 COMPARE_MODELS = ("claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5")
 # Ціна за 1 млн токенів (вхід, вихід), $ — лише для оцінки вартості в порівнянні моделей
@@ -97,6 +105,8 @@ class MediaScan:
     model: str = ""
     input_tokens: int = 0
     output_tokens: int = 0
+    # як файл пішов у запит: image | pdf-image (перша сторінка PDF картинкою) | pdf (документом)
+    sent_as: str = ""
 
     @property
     def cost_usd(self) -> Optional[float]:
@@ -187,6 +197,12 @@ def ocr_model_name(model: Optional[str] = None) -> str:
     return name if name.startswith("claude-") else DEFAULT_OCR_MODEL
 
 
+def menu_model_name(model: Optional[str] = None) -> str:
+    """Модель, якою перечитуємо меню: параметр чи LUNCH_MENU_MODEL."""
+    name = (model or os.environ.get("LUNCH_MENU_MODEL") or "").strip()
+    return name if name.startswith("claude-") else DEFAULT_MENU_MODEL
+
+
 def anthropic_client_headers() -> dict[str, str]:
     """Заголовок воркспейсу для ключа, не привʼязаного до воркспейсу (інакше 400 «must include the
     anthropic-workspace-id header»). Ключ із конкретного воркспейсу його не потребує."""
@@ -210,16 +226,68 @@ def _user_text(known_names: Sequence[str]) -> str:
     return "Розбери документ.\n\nВідомі назви страв (пиши саме так, якщо страва є в меню):\n" + "\n".join(names)
 
 
-def _media_block(data: bytes, mime: str) -> dict[str, Any]:
-    mime = (mime or "").lower()
-    b64 = base64.standard_b64encode(data).decode("ascii")
-    if mime == PDF_MIME:
-        if len(data) > MAX_PDF_BYTES:
-            raise RuntimeError("PDF більший за 8 МБ")
-        return {"type": "document", "source": {"type": "base64", "media_type": PDF_MIME, "data": b64}}
+def sniff_mime(data: bytes) -> Optional[str]:
+    """Що це за файл насправді (за першими байтами): Telegram-документ може мати будь-який заявлений mime."""
+    head = data[:1024]
+    if b"%PDF" in head:
+        return PDF_MIME
+    if head.startswith(b"\xff\xd8"):
+        return "image/jpeg"
+    if head.startswith(b"\x89PNG"):
+        return "image/png"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def pdf_first_page_jpeg(data: bytes, *, scale: float = 2.0) -> Optional[bytes]:
+    """Перша сторінка PDF як JPEG (≈144 dpi). None — немає pypdfium2/Pillow або файл не малюється.
+    Банківські квитанції захищені від редагування (owner password) — PDFium відкриває їх без пароля."""
+    try:
+        import pypdfium2 as pdfium
+    except ImportError:
+        return None
+    try:
+        pdf = pdfium.PdfDocument(data)
+        try:
+            if len(pdf) < 1:
+                return None
+            image = pdf[0].render(scale=scale).to_pil().convert("RGB")
+        finally:
+            pdf.close()
+        buf = io.BytesIO()
+        image.save(buf, format="JPEG", quality=88)
+        return buf.getvalue()
+    except Exception:  # noqa: BLE001 — будь-яка помилка рендера → спробуємо надіслати документом
+        return None
+
+
+def _image_block(data: bytes, mime: str) -> dict[str, Any]:
     if len(data) > MAX_IMAGE_BYTES:
         raise RuntimeError("фото більше 5 МБ — надішли стиснене")
+    b64 = base64.standard_b64encode(data).decode("ascii")
     return {"type": "image", "source": {"type": "base64", "media_type": mime if mime in IMAGE_MIMES else "image/jpeg", "data": b64}}
+
+
+def _media_block(data: bytes, mime: str) -> tuple[dict[str, Any], str]:
+    """Блок запиту для файлу і те, чим він став: image | pdf-image | pdf."""
+    mime = (mime or "").lower()
+    actual = sniff_mime(data)
+    if actual == PDF_MIME or (mime == PDF_MIME and actual is None):
+        if len(data) > MAX_PDF_BYTES:
+            raise RuntimeError("PDF більший за 8 МБ")
+        jpeg = pdf_first_page_jpeg(data)
+        if jpeg is not None:
+            return _image_block(jpeg, "image/jpeg"), "pdf-image"
+        b64 = base64.standard_b64encode(data).decode("ascii")
+        return {"type": "document", "source": {"type": "base64", "media_type": PDF_MIME, "data": b64}}, "pdf"
+    # картинка, надіслана з mime PDF чи без нього, — за справжнім типом
+    return _image_block(data, actual or mime), "image"
+
+
+def pdf_diagnostics(data: bytes) -> str:
+    """Без вмісту файлу: розмір, перші байти, чи зашифрований — щоб з логів було видно, чому API відмовив."""
+    return f"pdf {len(data)} байт, початок {data[:8]!r}, encrypt={b'/Encrypt' in data}"
 
 
 async def scan_media_bytes(
@@ -232,7 +300,7 @@ async def scan_media_bytes(
     client: Any = None,
 ) -> MediaScan:
     """Розібрати фото або PDF: меню, чек чи інше. Потребує ANTHROPIC_API_KEY; client — підміна AsyncAnthropic у тестах."""
-    block = _media_block(data, mime)
+    block, sent_as = _media_block(data, mime)
     if client is None:
         client = make_client(api_key)
     name = ocr_model_name(model)
@@ -243,10 +311,15 @@ async def scan_media_bytes(
         "output_config": {"effort": "medium", "format": {"type": "json_schema", "schema": SCAN_SCHEMA}},
         "messages": [{"role": "user", "content": [block, {"type": "text", "text": _user_text(known_names)}]}],
     }
-    if name.startswith(_FALLBACK_MODEL_PREFIXES):
-        resp = await client.beta.messages.create(betas=[_FALLBACK_BETA], fallbacks="default", **request)
-    else:
-        resp = await client.messages.create(**request)
+    try:
+        if name.startswith(_FALLBACK_MODEL_PREFIXES):
+            resp = await client.beta.messages.create(betas=[_FALLBACK_BETA], fallbacks="default", **request)
+        else:
+            resp = await client.messages.create(**request)
+    except Exception as e:
+        if sent_as == "pdf":
+            raise RuntimeError(f"{e} [{pdf_diagnostics(data)}]") from e
+        raise
     if resp.stop_reason == "refusal":
         raise RuntimeError("модель відмовилась розбирати документ")
     if resp.stop_reason == "max_tokens":
@@ -256,6 +329,7 @@ async def scan_media_bytes(
     usage = getattr(resp, "usage", None)
     scan.input_tokens = int(getattr(usage, "input_tokens", 0) or 0)
     scan.output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
+    scan.sent_as = sent_as
     return scan
 
 

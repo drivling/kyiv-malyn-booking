@@ -22,7 +22,7 @@ from .formatters import format_order_confirm
 from .order_reply import refresh_order_reply
 from .parse_summary import parse_numbered_summary
 from .summary_owner import parse_author_entry, pick_author_entry
-from .evidence import apply_link, settle_pending_links
+from .evidence import apply_claim, apply_link, settle_pending_links
 from .reparse_day import (
     LINK_OUTCOMES,
     SKIP_REASONS,
@@ -221,6 +221,8 @@ async def reparse_person(
         )
         if plan.links:
             links.append((pm, plan.links[0]))
+        elif plan.claim:
+            links.append((pm, ""))  # «оплатила» без суми — та сама механіка, що й посилання на чек
         if plan.cash:
             cash_msgs.append(pm)
         numbered = parse_numbered_summary(pm.text) if plan.kind != "order" else []
@@ -232,7 +234,7 @@ async def reparse_person(
             no_match.append((pm, plan))
         elif plan.kind == "payment":
             payments.append((pm, plan))
-        elif plan.kind in ("link", "cash"):
+        elif plan.kind in ("link", "claim", "cash"):
             pass  # враховуємо нижче, коли відомо, чи є замовлення
         elif plan.kind in ("summary", "mega"):
             stats.skipped += 1
@@ -355,10 +357,13 @@ async def reparse_person(
             stats.skipped += 1
             stats.note(pm.id, name, pm.text, "skipped", "віддасть готівкою")
     for pm, url in links:
-        outcome = await apply_link(db, day_row.id, pid, uid=uid, message_id=pm.id, url=url)
+        if url:
+            outcome = await apply_link(db, day_row.id, pid, uid=uid, message_id=pm.id, url=url)
+        else:
+            outcome = await apply_claim(db, day_row.id, pid, uid=uid, message_id=pm.id)
         if outcome == "added":
             stats.payments += 1
-            stats.note(pm.id, name, pm.text, "payment", "чек за посиланням: зараховано весь борг (суму не перевірено)")
+            stats.note(pm.id, name, pm.text, "payment", "оплата без суми: зараховано весь борг (суму не перевірено)")
         elif not any(pm is o for o, _ in orders):
             stats.skipped += 1
             stats.note(pm.id, name, pm.text, "skipped", LINK_OUTCOMES.get(outcome, outcome))

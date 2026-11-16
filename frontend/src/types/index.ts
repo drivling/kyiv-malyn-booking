@@ -761,7 +761,8 @@ export interface LunchDaySummary {
     displayName: string;
     amountUah: number;
     rawText: string;
-    /** text — «оплатив 150» у чаті | admin — кнопка «Оплатив» | receipt — сума з чека | link — посилання на чек */
+    /** text — «оплатив 150» у чаті | admin — кнопка «Оплатив» | receipt — сума з чека | link — посилання на чек |
+     *  claim — «скинула гроші» без суми й чека */
     source?: LunchPaymentSource;
     createdAt: string;
   }>;
@@ -773,7 +774,7 @@ export interface LunchDaySummary {
   };
 }
 
-export type LunchPaymentSource = 'text' | 'admin' | 'receipt' | 'link';
+export type LunchPaymentSource = 'text' | 'admin' | 'receipt' | 'link' | 'claim';
 
 /** Одна модель на одному фото/PDF у порівнянні моделей розпізнавання. */
 export interface LunchOcrCompareResult {

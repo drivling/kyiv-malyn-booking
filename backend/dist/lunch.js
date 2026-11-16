@@ -570,7 +570,8 @@ async function getLunchDaySummary(prisma, date) {
             displayName: p.participant.displayName,
             amountUah: p.amountUah,
             rawText: p.rawText,
-            /** text — з чату | admin — кнопка «Оплатив» | receipt — сума з чека | link — посилання на чек */
+            /** text — з чату | admin — кнопка «Оплатив» | receipt — сума з чека | link — посилання на чек |
+             *  claim — «скинула гроші» без суми й чека */
             source: p.source,
             createdAt: p.createdAt.toISOString(),
         })),

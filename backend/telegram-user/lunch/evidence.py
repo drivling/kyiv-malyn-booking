@@ -10,7 +10,10 @@
     оператор натиснув «Оплатив») на ту саму суму — чек її лише підтверджує, вдруге не зараховуємо;
   * посилання на чек → суму прочитати не можна (сторінка за капчею), тому зараховуємо весь поточний борг
     (`source = 'link'`, у тексті оплати — «суму не перевірено»). Чек прийшов раніше за замовлення —
-    зарахуємо, коли замовлення з'явиться (`settle_pending_links`).
+    зарахуємо, коли замовлення з'явиться (`settle_pending_links`);
+  * «скинула гроші», «оплатив» без суми й без чека → так само весь борг (`source = 'claim'`);
+  * меню читають дві моделі: дешева (`LUNCH_OCR_MODEL`) впізнає, що це меню, дорога (`LUNCH_MENU_MODEL`)
+    читає страви й ціни. У журнал лягає результат дорогої.
 
 У групу про чек нічого не пишемо: «✅ Оплатив» з'являється правкою нашої відповіді на замовлення,
 так само як від кнопки в адмінці.
@@ -31,6 +34,7 @@ from .ocr_menu import (
     MAX_PDF_BYTES,
     PDF_MIME,
     MediaScan,
+    menu_model_name,
     merge_menu_items,
     scan_from_raw,
     scan_media_bytes,  # noqa: F401 — тести підміняють evidence.scan_media_bytes
@@ -117,14 +121,20 @@ async def scan_message(
         return None
     source, mime = media
     row = await db.get_media_scan(day_id, int(msg.id))
-    if row and row["source"] != "link":
+    if row and row["source"] not in ("link", "claim"):
         return scan_from_raw(row["raw_json"], model=row["model"] or ""), source, True
     if not allow_model:
         return None
     data = await download_bytes(msg, mime)
     if data is None:
         return None
-    result = await (scan or scan_media_bytes)(data, mime=mime, known_names=await db.catalog_dish_names())
+    scanner = scan or scan_media_bytes
+    known = await db.catalog_dish_names()
+    result = await scanner(data, mime=mime, known_names=known)
+    # Дешева модель лише впізнає меню; ціни в ньому вона плутає, тому меню перечитує дорога.
+    menu_model = menu_model_name()
+    if result.kind == "menu" and result.model != menu_model:
+        result = await scanner(data, mime=mime, known_names=known, model=menu_model)
     await db.save_media_scan(
         day_id,
         int(msg.id),
@@ -158,7 +168,7 @@ async def apply_receipt(db: Any, day_id: int, pid: int, *, amount_uah: Optional[
         return "no_amount"
     if await db.payment_source_exists(day_id, message_id):
         return "duplicate"
-    if await db.has_payment_of_amount(day_id, pid, amount_uah, ("text", "admin", "link")):
+    if await db.has_payment_of_amount(day_id, pid, amount_uah, ("text", "admin", "link", "claim")):
         return "confirms"
     await db.add_payment(
         day_id, pid, amount_uah, f"чек ({source}): {amount_uah} грн", source_message_id=message_id, source="receipt"
@@ -166,8 +176,15 @@ async def apply_receipt(db: Any, day_id: int, pid: int, *, amount_uah: Optional[
     return "added"
 
 
-async def settle_link(db: Any, day_id: int, pid: int, message_id: int, url: str = "") -> str:
-    """Зарахувати посилання-чек: суми в ньому не видно, тож гасимо весь поточний борг людини.
+# Доказ оплати без суми: посилання на чек (link) або слова «скинула гроші» (claim).
+UNSIZED_LABEL = {
+    "link": "чек за посиланням (суму не перевірено)",
+    "claim": "написав(ла), що оплатив(ла) (суму не перевірено)",
+}
+
+
+async def settle_unsized(db: Any, day_id: int, pid: int, message_id: int, *, source: str = "link", detail: str = "") -> str:
+    """Зарахувати оплату без суми (посилання на чек або «скинула гроші»): гасимо весь поточний борг людини.
     no_order — замовлення ще немає (зарахуємо, коли з'явиться); already_paid — боргу немає."""
     if await db.payment_source_exists(day_id, message_id):
         return "duplicate"
@@ -176,8 +193,8 @@ async def settle_link(db: Any, day_id: int, pid: int, message_id: int, url: str 
         return "no_order"
     if debt <= 0:
         return "already_paid"
-    text = "чек за посиланням (суму не перевірено)" + (f": {url}" if url else "")
-    await db.add_payment(day_id, pid, debt, text, source_message_id=message_id, source="link")
+    text = UNSIZED_LABEL.get(source, source) + (f": {detail}" if detail else "")
+    await db.add_payment(day_id, pid, debt, text, source_message_id=message_id, source=source)
     return "added"
 
 
@@ -185,16 +202,23 @@ async def apply_link(db: Any, day_id: int, pid: int, *, uid: str, message_id: in
     await db.save_media_scan(
         day_id, message_id, sender_tg_id=uid or None, source="link", kind="receipt", raw={"url": url}
     )
-    return await settle_link(db, day_id, pid, message_id, url)
+    return await settle_unsized(db, day_id, pid, message_id, source="link", detail=url)
+
+
+async def apply_claim(db: Any, day_id: int, pid: int, *, uid: str, message_id: int) -> str:
+    """«Скинула гроші», «оплатив» без суми й чека — як посилання: увесь борг, у журнал, щоб дочекатись замовлення."""
+    await db.save_media_scan(day_id, message_id, sender_tg_id=uid or None, source="claim", kind="receipt", raw={})
+    return await settle_unsized(db, day_id, pid, message_id, source="claim")
 
 
 async def settle_pending_links(db: Any, day_id: int, pid: int, uid: str) -> int:
-    """Після появи замовлення: людина могла надіслати посилання на чек раніше."""
+    """Після появи замовлення: людина могла надіслати посилання на чек чи написати «оплатила» раніше."""
     added = 0
     for message_id in await db.pending_link_receipts(day_id, uid):
         row = await db.get_media_scan(day_id, message_id)
+        source = (row or {}).get("source") or "link"
         url = (scan_raw_url(row["raw_json"]) if row else "") or ""
-        if await settle_link(db, day_id, pid, message_id, url) == "added":
+        if await settle_unsized(db, day_id, pid, message_id, source=source, detail=url) == "added":
             added += 1
     return added
 

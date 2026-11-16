@@ -27,20 +27,23 @@ if str(_ROOT) not in sys.path:
 
 from lunch.db import LunchDB, today_kyiv  # noqa: E402
 from lunch.evidence import (  # noqa: E402
+    apply_claim,
     apply_link,
     compare_day,
     handle_media_message,
     media_of,
     settle_pending_links,
 )
-from lunch.ocr_menu import COMPARE_MODELS, ocr_model_name  # noqa: E402
+from lunch.ocr_menu import COMPARE_MODELS, menu_model_name, ocr_model_name  # noqa: E402
 from lunch.parse_order import looks_like_order, parse_order_contextual  # noqa: E402
 from lunch.parse_payment import (  # noqa: E402
     is_cash_promise,
+    is_paid_claim,
     looks_like_card_number,
     parse_payment,
     receipt_links,
     strip_cash_promise,
+    strip_paid_claim,
     strip_receipt_links,
 )
 from lunch.parse_summary import (  # noqa: E402
@@ -208,7 +211,7 @@ async def run() -> None:
     entity = await client.get_entity(group_id)
     print(f"[lunch] listening group={getattr(entity, 'title', group_id)} id={group_id} me={me_id}")
     if ocr_enabled(os.environ.get("ANTHROPIC_API_KEY")):
-        print(f"[lunch] фото й PDF (меню, чеки) розбирає {ocr_model_name()}")
+        print(f"[lunch] фото й PDF розбирає {ocr_model_name()} (чеки), меню перечитує {menu_model_name()}")
     stale = await db.fail_running_jobs("слухача перезапущено — запустіть ще раз")
     if stale:
         print(f"[lunch] failed {stale} stale running job(s)")
@@ -295,7 +298,7 @@ async def run() -> None:
                         return
                     else:
                         # чек: «✅ Оплатив» дописано правкою нашої відповіді; у групу нічого не пишемо
-                        print(f"[lunch] media {msg.id}: {outcome.note} ({outcome.scan.model})")
+                        print(f"[lunch] media {msg.id}: {outcome.note} ({outcome.scan.model}, {outcome.scan.sent_as or 'журнал'})")
                 except Exception as e:
                     # у групу помилку не пишемо: меню завжди можна вставити в адмінці, оплату — кнопкою
                     print(f"[lunch] OCR error media={msg.id}: {e}", file=sys.stderr)
@@ -450,7 +453,7 @@ async def run() -> None:
             if not uid:
                 return
             pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
-            if await db.has_payment_of_amount(day.id, pid, pay.amount_uah, ("receipt", "link")):
+            if await db.has_payment_of_amount(day.id, pid, pay.amount_uah, ("receipt", "link", "claim")):
                 print(f"[lunch] msg {msg.id} from {name}: {pay.amount_uah} грн уже зараховано за чеком")
                 return
             await db.add_payment(day.id, pid, pay.amount_uah, text, source_message_id=msg.id)
@@ -463,18 +466,25 @@ async def run() -> None:
         # --- посилання на чек і «віддам готівкою»: окремим повідомленням або разом із замовленням ---
         links = receipt_links(text) if uid else []
         cash = bool(uid) and is_cash_promise(text)
-        order_text = strip_cash_promise(strip_receipt_links(text)) if (links or cash) else text
+        # «скинула гроші», «оплатив» без суми й чека — як посилання на чек: гасить увесь борг
+        claim = bool(uid) and not links and is_paid_claim(text)
+        order_text = text
+        if links or cash or claim:
+            order_text = strip_paid_claim(strip_cash_promise(strip_receipt_links(text)))
         link_added = False
-        if links:
+        if links or claim:
             day = await db.get_or_create_day(today_kyiv())
             pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
-            outcome = await apply_link(db, day.id, pid, uid=uid, message_id=msg.id, url=links[0])
+            if links:
+                outcome = await apply_link(db, day.id, pid, uid=uid, message_id=msg.id, url=links[0])
+            else:
+                outcome = await apply_claim(db, day.id, pid, uid=uid, message_id=msg.id)
             link_added = outcome == "added"
-            print(f"[lunch] msg {msg.id} from {name}: чек за посиланням — {outcome}")
+            print(f"[lunch] msg {msg.id} from {name}: {'чек за посиланням' if links else 'оплата без суми'} — {outcome}")
 
         async def note_without_order() -> None:
             """Замовлення з цього тексту немає: чек і готівку відносимо до вже записаного замовлення людини."""
-            if not (links or cash):
+            if not (links or cash or claim):
                 return
             day_now = await db.get_day(today_kyiv())
             pid_now = await db.find_participant_id_by_telegram_id(uid)

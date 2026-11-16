@@ -15,22 +15,27 @@ from lunch.ocr_menu import (
     DEFAULT_OCR_MODEL,
     anthropic_client_headers,
     menu_items_from_ocr,
+    menu_model_name,
     merge_menu_items,
     ocr_menu_from_image_bytes,
     ocr_model_name,
     parse_menu_items_payload,
+    pdf_diagnostics,
     receipt_amount,
     scan_from_raw,
     scan_media_bytes,
+    sniff_mime,
 )
 from lunch.order_reply import PersonalOrderAction, decide_personal_order_action, ocr_enabled
 from lunch.parse_order import looks_like_order, parse_order, parse_order_contextual
 from lunch.parse_payment import (
     is_cash_promise,
+    is_paid_claim,
     looks_like_card_number,
     parse_payment,
     receipt_links,
     strip_cash_promise,
+    strip_paid_claim,
     strip_receipt_links,
 )
 from lunch.parse_summary import (
@@ -816,6 +821,47 @@ def test_ocr_receipt_photo_and_pdf_give_the_transfer_amount():
     assert blur.kind == "receipt" and blur.amount_uah is None  # чек, але суму не видно
 
 
+def test_pdf_receipt_goes_as_a_picture_of_its_first_page():
+    """Банківські PDF API документом не приймає («The PDF specified was not valid», прод 13 і 16.11.2026)."""
+    import io
+
+    try:
+        import pypdfium2  # noqa: F401
+        from PIL import Image
+    except ImportError:
+        return  # без рендера PDF іде документом — це перевіряє тест вище
+    page = io.BytesIO()
+    Image.new("RGB", (595, 842), "white").save(page, format="PDF")
+    fake = _FakeClaude({"kind": "receipt", "items": [], "amount": 155})
+    scan = _run(scan_media_bytes(page.getvalue(), mime="application/pdf", client=fake))
+    block = fake.request["messages"][0]["content"][0]
+    assert block["type"] == "image" and block["source"]["media_type"] == "image/jpeg"
+    assert scan.sent_as == "pdf-image" and scan.amount_uah == 155
+    # фото з заявленим mime PDF іде як фото; зіпсований PDF — документом, і помилка API каже, що це за файл
+    assert sniff_mime(b"\xff\xd8\xff\xe0") == "image/jpeg" and sniff_mime(b"\x89PNG\r\n") == "image/png"
+    fake = _FakeClaude({"kind": "other", "items": [], "amount": 0})
+    assert _run(scan_media_bytes(b"\xff\xd8\xff\xe0abc", mime="application/pdf", client=fake)).sent_as == "image"
+    assert pdf_diagnostics(b"%PDF-1.4 /Encrypt x") == "pdf 19 байт, початок b'%PDF-1.4', encrypt=True"
+
+
+def test_menu_model_is_the_expensive_one_by_default():
+    import os
+
+    old = os.environ.get("LUNCH_MENU_MODEL")
+    try:
+        os.environ.pop("LUNCH_MENU_MODEL", None)
+        assert menu_model_name() == "claude-opus-5-5" != DEFAULT_OCR_MODEL
+        os.environ["LUNCH_MENU_MODEL"] = "claude-sonnet-5-5"
+        assert menu_model_name() == "claude-sonnet-5-5"
+        os.environ["LUNCH_MENU_MODEL"] = "gpt-4o"
+        assert menu_model_name() == "claude-opus-5-5"
+    finally:
+        if old is None:
+            os.environ.pop("LUNCH_MENU_MODEL", None)
+        else:
+            os.environ["LUNCH_MENU_MODEL"] = old
+
+
 def test_ocr_ignores_photos_that_are_not_a_menu():
     """Мем, список замовлень, кілька цін — меню дня не чіпаємо."""
     scan = _run(scan_media_bytes(b"x", client=_FakeClaude({"kind": "other", "items": [], "amount": 0})))
@@ -852,10 +898,26 @@ def test_cash_promise_and_receipt_link_phrases():
     # розмова про гроші та страви зі схожими словами — не обіцянка
     for text in ("Ми так багато не заробляємо , є кеш тільки на столову", "налисники з сиром", "курка з кешʼю", "канал", "борщ і пюре"):
         assert not is_cash_promise(text), text
+    # з реальної групи (жовтень–листопад 2026): так пишуть про готівку…
+    for text in ("деньги наличкой отдам", "Я готівкою віддам", "отдам готівкою)", "Готівка", "Віддала готівкою", "Дам готівкою"):
+        assert is_cash_promise(text), text
+    # …а це питання й прохання до іншої людини, а не обіцянка
+    for text in ("А якщо готівка?)", "скинь кеш", "Написати в чат готівка", "закинь налом пж"):
+        assert not is_cash_promise(text), text
     assert strip_cash_promise("Деруни \nСалат крабовий\n\nВіддам готівкою") == "Деруни \nСалат крабовий"
     assert strip_cash_promise("готівкою") == ""
     link = "https://check.monobank.ua/p/AbCdEfGhIjKlMnOpQrSt"
     assert receipt_links(f"ось {link} дякую") == [link] and strip_receipt_links(link) == ""
+    # «оплатив» без суми й чека: лише минулий час від першої особи
+    for text in ("скинул", "скинула гроші", "Оплатила", "я оплатив", "гроші перевела", "закинув за обід", "Сплачено"):
+        assert is_paid_claim(text), text
+    for text in (
+        "Кто забыл скинуть за обед?", "сейчас заказ сделаю и скину сразу", "я закинул андрею", "скинь кеш",
+        "Иду в столовую, кидайте деньги", "Можна писати тут оплатив і сумму і воно буде рахувати :)", "оплатив?",
+        "оплатив 150", "кинула фото меню",
+    ):
+        assert not is_paid_claim(text), text
+    assert strip_paid_claim("Пюре\nКотлета\nоплатила") == "Пюре\nКотлета"
     assert receipt_links("https://send.monobank.ua/jar/abc") == []  # посилання на оплату — не чек
 
 
@@ -956,6 +1018,8 @@ def main():
         test_ocr_request_uses_cheap_model_with_schema_image_and_known_names,
         test_ocr_expensive_model_keeps_server_side_fallback,
         test_ocr_receipt_photo_and_pdf_give_the_transfer_amount,
+        test_pdf_receipt_goes_as_a_picture_of_its_first_page,
+        test_menu_model_is_the_expensive_one_by_default,
         test_ocr_ignores_photos_that_are_not_a_menu,
         test_ocr_refusal_and_oversized_files_raise,
         test_cash_promise_and_receipt_link_phrases,

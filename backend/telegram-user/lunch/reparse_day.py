@@ -13,10 +13,12 @@ from .parse_order import OrderParseResult, looks_like_order, parse_order_context
 from .parse_payment import (
     PaymentParseResult,
     is_cash_promise,
+    is_paid_claim,
     looks_like_card_number,
     parse_payment,
     receipt_links,
     strip_cash_promise,
+    strip_paid_claim,
     strip_receipt_links,
 )
 from .parse_summary import (
@@ -29,17 +31,24 @@ from .parse_summary import (
     synthetic_telegram_id,
 )
 
-from .evidence import MAX_SCANS_PER_RUN, apply_link, handle_media_message, media_of, settle_pending_links
+from .evidence import (
+    MAX_SCANS_PER_RUN,
+    apply_claim,
+    apply_link,
+    handle_media_message,
+    media_of,
+    settle_pending_links,
+)
 from .order_reply import ocr_enabled
 
 KYIV = ZoneInfo("Europe/Kyiv")
 
 # Оплата, яку вже принесли чеком: «оплатив 150» слідом за скріном на 150 — не друга оплата
-RECEIPT_SOURCES = ("receipt", "link")
+RECEIPT_SOURCES = ("receipt", "link", "claim")
 LINK_OUTCOMES = {
-    "no_order": "чек за посиланням, але замовлення ще немає — зарахуємо, коли з'явиться",
-    "already_paid": "чек за посиланням: боргу вже немає",
-    "duplicate": "чек за посиланням уже зараховано",
+    "no_order": "оплата без суми, але замовлення ще немає — зарахуємо, коли з'явиться",
+    "already_paid": "оплата без суми: боргу вже немає",
+    "duplicate": "цю оплату вже зараховано",
 }
 
 
@@ -271,7 +280,8 @@ class DayContext:
 class MessagePlan:
     """Що робити з текстовим повідомленням (без побічних ефектів — тільки рішення)."""
 
-    # echo | summary | card | payment | link | cash | not_order | closed | no_menu | no_match | mega | no_sender | order
+    # echo | summary | card | payment | link | claim | cash | not_order | closed | no_menu | no_match | mega |
+    # no_sender | order
     kind: str
     card: Optional[str] = None
     payment: Optional[PaymentParseResult] = None
@@ -280,6 +290,8 @@ class MessagePlan:
     links: list[str] = field(default_factory=list)
     # «віддам готівкою» (окремим повідомленням — kind = cash, у тексті замовлення — order)
     cash: bool = False
+    # «скинула гроші», «оплатив» без суми й чека (окремо — kind = claim, у тексті замовлення — order)
+    claim: bool = False
 
     @property
     def reason(self) -> str:
@@ -317,14 +329,19 @@ def plan_text_message(
     # Посилання на чек і «віддам готівкою» — не страви: прибираємо їх з тексту перед пошуком у меню
     links = receipt_links(text)
     cash = is_cash_promise(text)
-    body = strip_cash_promise(strip_receipt_links(text)) if (links or cash) else text
+    claim = not links and is_paid_claim(text)  # є посилання на чек — воно і є доказом
+    body = text
+    if links or cash or claim:
+        body = strip_paid_claim(strip_cash_promise(strip_receipt_links(text)))
 
     def without_order(kind: str, result: Optional[OrderParseResult] = None) -> MessagePlan:
-        """Замовлення з тексту не вийшло, але чек чи обіцянку готівки з нього треба врахувати."""
-        if (links or cash) and not uid:
+        """Замовлення з тексту не вийшло, але чек, слова про оплату чи обіцянку готівки треба врахувати."""
+        if (links or cash or claim) and not uid:
             return MessagePlan("no_sender", result=result)
         if links:
             return MessagePlan("link", links=links, cash=cash, result=result)
+        if claim:
+            return MessagePlan("claim", claim=True, cash=cash, result=result)
         if cash:
             return MessagePlan("cash", cash=True, result=result)
         return MessagePlan(kind, result=result)
@@ -342,7 +359,7 @@ def plan_text_message(
         return without_order("mega", result)
     if not uid:
         return MessagePlan("no_sender", result=result)
-    return MessagePlan("order", result=result, links=links, cash=cash)
+    return MessagePlan("order", result=result, links=links, cash=cash, claim=claim)
 
 
 async def process_text_message(
@@ -407,14 +424,19 @@ async def process_text_message(
         stats.note(message_id, name, text, "payment")
         return
 
-    if plan.kind == "link" and plan.links:
+    if (plan.kind == "link" and plan.links) or plan.kind == "claim":
         pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
-        outcome = await apply_link(db, day_id, pid, uid=uid, message_id=message_id, url=plan.links[0])
+        if plan.kind == "link":
+            outcome = await apply_link(db, day_id, pid, uid=uid, message_id=message_id, url=plan.links[0])
+            what = "чек за посиланням"
+        else:
+            outcome = await apply_claim(db, day_id, pid, uid=uid, message_id=message_id)
+            what = "написав(ла), що оплатив(ла)"
         if plan.cash:
             await db.set_order_cash(day_id, pid)
         if outcome == "added":
             stats.payments += 1
-            stats.note(message_id, name, text, "payment", "чек за посиланням: зараховано весь борг (суму не перевірено)")
+            stats.note(message_id, name, text, "payment", f"{what}: зараховано весь борг (суму не перевірено)")
         else:
             stats.skipped += 1
             stats.note(message_id, name, text, "skipped", LINK_OUTCOMES.get(outcome, outcome))
@@ -470,14 +492,16 @@ async def process_text_message(
         if plan.cash:
             await db.set_order_cash(day_id, pid)
             reason = (reason + "; " if reason else "") + "віддасть готівкою"
-        # чек у тому ж повідомленні або надісланий раніше за замовлення
+        # чек чи «оплатила» в тому ж повідомленні або надіслані раніше за замовлення
         linked = 0
         if plan.links and await apply_link(db, day_id, pid, uid=uid, message_id=message_id, url=plan.links[0]) == "added":
+            linked += 1
+        if plan.claim and await apply_claim(db, day_id, pid, uid=uid, message_id=message_id) == "added":
             linked += 1
         linked += await settle_pending_links(db, day_id, pid, uid)
         if linked:
             stats.payments += linked
-            reason = (reason + "; " if reason else "") + "чек за посиланням: борг зараховано"
+            reason = (reason + "; " if reason else "") + "оплата без суми: борг зараховано"
         stats.note(message_id, name, text, "order", reason)
         return
 
