@@ -64,6 +64,7 @@ async def refresh_order_reply(db: Any, day_id: int, participant_id: int) -> bool
         tray_total_uah=order["tray_total_uah"],
         unavailable=[ln["menuItemName"] for ln in order["lines"] if ln["unavailable"]],
         paid_uah=paid,
+        cash=bool(order.get("cash_promised")),
     )
     await db.enqueue_outbound(text, kind="edit", telegram_message_id=order["reply_message_id"])
     return True

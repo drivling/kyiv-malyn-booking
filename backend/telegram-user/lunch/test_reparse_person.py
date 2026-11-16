@@ -8,16 +8,22 @@ from __future__ import annotations
 
 import asyncio
 import sys
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Optional
 
 _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
+import lunch.evidence as evidence
 from lunch.db import DayRow, MenuItemRow, OrderLineInput, today_kyiv
+from lunch.evidence import compare_day, media_of
+from lunch.formatters import format_debts, format_order_confirm
+from lunch.ocr_menu import MediaScan, scan_from_raw
 from lunch.reparse_day import (
     reparse_day_with_client,
     DayContext,
@@ -67,6 +73,8 @@ class FakeDB:
         self.cancelled: set[int] = set()
         self.no_day = False
         self.payee_card: Optional[str] = None
+        self.scans: dict[int, dict[str, Any]] = {}
+        self.cash: set[int] = set()
 
     async def get_or_create_day(self, d=None):
         return DayRow(id=1, date=d or today_kyiv(), status=self.status, menu_message_id=None, payee_card=None)
@@ -173,9 +181,54 @@ class FakeDB:
     async def payment_source_exists(self, day_id, source_message_id):
         return any(p["source"] == source_message_id for p in self.payments)
 
-    async def add_payment(self, day_id, pid, amount, raw, source_message_id=None):
-        self.payments.append({"pid": pid, "amount": amount, "source": source_message_id})
+    async def add_payment(self, day_id, pid, amount, raw, source_message_id=None, source="text"):
+        self.payments.append({"pid": pid, "amount": amount, "source": source_message_id, "kind": source, "raw": raw})
         return len(self.payments)
+
+    async def has_payment_of_amount(self, day_id, pid, amount, sources):
+        return any(p["pid"] == pid and p["amount"] == amount and p.get("kind", "text") in sources for p in self.payments)
+
+    async def get_media_scan(self, day_id, tg_message_id):
+        return self.scans.get(int(tg_message_id))
+
+    async def save_media_scan(self, day_id, tg_message_id, *, sender_tg_id, source, kind, amount_uah=None, model=None, raw=None):
+        import json as _json
+
+        self.scans[int(tg_message_id)] = {
+            "source": source, "kind": kind, "amount_uah": amount_uah, "model": model,
+            "raw_json": _json.dumps(raw, ensure_ascii=False) if raw is not None else None,
+            "sender_tg_id": str(sender_tg_id) if sender_tg_id else None,
+        }
+
+    async def scanned_message_ids(self, day_id):
+        return set(self.scans)
+
+    async def pending_link_receipts(self, day_id, sender_tg_id):
+        paid = {p["source"] for p in self.payments}
+        return sorted(
+            mid for mid, r in self.scans.items()
+            if r["source"] == "link" and r["sender_tg_id"] == str(sender_tg_id) and mid not in paid
+        )
+
+    async def set_order_cash(self, day_id, pid, value=True):
+        if pid not in self.orders or pid in self.cancelled or (pid in self.cash) == bool(value):
+            return False
+        (self.cash.add if value else self.cash.discard)(pid)
+        return True
+
+    async def get_order_cash(self, day_id, pid):
+        return pid in self.cash
+
+    async def catalog_dish_names(self, limit=300):
+        return [m.name for m in self.menu]
+
+    async def replace_menu(self, day_id, items, menu_message_id=None, parsed_raw=None):
+        self.menu = [_row(100 + i, name, price) for i, (name, price) in enumerate(items)]
+        self.menu_message_id = menu_message_id
+        return list(self.menu)
+
+    async def sync_orders_after_menu(self, day_id):
+        return []
 
     async def participant_balance(self, day_id, pid):
         o = self.orders.get(pid)
@@ -201,6 +254,7 @@ class FakeDB:
             "tray_count": o.get("trays", 0),
             "tray_total_uah": o.get("trays", 0) * 5,
             "unmatched_text": o["unmatched"],
+            "cash_promised": pid in self.cash,
             "lines": [
                 {"menuItemName": l.raw_name, "qty": l.qty, "unitPriceUah": l.unit_price_uah,
                  "lineTotalUah": l.line_total_uah, "unavailable": l.unavailable}
@@ -226,7 +280,7 @@ class FakeSender:
 
 
 class FakeMsg:
-    def __init__(self, mid, text, when, sender_id=UID, photo=False, sender_name=None):
+    def __init__(self, mid, text, when, sender_id=UID, photo=False, sender_name=None, pdf=False, data=b"img"):
         self.sender_name = sender_name
         self.out = False
         self.id = mid
@@ -235,6 +289,15 @@ class FakeMsg:
         self.date = when
         self.sender_id = sender_id
         self.photo = photo
+        # PDF-квитанція — документ із mime application/pdf
+        self.document = object() if pdf else None
+        self.file = SimpleNamespace(mime_type="application/pdf" if pdf else "image/jpeg", size=len(data))
+        self.data = data
+        self.downloads = 0
+
+    async def download_media(self, file=None):
+        self.downloads += 1
+        return self.data
 
     async def get_sender(self):
         return FakeSender(first_name=self.sender_name or "Аліна", id=self.sender_id)
@@ -1079,6 +1142,309 @@ def test_day_reparse_attributes_first_entry_with_empty_placeholders():
     assert sorted(db.orders[sv]["lines"]) == sorted(["Пюре", "Філе курки запечене з ананасом або помідором", "Сирники"])
 
 
+# ---------- чеки оплати (фото, PDF, посилання) і «віддам готівкою» ----------
+
+MENU_RAW = {"kind": "menu", "amount": 0, "items": [{"name": n, "price": p} for n, p in (
+    ("Пюре", 40), ("Котлети курячі", 75), ("Салат грецький", 60), ("Салат Цезар", 70), ("Суп грибний", 55), ("Борщ", 50),
+)]}
+
+
+class FakeScanner:
+    """Підміна моделі: що «видно» у фото — за вмістом файлу; рахує запити."""
+
+    def __init__(self, by_data):
+        self.by_data = by_data
+        self.calls: list[dict[str, Any]] = []
+
+    async def __call__(self, data, *, mime="image/jpeg", known_names=(), model=None, **kw):
+        self.calls.append({"data": data, "mime": mime, "model": model})
+        raw = self.by_data[data]
+        if isinstance(raw, Exception):
+            raise raw
+        raw = raw.get(model, raw) if model and model in raw else raw
+        scan = scan_from_raw(raw, model=model or "claude-haiku-5-5")
+        scan.input_tokens, scan.output_tokens = 2000, 300
+        return scan
+
+
+def with_scanner(by_data):
+    """Контекст: ключ Claude «є», модель — FakeScanner."""
+
+    class _Ctx:
+        def __enter__(self):
+            self.prev_key = os.environ.get("ANTHROPIC_API_KEY")
+            self.prev_scan = evidence.scan_media_bytes
+            os.environ["ANTHROPIC_API_KEY"] = "sk-test"
+            self.scanner = FakeScanner(by_data)
+            evidence.scan_media_bytes = self.scanner
+            return self.scanner
+
+        def __exit__(self, *exc):
+            evidence.scan_media_bytes = self.prev_scan
+            if self.prev_key is None:
+                os.environ.pop("ANTHROPIC_API_KEY", None)
+            else:
+                os.environ["ANTHROPIC_API_KEY"] = self.prev_key
+            return False
+
+    return _Ctx()
+
+
+def _receipt(amount):
+    return {"kind": "receipt", "items": [], "amount": amount}
+
+
+def test_plan_receipt_link_and_cash():
+    link = "https://check.monobank.ua/p/Zy_XwVuTsRqPoNmLk-01"
+    assert _plan(link).kind == "link" and _plan(link).links == [link]
+    assert _plan("Віддам готівкою").kind == "cash"
+    chat = _plan("є кеш тільки на столову")  # розмова, а не обіцянка
+    assert chat.kind != "cash" and not chat.cash
+    both = _plan(f"Пюре\nКотлети курячі\n\nВіддам готівкою\n{link}")
+    assert both.kind == "order" and both.cash and both.links == [link]
+    assert [l.raw_name for l in both.result.lines] == ["Пюре", "Котлети курячі"]
+    assert both.result.unmatched == []  # «віддам готівкою» й посилання — не «нерозпізнані страви»
+    assert _plan(link, uid="").kind == "no_sender"
+
+
+def test_media_of_photo_pdf_and_other_documents():
+    when = _today_at(10, 0)
+    assert media_of(FakeMsg(1, "", when, photo=True)) == ("photo", "image/jpeg")
+    assert media_of(FakeMsg(2, "", when, pdf=True)) == ("pdf", "application/pdf")
+    assert media_of(FakeMsg(3, "Пюре", when)) is None
+    doc = FakeMsg(4, "", when, pdf=True)
+    doc.file = SimpleNamespace(mime_type="video/mp4", size=10)
+    assert media_of(doc) is None
+    doc.file = SimpleNamespace(mime_type="image/png", size=10)  # фото, надіслане файлом
+    assert media_of(doc) == ("photo", "image/png")
+
+
+def test_day_reparse_receipt_photo_and_pdf_become_payments_and_journal_is_reused():
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 37), photo=True, data=b"shot-115"),
+        FakeMsg(21, "Суп грибний", _today_at(10, 40), sender_id=888),
+        FakeMsg(22, "", _today_at(10, 41), sender_id=888, pdf=True, data=b"pdf-55"),
+        FakeMsg(23, "", _today_at(10, 50), sender_id=888, photo=True, data=b"mem"),
+    ])
+    by_data = {b"shot-115": _receipt(115), b"pdf-55": _receipt(55.0), b"mem": {"kind": "other", "items": [], "amount": 0}}
+    with with_scanner(by_data) as scanner:
+        stats = run(reparse_day_with_client(client, object(), db))
+        assert stats.orders == 2 and stats.payments == 2
+        assert [(p["amount"], p["kind"], p["source"]) for p in db.payments] == [(115, "receipt", 12), (55, "receipt", 22)]
+        assert [c["mime"] for c in scanner.calls] == ["image/jpeg", "application/pdf", "image/jpeg"]
+        notes = {d["messageId"]: d for d in stats.details}
+        assert notes[12]["outcome"] == "payment" and "115 грн — зараховано" in notes[12]["reason"]
+        assert notes[22]["text"] == "[PDF]" and notes[23]["reason"] == "фото без меню й чека"
+        # «Розібрати день» ще раз: оплати стерто й відновлено з журналу, модель не питаємо
+        db.payments.clear()
+        stats2 = run(reparse_day_with_client(client, object(), db))
+        assert len(scanner.calls) == 3 and stats2.payments == 2 and len(db.payments) == 2
+
+
+def test_day_reparse_without_claude_key_skips_new_media_but_uses_journal():
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 37), photo=True, data=b"shot"),
+    ])
+    prev = os.environ.pop("ANTHROPIC_API_KEY", None)
+    try:
+        stats = run(reparse_day_with_client(client, object(), db))
+        assert stats.payments == 0 and "не розібрано" in {d["messageId"]: d for d in stats.details}[12]["reason"]
+        run(db.save_media_scan(1, 12, sender_tg_id=str(UID), source="photo", kind="receipt", amount_uah=40, raw=_receipt(40)))
+        assert run(reparse_day_with_client(client, object(), db)).payments == 1
+    finally:
+        if prev is not None:
+            os.environ["ANTHROPIC_API_KEY"] = prev
+
+
+def test_receipt_confirms_text_payment_instead_of_doubling_both_orders():
+    # «оплатив 115», потім скрін на 115 → одна оплата
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)),
+        FakeMsg(12, "оплатив 115", _today_at(10, 37)),
+        FakeMsg(13, "", _today_at(10, 38), photo=True, data=b"shot"),
+    ])
+    with with_scanner({b"shot": _receipt(115)}):
+        stats = run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "text")]
+    assert "підтверджує вже зараховану оплату" in {d["messageId"]: d for d in stats.details}[13]["reason"]
+    # скрін, потім «оплатив 115» → теж одна; інша сума — окрема оплата
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 37), photo=True, data=b"shot"),
+        FakeMsg(13, "оплатив 115", _today_at(10, 38)),
+        FakeMsg(14, "оплатив 20", _today_at(10, 39)),
+    ])
+    with with_scanner({b"shot": _receipt(115)}):
+        run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "receipt"), (20, "text")]
+
+
+def test_receipt_without_amount_or_failed_scan_changes_nothing():
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 37), photo=True, data=b"blur"),
+        FakeMsg(13, "", _today_at(10, 38), photo=True, data=b"boom"),
+    ])
+    with with_scanner({b"blur": _receipt(0), b"boom": RuntimeError("credit balance is too low")}):
+        stats = run(reparse_day_with_client(client, object(), db))
+    assert db.payments == [] and 13 not in db.scans  # помилку не журналюємо — наступний прохід спробує ще
+    assert "суму не видно" in {d["messageId"]: d for d in stats.details}[12]["reason"]
+    assert any("msg 13" in e for e in stats.errors)
+
+
+def test_receipt_link_pays_the_debt_and_waits_for_the_order():
+    link = "https://check.monobank.ua/p/AbCdEfGhIjKlMnOpQrSt"
+    # замовлення, потім посилання
+    db = FakeDB()
+    client = FakeClient([FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)), FakeMsg(12, link, _today_at(10, 37))])
+    stats = run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"], p["source"]) for p in db.payments] == [(115, "link", 12)]
+    assert "суму не перевірено" in db.payments[0]["raw"] and stats.payments == 1
+    # посилання раніше за замовлення: чекає і гасить борг, щойно замовлення з'явилось
+    db = FakeDB()
+    client = FakeClient([FakeMsg(11, link, _today_at(10, 30)), FakeMsg(12, "Пюре", _today_at(10, 36))])
+    stats = run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"], p["source"]) for p in db.payments] == [(40, "link", 11)]
+    assert "замовлення ще немає" in {d["messageId"]: d for d in stats.details}[11]["reason"]
+    # боргу вже немає — посилання нічого не додає
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре", _today_at(10, 36)), FakeMsg(12, "оплатив 40", _today_at(10, 37)), FakeMsg(13, link, _today_at(10, 38)),
+    ])
+    run(reparse_day_with_client(client, object(), db))
+    assert [(p["amount"], p["kind"]) for p in db.payments] == [(40, "text")]
+
+
+def test_cash_promise_marks_order_reply_and_debts():
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(11, "Пюре\nКотлети курячі\n\nВіддам готівкою", _today_at(10, 36)),
+        FakeMsg(21, "Суп грибний", _today_at(10, 40), sender_id=888),
+        FakeMsg(22, "налом", _today_at(10, 41), sender_id=888),
+    ])
+    stats = run(reparse_day_with_client(client, object(), db))
+    a, b = db.participants[str(UID)]["id"], db.participants["888"]["id"]
+    assert db.cash == {a, b} and db.orders[a]["unmatched"] is None
+    assert "віддасть готівкою" in {d["messageId"]: d for d in stats.details}[11]["reason"]
+    text = format_order_confirm("Аліна", [], 115, [], cash=True)
+    assert text.endswith("Разом: 115 грн\n💵 Готівкою")
+    assert "💵" not in format_order_confirm("Аліна", [], 115, [], cash=True, paid_uah=115)  # розрахувалась — лише «✅ Оплатив»
+    assert "Оплатив 50 грн, залишок 65 грн\n💵 Готівкою" in format_order_confirm("Аліна", [], 115, [], cash=True, paid_uah=50)
+    debts = format_debts([{"display_name": "Аліна", "debt_uah": 115, "total_uah": 115, "paid_uah": 0, "cash_promised": True}])
+    assert debts.endswith("(заказ 115, оплачено 0) — готівкою")
+
+
+def test_catch_up_cash_message_edits_our_reply():
+    db = FakeDB()
+    pid = _seed(db, UID, "Пюре", [_line(1, "Пюре", 40)])
+    db.orders[pid]["total"] = 45
+    client = FakeClient([FakeMsg(12, "дам наличкой", _today_at(10, 38))])
+    run(catch_up_today(client, object(), db, now=_now_at(10, 45)))
+    assert pid in db.cash
+    assert db.outbound[-1]["kind"] == "edit" and db.outbound[-1]["text"].endswith("💵 Готівкою")
+    n = len(db.outbound)
+    run(catch_up_today(client, object(), db, now=_now_at(10, 50)))
+    assert len(db.outbound) == n  # вдруге не смикаємо групу
+
+
+def test_catch_up_scans_missed_menu_photo_and_receipts_once():
+    db = FakeDB(menu=[])
+    db.no_day = True  # меню прийшло, поки слухач був на паузі: дня ще немає
+    msgs = [
+        FakeMsg(10, "", _today_at(10, 30), photo=True, data=b"menu", sender_id=555),
+        FakeMsg(11, "Пюре, котлети курячі", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 37), photo=True, data=b"shot"),
+        FakeMsg(13, "", _today_at(6, 0), photo=True, data=b"old"),  # поза вікном дозбору
+    ]
+    client = FakeClient(msgs)
+    with with_scanner({b"menu": MENU_RAW, b"shot": _receipt(115)}) as scanner:
+        db.no_day = False
+        out = run(catch_up_today(client, object(), db, now=_now_at(10, 45)))
+        assert out["menu"] == 6 and out["orders"] == 1 and out["payments"] == 1
+        assert [m.name for m in db.menu][:2] == ["Пюре", "Котлети курячі"] and db.menu_message_id == 10
+        assert db.outbound[0]["reply_to"] == 10 and db.outbound[0]["text"].startswith("Меню на сьогодні:")
+        assert [(p["amount"], p["kind"]) for p in db.payments] == [(115, "receipt")]
+        assert len(scanner.calls) == 2
+        out2 = run(catch_up_today(client, object(), db, now=_now_at(10, 50)))
+        assert len(scanner.calls) == 2 and out2["payments"] == 0 and len(db.payments) == 1
+
+
+def test_catch_up_receipt_marks_paid_in_our_reply_even_when_day_is_closed():
+    db = FakeDB(status="closed")
+    pid = _seed(db, UID, "Пюре", [_line(1, "Пюре", 40)])
+    client = FakeClient([FakeMsg(12, "", _today_at(13, 0), pdf=True, data=b"pdf")])
+    with with_scanner({b"pdf": _receipt(45)}):
+        out = run(catch_up_today(client, object(), db, now=_now_at(13, 5)))
+    assert out["payments"] == 1 and out["skipped_reason"] == "день закрито"
+    assert db.payments[0]["pid"] == pid
+    assert db.outbound[-1]["kind"] == "edit" and "✅ Оплатив" in db.outbound[-1]["text"]
+
+
+def test_person_reparse_takes_link_and_cash():
+    link = "https://check.monobank.ua/p/Zy_XwVuTsRqPoNmLk-01"
+    db = FakeDB()
+    client = FakeClient([FakeMsg(11, "Пюре", _today_at(10, 36)), FakeMsg(12, link, _today_at(10, 37))])
+    out = run(reparse_person(client, object(), db, group_id=GROUP, tg_user_id=UID))
+    assert out["orders"] == 1 and out["payments"] == 1 and db.payments[0]["kind"] == "link"
+    assert "Оплатив 40 грн" in db.outbound[-1]["text"]  # FakeDB рахує борг без лотка
+    db = FakeDB()
+    client = FakeClient([FakeMsg(11, "Пюре\nготівкою", _today_at(10, 36))])
+    run(reparse_person(client, object(), db, group_id=GROUP, tg_user_id=UID))
+    assert db.outbound[-1]["text"].endswith("💵 Готівкою")
+
+
+def test_compare_day_reports_where_models_disagree():
+    cheap_menu = {"kind": "menu", "amount": 0, "items": [*MENU_RAW["items"][:4], {"name": "Суп грибний", "price": 65}, {"name": "Узвар", "price": 20}]}
+    by_data = {
+        b"menu": {"claude-opus-5-5": MENU_RAW, "claude-haiku-5-5": cheap_menu},
+        b"shot": {"claude-opus-5-5": _receipt(115), "claude-haiku-5-5": _receipt(115)},
+        b"mem": {"claude-opus-5-5": {"kind": "other", "items": [], "amount": 0}, "claude-haiku-5-5": RuntimeError("x")},
+    }
+
+    class PerModel(FakeScanner):
+        async def __call__(self, data, *, mime="image/jpeg", known_names=(), model=None, **kw):
+            raw = self.by_data[data][model]
+            self.calls.append({"model": model})
+            if isinstance(raw, Exception):
+                raise raw
+            scan = scan_from_raw(raw, model=model)
+            scan.input_tokens, scan.output_tokens = 2000, 500
+            return scan
+
+    db = FakeDB()
+    client = FakeClient([
+        FakeMsg(10, "", _today_at(10, 30), photo=True, data=b"menu"),
+        FakeMsg(11, "Пюре", _today_at(10, 36)),
+        FakeMsg(12, "", _today_at(10, 37), photo=True, data=b"shot"),
+        FakeMsg(13, "", _today_at(10, 50), pdf=True, data=b"mem"),
+    ])
+    lines: list[str] = []
+    out = run(compare_day(
+        client, object(), db, day=today_kyiv(), models=["claude-opus-5-5", "claude-haiku-5-5"],
+        scan=PerModel(by_data), log=lines.append,
+    ))
+    assert out["baseline"] == "claude-opus-5-5" and [m["messageId"] for m in out["media"]] == [10, 12, 13]
+    menu_row = out["media"][0]["results"]
+    assert menu_row[0]["agree"] is True and menu_row[1]["agree"] is False
+    assert menu_row[1]["menuDiff"] == {
+        "missing": ["Борщ"], "extra": ["Узвар"], "prices": [{"name": "Суп грибний", "base": 55, "other": 65}],
+    }
+    assert out["media"][1]["results"][1] == {**out["media"][1]["results"][1], "kind": "receipt", "amountUah": 115, "agree": True}
+    assert out["media"][2]["results"][1]["error"].startswith("RuntimeError")
+    summary = {s["model"]: s for s in out["summary"]}
+    assert summary["claude-opus-5-5"]["agree"] == 3 and summary["claude-opus-5-5"]["costUsd"] == 0.054
+    assert summary["claude-haiku-5-5"] == {**summary["claude-haiku-5-5"], "agree": 1, "errors": 1, "menu": 1, "receipt": 1, "costUsd": 0.0009}
+    assert db.payments == [] and db.scans == {} and db.orders == {}  # порівняння нічого не змінює
+    assert any("Суп грибний 55→65" in ln for ln in lines) and "підсумок" in lines[-1]
+
+
 def main():
     tests = [
         test_plan_kinds_and_reasons,
@@ -1138,6 +1504,19 @@ def main():
         test_person_reparse_of_the_operator_takes_his_own_entry_from_the_summary,
         test_person_reparse_of_the_operator_when_his_entry_is_someone_elses,
         test_day_reparse_attributes_first_entry_with_empty_placeholders,
+        test_plan_receipt_link_and_cash,
+        test_media_of_photo_pdf_and_other_documents,
+        test_day_reparse_receipt_photo_and_pdf_become_payments_and_journal_is_reused,
+        test_day_reparse_without_claude_key_skips_new_media_but_uses_journal,
+        test_receipt_confirms_text_payment_instead_of_doubling_both_orders,
+        test_receipt_without_amount_or_failed_scan_changes_nothing,
+        test_receipt_link_pays_the_debt_and_waits_for_the_order,
+        test_cash_promise_marks_order_reply_and_debts,
+        test_catch_up_cash_message_edits_our_reply,
+        test_catch_up_scans_missed_menu_photo_and_receipts_once,
+        test_catch_up_receipt_marks_paid_in_our_reply_even_when_day_is_closed,
+        test_person_reparse_takes_link_and_cash,
+        test_compare_day_reports_where_models_disagree,
     ]
     failed = 0
     for t in tests:

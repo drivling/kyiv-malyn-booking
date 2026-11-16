@@ -504,3 +504,25 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+.lunch-cash {
+  white-space: nowrap;
+}
+
+.lunch-compare__date input {
+  padding: 6px 8px;
+  border: 1px solid var(--pb-border, #dadce0);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.lunch-compare__diff {
+  font-size: 0.8rem;
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.lunch-compare__total td {
+  font-weight: 600;
+  border-top: 2px solid var(--pb-border, #dadce0);
+}

@@ -725,6 +725,8 @@ export interface LunchOrderRow {
   trayTotalUah: number;
   trayCountManual?: boolean;
   hasReply?: boolean;
+  /** Людина написала, що віддасть готівкою */
+  cashPromised?: boolean;
   paidUah: number;
   debtUah: number;
   lines: Array<{
@@ -759,6 +761,8 @@ export interface LunchDaySummary {
     displayName: string;
     amountUah: number;
     rawText: string;
+    /** text — «оплатив 150» у чаті | admin — кнопка «Оплатив» | receipt — сума з чека | link — посилання на чек */
+    source?: LunchPaymentSource;
     createdAt: string;
   }>;
   debts: LunchOrderRow[];
@@ -767,6 +771,56 @@ export interface LunchDaySummary {
     paidUah: number;
     debtUah: number;
   };
+}
+
+export type LunchPaymentSource = 'text' | 'admin' | 'receipt' | 'link';
+
+/** Одна модель на одному фото/PDF у порівнянні моделей розпізнавання. */
+export interface LunchOcrCompareResult {
+  model: string;
+  seconds: number;
+  error: string | null;
+  /** menu | receipt | other (немає, якщо модель впала) */
+  kind?: string;
+  /** скільки страв у меню */
+  items?: number;
+  /** сума з чека, грн */
+  amountUah?: number | null;
+  costUsd?: number | null;
+  /** чи збіглось з еталонною (першою) моделлю */
+  agree?: boolean;
+  /** лише меню: чим відрізняється від еталонного */
+  menuDiff?: { missing: string[]; extra: string[]; prices: Array<{ name: string; base: number; other: number }> };
+}
+
+export interface LunchOcrCompareReport {
+  date: string;
+  models: string[];
+  baseline: string;
+  media: Array<{ messageId: number; source: string; time: string; results: LunchOcrCompareResult[] }>;
+  summary: Array<{
+    model: string;
+    media: number;
+    menu: number;
+    receipt: number;
+    other: number;
+    errors: number;
+    agree: number;
+    costUsd: number;
+    seconds: number;
+  }>;
+  /** фото понад ліміт або завеликі */
+  skipped: number;
+}
+
+export interface LunchOcrCompareJob {
+  id: number;
+  status: 'pending' | 'running' | 'done' | 'failed';
+  params: { date?: string; models?: string[] } | null;
+  result: LunchOcrCompareReport | null;
+  error: string | null;
+  createdAt: string;
+  finishedAt: string | null;
 }
 
 /** Що сталося з одним повідомленням під час розбору дня/людини. */

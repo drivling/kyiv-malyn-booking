@@ -43,6 +43,116 @@ export type LunchReparseResult = {
 
 export type LunchJobType = 'reparse_today' | 'reparse_person';
 
+// ---------- порівняння моделей розпізнавання (задача ocr_compare) ----------
+
+/** Моделі, які можна порівнювати: від дорогої (еталон) до дешевої — як COMPARE_MODELS у lunch/ocr_menu.py */
+export const LUNCH_OCR_COMPARE_MODELS = ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'] as const;
+
+export class LunchJobError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+export type LunchOcrCompareJob = {
+  id: number;
+  /** pending — чекає слухача | running — моделі працюють | done | failed */
+  status: string;
+  params: Record<string, unknown> | null;
+  /** звіт слухача (evidence.compare_day): media[], summary[], baseline */
+  result: Record<string, unknown> | null;
+  error: string | null;
+  createdAt: string;
+  finishedAt: string | null;
+};
+
+function parseJson(raw: string | null): Record<string, unknown> | null {
+  if (!raw) return null;
+  try {
+    const v: unknown = JSON.parse(raw);
+    return v && typeof v === 'object' && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function serializeOcrCompareJob(row: {
+  id: number;
+  status: string;
+  paramsJson: string | null;
+  resultJson: string | null;
+  errorText: string | null;
+  createdAt: Date;
+  finishedAt: Date | null;
+}): LunchOcrCompareJob {
+  return {
+    id: row.id,
+    status: row.status,
+    params: parseJson(row.paramsJson),
+    result: row.status === 'done' ? parseJson(row.resultJson) : null,
+    error: row.status === 'failed' ? row.errorText || 'Помилка слухача' : null,
+    createdAt: row.createdAt.toISOString(),
+    finishedAt: row.finishedAt ? row.finishedAt.toISOString() : null,
+  };
+}
+
+/** Розбір тіла запиту: date — день (за Києвом, не майбутній), models — підмножина дозволених, щонайменше дві. */
+export function parseOcrCompareRequest(body: unknown, todayIso: string): { date: string; models: string[] } {
+  const b = (body ?? {}) as Record<string, unknown>;
+  const date = b.date === undefined || b.date === null || b.date === '' ? todayIso : String(b.date);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(`${date}T00:00:00Z`).getTime())) {
+    throw new LunchJobError(400, 'date — дата у форматі YYYY-MM-DD');
+  }
+  if (date > todayIso) throw new LunchJobError(400, 'Дата в майбутньому');
+  let models: string[] = [...LUNCH_OCR_COMPARE_MODELS];
+  if (b.models !== undefined) {
+    if (!Array.isArray(b.models) || b.models.some((m) => typeof m !== 'string')) {
+      throw new LunchJobError(400, 'models — список назв моделей');
+    }
+    const allowed = new Set<string>(LUNCH_OCR_COMPARE_MODELS);
+    const unknown = (b.models as string[]).filter((m) => !allowed.has(m));
+    if (unknown.length) throw new LunchJobError(400, `Невідома модель: ${unknown.join(', ')}`);
+    // порядок — як у дозволеному списку: перша (найдорожча) стає еталоном
+    models = LUNCH_OCR_COMPARE_MODELS.filter((m) => (b.models as string[]).includes(m));
+    if (models.length < 2) throw new LunchJobError(400, 'Для порівняння потрібні щонайменше дві моделі');
+  }
+  return { date, models };
+}
+
+/**
+ * Поставити слухачеві задачу: ті самі фото й PDF дня через кілька моделей. Нічого не змінює в обідах.
+ * Працює лише через слухача (потрібні Telegram-сесія і ключ Claude); результат — getOcrCompareJob.
+ */
+export async function createOcrCompareJob(
+  prisma: PrismaClient,
+  req: { date: string; models: string[] },
+  opts: { listenerWanted?: () => boolean; env?: NodeJS.ProcessEnv } = {},
+): Promise<LunchOcrCompareJob> {
+  const env = opts.env ?? process.env;
+  if (!(opts.listenerWanted ?? isLunchListenerWanted)()) {
+    throw new LunchJobError(409, 'Слухач обідів вимкнений — порівняти нема чим');
+  }
+  if (!(env.ANTHROPIC_API_KEY ?? '').trim()) throw new LunchJobError(409, 'У бекенда немає ANTHROPIC_API_KEY');
+  const active = await prisma.lunchAdminJob.findFirst({
+    where: { type: 'ocr_compare', status: { in: ['pending', 'running'] } },
+    orderBy: { id: 'desc' },
+  });
+  if (active) throw new LunchJobError(409, `Порівняння вже виконується (№${active.id})`);
+  const row = await prisma.lunchAdminJob.create({
+    data: { type: 'ocr_compare', status: 'pending', paramsJson: JSON.stringify(req) },
+  });
+  return serializeOcrCompareJob(row);
+}
+
+export async function getOcrCompareJob(prisma: PrismaClient, id: number): Promise<LunchOcrCompareJob> {
+  const row = await prisma.lunchAdminJob.findUnique({ where: { id } });
+  if (!row || row.type !== 'ocr_compare') throw new LunchJobError(404, 'Порівняння не знайдено');
+  return serializeOcrCompareJob(row);
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
