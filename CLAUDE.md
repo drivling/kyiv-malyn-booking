@@ -272,10 +272,23 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 
   New Telethon call sites must go through `withTelegramUserSessionExclusive` or
   `awaitTelegramSession()`.
-- OCR of the menu photo the operator posts in the lunch group, via Claude (`ANTHROPIC_API_KEY`, `LUNCH_OCR_MODEL`, default
-  `claude-opus-5-5`; `ANTHROPIC_WORKSPACE_ID` only for an organization-level key not bound to a workspace;
-  `lunch/ocr_menu.py`) in the Python lunch listener. Every photo is checked, but only one the model
-  marks as a menu with ≥ 5 priced dishes is used, and it is merged into the day's menu, never replacing it.
+- Photos and PDFs posted in the lunch group are read by Claude (`ANTHROPIC_API_KEY`, `LUNCH_OCR_MODEL`, default the
+  cheap `claude-haiku-5-5`; `ANTHROPIC_WORKSPACE_ID` only for an organization-level key not bound to a workspace;
+  `lunch/ocr_menu.py` → `scan_media_bytes`) in the Python lunch listener. One request answers `kind`: `menu` (≥ 5
+  priced dishes, merged into the day's menu, never replacing it), `receipt` (the transfer amount) or `other`.
+  Haiku 5.5 has no server-side `fallbacks`, so that parameter is sent only to models that support it.
+  **Payment evidence** (`lunch/evidence.py`): a receipt photo/PDF becomes a `LunchPayment` with `source = 'receipt'`
+  (the same amount already recorded from «оплатив 150» or the admin button is only confirmed, never doubled, and
+  vice versa); a `check.monobank.ua/p/…` link cannot be read (captcha), so it pays the person's whole current debt
+  with `source = 'link'` («суму не перевірено»; a link sent before the order is settled when the order appears);
+  «віддам готівкою» sets `LunchOrder.cashPromised` and shows «💵 Готівкою» in our reply until paid — it is not a
+  payment. Every scanned message is journalled in `LunchMediaScan`, so catch-up after a listener pause (which now
+  also picks up a missed menu photo and receipts) and «Розібрати день» never ask the model twice; a failed scan is
+  not journalled and is retried. Nothing is posted to the group for a receipt — «✅ Оплатив» appears as an edit of
+  our reply. The reply text is built in two places that must stay identical: `lunch/formatters.py` and
+  `backend/src/lunch.ts` (`formatPaidLine`, `formatCashLine`). Admin job `ocr_compare` (`POST
+  /admin/lunch/ocr-compare`, block on the lunch tab) runs a day's real photos through several models and reports
+  where they differ, with time and cost; it changes nothing.
 - The same listener process hosts «Джура» chat capture (`DZHURA_ENABLED`, default on) — see above.
 - Python phone-lookup scripts under `backend/opendatabot-fop-parser/` and
   `backend/internet-phone-search/`, invoked from `phone-lookup.ts`/`phonecheck.ts`.

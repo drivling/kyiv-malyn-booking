@@ -588,6 +588,8 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
       trayTotalUah: o.trayTotalUah,
       trayCountManual: o.trayCountManual,
       hasReply: o.replyMessageId != null,
+      /** людина написала, що віддасть готівкою */
+      cashPromised: o.cashPromised,
       paidUah: paid,
       debtUah: o.totalUah - paid,
       lines: o.lines.map((l) => ({
@@ -632,6 +634,8 @@ export async function getLunchDaySummary(prisma: PrismaClient, date?: Date) {
       displayName: p.participant.displayName,
       amountUah: p.amountUah,
       rawText: p.rawText,
+      /** text — з чату | admin — кнопка «Оплатив» | receipt — сума з чека | link — посилання на чек */
+      source: p.source,
       createdAt: p.createdAt.toISOString(),
     })),
     debts,
@@ -707,6 +711,13 @@ export function formatPaidLine(totalUah: number, paidUah: number): string | null
   return `Оплатив ${paidUah} грн, залишок ${totalUah - paidUah} грн`;
 }
 
+/**
+ * Людина написала, що віддасть готівкою, і ще не розрахувалась (той самий у Python: formatters.format_cash_line).
+ */
+export function formatCashLine(totalUah: number, paidUah: number, cashPromised: boolean): string | null {
+  return cashPromised && paidUah < totalUah ? '💵 Готівкою' : null;
+}
+
 export function formatOrderConfirmText(opts: {
   displayName: string;
   lines: Array<{
@@ -726,6 +737,8 @@ export function formatOrderConfirmText(opts: {
   unavailable?: string[];
   /** Скільки людина вже заплатила за день — дописуємо «✅ Оплатив» */
   paidUah?: number;
+  /** Обіцяла готівку — «💵 Готівкою», поки не розрахувалась */
+  cashPromised?: boolean;
 }): string {
   const parts = [`${opts.displayName}, заказ:`];
   for (const line of opts.lines) {
@@ -742,6 +755,8 @@ export function formatOrderConfirmText(opts: {
   parts.push(`Разом: ${opts.totalUah} грн`);
   const paidLine = formatPaidLine(opts.totalUah, opts.paidUah ?? 0);
   if (paidLine) parts.push(paidLine);
+  const cashLine = formatCashLine(opts.totalUah, opts.paidUah ?? 0, opts.cashPromised === true);
+  if (cashLine) parts.push(cashLine);
   if (opts.unavailable && opts.unavailable.length) {
     parts.push('Сьогодні немає: ' + opts.unavailable.join(', ') + '.');
   }
@@ -805,6 +820,7 @@ export async function lunchOrderConfirmFromDb(
     unmatched: splitUnmatchedText(order.unmatchedText),
     unavailable: order.lines.filter((l) => l.unavailable).map((l) => l.dish?.name ?? l.rawName),
     paidUah: await lunchPaidUah(prisma, order.dayId, order.participantId),
+    cashPromised: order.cashPromised,
   });
   return {
     confirmText,
@@ -977,6 +993,7 @@ export async function updateLunchOrder(
     totalUah: total,
     unmatched: unmatchedParts,
     paidUah,
+    cashPromised: order.cashPromised === true,
   });
 
   return {
@@ -1072,6 +1089,7 @@ export async function recordLunchPayment(
       participantId: opts.participantId,
       amountUah: amount,
       rawText: opts.rawText || `admin pay ${amount}`,
+      source: 'admin',
     },
   });
   const paid = paidSoFar + amount;

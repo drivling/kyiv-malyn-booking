@@ -629,9 +629,10 @@ model LunchDay {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  menuItems LunchMenuItem[]
-  orders    LunchOrder[]
-  payments  LunchPayment[]
+  menuItems  LunchMenuItem[]
+  orders     LunchOrder[]
+  payments   LunchPayment[]
+  mediaScans LunchMediaScan[]
 
   @@unique([date])
 }
@@ -685,6 +686,8 @@ model LunchOrder {
   trayTotalUah     Int      @default(0)
   /// true = оператор задав кількість лотків вручну
   trayCountManual  Boolean  @default(false)
+  /// людина написала, що віддасть готівкою («віддам готівкою», «налом»): у відповіді «💵 Готівкою», поки не оплачено
+  cashPromised     Boolean  @default(false)
   /// active | cancelled
   status           String   @default("active")
   createdAt        DateTime @default(now())
@@ -726,6 +729,8 @@ model LunchPayment {
   amountUah       Int
   sourceMessageId BigInt?
   rawText         String   @db.Text
+  /// text — «оплатив 150» у чаті | admin — кнопка «Оплатив» | receipt — сума з фото/PDF чека | link — посилання на чек, суму не перевірено
+  source          String   @default("text")
   createdAt       DateTime @default(now())
 
   day         LunchDay         @relation(fields: [dayId], references: [id], onDelete: Cascade)
@@ -734,6 +739,28 @@ model LunchPayment {
   @@index([dayId])
   @@index([participantId])
   @@index([dayId, participantId])
+}
+
+/// Журнал розпізнаних фото й PDF з групи обідів (меню, чек оплати, інше): одне повідомлення — один запит до моделі.
+/// Дозбір після паузи слухача й «Розібрати день» беруть результат звідси, а не питають модель удруге.
+model LunchMediaScan {
+  id          Int      @id @default(autoincrement())
+  dayId       Int
+  tgMessageId BigInt
+  senderTgId  String?
+  /// photo | pdf | link (посилання на чек: запиту до моделі немає, суми теж)
+  source      String
+  /// menu | receipt | other
+  kind        String
+  /// сума з чека, грн (лише kind = receipt і суму вдалося прочитати)
+  amountUah   Int?
+  model       String?
+  rawJson     String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  day LunchDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+
+  @@unique([dayId, tgMessageId])
 }
 
 /// Черга повідомлень у групу обідів (щоб не відкривати другу Telethon-сесію паралельно з listener)
@@ -788,9 +815,9 @@ model SmsSendLog {
 /// Адмін-задачі для listener (reparse_today тощо)
 model LunchAdminJob {
   id          Int       @id @default(autoincrement())
-  /// reparse_today | reparse_person
+  /// reparse_today | reparse_person | ocr_compare
   type        String
-  /// JSON-параметри задачі (reparse_person: {"tgUserId": "…", "notify": true})
+  /// JSON-параметри задачі (reparse_person: {"tgUserId": "…", "notify": true}; ocr_compare: {"date": "2026-11-16", "models": […]})
   paramsJson  String?   @db.Text
   /// pending | done | failed
   status      String    @default("pending")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timezone
 from typing import Any, Optional, Sequence
@@ -9,7 +10,15 @@ from zoneinfo import ZoneInfo
 
 from .db import LunchDB, MenuItemRow, today_kyiv
 from .parse_order import OrderParseResult, looks_like_order, parse_order_contextual
-from .parse_payment import PaymentParseResult, looks_like_card_number, parse_payment
+from .parse_payment import (
+    PaymentParseResult,
+    is_cash_promise,
+    looks_like_card_number,
+    parse_payment,
+    receipt_links,
+    strip_cash_promise,
+    strip_receipt_links,
+)
 from .parse_summary import (
     DOZAZAK_DISPLAY_NAME,
     DOZAZAK_TELEGRAM_ID,
@@ -20,7 +29,18 @@ from .parse_summary import (
     synthetic_telegram_id,
 )
 
+from .evidence import MAX_SCANS_PER_RUN, apply_link, handle_media_message, media_of, settle_pending_links
+from .order_reply import ocr_enabled
+
 KYIV = ZoneInfo("Europe/Kyiv")
+
+# Оплата, яку вже принесли чеком: «оплатив 150» слідом за скріном на 150 — не друга оплата
+RECEIPT_SOURCES = ("receipt", "link")
+LINK_OUTCOMES = {
+    "no_order": "чек за посиланням, але замовлення ще немає — зарахуємо, коли з'явиться",
+    "already_paid": "чек за посиланням: боргу вже немає",
+    "duplicate": "чек за посиланням уже зараховано",
+}
 
 
 # Скільки рядків «що сталося з повідомленням» віддаємо в адмінку (job result — це текст у БД).
@@ -37,6 +57,7 @@ SKIP_REASONS = {
     "mega": "забагато страв — схоже на підсумок, а не на особисте замовлення",
     "no_sender": "невідомий відправник",
     "photo": "фото без підпису",
+    "media": "фото чи PDF не розібрано (ліміт на один прохід, завеликий файл або немає ключа Claude)",
     "summary_unparsed": "схоже на підсумок, але не вдалося розібрати",
     "deleted": "повідомлення видалене",
 }
@@ -250,10 +271,15 @@ class DayContext:
 class MessagePlan:
     """Що робити з текстовим повідомленням (без побічних ефектів — тільки рішення)."""
 
-    kind: str  # echo | summary | card | payment | not_order | closed | no_menu | no_match | mega | no_sender | order
+    # echo | summary | card | payment | link | cash | not_order | closed | no_menu | no_match | mega | no_sender | order
+    kind: str
     card: Optional[str] = None
     payment: Optional[PaymentParseResult] = None
     result: Optional[OrderParseResult] = None
+    # посилання на чек оплати в тексті (окремим повідомленням — kind = link, разом із замовленням — order)
+    links: list[str] = field(default_factory=list)
+    # «віддам готівкою» (окремим повідомленням — kind = cash, у тексті замовлення — order)
+    cash: bool = False
 
     @property
     def reason(self) -> str:
@@ -288,20 +314,35 @@ def plan_text_message(
     pay = parse_payment(text)
     if pay:
         return MessagePlan("payment" if uid else "no_sender", payment=pay)
-    if not looks_like_order(text):
-        return MessagePlan("not_order")
+    # Посилання на чек і «віддам готівкою» — не страви: прибираємо їх з тексту перед пошуком у меню
+    links = receipt_links(text)
+    cash = is_cash_promise(text)
+    body = strip_cash_promise(strip_receipt_links(text)) if (links or cash) else text
+
+    def without_order(kind: str, result: Optional[OrderParseResult] = None) -> MessagePlan:
+        """Замовлення з тексту не вийшло, але чек чи обіцянку готівки з нього треба врахувати."""
+        if (links or cash) and not uid:
+            return MessagePlan("no_sender", result=result)
+        if links:
+            return MessagePlan("link", links=links, cash=cash, result=result)
+        if cash:
+            return MessagePlan("cash", cash=True, result=result)
+        return MessagePlan(kind, result=result)
+
+    if not body or not looks_like_order(body):
+        return without_order("not_order")
     if day_closed and not allow_orders_when_closed:
-        return MessagePlan("closed")
+        return without_order("closed")
     if not menu and not fallback:
-        return MessagePlan("no_menu")
-    result = parse_order_contextual(text, menu, fallback)
+        return without_order("no_menu")
+    result = parse_order_contextual(body, menu, fallback)
     if not result.lines:
-        return MessagePlan("no_match", result=result)
+        return without_order("no_match", result)
     if looks_like_mega_personal_order(len(result.lines), sum(l.qty for l in result.lines)):
-        return MessagePlan("mega", result=result)
+        return without_order("mega", result)
     if not uid:
         return MessagePlan("no_sender", result=result)
-    return MessagePlan("order", result=result)
+    return MessagePlan("order", result=result, links=links, cash=cash)
 
 
 async def process_text_message(
@@ -357,9 +398,38 @@ async def process_text_message(
 
     if plan.kind == "payment" and plan.payment:
         pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
+        if await db.has_payment_of_amount(day_id, pid, plan.payment.amount_uah, RECEIPT_SOURCES):
+            stats.skipped += 1
+            stats.note(message_id, name, text, "skipped", "цю суму вже зараховано за чеком")
+            return
         await db.add_payment(day_id, pid, plan.payment.amount_uah, text, source_message_id=message_id)
         stats.payments += 1
         stats.note(message_id, name, text, "payment")
+        return
+
+    if plan.kind == "link" and plan.links:
+        pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
+        outcome = await apply_link(db, day_id, pid, uid=uid, message_id=message_id, url=plan.links[0])
+        if plan.cash:
+            await db.set_order_cash(day_id, pid)
+        if outcome == "added":
+            stats.payments += 1
+            stats.note(message_id, name, text, "payment", "чек за посиланням: зараховано весь борг (суму не перевірено)")
+        else:
+            stats.skipped += 1
+            stats.note(message_id, name, text, "skipped", LINK_OUTCOMES.get(outcome, outcome))
+        return
+
+    if plan.kind == "cash":
+        pid = await db.find_participant_id_by_telegram_id(uid)
+        marked = pid is not None and await db.has_active_order(day_id, pid)
+        if marked:
+            await db.set_order_cash(day_id, pid)
+        stats.skipped += 1
+        stats.note(
+            message_id, name, text, "skipped",
+            "віддасть готівкою — позначено в замовленні" if marked else "віддасть готівкою, але замовлення ще немає",
+        )
         return
 
     if plan.kind == "mega":
@@ -397,6 +467,17 @@ async def process_text_message(
         )
         stats.orders += 1
         reason = f"не розпізнано: {result.unmatched_text}" if result.unmatched else ""
+        if plan.cash:
+            await db.set_order_cash(day_id, pid)
+            reason = (reason + "; " if reason else "") + "віддасть готівкою"
+        # чек у тому ж повідомленні або надісланий раніше за замовлення
+        linked = 0
+        if plan.links and await apply_link(db, day_id, pid, uid=uid, message_id=message_id, url=plan.links[0]) == "added":
+            linked += 1
+        linked += await settle_pending_links(db, day_id, pid, uid)
+        if linked:
+            stats.payments += linked
+            reason = (reason + "; " if reason else "") + "чек за посиланням: борг зараховано"
         stats.note(message_id, name, text, "order", reason)
         return
 
@@ -454,6 +535,9 @@ async def reparse_day_with_client(
     messages.reverse()
     reply_by_source = collect_confirmation_reply_map(messages)
 
+    # Фото й PDF: з журналу LunchMediaScan безплатно, нові — через модель, але не більше ліміту за прохід.
+    scan_budget = MAX_SCANS_PER_RUN if ocr_enabled(os.environ.get("ANTHROPIC_API_KEY")) else 0
+
     # до появи підсумку дозволяємо замовлення навіть якщо день був closed до clear
     closed_by_summary = False
     ctx = DayContext()
@@ -463,19 +547,37 @@ async def reparse_day_with_client(
     for msg in messages:
         stats.scanned += 1
         try:
-            if msg.photo and not (msg.message or msg.text):
-                # фото меню на reparse пропускаємо (меню вже в БД з адмінки)
-                stats.skipped += 1
-                stats.note(msg.id, _display_name(await msg.get_sender()), "", "skipped", SKIP_REASONS["photo"])
-                continue
             text = (msg.message or msg.text or "").strip()
-            if not text:
+            media = media_of(msg)
+            if not text and not media:
                 stats.skipped += 1
                 continue
             sender = await msg.get_sender()
             name = _display_name(sender)
             uid = str(getattr(sender, "id", "")) if sender else ""
             username = getattr(sender, "username", None) if sender else None
+
+            if media:
+                # Чек → оплата (після clear_orders оплати з чеків відновлюються звідси). Меню не чіпаємо.
+                outcome = await handle_media_message(
+                    db, msg, day_row.id, uid=uid, name=name, username=username,
+                    allow_model=scan_budget > 0, allow_menu=False, notify=False,
+                )
+                label = "[PDF]" if media[0] == "pdf" else "[фото]"
+                if outcome is None:
+                    stats.skipped += 1
+                    stats.note(msg.id, name, label, "skipped", SKIP_REASONS["media"])
+                else:
+                    if not outcome.cached:
+                        scan_budget -= 1
+                    if outcome.receipt == "added":
+                        stats.payments += 1
+                        stats.note(msg.id, name, label, "payment", outcome.note)
+                    else:
+                        stats.skipped += 1
+                        stats.note(msg.id, name, label, "skipped", outcome.note)
+                if not text:
+                    continue
 
             # Нумерований підсумок оператора («1. … 2. …») — звіримо з повідомленнями людей ПІСЛЯ проходу
             # (його правлять протягом дня, у ньому є замовлення, що прийшли пізніше за час повідомлення).

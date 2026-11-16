@@ -61,3 +61,59 @@ def looks_like_card_number(text: str) -> Optional[str]:
     if len(digits) == 16 and digits.startswith(("4", "5", "6")):
         return digits
     return None
+
+
+# --- докази оплати без суми в тексті ---
+
+# Посилання на квитанцію monobank. Сторінка малює чек скриптом за капчею, тож суму з неї не дістати:
+# знаємо лише, що людина надіслала чек.
+_RECEIPT_LINK_RE = re.compile(r"https?://check\.monobank\.ua/p/[\w-]+", re.IGNORECASE)
+
+
+def receipt_links(text: str) -> list[str]:
+    return _RECEIPT_LINK_RE.findall(text or "")
+
+
+def strip_receipt_links(text: str) -> str:
+    return _RECEIPT_LINK_RE.sub(" ", text or "").strip()
+
+
+# --- «віддам готівкою» ---
+
+# Слово про готівку. «нал» і «кеш» — лише окремим словом: «налисники» й «кешʼю» — це страви.
+_CASH_WORD = (
+    r"(?:готівк\w*|готівочк\w*|налич\w*|наличк\w*|налик\w*|налом|налу|нал|кешем|кешом|кеш|кэшем|кэш|cash)"
+)
+_CASH_WORD_RE = re.compile(rf"(?<![\w'ʼ’]){_CASH_WORD}(?![\w'ʼ’])", re.IGNORECASE | re.UNICODE)
+# «віддам», «дам», «заплачу», «розрахуюсь», «принесу», «буде»… поруч зі словом про готівку
+_CASH_VERB_RE = re.compile(
+    r"(?<!\w)(?:від?дам\w*|дам|отдам|заплачу|заплатю|оплачу|сплачу|розрахуюс[ья]|рассчитаюсь|принесу|занесу|"
+    r"закину|буде|будет|плачу)(?!\w)",
+    re.IGNORECASE | re.UNICODE,
+)
+# Довше речення зі словом «кеш» — зазвичай розмова («є кеш тільки на столову»), а не обіцянка
+_CASH_SHORT_WORDS = 3
+
+
+def _cash_segments(text: str) -> list[tuple[str, bool]]:
+    """Текст частинами (рядок / речення) з позначкою, чи це обіцянка готівки."""
+    out: list[tuple[str, bool]] = []
+    for seg in re.split(r"(\n+|[.;!?]+\s*)", text or ""):
+        if not seg:
+            continue
+        cash = False
+        if _CASH_WORD_RE.search(seg):
+            words = re.findall(r"[\w'ʼ’]+", seg, re.UNICODE)
+            cash = len(words) <= _CASH_SHORT_WORDS or bool(_CASH_VERB_RE.search(seg))
+        out.append((seg, cash))
+    return out
+
+
+def is_cash_promise(text: str) -> bool:
+    """«Віддам готівкою», «налом», «заплачу наличкой» — людина заплатить готівкою, а не переказом."""
+    return any(cash for _seg, cash in _cash_segments(text))
+
+
+def strip_cash_promise(text: str) -> str:
+    """Текст без фрази про готівку — щоб «віддам готівкою» не шукалось серед страв."""
+    return "".join(seg for seg, cash in _cash_segments(text) if not cash).strip()

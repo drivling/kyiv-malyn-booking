@@ -22,7 +22,14 @@ import {
   upsertLunchMenuForToday,
 } from '../lunch';
 import { postTextToLunchGroup } from '../lunch-telegram';
-import { reparseLunchPerson, reparseLunchToday } from '../lunch-reparse';
+import {
+  LunchJobError,
+  createOcrCompareJob,
+  getOcrCompareJob,
+  parseOcrCompareRequest,
+  reparseLunchPerson,
+  reparseLunchToday,
+} from '../lunch-reparse';
 import { listLunchDayPeople } from '../lunch-people';
 import { addDaysIso, daysBetweenInclusive, parseIsoDate } from '../dzhura';
 
@@ -31,6 +38,9 @@ export function createAdminLunchRouter(deps: {
   /** для тестів: підміна запуску розбору (за замовч. — job для listener / spawn) */
   reparsePerson?: typeof reparseLunchPerson;
   reparseToday?: typeof reparseLunchToday;
+  /** для тестів: чи працює слухач і чи є ключ Claude (порівняння моделей іде лише через слухача) */
+  listenerWanted?: () => boolean;
+  env?: NodeJS.ProcessEnv;
 }): Router {
   const { prisma } = deps;
   const runReparsePerson = deps.reparsePerson ?? reparseLunchPerson;
@@ -184,6 +194,47 @@ export function createAdminLunchRouter(deps: {
     } catch (e) {
       console.error('[admin/lunch/reparse]', e);
       res.status(500).json({ error: e instanceof Error ? e.message : 'Помилка reparse' });
+    }
+  });
+
+  /**
+   * Порівняти моделі розпізнавання на реальних фото й PDF дня: { date?: 'YYYY-MM-DD', models?: string[] }.
+   * Слухач проганяє кожне фото через усі моделі й повертає, де вони розходяться (меню: страви й ціни;
+   * чек: сума), час і вартість. Нічого не змінює. Відповідь — задача; стан — GET …/ocr-compare/:id.
+   */
+  r.post('/admin/lunch/ocr-compare', requireAdmin, async (req, res) => {
+    try {
+      const today = todayKyivDate().toISOString().slice(0, 10);
+      const job = await createOcrCompareJob(prisma, parseOcrCompareRequest(req.body, today), {
+        listenerWanted: deps.listenerWanted,
+        env: deps.env,
+      });
+      res.status(201).json({ job });
+    } catch (e) {
+      if (e instanceof LunchJobError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      console.error('[admin/lunch/ocr-compare]', e);
+      res.status(500).json({ error: 'Не вдалося запустити порівняння' });
+    }
+  });
+
+  r.get('/admin/lunch/ocr-compare/:id', requireAdmin, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ error: 'Некоректний id' });
+        return;
+      }
+      res.json({ job: await getOcrCompareJob(prisma, id) });
+    } catch (e) {
+      if (e instanceof LunchJobError) {
+        res.status(e.status).json({ error: e.message });
+        return;
+      }
+      console.error('[admin/lunch/ocr-compare/:id]', e);
+      res.status(500).json({ error: 'Не вдалося прочитати порівняння' });
     }
   });
 

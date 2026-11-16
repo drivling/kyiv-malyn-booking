@@ -919,6 +919,15 @@ class ApiClient {
     return this.request('/admin/lunch/reparse', { method: 'POST' });
   }
 
+  /** Порівняти моделі розпізнавання на фото й PDF дня (нічого не змінює); стан — getLunchOcrCompare. */
+  async createLunchOcrCompare(body: { date?: string; models?: string[] }): Promise<{ job: import('@/types').LunchOcrCompareJob }> {
+    return this.request('/admin/lunch/ocr-compare', { method: 'POST', body: JSON.stringify(body) });
+  }
+
+  async getLunchOcrCompare(id: number): Promise<{ job: import('@/types').LunchOcrCompareJob }> {
+    return this.request(`/admin/lunch/ocr-compare/${id}`);
+  }
+
   /** Хто писав у групі обідів сьогодні (з «Джури») і чи є в нього замовлення. */
   async getLunchDayPeople(): Promise<LunchDayPeople> {
     return this.request<LunchDayPeople>('/admin/lunch/day-people');

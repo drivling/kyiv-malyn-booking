@@ -19,10 +19,20 @@ from lunch.ocr_menu import (
     ocr_menu_from_image_bytes,
     ocr_model_name,
     parse_menu_items_payload,
+    receipt_amount,
+    scan_from_raw,
+    scan_media_bytes,
 )
 from lunch.order_reply import PersonalOrderAction, decide_personal_order_action, ocr_enabled
 from lunch.parse_order import looks_like_order, parse_order, parse_order_contextual
-from lunch.parse_payment import looks_like_card_number, parse_payment
+from lunch.parse_payment import (
+    is_cash_promise,
+    looks_like_card_number,
+    parse_payment,
+    receipt_links,
+    strip_cash_promise,
+    strip_receipt_links,
+)
 from lunch.parse_summary import (
     looks_like_day_summary,
     order_signature,
@@ -725,13 +735,13 @@ def test_mega_counts_distinct_dishes_not_portions():
 
 # ---------- OCR меню з фото через Claude ----------
 
-_MENU_JSON = {"is_menu": True, "items": [{"name": n, "price": p} for n, p in [
+_MENU_JSON = {"kind": "menu", "amount": 0, "items": [{"name": n, "price": p} for n, p in [
     ("Пюре", 45), ("Гречка", 35), ("Котлети курячі", 70), ("Салат «Грецький»", 50), ("Борщ червоний", 90), ("Хліб", 3),
 ]]}
 
 
 class _FakeClaude:
-    """Підміна AsyncAnthropic: запамʼятовує запит і повертає заданий текст."""
+    """Підміна AsyncAnthropic: запамʼятовує запит (і яким входом його надіслано) і повертає заданий текст."""
 
     def __init__(self, payload, stop_reason="end_turn"):
         import json as _json
@@ -739,14 +749,24 @@ class _FakeClaude:
 
         outer = self
 
-        class _Messages:
-            async def create(self, **kw):
-                outer.request = kw
-                text = payload if isinstance(payload, str) else _json.dumps(payload, ensure_ascii=False)
-                return SimpleNamespace(stop_reason=stop_reason, content=[SimpleNamespace(type="text", text=text)])
+        def endpoint(name):
+            class _Messages:
+                async def create(self, **kw):
+                    outer.request = kw
+                    outer.endpoint = name
+                    text = payload if isinstance(payload, str) else _json.dumps(payload, ensure_ascii=False)
+                    return SimpleNamespace(
+                        stop_reason=stop_reason,
+                        content=[SimpleNamespace(type="thinking", thinking=""), SimpleNamespace(type="text", text=text)],
+                        usage=SimpleNamespace(input_tokens=2100, output_tokens=640),
+                    )
 
-        self.beta = SimpleNamespace(messages=_Messages())
+            return _Messages()
+
+        self.beta = SimpleNamespace(messages=endpoint("beta"))
+        self.messages = endpoint("plain")
         self.request = None
+        self.endpoint = None
 
 
 def _run(coro):
@@ -755,38 +775,88 @@ def _run(coro):
     return asyncio.run(coro)
 
 
-def test_ocr_request_uses_claude_with_schema_image_and_known_names():
+def test_ocr_request_uses_cheap_model_with_schema_image_and_known_names():
     fake = _FakeClaude(_MENU_JSON)
-    items, raw = _run(ocr_menu_from_image_bytes(b"\xff\xd8jpeg", known_names=["Пюре", "Котлети курячі"], client=fake))
-    assert items[0] == ("Пюре", 45) and len(items) == 6 and raw["is_menu"] is True
+    scan = _run(scan_media_bytes(b"\xff\xd8jpeg", known_names=["Пюре", "Котлети курячі"], client=fake))
+    assert scan.kind == "menu" and scan.items[0] == ("Пюре", 45) and len(scan.items) == 6
+    assert scan.model == DEFAULT_OCR_MODEL == "claude-haiku-5-5"
+    assert (scan.input_tokens, scan.output_tokens, scan.cost_usd) == (2100, 640, 0.00053)
     req = fake.request
-    assert req["model"] == DEFAULT_OCR_MODEL == "claude-opus-5-5"
-    assert req["fallbacks"] == "default" and req["betas"] == ["server-side-fallback-2026-07-01"]
+    # Haiku 5.5 не має серверного fallback: звичайний вхід, без betas і fallbacks
+    assert fake.endpoint == "plain" and "fallbacks" not in req and "betas" not in req
     assert req["output_config"]["format"]["type"] == "json_schema"
-    assert req["output_config"]["format"]["schema"]["required"] == ["is_menu", "items"]
-    assert "temperature" not in req  # Opus 5.5 не приймає параметрів семплювання
+    assert req["output_config"]["format"]["schema"]["required"] == ["kind", "items", "amount"]
+    assert "temperature" not in req and "thinking" not in req  # параметрів семплювання ці моделі не приймають
     image, text = req["messages"][0]["content"]
-    assert image["source"]["media_type"] == "image/jpeg" and image["source"]["data"] == "/9hqcGVn"
+    assert image["type"] == "image" and image["source"]["media_type"] == "image/jpeg" and image["source"]["data"] == "/9hqcGVn"
     assert "Котлети курячі" in text["text"]
+    # старий виклик (лише меню) лишився
+    items, raw = _run(ocr_menu_from_image_bytes(b"x", client=_FakeClaude(_MENU_JSON)))
+    assert len(items) == 6 and raw["kind"] == "menu"
+
+
+def test_ocr_expensive_model_keeps_server_side_fallback():
+    fake = _FakeClaude(_MENU_JSON)
+    scan = _run(scan_media_bytes(b"x", model="claude-opus-5-5", client=fake))
+    assert scan.model == "claude-opus-5-5" and fake.endpoint == "beta"
+    assert fake.request["fallbacks"] == "default" and fake.request["betas"] == ["server-side-fallback-2026-07-01"]
+    assert scan.cost_usd == 0.0212
+
+
+def test_ocr_receipt_photo_and_pdf_give_the_transfer_amount():
+    fake = _FakeClaude({"kind": "receipt", "items": [], "amount": 184.0})
+    scan = _run(scan_media_bytes(b"%PDF-1.4", mime="application/pdf", client=fake))
+    assert scan.kind == "receipt" and scan.amount_uah == 184 and scan.items == []
+    doc = fake.request["messages"][0]["content"][0]
+    assert doc["type"] == "document" and doc["source"]["media_type"] == "application/pdf"
+    for amount, expected in ((184.5, 185), (0, None), (-5, None), (2_000_000, None), ("x", None)):
+        assert receipt_amount({"kind": "receipt", "amount": amount}) == expected
+    assert receipt_amount({"kind": "menu", "amount": 150}) is None
+    blur = scan_from_raw({"kind": "receipt", "items": [], "amount": 0})
+    assert blur.kind == "receipt" and blur.amount_uah is None  # чек, але суму не видно
 
 
 def test_ocr_ignores_photos_that_are_not_a_menu():
-    """Чек оплати, мем, кілька цін — меню дня не чіпаємо."""
-    items, raw = _run(ocr_menu_from_image_bytes(b"x", client=_FakeClaude({"is_menu": False, "items": []})))
-    assert items == [] and raw["is_menu"] is False
-    receipt = {"is_menu": True, "items": [{"name": "Переказ", "price": 190}, {"name": "Комісія", "price": 2}]}
-    assert _run(ocr_menu_from_image_bytes(b"x", client=_FakeClaude(receipt)))[0] == []
-    assert menu_items_from_ocr({"items": _MENU_JSON["items"]}) == []  # без is_menu — теж ні
+    """Мем, список замовлень, кілька цін — меню дня не чіпаємо."""
+    scan = _run(scan_media_bytes(b"x", client=_FakeClaude({"kind": "other", "items": [], "amount": 0})))
+    assert scan.kind == "other" and scan.items == [] and scan.amount_uah is None
+    few = {"kind": "menu", "amount": 0, "items": [{"name": "Переказ", "price": 190}, {"name": "Комісія", "price": 2}]}
+    assert _run(scan_media_bytes(b"x", client=_FakeClaude(few))).kind == "other"
+    assert menu_items_from_ocr({"items": _MENU_JSON["items"]}) == []  # без kind — теж ні
+    # формат до появи чеків (лежить у старих LunchDay.parsedRawJson) читається як раніше
+    assert len(menu_items_from_ocr({"is_menu": True, "items": _MENU_JSON["items"]})) == 6
+    assert scan_from_raw("не json").kind == "other"
 
 
-def test_ocr_refusal_and_oversized_photo_raise():
-    cases = ((_FakeClaude({}, stop_reason="refusal"), b"x"), (_FakeClaude(_MENU_JSON), b"x" * (5 * 1024 * 1024 + 1)))
-    for fake, data in cases:
+def test_ocr_refusal_and_oversized_files_raise():
+    cases = (
+        (_FakeClaude({}, stop_reason="refusal"), b"x", "image/jpeg"),
+        (_FakeClaude({}, stop_reason="max_tokens"), b"x", "image/jpeg"),
+        (_FakeClaude(_MENU_JSON), b"x" * (5 * 1024 * 1024 + 1), "image/jpeg"),
+        (_FakeClaude(_MENU_JSON), b"x" * (8 * 1024 * 1024 + 1), "application/pdf"),
+    )
+    for fake, data, mime in cases:
         try:
-            _run(ocr_menu_from_image_bytes(data, client=fake))
+            _run(scan_media_bytes(data, mime=mime, client=fake))
         except RuntimeError:
             continue
         raise AssertionError("мало кинути RuntimeError")
+
+
+def test_cash_promise_and_receipt_link_phrases():
+    for text in (
+        "Ліниві голубці \nДеруни \nСалат крабовий\n\nВіддам готівкою", "готівкою", "Налом", "дам наличкой",
+        "отдам наличными завтра", "борщ, пюре. заплачу кешем", "Гроші принесу готівкою, бо картка заблокована",
+    ):
+        assert is_cash_promise(text), text
+    # розмова про гроші та страви зі схожими словами — не обіцянка
+    for text in ("Ми так багато не заробляємо , є кеш тільки на столову", "налисники з сиром", "курка з кешʼю", "канал", "борщ і пюре"):
+        assert not is_cash_promise(text), text
+    assert strip_cash_promise("Деруни \nСалат крабовий\n\nВіддам готівкою") == "Деруни \nСалат крабовий"
+    assert strip_cash_promise("готівкою") == ""
+    link = "https://check.monobank.ua/p/AbCdEfGhIjKlMnOpQrSt"
+    assert receipt_links(f"ось {link} дякую") == [link] and strip_receipt_links(link) == ""
+    assert receipt_links("https://send.monobank.ua/jar/abc") == []  # посилання на оплату — не чек
 
 
 def test_ocr_workspace_header_for_org_level_key():
@@ -818,9 +888,9 @@ def test_ocr_model_name_ignores_old_openai_setting():
     old = os.environ.get("LUNCH_OCR_MODEL")
     try:
         os.environ["LUNCH_OCR_MODEL"] = "gpt-4o-mini"
-        assert ocr_model_name() == "claude-opus-5-5"
-        os.environ["LUNCH_OCR_MODEL"] = "claude-haiku-5-5"
         assert ocr_model_name() == "claude-haiku-5-5"
+        os.environ["LUNCH_OCR_MODEL"] = "claude-opus-5-5"
+        assert ocr_model_name() == "claude-opus-5-5"
     finally:
         if old is None:
             os.environ.pop("LUNCH_OCR_MODEL", None)
@@ -883,9 +953,12 @@ def main():
         test_short_synonym_does_not_swallow_longer_dish,
         test_ru_cooking_words,
         test_mega_counts_distinct_dishes_not_portions,
-        test_ocr_request_uses_claude_with_schema_image_and_known_names,
+        test_ocr_request_uses_cheap_model_with_schema_image_and_known_names,
+        test_ocr_expensive_model_keeps_server_side_fallback,
+        test_ocr_receipt_photo_and_pdf_give_the_transfer_amount,
         test_ocr_ignores_photos_that_are_not_a_menu,
-        test_ocr_refusal_and_oversized_photo_raise,
+        test_ocr_refusal_and_oversized_files_raise,
+        test_cash_promise_and_receipt_link_phrases,
         test_ocr_workspace_header_for_org_level_key,
         test_ocr_model_name_ignores_old_openai_setting,
         test_menu_from_photo_is_merged_into_the_days_menu,
