@@ -284,7 +284,8 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   not valid»), so the first page is rendered to a JPEG with `pypdfium2` and sent as an image.
   **Payment evidence** (`lunch/evidence.py`): a receipt photo/PDF becomes a `LunchPayment` with `source = 'receipt'`
   (the same amount already recorded from «оплатив 150» or the admin button is only confirmed, never doubled, and
-  vice versa); a `check.monobank.ua/p/…` link cannot be read (captcha), so it pays the person's whole current debt
+  vice versa; a receipt of another amount is not added either when the debt is already settled by a payment without
+  a receipt — `apply_receipt` → `settled`); a `check.monobank.ua/p/…` link cannot be read (captcha), so it pays the person's whole current debt
   with `source = 'link'` («суму не перевірено»; a link sent before the order is settled when the order appears);
   «скинула гроші» / «оплатив» with no amount and no receipt does the same with `source = 'claim'` (the owner's
   decision; past tense in the first person only — «скину», «скиньте», a question are not payments);

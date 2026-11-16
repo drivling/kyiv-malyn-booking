@@ -778,6 +778,22 @@ class LunchDB:
             )
             return int(row["id"])
 
+    async def has_payment_from(self, day_id: int, participant_id: int, sources: Sequence[str]) -> bool:
+        """Чи є сьогодні в людини хоч одна оплата з цих джерел (будь-яка сума)."""
+        async with self.pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    """
+                    SELECT 1 FROM "LunchPayment"
+                    WHERE "dayId" = $1 AND "participantId" = $2 AND source = ANY($3::text[])
+                    LIMIT 1
+                    """,
+                    day_id,
+                    participant_id,
+                    list(sources),
+                )
+            )
+
     async def has_payment_of_amount(
         self, day_id: int, participant_id: int, amount_uah: int, sources: Sequence[str]
     ) -> bool:

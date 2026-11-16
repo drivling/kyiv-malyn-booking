@@ -86,7 +86,7 @@ class MediaOutcome:
     cached: bool = False  # результат із журналу, модель не питали
     menu_rows: list = field(default_factory=list)
     notices: list = field(default_factory=list)
-    receipt: Optional[str] = None  # added | confirms | duplicate | no_amount
+    receipt: Optional[str] = None  # added | confirms | settled | duplicate | no_amount
     participant_id: Optional[int] = None
 
     @property
@@ -98,6 +98,7 @@ class MediaOutcome:
             what = {
                 "added": "зараховано",
                 "confirms": "підтверджує вже зараховану оплату",
+                "settled": "борг уже закрито відміченою оплатою, другою оплатою не зараховано",
                 "duplicate": "уже зараховано",
                 "no_amount": "не зараховано",
             }.get(self.receipt or "", "")
@@ -161,15 +162,24 @@ async def apply_menu(db: Any, day_id: int, message_id: int, scan: MediaScan) -> 
     return menu_rows, notices
 
 
+# Оплати, зараховані без чека: чек того самого дня їх підтверджує, а не подвоює.
+UNVERIFIED_SOURCES = ("text", "admin", "link", "claim")
+
+
 async def apply_receipt(db: Any, day_id: int, pid: int, *, amount_uah: Optional[int], message_id: int, source: str) -> str:
     """Зарахувати суму з чека. added — нова оплата; confirms — така сама сума вже зарахована з чату чи
-    адмінки; duplicate — це повідомлення вже зараховано; no_amount — суму не видно."""
+    адмінки; settled — борг уже закрито оплатою без чека (кнопка «Оплатив», «оплатив 150», посилання, «скинула
+    гроші»), тож чек на іншу суму — доказ тієї самої оплати, а не друга; duplicate — це повідомлення вже
+    зараховано; no_amount — суму не видно."""
     if not amount_uah:
         return "no_amount"
     if await db.payment_source_exists(day_id, message_id):
         return "duplicate"
-    if await db.has_payment_of_amount(day_id, pid, amount_uah, ("text", "admin", "link", "claim")):
+    if await db.has_payment_of_amount(day_id, pid, amount_uah, UNVERIFIED_SOURCES):
         return "confirms"
+    ordered, _paid, debt = await db.participant_balance(day_id, pid)
+    if ordered > 0 and debt <= 0 and await db.has_payment_from(day_id, pid, UNVERIFIED_SOURCES):
+        return "settled"
     await db.add_payment(
         day_id, pid, amount_uah, f"чек ({source}): {amount_uah} грн", source_message_id=message_id, source="receipt"
     )
