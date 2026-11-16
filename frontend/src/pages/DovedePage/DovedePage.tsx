@@ -7,14 +7,15 @@
  * токен адміна. Сторінка без шапки сайту (App.tsx), не в меню, не в sitemap, noindex.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import { getKyivDateString, getKyivMinutesNow } from '@/pages/LocalTransportPage/kyivTime';
 import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerModel';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
-import { classify, composeStories, corridorCities, resolveDate } from './compose/composeStories';
+import { DEFAULT_CAR_MINUTES, classify, composeStories, corridorCities, resolveDate, rideDepartures, type DriveEstimate } from './compose/composeStories';
+import { placesInNote } from './nlu/notePlaces';
 import { clock, shareText } from './compose/narrate';
 import type { ComposeOutcome, Story } from './compose/types';
 import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withHouses, withIntent } from './nlu/merge';
@@ -201,13 +202,27 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
         return found.get(d)!;
       };
       const schedulesFor = async (d: string) => (await searchFor(d)).schedules;
+      // Попутки серед варіантів: скільки авто їде при виїзді о цій годині (із заторами, а не відповів сервер — сталі 1 год 35 хв)
+      const notePlaces = (note: string) => placesInNote(note, stopIndex);
+      const driveFor0 = async (d: string, listings: ViberListing[], asked: TripIntent) => {
+        const times = cities ? rideDepartures({ intent: asked, now, date: d, listings }, shape) : [];
+        const got = times.length && cities ? await apiClient.dovedeDriveTime({ from: cities.from, to: cities.to, date: d, times }) : null;
+        return (depMins: number): DriveEstimate => {
+          const exact = got?.minutes[clock(depMins)];
+          return exact ? { minutes: exact, traffic: got!.source === 'traffic' } : { minutes: got?.fixedMinutes ?? DEFAULT_CAR_MINUTES, traffic: false };
+        };
+      };
+      const driveFor = (d: string, listings: ViberListing[]) => driveFor0(d, listings, intent);
       try {
         let date = resolveDate(intent.when.day, now);
-        let outcome = composeStories({ intent, now, date, schedules: await schedulesFor(date), planner: plannerFor(date), routes, listings: (await searchFor(date)).listings, cityFare: fare }, shape);
+        const listings = (await searchFor(date)).listings;
+        let outcome = composeStories({ intent, now, date, schedules: await schedulesFor(date), planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: await driveFor(date, listings), notePlaces }, shape);
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);
+          const next0: TripIntent = { ...intent, when: { day: 'tomorrow', kind: 'depart' } };
+          const later = (await searchFor(tomorrow)).listings;
           const next = composeStories(
-            { intent: { ...intent, when: { day: 'tomorrow', kind: 'depart' } }, now, date: tomorrow, schedules: await schedulesFor(tomorrow), planner: plannerFor(tomorrow), routes },
+            { intent: next0, now, date: tomorrow, schedules: await schedulesFor(tomorrow), planner: plannerFor(tomorrow), routes, listings: later, driveMinutes: await driveFor0(tomorrow, later, next0), notePlaces },
             shape,
           );
           if (next.kind === 'stories') {
@@ -240,7 +255,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [plannerFor, setSearchParams, routes, fare],
+    [plannerFor, setSearchParams, routes, fare, stopIndex],
   );
 
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
@@ -680,6 +695,12 @@ function Result({
             <span>{clock(scaleTo)}</span>
           </p>
         </section>
+      ) : null}
+      {outcome.rides ? (
+        <p className="dv-rides-more">
+          {stories.some((s) => s.mode === 'poputka') ? 'Час попуток приблизний: водій може виїхати пізніше. ' : ''}
+          <Link to={outcome.rides.boardUrl}>{outcome.rides.more > 0 ? `Ще ${outcome.rides.more} на дошці попуток →` : 'Дошка попуток →'}</Link>
+        </p>
       ) : null}
       <div className="dv-foot">
         <button type="button" className="dv-btn" onClick={() => onShare(main)}>

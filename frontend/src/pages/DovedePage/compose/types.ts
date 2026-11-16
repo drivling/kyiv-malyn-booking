@@ -68,11 +68,27 @@ export type StoryLeg =
       /** міські автобуси вже не ходять — довга пішка */
       late: boolean;
     }
+  | {
+      /** Попутка: оголошення водія. Час прибуття завжди приблизний — виїзд + час у дорозі авто */
+      kind: 'ride';
+      ride: PoputkaRide;
+      depMins: number;
+      arrMins: number;
+      driveMinutes: number;
+      /** час у дорозі пораховано із заторами (Google), а не сталий з адмінки */
+      traffic: boolean;
+      /** «з центру, від «Промінь»», «від метро «Академмістечко»» */
+      boardLabel: string;
+      /** водій місця посадки не назвав — це припущення («зазвичай із центру») */
+      boardAssumed: boolean;
+      alightLabel: string;
+      alightAssumed: boolean;
+    }
   | { kind: 'wait'; text: string };
 
 export interface Story {
   id: string;
-  mode: IntercityMode | 'city_bus';
+  mode: IntercityMode | 'city_bus' | 'poputka';
   /** 'YYYY-MM-DD' */
   date: string;
   /** коли вирушати з початкового місця (хв) */
@@ -119,7 +135,14 @@ export interface PriceLine {
 }
 
 export type ComposeOutcome =
-  | { kind: 'stories'; stories: Story[]; askMode: boolean; notice: string | null }
+  | {
+      kind: 'stories';
+      stories: Story[];
+      askMode: boolean;
+      notice: string | null;
+      /** попутки серед варіантів: скільки ще оголошень водіїв на дошці і чи враховано затори */
+      rides?: { more: number; boardUrl: string; traffic: boolean };
+    }
   | { kind: 'empty'; reason: 'no_trips' | 'too_late' }
   | { kind: 'ask_from'; destId: string }
   | { kind: 'ask_to' }

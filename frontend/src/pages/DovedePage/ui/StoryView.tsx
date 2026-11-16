@@ -8,9 +8,11 @@ import { clock } from '../compose/narrate';
 import type { Story, StoryLeg } from '../compose/types';
 import { FlapTime } from './FlapTime';
 import { durationText, metersText } from './format';
+import { RideNote } from './RideBoard';
 
 type IntercityLeg = Extract<StoryLeg, { kind: 'intercity' }>;
 type BusLeg = Extract<StoryLeg, { kind: 'bus' }>;
+type RideLeg = Extract<StoryLeg, { kind: 'ride' }>;
 
 function stopsText(n: number): string {
   const mod10 = n % 10;
@@ -79,6 +81,41 @@ function IntercityCard({ l }: { l: IntercityLeg }) {
   );
 }
 
+/**
+ * Попутка — та сама записка зі шпилькою й відривним корінцем, що й на дошці, і під нею чесний підпис:
+ * де сісти (зі слів водія або «зазвичай»), скільки їхати і що час приблизний.
+ */
+function RideCard({ l }: { l: RideLeg }) {
+  return (
+    <div className="dv-ride">
+      <RideNote ride={l.ride} n={0} as="div" />
+      <dl className="dv-ride__facts">
+        <div>
+          <dt>Посадка</dt>
+          <dd>
+            {l.boardLabel}
+            {l.boardAssumed ? <small> — водій місця не назвав, уточніть</small> : null}
+          </dd>
+        </div>
+        <div>
+          <dt>Висадка</dt>
+          <dd>
+            {l.alightLabel} {clock(l.arrMins, true)}
+            {l.alightAssumed ? <small> — уточніть у водія</small> : null}
+          </dd>
+        </div>
+        <div>
+          <dt>У дорозі</dt>
+          <dd>
+            ≈ {durationText(l.driveMinutes)}
+            <small>{l.traffic ? ' — із заторами, за даними Google' : ' — звичайний час авто'}</small>
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
 function busHref(l: BusLeg, date: string): string {
   const p = new URLSearchParams({ d: isoToDateUrl(date), h: clock(l.depMins), stop: l.fromStopId, to: l.toStopId, dir: l.direction });
   return `/transport/route/${encodeURIComponent(l.routeId)}?${p.toString()}`;
@@ -107,12 +144,13 @@ function BusCard({ l, date, stopName }: { l: BusLeg; date: string; stopName: (id
 
 function legTime(l: StoryLeg): string {
   if (l.kind === 'intercity') return clock(l.boardMins, l.boardApprox);
-  if (l.kind === 'bus') return clock(l.depMins);
+  if (l.kind === 'bus' || l.kind === 'ride') return clock(l.depMins);
   return '';
 }
 
 function legStyle(l: StoryLeg): CSSProperties | undefined {
   if (l.kind === 'intercity') return { '--dv-c': l.mode === 'elektrichka' ? 'var(--dv-train)' : 'var(--dv-marsh)' } as CSSProperties;
+  if (l.kind === 'ride') return { '--dv-c': 'var(--dv-ride)' } as CSSProperties;
   if (l.kind === 'bus') return { ...routeColorStyle(l.routeId), '--dv-c': 'var(--lt-route-color, var(--dv-ink))' } as CSSProperties;
   return undefined;
 }
@@ -121,6 +159,8 @@ function LegBody({ l, date, stopName }: { l: StoryLeg; date: string; stopName: (
   switch (l.kind) {
     case 'intercity':
       return <IntercityCard l={l} />;
+    case 'ride':
+      return <RideCard l={l} />;
     case 'bus':
       return <BusCard l={l} date={date} stopName={stopName} />;
     case 'walk':

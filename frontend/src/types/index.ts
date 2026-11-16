@@ -30,6 +30,8 @@ export interface TripRoute {
   startPointId: number;
   endPointId: number;
   corridorTripRouteId?: number | null;
+  /** скільки легковик їде маршрутом, хв — для часу прибуття попуток у «Доведе» */
+  carDurationMinutes?: number | null;
   startPoint?: TripPoint | null;
   endPoint?: TripPoint | null;
   stops?: Array<{
@@ -1272,6 +1274,22 @@ export interface DovedeLog {
   /** скільки питань за період пройшло фільтр (у `items` — лише останні) */
   matched: number;
   items: DovedeLogItem[];
+}
+
+/** «Доведе» · час авто між містами (GET /dovede/drive-time): сталий з адмінки й за годинами виїзду */
+export interface DovedeDriveTime {
+  fixedMinutes: number;
+  /** traffic — хоча б одну годину пораховано із заторами */
+  source: 'traffic' | 'fixed';
+  minutes: Record<string, number>;
+}
+
+/** «Доведе» · примітки оголошень водіїв за період (GET /admin/dovede/pickups) — без імен і телефонів */
+export interface DovedePickups {
+  days: number;
+  total: number;
+  routes: Array<{ route: string; total: number; withNote: number }>;
+  notes: Array<{ route: string; note: string; count: number }>;
 }
 
 /** «Доведе» · синонім з адмінки: фраза, якою люди називають місце, → id місця */

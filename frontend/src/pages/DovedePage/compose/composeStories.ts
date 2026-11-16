@@ -24,7 +24,8 @@ import { intercityTrips, type IntercityTrip } from './intercity';
 import { clock, leadFor } from './narrate';
 import type { RouteLike } from '../nlu/routes';
 import type { Endpoint } from '@/pages/LocalTransportPage/journey';
-import type { ComposeOutcome, LocalPlanner, PriceLine, RouteBoard, RouteInfoItem, Story, StoryLeg } from './types';
+import type { NotePlaces } from '../nlu/notePlaces';
+import type { ComposeOutcome, LocalPlanner, PoputkaRide, PriceLine, RouteBoard, RouteInfoItem, Story, StoryLeg } from './types';
 
 // ─── Форма поїздки ────────────────────────────────────────────────────────────────────────────
 
@@ -44,6 +45,8 @@ export type TripShape =
 
 const MALYN = placeById('city.Malyn')!;
 const CENTRE = placeById('malyn.tsentr')!;
+/** Якір попуток у Малині, коли водій місця не назвав: центр, «Промінь» (той самий, що в маршруток) */
+const CENTRE_STOP = anchorFor('to_malyn', 'marshrutka').stops.find((s) => s.placeId === 'malyn.tsentr')!;
 
 export function classify(intent: TripIntent): TripShape {
   // «коли їде маршрутка Малин — Київ завтра» (schedule) — та сама відповідь, що й «як доїхати»: історії з часом
@@ -355,7 +358,7 @@ function intercityLeg(
 }
 
 function busTransfers(legs: StoryLeg[]): number {
-  return legs.filter((l) => l.kind === 'bus' || l.kind === 'intercity').length - 1;
+  return legs.filter((l) => l.kind === 'bus' || l.kind === 'intercity' || l.kind === 'ride').length - 1;
 }
 
 function makeStory(id: string, mode: Story['mode'], date: string, fromLabel: string, toLabel: string, legs: StoryLeg[], o: {
@@ -660,6 +663,189 @@ function routeInfoItem(input: ComposeInput, routeId: string, stopIds: string[]):
   return { routeId, no: route?.no ?? routeId, fromName: route?.fromName ?? '', toName: route?.toName ?? '', boards: shown };
 }
 
+// ─── Попутки серед варіантів ──────────────────────────────────────────────────────────────────
+
+/** Сталий час авто Київ ↔ Малин, коли сервер не сказав свого (TripRoute.carDurationMinutes) */
+export const DEFAULT_CAR_MINUTES = 95;
+/** Скільки попуток стає варіантами; решта — рядком «ще N на дошці» */
+const RIDES_SHOWN = 3;
+/** За скільки хвилин до виїзду водія бути на місці посадки */
+const RIDE_BOARD_BUFFER = 5;
+/** Запас на запізнення водія: для пересадки на міський автобус і для «щоб бути до» */
+const RIDE_LATE = 10;
+/** Скільки годин виїзду питаємо в сервісу заторів за раз (стільки ж приймає сервер) */
+const RIDE_TIMES_ASKED = 6;
+
+export interface DriveEstimate {
+  minutes: number;
+  /** із заторами (Google) чи сталий час з адмінки */
+  traffic: boolean;
+}
+
+/**
+ * Попутки йдуть у загальну відповідь, коли транспорт не названо або «попутку» названо разом з іншим.
+ * Сама «попутка» — це дошка оголошень (poputkyOutcome).
+ */
+export function ridesWanted(modes: TripMode[]): boolean {
+  return modes.length === 0 || (modes.includes('poputka') && modes.length > 1);
+}
+
+function listingStart(l: ViberListing): number | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(l.departureTime ?? '');
+  return m ? Number(m[1]) * 60 + Number(m[2]) : null;
+}
+
+function rideOf(l: ViberListing): PoputkaRide {
+  return { id: l.id, time: l.departureTime, seats: l.seats, priceUah: l.priceUah ?? null, notes: l.notes, name: l.senderName };
+}
+
+function activeDrivers(listings: ViberListing[] | undefined): ViberListing[] {
+  return (listings ?? []).filter((l) => l.isActive !== false && l.listingType === 'driver');
+}
+
+/** Оголошення з часом у вікні пошуку, у порядку, в якому їх варто показувати */
+function ridesInWindow(listings: ViberListing[] | undefined, win: SearchWindow): Array<{ l: ViberListing; dep: number }> {
+  const timed = activeDrivers(listings)
+    .map((l) => ({ l, dep: listingStart(l) }))
+    .filter((x): x is { l: ViberListing; dep: number } => x.dep != null && x.dep >= win.start);
+  if (win.kind === 'arrive' && win.deadline != null) {
+    // «бути до»: найпізніші з тих, що ще можуть встигнути
+    return timed.filter((x) => x.dep < win.deadline!).sort((a, b) => b.dep - a.dep || a.l.id - b.l.id);
+  }
+  return timed.filter((x) => win.end == null || x.dep <= win.end).sort((a, b) => a.dep - b.dep || a.l.id - b.l.id);
+}
+
+/** Години виїзду («HH:MM»), для яких сторінка питає час у дорозі перед складанням відповіді */
+export function rideDepartures(input: Pick<ComposeInput, 'intent' | 'now' | 'date' | 'listings'>, shape: TripShape = classify(input.intent)): string[] {
+  if ((shape.kind !== 'to_malyn' && shape.kind !== 'from_malyn') || !ridesWanted(input.intent.modes)) return [];
+  const win = searchWindow(input.intent, input.date, input.now);
+  const times = ridesInWindow(input.listings, win).map((x) => clock(x.dep));
+  return [...new Set(times)].slice(0, RIDE_TIMES_ASKED);
+}
+
+/** Місце посадки / висадки в Малині: з примітки водія, а не названо — центр («зазвичай») */
+function malynRidePoint(note: NotePlaces | null): { place: GazetteerPlace | null; stopId: string; assumed: boolean } {
+  const named = note?.malyn ? resolvePlace(note.malyn) ?? null : null;
+  const stopId = named?.stopIds?.[0];
+  if (named && stopId) return { place: named, stopId, assumed: false };
+  return { place: CENTRE, stopId: CENTRE_STOP.stopId, assumed: true };
+}
+
+function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_malyn' | 'from_malyn' }>, l: ViberListing, dep: number): { story: Story; worst: number; traffic: boolean } {
+  const { planner, date } = input;
+  const drive = input.driveMinutes?.(dep) ?? { minutes: DEFAULT_CAR_MINUTES, traffic: false };
+  const arr = dep + drive.minutes;
+  const note = l.notes ? input.notePlaces?.(l.notes) ?? null : null;
+  const malyn = malynRidePoint(note);
+  const kyiv = note?.kyiv && KYIV_POINTS[note.kyiv] ? note.kyiv : null;
+  const kyivText = kyiv ? kyivStopText(kyiv, 'marshrutka', KYIV_POINTS[kyiv].label) : null;
+  const sameMalyn = (p: GazetteerPlace) => p.id === malyn.place?.id || Boolean(p.stopIds?.includes(malyn.stopId));
+  const leg = (boardLabel: string, boardAssumed: boolean, alightLabel: string, alightAssumed: boolean): Extract<StoryLeg, { kind: 'ride' }> => ({
+    kind: 'ride',
+    ride: rideOf(l),
+    depMins: dep,
+    arrMins: arr,
+    driveMinutes: drive.minutes,
+    traffic: drive.traffic,
+    boardLabel,
+    boardAssumed,
+    alightLabel,
+    alightAssumed,
+  });
+
+  if (shape.kind === 'from_malyn') {
+    const origin = shape.origin;
+    const originSpot = origin.isCity ? null : spotOf(planner, origin);
+    const from = malyn.assumed ? CENTRE_STOP.from : `від «${placeLabel(malyn.place!)}»`;
+    let before: StoryLeg[] = [];
+    let leave = dep;
+    if (originSpot && !sameMalyn(origin)) {
+      const pick = planner ? beforeBoard(planner, originSpot, malyn.stopId, dep - RIDE_BOARD_BUFFER) : null;
+      if (pick) {
+        before = [...pick.legs, { kind: 'wait', text: `Будьте на місці о ${clock(dep - RIDE_BOARD_BUFFER)} — водій виїжджає о ${clock(dep)}.` }];
+        leave = pick.departMins;
+      } else {
+        before = [{ kind: 'wait', text: 'Міським автобусом до місця посадки в цей час не доїхати — домовтесь із водієм, де сісти.' }];
+      }
+    }
+    const target = shape.kyivPoint;
+    let kyivLeg: StoryLeg | null = null;
+    if (kyiv && target && target !== kyiv) {
+      kyivLeg = { kind: 'kyiv', text: metroHint(kyiv, target) ?? `Далі до: ${KYIV_POINTS[target]?.label ?? 'місця'}`, mapsUrl: mapsTransitUrl(KYIV_POINTS[kyiv].mapsQuery, KYIV_POINTS[target]?.mapsQuery ?? null) };
+    } else if (kyiv && !target) {
+      kyivLeg = { kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[kyiv].mapsQuery, null) };
+    }
+    const legs: StoryLeg[] = [...before, leg(from, malyn.assumed, kyivText?.at ?? 'у Києві', !kyiv), ...(kyivLeg ? [kyivLeg] : [])];
+    const story = makeStory(`ride-${l.id}`, 'poputka', date, placeLabel(origin), shape.kyivPoint ? placeLabel(placeById(shape.kyivPoint)!) : 'Київ', legs, {
+      leave,
+      arrive: arr,
+      approx: true,
+      endLabel: kyivText ? `Київ, ${kyivText.name}` : 'Київ',
+      // де висадить у Києві — каже картка попутки («Висадка… уточніть у водія»)
+      endNote: null,
+      price: l.priceUah ?? null,
+    });
+    return { story, worst: arr + RIDE_LATE, traffic: drive.traffic };
+  }
+
+  // to_malyn: сідаємо в Києві, у Малині — до місця призначення
+  const dest = shape.dest;
+  const destSpot = spotOf(planner, dest);
+  const user = shape.kyivPoint;
+  const kyivLeg: StoryLeg | null =
+    kyiv && user && user !== kyiv
+      ? { kind: 'kyiv', text: metroHint(user, kyiv) ?? `Доїдьте: ${kyivText!.name}`, mapsUrl: mapsTransitUrl(KYIV_POINTS[user]?.mapsQuery ?? null, KYIV_POINTS[kyiv].mapsQuery) }
+      : null;
+  const at = malyn.assumed ? CENTRE_STOP.label : `біля «${placeLabel(malyn.place!)}»`;
+  let after: StoryLeg[] = [];
+  let arrive = arr;
+  let worst = arr + RIDE_LATE;
+  let endNote: string | null = null;
+  if (destSpot && !dest.isCity && !sameMalyn(dest)) {
+    const pick = planner ? afterAlight(planner, malyn.stopId, destSpot, arr, arr + RIDE_LATE, 3, true) : null;
+    const lateWalk = pick?.legs.find((x) => x.kind === 'walk' && x.late);
+    if (lateWalk && lateWalk.kind === 'walk' && lateWalk.minutes > 25) {
+      // автобуси вже не ходять, а пішки далеко: на відміну від маршрутки, водія можна попросити довезти
+      endNote = 'міські автобуси вже не ходять — попросіть водія довезти до місця';
+    } else if (pick) {
+      const walk = pick.legs[0]?.kind === 'walk';
+      after = [{ kind: 'wait', text: `Попросіть висадити ${at} (${clock(arr, true)}) і ${walk ? 'йдіть пішки' : 'пересядьте на міський автобус'}.` }, ...pick.legs];
+      arrive = pick.arriveMins;
+      worst = pick.worst;
+      if (pick.legs.some((x) => x.kind === 'walk' && x.late)) endNote = 'міські автобуси вже не ходять';
+    } else {
+      endNote = 'до самого місця домовтесь із водієм';
+    }
+  }
+  const legs: StoryLeg[] = [...(kyivLeg ? [kyivLeg] : []), leg(kyivText?.from ?? 'з Києва', !kyiv, at, malyn.assumed), ...after];
+  const story = makeStory(`ride-${l.id}`, 'poputka', date, user ? placeLabel(placeById(user)!) : 'Київ', placeLabel(dest), legs, {
+    leave: dep,
+    arrive,
+    approx: true,
+    endLabel: dest.isCity ? `Малин, ${malyn.assumed ? CENTRE_STOP.name : placeLabel(malyn.place!)}` : placeLabel(dest),
+    endNote: endNote ?? approxNote(dest),
+    price: l.priceUah ?? null,
+  });
+  return { story, worst, traffic: drive.traffic };
+}
+
+/** До трьох попуток як варіанти поруч із маршруткою й електричкою */
+function rideStories(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_malyn' | 'from_malyn' }>, win: SearchWindow): { stories: Story[]; total: number; traffic: boolean } {
+  const total = activeDrivers(input.listings).length;
+  const stories: Story[] = [];
+  let traffic = false;
+  for (const { l, dep } of ridesInWindow(input.listings, win)) {
+    if (stories.length >= RIDES_SHOWN) break;
+    const made = rideStory(input, shape, l, dep);
+    // вийти з дому треба було б раніше, ніж «зараз», або до названої години не встигнути — не варіант
+    if (made.story.leaveMins < win.start) continue;
+    if (win.kind === 'arrive' && win.deadline != null && made.worst > win.deadline) continue;
+    stories.push(made.story);
+    traffic = traffic || made.traffic;
+  }
+  return { stories, total, traffic };
+}
+
 const POPUTKY_SHOWN = 5;
 
 /** Попутки: оголошення водіїв на цей день, за часом; телефонів тут немає — контакт відкривають на дошці сайту */
@@ -690,7 +876,7 @@ function poputkyOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: '
     toCity: shape.toCity,
     fromLabel: CITY_LABEL[shape.fromCity],
     toLabel: CITY_LABEL[shape.toCity],
-    rides: drivers.slice(0, POPUTKY_SHOWN).map((l) => ({ id: l.id, time: l.departureTime, seats: l.seats, priceUah: l.priceUah ?? null, notes: l.notes, name: l.senderName })),
+    rides: drivers.slice(0, POPUTKY_SHOWN).map(rideOf),
     more: Math.max(0, drivers.length - POPUTKY_SHOWN),
     passengers: all.filter((l) => l.listingType === 'passenger').length,
     boardUrl: `/mizhgorodski?${q.toString()}`,
@@ -735,6 +921,10 @@ export interface ComposeInput {
   listings?: ViberListing[];
   /** ціна проїзду в міському автобусі, грн; null — у даних немає */
   cityFare?: number | null;
+  /** скільки авто їде коридором при виїзді о `depMins` (GET /dovede/drive-time); немає — сталі 1 год 35 хв */
+  driveMinutes?: (depMins: number) => DriveEstimate;
+  /** місця в примітці водія (nlu/notePlaces з індексом зупинок сторінки) */
+  notePlaces?: (note: string) => NotePlaces;
 }
 
 export function composeStories(input: ComposeInput, shape: TripShape = classify(input.intent)): ComposeOutcome {
@@ -763,8 +953,18 @@ export function composeStories(input: ComposeInput, shape: TripShape = classify(
   const win = searchWindow(input.intent, input.date, input.now);
   if (shape.kind === 'intra') return intraOutcome(input, shape, win);
   const options = shape.kind === 'to_malyn' ? toMalynOptions(input, shape) : fromMalynOptions(input, shape);
-  const { stories, notice } = pickPerMode(options, win);
+  const picked = pickPerMode(options, win);
+  const rides = ridesWanted(input.intent.modes) ? rideStories(input, shape, win) : null;
+  const stories = [...picked.stories, ...(rides?.stories ?? [])].sort((a, b) => a.arriveMins - b.arriveMins);
   if (!stories.length) return { kind: 'empty', reason: input.date === input.now.date ? 'too_late' : 'no_trips' };
   const askMode = input.intent.modes.length === 0 && new Set(stories.map((s) => s.mode)).size > 1;
-  return { kind: 'stories', stories, askMode, notice };
+  const cities = corridorCities(shape)!;
+  const board = new URLSearchParams({ type: 'carpool', from: cities.from, to: cities.to, date: input.date });
+  return {
+    kind: 'stories',
+    stories,
+    askMode,
+    notice: picked.notice,
+    ...(rides && rides.total > 0 ? { rides: { more: rides.total - rides.stories.length, boardUrl: `/mizhgorodski?${board.toString()}`, traffic: rides.traffic } } : {}),
+  };
 }

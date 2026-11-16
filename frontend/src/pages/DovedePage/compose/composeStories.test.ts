@@ -3,7 +3,8 @@ import type { DirectWalk, Endpoint, Journey } from '@/pages/LocalTransportPage/j
 import type { Schedule, ViberListing } from '@/types';
 import { parseLocal } from '../nlu/parseLocal';
 import type { KyivNow } from '../nlu/types';
-import { classify, composeStories, corridorCities, resolveDate } from './composeStories';
+import { placesInNote } from '../nlu/notePlaces';
+import { classify, composeStories, corridorCities, resolveDate, rideDepartures, ridesWanted } from './composeStories';
 import type { LocalPlanner, Story, StoryLeg } from './types';
 
 /** п'ятниця 13.11.2026, 14:20 */
@@ -277,5 +278,121 @@ describe('попутки, ціна, контакти', () => {
     expect(corridorCities(classify(parseLocal('скільки коштує маршрутка до Києва', NOW).intent))).toEqual({ from: 'Malyn', to: 'Kyiv' });
     expect(corridorCities(classify(parseLocal('скільки коштує автобус з Царського села на вокзал', NOW).intent))).toBeNull();
     expect(corridorCities(classify(parseLocal('телефон зубастика', NOW).intent))).toBeNull();
+  });
+});
+
+describe('попутки серед варіантів', () => {
+  const ride = (s: Story) => s.legs.find((l): l is Extract<StoryLeg, { kind: 'ride' }> => l.kind === 'ride')!;
+  const listing = (over: Partial<ViberListing>): ViberListing =>
+    ({ id: 1, senderName: 'Олег Петренко', listingType: 'driver', route: 'Malyn-Kyiv', date: '2026-11-14', departureTime: '07:00', seats: 2, notes: null, priceUah: 250, isActive: true, createdAt: '', updatedAt: '', ...over }) as ViberListing;
+  const schedules = [sched({ id: 11, route: 'Malyn-Kyiv-Irpin', departureTime: '07:30', boardingPlace: 'Автостанція Малин' })];
+  const p = planner({
+    'st_0090>st_0049': [bus('9', 'st_0090', 'st_0049', hm(6, 40), hm(6, 47)), bus('9', 'st_0090', 'st_0049', hm(7, 9), hm(7, 16))],
+    'st_0049>st_0019': [bus('8', 'st_0049', 'st_0019', hm(20, 0), hm(20, 10))],
+  });
+  const notePlaces = (note: string) => placesInNote(note);
+  const ask = (text: string, listings: ViberListing[], extra: Partial<Parameters<typeof composeStories>[0]> = {}) => {
+    const intent = parseLocal(text, NOW).intent;
+    const out = composeStories({ intent, now: NOW, date: resolveDate(intent.when.day, NOW), schedules, planner: p, listings, notePlaces, ...extra });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    return out;
+  };
+
+  it('транспорт не названо — попутка стає варіантом поруч із маршруткою; прибуття = виїзд + 1 год 35 хв, завжди «≈»', () => {
+    const out = ask('з Малина до Києва завтра зранку', [listing({ id: 7 }), listing({ id: 8, listingType: 'passenger' }), listing({ id: 9, departureTime: null })]);
+    expect(out.stories.map((s) => s.mode).sort()).toEqual(['marshrutka', 'poputka']);
+    expect(out.askMode).toBe(true);
+    const s = out.stories.find((x) => x.mode === 'poputka')!;
+    expect(s.id).toBe('ride-7');
+    expect([s.leaveMins, s.arriveMins, s.arriveApprox]).toEqual([hm(7, 0), hm(8, 35), true]);
+    expect(ride(s)).toMatchObject({ depMins: hm(7, 0), arrMins: hm(8, 35), driveMinutes: 95, traffic: false, boardAssumed: true, alightAssumed: true });
+    expect(ride(s).boardLabel).toBe('з центру, від «Промінь»');
+    expect(s.priceUah).toBe(250);
+    expect(s.lead).toBe('Попутка о 07:00 з центру, від «Промінь». Київ — приблизно о 08:35.');
+    // оголошення без часу у варіанти не йде — лише в «ще N на дошці»; пасажирів не рахуємо
+    expect(out.rides).toEqual({ more: 1, boardUrl: '/mizhgorodski?type=carpool&from=Malyn&to=Kyiv&date=2026-11-14', traffic: false });
+  });
+
+  it('час із заторами приходить ззовні й позначається; без нього — сталий', () => {
+    const out = ask('з Малина до Києва завтра зранку', [listing({ id: 7 })], { driveMinutes: (dep) => ({ minutes: dep === hm(7, 0) ? 112 : 95, traffic: true }) });
+    const s = out.stories.find((x) => x.mode === 'poputka')!;
+    expect(s.arriveMins).toBe(hm(8, 52));
+    expect(ride(s).traffic).toBe(true);
+    expect(out.rides?.traffic).toBe(true);
+  });
+
+  it('до посадки в центрі — міським автобусом, бути за 5 хв до виїзду водія', () => {
+    const out = ask('з Царського села до Києва завтра зранку', [listing({ id: 7 })]);
+    const s = out.stories.find((x) => x.mode === 'poputka')!;
+    expect(kinds(s)).toEqual(['bus', 'wait', 'ride']);
+    expect(busLeg(s)).toMatchObject({ routeId: '9', depMins: hm(6, 40), arrMins: hm(6, 47) });
+    expect(s.leaveMins).toBe(hm(6, 40));
+    expect(s.legs[1]).toEqual({ kind: 'wait', text: 'Будьте на місці о 06:55 — водій виїжджає о 07:00.' });
+  });
+
+  it('місця з примітки водія: посадка в Малині й точка в Києві з підказкою метро', () => {
+    const out = ask('з Малина до Житомирської завтра зранку', [listing({ id: 7, notes: 'заберу з вокзалу, їду до Академмістечка' })]);
+    const s = out.stories.find((x) => x.mode === 'poputka')!;
+    expect(ride(s)).toMatchObject({ boardAssumed: false, alightAssumed: false, alightLabel: 'біля метро «Академмістечко»' });
+    expect(ride(s).boardLabel).toContain('вокзал');
+    expect(s.endLabel).toBe('Київ, метро «Академмістечко»');
+    expect(s.endNote).toBeNull();
+    const kyiv = s.legs[s.legs.length - 1];
+    expect(kyiv.kind === 'kyiv' && kyiv.text).toContain('«Академмістечко» → «Житомирська», 1 станція');
+  });
+
+  it('«бути до» — лише попутки, що встигають із запасом 10 хв; найпізніша перша', () => {
+    const list = [listing({ id: 1, departureTime: '06:00' }), listing({ id: 2, departureTime: '07:00' }), listing({ id: 3, departureTime: '07:30' })];
+    const out = ask('з Малина до Києва завтра бути до 9:00', list);
+    // 07:30 + 95 + 10 = 09:15 — не встигає
+    expect(out.stories.filter((s) => s.mode === 'poputka').map((s) => s.id)).toEqual(['ride-1', 'ride-2']);
+    expect(rideDepartures({ intent: parseLocal('з Малина до Києва завтра бути до 9:00', NOW).intent, now: NOW, date: '2026-11-14', listings: list })).toEqual(['07:30', '07:00', '06:00']);
+  });
+
+  it('не більше трьох варіантів, решта — «ще N»; частина дня відсікає вечірні', () => {
+    const list = ['06:00', '06:30', '07:00', '08:00', '19:00'].map((t, i) => listing({ id: i + 1, departureTime: t }));
+    const out = ask('з Малина до Києва завтра зранку', list);
+    expect(out.stories.filter((s) => s.mode === 'poputka').map((s) => s.id)).toEqual(['ride-1', 'ride-2', 'ride-3']);
+    expect(out.rides?.more).toBe(2);
+  });
+
+  it('названо лише маршрутку — попуток немає; «попутка» сама — дошка; разом — обидва без питання', () => {
+    expect(ask('з Малина до Києва завтра зранку маршруткою', [listing({ id: 7 })]).stories.map((s) => s.mode)).toEqual(['marshrutka']);
+    expect(ridesWanted([])).toBe(true);
+    expect(ridesWanted(['poputka'])).toBe(false);
+    expect(ridesWanted(['marshrutka'])).toBe(false);
+    expect(ridesWanted(['marshrutka', 'poputka'])).toBe(true);
+    const intent = parseLocal('попутка з Малина до Києва завтра', NOW).intent;
+    expect(composeStories({ intent, now: NOW, date: '2026-11-14', schedules, planner: p, listings: [listing({ id: 7 })] }).kind).toBe('poputky');
+  });
+
+  it('з Києва в Малин: висадка в центрі, далі містом від найпізнішого прибуття; без розкладу — самі попутки', () => {
+    const intent = parseLocal('з Києва до Малина на вокзал завтра ввечері', NOW).intent;
+    const out = composeStories({
+      intent,
+      now: NOW,
+      date: '2026-11-14',
+      schedules: [],
+      planner: p,
+      notePlaces,
+      listings: [listing({ id: 5, route: 'Kyiv-Malyn', departureTime: '18:00-18:30', notes: 'від м. Житомирська' })],
+    });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    const s = out.stories[0];
+    expect(out.askMode).toBe(false);
+    expect(kinds(s)).toEqual(['ride', 'wait', 'bus']);
+    expect(ride(s)).toMatchObject({ boardLabel: 'від метро «Житомирська»', boardAssumed: false, alightLabel: 'у центрі, біля «Промінь»', alightAssumed: true, arrMins: hm(19, 35) });
+    // автобус — після 19:35 + 10 хв запізнення + 3 хв на пересадку
+    expect(busLeg(s).depMins).toBe(hm(20, 0));
+    expect([s.arriveMins, s.arriveApprox]).toEqual([hm(20, 10), true]);
+  });
+
+  it('автобуси вже не ходять, а пішки далеко — не женемо пішки, а радимо попросити водія довезти', () => {
+    const intent = parseLocal('з Києва до Малина на вокзал завтра ввечері', NOW).intent;
+    const out = composeStories({ intent, now: NOW, date: '2026-11-14', schedules: [], planner: planner({}), listings: [listing({ id: 5, route: 'Kyiv-Malyn', departureTime: '21:00' })] });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    expect(kinds(out.stories[0])).toEqual(['ride']);
+    expect(out.stories[0].arriveMins).toBe(hm(22, 35));
+    expect(out.stories[0].endNote).toBe('міські автобуси вже не ходять — попросіть водія довезти до місця');
   });
 });

@@ -12,6 +12,7 @@ import { createAdminDovedeRouter, intentsAgree } from './routes/admin-dovede';
 import { validateIntent, type TripIntent } from './dovede/intent';
 import type { UnderstandFn, UnderstandResult } from './dovede/understand';
 import express from 'express';
+import type { DriveTimeFn } from './drive-time';
 import { setAdminPassword } from './middleware/require-admin';
 
 const PASSWORD = 'http-test-admin-password-dovede';
@@ -86,7 +87,7 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
   return { prisma, rows, countWhere, synonymRows };
 }
 
-function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null; enabled?: boolean; cap?: number }) {
+function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null; enabled?: boolean; cap?: number; driveTime?: DriveTimeFn }) {
   const app = express();
   app.use(express.json());
   setAdminPassword(app, PASSWORD);
@@ -97,6 +98,7 @@ function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null;
       enabled: () => opts.enabled ?? true,
       dailyCap: () => opts.cap ?? 300,
       now: () => new Date('2026-11-13T12:20:00.000Z'),
+      driveTime: opts.driveTime ?? (async ({ fixedMinutes }) => ({ minutes: fixedMinutes, source: 'fixed' })),
     }),
   );
   return app;
@@ -427,4 +429,77 @@ test('синоніми діють одразу: сторінка читає їх
   assert.deepEqual(seen, [[{ phrase: 'епіцентр', placeId: 'malyn.tsentr' }]]);
   // без доступу до «Доведе» список не віддаємо
   assert.equal((await request(app).get('/dovede/synonyms')).status, 401);
+});
+
+test('час у дорозі: лише з доступом; сталий час — з маршруту в адмінці, години виїзду — за Києвом', async () => {
+  const asked: Array<{ slug?: string; departAt?: string; fixed?: number }> = [];
+  const prisma = {
+    tripRoute: {
+      findUnique: async ({ where }: { where: { slug: string } }) => {
+        asked.push({ slug: where.slug });
+        return where.slug === 'Malyn-Kyiv' ? { carDurationMinutes: 100 } : null;
+      },
+    },
+  } as unknown as PrismaClient;
+  const app = appWith({
+    prisma,
+    driveTime: async ({ departAt, fixedMinutes }) => {
+      asked.push({ departAt: departAt.toISOString(), fixed: fixedMinutes });
+      return departAt.getUTCHours() === 5 ? { minutes: 112, source: 'traffic' } : { minutes: fixedMinutes, source: 'fixed' };
+    },
+  });
+  const url = '/dovede/drive-time?from=Malyn&to=Kyiv&date=2026-11-17&times=07:00,10:30,07:00,zz';
+  assert.equal((await request(app).get(url)).status, 401);
+
+  const res = await request(app).get(url).set('Authorization', AUTH);
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, { fixedMinutes: 100, source: 'traffic', minutes: { '07:00': 112, '10:30': 100 } });
+  // 07:00 за Києвом у листопаді = 05:00 UTC
+  assert.deepEqual(asked, [
+    { slug: 'Malyn-Kyiv' },
+    { departAt: '2026-11-17T05:00:00.000Z', fixed: 100 },
+    { departAt: '2026-11-17T08:30:00.000Z', fixed: 100 },
+  ]);
+
+  const other = await request(app).get('/dovede/drive-time?from=Kyiv&to=Zhytomyr&date=2026-11-17&times=09:00').set('Authorization', AUTH);
+  assert.deepEqual(other.body, { fixedMinutes: 95, source: 'fixed', minutes: { '09:00': 95 } });
+  assert.equal((await request(app).get('/dovede/drive-time?from=Malyn&to=Kyiv&date=завтра').set('Authorization', AUTH)).status, 400);
+});
+
+test('звідки забирають: лише адмін; примітки водіїв згруповано за напрямком і текстом, без імен і телефонів', async () => {
+  let where: unknown;
+  let select: unknown;
+  const prisma = {
+    viberListing: {
+      findMany: async (args: { where: unknown; select: unknown }) => {
+        where = args.where;
+        select = args.select;
+        return [
+          { route: 'Malyn-Kyiv', notes: 'до  Академмістечка' },
+          { route: 'Malyn-Kyiv', notes: 'До Академмістечка' },
+          { route: 'Malyn-Kyiv', notes: null },
+          { route: 'Kyiv-Malyn', notes: 'від Житомирської' },
+        ];
+      },
+    },
+  } as unknown as PrismaClient;
+  const app = appWith({ prisma });
+  assert.equal((await request(app).get('/admin/dovede/pickups')).status, 401);
+
+  const res = await request(app).get('/admin/dovede/pickups?days=30').set('Authorization', AUTH);
+  assert.equal(res.status, 200);
+  assert.deepEqual(res.body, {
+    days: 30,
+    total: 4,
+    routes: [
+      { route: 'Malyn-Kyiv', total: 3, withNote: 2 },
+      { route: 'Kyiv-Malyn', total: 1, withNote: 1 },
+    ],
+    notes: [
+      { route: 'Malyn-Kyiv', note: 'до Академмістечка', count: 2 },
+      { route: 'Kyiv-Malyn', note: 'від Житомирської', count: 1 },
+    ],
+  });
+  assert.deepEqual(select, { route: true, notes: true });
+  assert.deepEqual(where, { listingType: 'driver', createdAt: { gte: new Date('2026-10-14T12:20:00.000Z') } });
 });

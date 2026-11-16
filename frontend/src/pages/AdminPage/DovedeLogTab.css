@@ -272,3 +272,41 @@
   font-size: 1.125rem;
   cursor: pointer;
 }
+
+/* «Звідки забирають попутки» */
+.dovede-pickups-route {
+  padding-top: 10px;
+  border-top: 1px solid #eef1f3;
+}
+.dovede-pickups-route h4 {
+  margin: 0 0 2px;
+  font-size: 15px;
+}
+.dovede-pickups-route h4 span {
+  font-weight: 400;
+  color: #6b7780;
+  font-size: 13px;
+}
+.dovede-pickups-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin: 8px 0;
+}
+.dovede-pickups-cols h5 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: #6b7780;
+}
+.dovede-pickups-cols ul,
+.dovede-pickups-notes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.dovede-pickups-notes {
+  margin-top: 6px;
+  color: #3d4950;
+}

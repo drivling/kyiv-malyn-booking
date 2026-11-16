@@ -17,6 +17,9 @@ export function stripSegments(story: Story): Segment[] {
     if (leg.kind === 'intercity') {
       out.push({ start: leg.boardMins, end: leg.alightMins, cls: leg.mode });
       cursor = leg.alightMins;
+    } else if (leg.kind === 'ride') {
+      out.push({ start: leg.depMins, end: leg.arrMins, cls: 'poputka' });
+      cursor = leg.arrMins;
     } else if (leg.kind === 'bus') {
       out.push({ start: leg.depMins, end: leg.arrMins, cls: 'bus', style: routeColorStyle(leg.routeId) as CSSProperties });
       cursor = leg.arrMins;

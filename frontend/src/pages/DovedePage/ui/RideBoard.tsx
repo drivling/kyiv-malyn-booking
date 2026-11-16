@@ -69,11 +69,12 @@ export function TearOffContact({ listingId }: { listingId: number }) {
   );
 }
 
-function Note({ ride, n }: { ride: PoputkaRide; n: number }) {
+/** Записка водія на шпильці з відривним корінцем; `as="div"` — поза дошкою, у кроці історії */
+export function RideNote({ ride, n, as: Tag = 'li' }: { ride: PoputkaRide; n: number; as?: 'li' | 'div' }) {
   const time = splitTime(ride.time);
   const name = ride.name ? maskSenderNameForDisplay(ride.name) : 'Водій';
   return (
-    <li className="dv-ad" style={{ '--dv-n': n } as CSSProperties}>
+    <Tag className="dv-ad" style={{ '--dv-n': n } as CSSProperties}>
       <span className="dv-ad__pin" aria-hidden="true" />
       <div className="dv-ad__paper">
         <div className="dv-ad__head">
@@ -96,7 +97,7 @@ function Note({ ride, n }: { ride: PoputkaRide; n: number }) {
         {ride.notes ? <p className="dv-ad__text">{ride.notes}</p> : null}
       </div>
       <TearOffContact listingId={ride.id} />
-    </li>
+    </Tag>
   );
 }
 
@@ -121,7 +122,7 @@ export function PoputkyCard({ info, dateLabel }: { info: Poputky; dateLabel: str
       ) : (
         <ul className="dv-board__notes">
           {info.rides.map((r, i) => (
-            <Note key={r.id} ride={r} n={i} />
+            <RideNote key={r.id} ride={r} n={i} />
           ))}
         </ul>
       )}

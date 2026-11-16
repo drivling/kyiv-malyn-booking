@@ -222,6 +222,8 @@ class ApiClient {
       endPointId: number;
       viaPointIds: number[];
       labelUk: string;
+      /** «Авто в дорозі, хв»; null — прибрати */
+      carDurationMinutes: number | null;
       stopOffsets: Array<{ pointId: number; departureOffsetMinutes: number | null }>;
     }>
   ): Promise<import('@/types').TripRoute> {
@@ -1082,7 +1084,28 @@ class ApiClient {
     }
   }
 
-  /** Адмін: журнал питань «Доведе» — зведення за `days` і останні питання (`only` — фільтр таблиці) */
+  /**
+   * «Доведе»: скільки авто їде між містами при виїзді о `times` («HH:MM», до шести). `source: 'traffic'` — із
+   * заторами. Не відповів за `timeoutMs` чи помилка — `null`: сторінка бере сталий час.
+   */
+  async dovedeDriveTime(q: { from: string; to: string; date: string; times: string[] }, timeoutMs = 4000): Promise<import('@/types').DovedeDriveTime | null> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const p = new URLSearchParams({ from: q.from, to: q.to, date: q.date, times: q.times.join(',') });
+      return await this.request(`/dovede/drive-time?${p.toString()}`, { headers: this.dovedeHeaders(), cache: 'no-store', signal: ctrl.signal });
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** Адмін: примітки оголошень водіїв за період — для підрахунку «Звідки забирають попутки» */
+  async getDovedePickups(days: import('@/types').DovedeLogDays = 90): Promise<import('@/types').DovedePickups> {
+    return this.request(`/admin/dovede/pickups?days=${days}`);
+  }
+
   /** «Доведе»: синоніми з адмінки для розбору в браузері; не вдалося — порожньо (сторінка працює й без них) */
   async dovedeSynonyms(): Promise<import('@/pages/DovedePage/nlu/synonyms').Synonym[]> {
     try {

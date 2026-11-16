@@ -198,6 +198,15 @@ of `dist` in a commit.
   after a preposition, and a stop, curated place or address of the same name wins. Same-named places carry `twins`
   and the answer says which one is shown. New landmark or alias = edit `config.json`, rerun the generator, bump
   `PROMPT_VERSION`.
+  Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
+  listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
+  `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:
+  `GET /dovede/drive-time` (Dovede access) → `backend/src/drive-time.ts` — Google Routes with traffic
+  (`GOOGLE_MAPS_API_KEY`, 15-min memory cache, `DRIVE_TIME_DAILY_CAP` 200, nothing stored), else the route's
+  `TripRoute.carDurationMinutes` («Авто в дорозі, хв» in the admin «Маршрути» form), else 95. Pickup / drop-off come from
+  the driver's note (`nlu/notePlaces.ts`); no Malyn place named → centre «Промінь» marked as an assumption, and the city
+  leg to it is planned like for a marshrutka. `/admin/dovede` has «Звідки забирають попутки»
+  (`GET /admin/dovede/pickups`: notes only, no names or phones; parsed in the browser by `dovedePickups.ts`).
 
 ### In-process scheduled jobs (no external cron)
 

@@ -48,6 +48,8 @@ model TripRoute {
   endPointId           Int
   /// Для variant (з via) — parent corridor; для corridor = null
   corridorTripRouteId  Int?
+  /// Скільки легковик їде цим маршрутом, хв — час прибуття попуток у «Доведе», коли сервіс заторів недоступний
+  carDurationMinutes   Int?
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
