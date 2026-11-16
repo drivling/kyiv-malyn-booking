@@ -55,6 +55,8 @@ export interface LandmarkMatch {
   landmark: Landmark;
   /** індекс останнього слова питання, що належить назві */
   end: number;
+  /** сказано дослівно, як у назві («дружба народів»), а не схожим словом («теремки» ↔ «Теремок») */
+  exact: boolean;
 }
 
 /**
@@ -68,10 +70,10 @@ export function matchLandmark(toks: Token[], i: number): LandmarkMatch | null {
     if (!v.words.every((w, k) => toks[i + k] && wordFits(w, toks[i + k].n, v.words.length > 1))) continue;
     if (v.words.length === 1 && findPlaceByToken(toks[i].n)) continue;
     // серед назв однакової довжини — та, що сказана дослівно («Копійочка», а не «Копійка»)
-    if (v.words.every((w, k) => toks[i + k].n === w)) return { landmark: v.landmark, end: i + v.words.length - 1 };
+    if (v.words.every((w, k) => toks[i + k].n === w)) return { landmark: v.landmark, end: i + v.words.length - 1, exact: true };
     best ??= v;
   }
-  return best ? { landmark: best.landmark, end: i + best.words.length - 1 } : null;
+  return best ? { landmark: best.landmark, end: i + best.words.length - 1, exact: false } : null;
 }
 
 export function landmarkById(id: string): Landmark | undefined {

@@ -44,7 +44,7 @@ describe('Київ', () => {
   });
 
   it('підказка метро й посилання Google Maps', () => {
-    expect(metroHint('kyiv.sviatoshyn', 'kyiv.akadem')).toBe('метро М1 «Святошин» → «Академмістечко», 2 станції, ≈ 5 хв');
+    expect(metroHint('kyiv.sviatoshyn', 'kyiv.akadem')).toBe('метро М1 «Святошин» → «Академмістечко», 2 станції, ≈ 9 хв');
     expect(metroHint('kyiv.borshch', 'kyiv.akadem')).toBeNull();
     expect(mapsTransitUrl('метро Святошин, Київ', null)).toBe(
       'https://www.google.com/maps/dir/?api=1&travelmode=transit&origin=%D0%BC%D0%B5%D1%82%D1%80%D0%BE+%D0%A1%D0%B2%D1%8F%D1%82%D0%BE%D1%88%D0%B8%D0%BD%2C+%D0%9A%D0%B8%D1%97%D0%B2',

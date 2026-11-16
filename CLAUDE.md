@@ -201,6 +201,15 @@ of `dist` in a commit.
   after a preposition, and a stop, curated place or address of the same name wins. Same-named places carry `twins`
   and the answer says which one is shown. New landmark or alias = edit `config.json`, rerun the generator, bump
   `PROMPT_VERSION`.
+  Kyiv metro: all 52 stations are places (`nlu/kyivMetroData.ts`, byte-identical copy in `backend/src/dovede/`, ids
+  `kyiv.m.<slug>`; eight older ids such as `kyiv.akadem` and `kyiv.pas` = «Вокзальна» are kept). `nlu/kyivMetro.ts`
+  matches names by phrase (`strict` names — Дніпро, Університет, Харківська… — only after «метро / м. / ст.»; a name
+  that resembles a Malyn place is a station only once the person has said «з Малина», a verbatim Malyn name stays
+  Malyn's) and finds the path with transfers. When the person asks for another Kyiv point than the one the trip
+  reaches, the story ends at the requested point with metro minutes added (`metroTrip` in `data/kyiv.ts`: 2 min per
+  hop + 5 per transfer + 5), and a trip from Kyiv starts earlier by the same. Golden sets: `eval/kyiv-metro.json`
+  (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in
+  `eval/golden.json` for the real-model run.
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
   listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
   `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:

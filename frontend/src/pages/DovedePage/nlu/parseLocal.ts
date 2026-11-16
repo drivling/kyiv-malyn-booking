@@ -4,6 +4,7 @@
  */
 import { CITY_LABEL, findPlaceByToken, type GazetteerPlace, placeById } from './gazetteer';
 import { tokenize, type Token } from './normalize';
+import { matchMetro, type MetroMatch } from './kyivMetro';
 import { resolvePlace } from './places';
 import { findRouteMentions, type RouteLike } from './routes';
 import { matchSynonym } from './synonyms';
@@ -15,7 +16,7 @@ import type { KyivNow, LocalParse, ParseSpan, PlaceRef, TripIntent, TripMode, Tr
 const FROM_PREPS = new Set(['з', 'із', 'зі', 'від', 'с', 'со', 'из', 'от']);
 const TO_PREPS = new Set(['до', 'в', 'у', 'на', 'к', 'во']);
 /** Слова між прийменником і місцем: «до метро Житомирська», «на вул. Грушевського» */
-const FILLERS = new Set(['метро', 'станції', 'станція', 'станции', 'станция', 'зупинки', 'зупинка', 'остановки', 'вул', 'вулиці', 'вулиця', 'улицы', 'район', 'мікрорайон', 'місто', 'міста', 'город', 'города', 'смт', 'платформи', 'платформа']);
+const FILLERS = new Set(['метро', 'м', 'ст', 'станції', 'станція', 'станции', 'станция', 'зупинки', 'зупинка', 'остановки', 'вул', 'вулиці', 'вулиця', 'улицы', 'район', 'мікрорайон', 'місто', 'міста', 'город', 'города', 'смт', 'платформи', 'платформа']);
 const HOUR_PREPS = new Set(['о', 'об', 'в', 'на', 'до', 'к', 'після', 'после']);
 
 const MODE_STEMS: Array<[TripMode | 'bus', string[]]> = [
@@ -103,10 +104,32 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     if (p.id === 'malyn.vokzal' && cur?.city === 'Kyiv') p = placeById('kyiv.pas') ?? p;
     hit.place = p;
     // конкретніше місце того самого міста не замінюємо загальним «Малин»
-    const keep = cur && cur.city === p.city && !cur.isCity && p.isCity;
+    // «з Малина до Видубичів на автостанцію»: їдуть з Малина до точки в Києві — «автостанція» вже київська, не наша
+    const kyivDetail = role === 'to' && cur != null && cur.city === 'Kyiv' && !cur.isCity && p.city === 'Malyn' && st.from?.city === 'Malyn';
+    const keep = kyivDetail || (cur && cur.city === p.city && !cur.isCity && p.isCity);
     if (!keep) st[role] = p;
     hit.role = role;
     st.lastRole = role;
+  };
+
+  /** Станція метро як місце: роль за прийменником, без нього — розставимо після циклу, як і міста */
+  const takeMetro = (m: MetroMatch, i: number): boolean => {
+    const place = resolvePlace(m.station.id);
+    if (!place) return false;
+    const first = toks[i];
+    const lastTok = toks[m.end];
+    const whole: Token = { raw: text.slice(first.start, lastTok.end), n: first.n, start: first.start, end: lastTok.end };
+    const hit: PlaceHit = { place, token: whole, spanStart: m.marked ? toks[i - 1].start : first.start, role: null };
+    hits.push(hit);
+    const prep = prepBefore(toks, i);
+    if (prep && FROM_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('from', place, hit); }
+    else if (prep && TO_PREPS.has(prep.n)) { hit.spanStart = prep.start; assign('to', place, hit); }
+    else {
+      // «з Києва (Позняки)» — те саме місто без прийменника → уточнення
+      const cur = st.lastRole ? st[st.lastRole] : null;
+      if (st.lastRole && cur && cur.city === 'Kyiv') assign(st.lastRole, place, hit);
+    }
+    return true;
   };
 
   for (let i = 0; i < toks.length; i++) {
@@ -130,6 +153,14 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
       continue;
     }
 
+    // Станція київського метро зі словом «метро / м. / ст.» попереду — раніше за зупинки й вулиці Малина:
+    // «до метро Лісова» — це Київ, навіть якщо в Малині є вулиця Лісова
+    const marked = matchMetro(toks, i);
+    if (marked?.marked && takeMetro(marked, i)) {
+      i = marked.end;
+      continue;
+    }
+
     // Назва зупинки з розкладу — кілька слів, тому раніше за час («до 14 ОМБ») і за прийменники («поворот на…»)
     const stop = stops.length ? matchStopPlace(stops, toks, i) : null;
     if (stop) {
@@ -146,11 +177,15 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
 
     // Вулиця чи адреса без зупинки («з Городищанської 20», «до вул. Чапаєва») — лише після прийменника, слова
     // «вулиця» чи з номером будинку: прикметник посеред речення («нова маршрутка») вулицею не вважаємо
+    // «з Малина на Теремки», «з Малина до Олімпійської»: людина вже сказала, що їде з міста, тож схожа назва —
+    // станція метро, а не садок «Теремок» чи вулиця в Малині. Дослівна назва малинського місця лишається за Малином
+    const leaving = st.from?.id === 'city.Malyn' && matchMetro(toks, i) != null;
     if (stops.length) {
-      const street = matchStreet(toks, i);
+      const street = leaving ? null : matchStreet(toks, i);
       const prep = street ? prepBefore(toks, i) : null;
       // орієнтир — лише після прийменника: назви крамниць — звичайні слова
-      const lm = prepBefore(toks, i) ? matchLandmark(toks, i) : null;
+      const lmFound = prepBefore(toks, i) ? matchLandmark(toks, i) : null;
+      const lm = lmFound && (lmFound.exact || !leaving) ? lmFound : null;
       // довша назва закладу сильніша за вулицю з того самого слова: «до Слобідської гімназії»
       const lmLonger = lm != null && street != null && lm.end > street.end;
       const place = street && !lmLonger && (prep || street.explicit || street.house) && streetWins(street, n) ? streetPlace(streetPlaceId(street)) : undefined;
@@ -230,6 +265,16 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     if (mode) {
       if (!modes.includes(mode[0])) modes.push(mode[0]);
       spans.push({ start: t.start, end: t.end, kind: 'mode' });
+      continue;
+    }
+
+    // Станція метро без слова «метро» («на Позняки», «з Лівобережної»). Місце кураторського словника з того ж
+    // слова лишається за словником: у нього старі id («Святошин», «Академмістечко»)
+    // Так само місце з Малина: «Дружба народів» там — крамниця, а не стара назва станції
+    const sameInMalyn = matchLandmark(toks, i);
+    const metro = !findPlaceByToken(n) && (!sameInMalyn || (leaving && !sameInMalyn.exact)) ? matchMetro(toks, i) : null;
+    if (metro && takeMetro(metro, i)) {
+      i = metro.end;
       continue;
     }
 

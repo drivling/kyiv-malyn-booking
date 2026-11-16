@@ -3,7 +3,9 @@
  * не готове питання, а один «аргумент» речення. Вставляється форма, що пасує до прийменника: «з Царського
  * села», «на автостанцію». Кожну форму розуміє parseLocal (тест `suggest.test.ts`).
  */
-import { PLACES, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
+import { PLACES, placeById, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
+import { metroPlace } from '../nlu/kyivMetro';
+import { METRO_STATIONS } from '../nlu/kyivMetroData';
 import { normalizeWord } from '../nlu/normalize';
 import { getStopPlaces } from '../nlu/places';
 import { LANDMARKS, landmarkPlace } from '../nlu/landmarks';
@@ -100,6 +102,13 @@ export function suggestPlaces(text: string, caret: number): PlaceSuggestion[] {
     if (out.length >= MAX_SUGGESTIONS) break;
     if (!words.some((x) => x.length > 1 && x.startsWith(typed)) && !normalizeWord(place.label).startsWith(typed)) continue;
     out.push({ place, label: placeLabel(place), insert: place.label, start: w.start, end: w.end });
+  }
+  // станції київського метро: зі словом «метро» форма однакова в усіх відмінках і не плутається з Малином
+  for (const st of METRO_STATIONS) {
+    if (out.length >= MAX_SUGGESTIONS) break;
+    if (typed.length < 3 || placeById(st.id)) continue;
+    if (![st.name, ...st.said].some((n) => n.split(' ').some((x) => normalizeWord(x).replace(/[«»]/g, '').startsWith(typed)))) continue;
+    out.push({ place: metroPlace(st.id)!, label: `Київ · м. ${st.name}`, insert: `метро ${st.name}`, start: w.start, end: w.end });
   }
   // вулиці — останніми (їх багато): теперішня назва в називному відмінку
   for (const street of STREETS) {

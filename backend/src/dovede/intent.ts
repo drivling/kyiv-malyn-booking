@@ -4,10 +4,12 @@
  * не довіряє відповіді: чужі id місць переносить у `unknown`, зайве відкидає. Чисел розкладу тут немає.
  */
 import { placeById } from './gazetteer';
+import { METRO_STATIONS } from './kyivMetroData';
 import { MALYN_LANDMARKS } from './landmarks';
 import { MALYN_STREETS } from './streets';
 
 const LANDMARK_IDS = new Set(MALYN_LANDMARKS.map((l) => l.id));
+const METRO_IDS = new Set(METRO_STATIONS.map((s) => s.id));
 const STREET_IDS = new Set(MALYN_STREETS.map((s) => s.id));
 /** `street.x` або `street.x:20` — номер будинку браузер дописує до id сам (frontend nlu/streets.ts) */
 const STREET_ID_RE = /^(street\.[a-z0-9-]+)(?::[0-9]{1,3}[а-яіїєa-z]?)?$/;
@@ -17,9 +19,9 @@ function isStreetId(id: string): boolean {
   return m != null && STREET_IDS.has(m[1]);
 }
 
-/** Чи це місце, яке знає «Доведе»: кураторський словник, зупинка міста, вулиця (з будинком чи без), орієнтир */
+/** Чи це місце, яке знає «Доведе»: кураторський словник, зупинка міста, вулиця (з будинком чи без), орієнтир, станція метро Києва */
 export function isKnownPlaceId(id: string, stopIds?: ReadonlySet<string>): boolean {
-  return placeById(id) != null || stopIds?.has(id) === true || isStreetId(id) || LANDMARK_IDS.has(id);
+  return placeById(id) != null || stopIds?.has(id) === true || isStreetId(id) || LANDMARK_IDS.has(id) || METRO_IDS.has(id);
 }
 
 export type TripMode = 'marshrutka' | 'elektrichka' | 'poputka' | 'city_bus';

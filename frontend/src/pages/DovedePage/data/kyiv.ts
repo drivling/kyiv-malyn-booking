@@ -3,34 +3,30 @@
  * короткі «таблички як у Google» з кураторських підказок і посилання на Google Maps у режимі громадського
  * транспорту (Maps URLs, без ключа API).
  */
+import { findMetroIn, metroPath, metroStation } from '../nlu/kyivMetro';
+import { METRO_STATIONS } from '../nlu/kyivMetroData';
 import { normalizeWord } from '../nlu/normalize';
-
-/** Червона лінія метро, із заходу на схід (лише ті, що потрібні для підказок) */
-const M1 = ['Академмістечко', 'Житомирська', 'Святошин', 'Нивки', 'Берестейська', 'Шулявська', 'Політехнічний інститут', 'Вокзальна'];
 
 export interface KyivPoint {
   id: string;
   /** «метро «Святошин»», «платформа «Святошин»» */
   label: string;
+  /** назва станції метро, якщо точка — станція */
   metro?: string;
   /** запит для Google Maps */
   mapsQuery: string;
 }
 
+/**
+ * Точки Києва: усі станції метро (`nlu/kyivMetroData.ts`) і кілька місць без станції. Вокзал — це і станція
+ * «Вокзальна», і приміський вокзал, тому в нього власний підпис.
+ */
 export const KYIV_POINTS: Record<string, KyivPoint> = {
-  'kyiv.akadem': { id: 'kyiv.akadem', label: 'метро «Академмістечко»', metro: 'Академмістечко', mapsQuery: 'метро Академмістечко, Київ' },
-  'kyiv.zhytomyrska': { id: 'kyiv.zhytomyrska', label: 'метро «Житомирська»', metro: 'Житомирська', mapsQuery: 'метро Житомирська, Київ' },
-  'kyiv.sviatoshyn': { id: 'kyiv.sviatoshyn', label: 'метро «Святошин»', metro: 'Святошин', mapsQuery: 'метро Святошин, Київ' },
+  ...Object.fromEntries(METRO_STATIONS.map((st) => [st.id, { id: st.id, label: `метро «${st.name}»`, metro: st.name, mapsQuery: `метро ${st.name}, Київ` }])),
   'kyiv.pas': { id: 'kyiv.pas', label: 'вокзал Київ-Пасажирський', metro: 'Вокзальна', mapsQuery: 'Приміський вокзал, Київ' },
   'kyiv.borshch': { id: 'kyiv.borshch', label: 'платформа «Борщагівка»', mapsQuery: 'зупинний пункт Борщагівка, Київ' },
-  // Точки, які називають водії попуток у примітках (архів оголошень за 90 днів, 2026-11-16). У словнику питань
-  // їх немає — лише для місця посадки / висадки попутки.
-  'kyiv.shuliavka': { id: 'kyiv.shuliavka', label: 'метро «Шулявська»', metro: 'Шулявська', mapsQuery: 'метро Шулявська, Київ' },
-  'kyiv.beresteiska': { id: 'kyiv.beresteiska', label: 'метро «Берестейська»', metro: 'Берестейська', mapsQuery: 'метро Берестейська, Київ' },
-  'kyiv.heroiv': { id: 'kyiv.heroiv', label: 'метро «Героїв Дніпра»', mapsQuery: 'метро Героїв Дніпра, Київ' },
+  // цирк називають водії попуток у примітках («до Цирку»); станції там немає
   'kyiv.tsyrk': { id: 'kyiv.tsyrk', label: 'цирк', mapsQuery: 'Національний цирк України, Київ' },
-  'kyiv.pechersk': { id: 'kyiv.pechersk', label: 'Печерськ', mapsQuery: 'Печерськ, Київ' },
-  'kyiv.obolon': { id: 'kyiv.obolon', label: 'Оболонь', mapsQuery: 'Оболонь, Київ' },
 };
 
 /** Як назвати місце посадки / висадки: на картці, «звідки» і «де» */
@@ -41,15 +37,7 @@ export interface KyivStopText {
 }
 
 const MARSH_TEXT: Record<string, KyivStopText> = {
-  'kyiv.akadem': { name: 'метро «Академмістечко»', from: 'від метро «Академмістечко»', at: 'біля метро «Академмістечко»' },
-  'kyiv.sviatoshyn': { name: 'метро «Святошин»', from: 'від метро «Святошин»', at: 'біля метро «Святошин»' },
-  'kyiv.zhytomyrska': { name: 'метро «Житомирська»', from: 'від метро «Житомирська»', at: 'біля метро «Житомирська»' },
-  'kyiv.shuliavka': { name: 'метро «Шулявська»', from: 'від метро «Шулявська»', at: 'біля метро «Шулявська»' },
-  'kyiv.beresteiska': { name: 'метро «Берестейська»', from: 'від метро «Берестейська»', at: 'біля метро «Берестейська»' },
-  'kyiv.heroiv': { name: 'метро «Героїв Дніпра»', from: 'від метро «Героїв Дніпра»', at: 'біля метро «Героїв Дніпра»' },
   'kyiv.tsyrk': { name: 'цирк', from: 'від цирку', at: 'біля цирку' },
-  'kyiv.pechersk': { name: 'Печерськ', from: 'з Печерська', at: 'на Печерську' },
-  'kyiv.obolon': { name: 'Оболонь', from: 'з Оболоні', at: 'на Оболоні' },
   'kyiv.pas': { name: 'вокзал Київ-Пасажирський', from: 'від вокзалу Київ-Пасажирський', at: 'біля вокзалу Київ-Пасажирський' },
 };
 
@@ -61,7 +49,11 @@ const TRAIN_TEXT: Record<string, KyivStopText> = {
 
 export function kyivStopText(pointId: string | null, mode: 'marshrutka' | 'elektrichka', fallback: string): KyivStopText {
   const t = pointId ? (mode === 'elektrichka' ? TRAIN_TEXT : MARSH_TEXT)[pointId] : undefined;
-  return t ?? { name: fallback, from: `від: ${fallback}`, at: fallback };
+  if (t) return t;
+  // станція метро: маршрутки й попутки стають біля неї
+  const metro = pointId && mode === 'marshrutka' ? KYIV_POINTS[pointId]?.metro : undefined;
+  if (metro) return { name: `метро «${metro}»`, from: `від метро «${metro}»`, at: `біля метро «${metro}»` };
+  return { name: fallback, from: `від: ${fallback}`, at: fallback };
 }
 
 /**
@@ -84,36 +76,51 @@ export function kyivPointForPlace(place: string | null | undefined, route?: stri
 }
 
 /**
- * Точка в Києві з примітки водія попутки: ті самі, що в розкладі, плюс описки («Аккадемістечко», «м. Житом.») і
- * місця, які водії називають самі. Слово «житомирська» без «м.» / «метро» — це траса, а не станція.
+ * Точка в Києві з примітки водія попутки: будь-яка станція метро (з описками й розмовними назвами — «Шулявка»,
+ * «Аккадемістечко», «ст.м. Героїв Дніпра») і місця без станції, які водії називають самі. Слово «Житомирська»
+ * без «м.» / «метро» — це траса, а не станція; «м. Житом.» — станція.
  */
 export function kyivNotePoint(note: string | null | undefined): string | null {
-  const n = normalizeWord(note ?? '');
-  if (/ак+адем/.test(n)) return 'kyiv.akadem';
+  const text = note ?? '';
+  const n = normalizeWord(text);
   if (/(^|[^а-яіїєґ])(м|ст\.?\s*м|метро)\.?\s*житом/.test(n)) return 'kyiv.zhytomyrska';
-  if (n.includes('святош')) return 'kyiv.sviatoshyn';
-  if (n.includes('шуляв')) return 'kyiv.shuliavka';
-  if (n.includes('берестейськ')) return 'kyiv.beresteiska';
-  if (/геро[їі]в\s+дніпра/.test(n)) return 'kyiv.heroiv';
+  const station = findMetroIn(text);
+  if (station) return station.id;
   if (/(^|[^а-яіїєґ])цирк/.test(n)) return 'kyiv.tsyrk';
-  if (n.includes('печерськ')) return 'kyiv.pechersk';
-  if (n.includes('оболон')) return 'kyiv.obolon';
   if (n.includes('борщаг')) return 'kyiv.borshch';
   if (n.includes('київ-пас') || n.includes('пасаж') || n.includes('приміськ')) return 'kyiv.pas';
   return null;
 }
 
-/** «2 станції метро М1, ≈ 5 хв» між двома точками на червоній лінії, інакше null */
-export function metroHint(fromId: string, toId: string): string | null {
+export interface MetroTrip {
+  /** «метро М1 «Святошин» → «Вокзальна», 5 станцій, ≈ 15 хв» */
+  text: string;
+  /** хвилини разом із входом і виходом — на стільки зсувається час історії */
+  minutes: number;
+}
+
+function stationsWord(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return 'станція';
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return 'станції';
+  return 'станцій';
+}
+
+/** Дорога метро між двома точками Києва: текст підказки й хвилини; null — одна з точок не на метро */
+export function metroTrip(fromId: string, toId: string): MetroTrip | null {
+  const path = metroPath(fromId, toId);
   const a = KYIV_POINTS[fromId]?.metro;
   const b = KYIV_POINTS[toId]?.metro;
-  if (!a || !b || a === b) return null;
-  const i = M1.indexOf(a);
-  const j = M1.indexOf(b);
-  if (i < 0 || j < 0) return null;
-  const n = Math.abs(i - j);
-  const word = n === 1 ? 'станція' : n < 5 ? 'станції' : 'станцій';
-  return `метро М1 «${a}» → «${b}», ${n} ${word}, ≈ ${Math.max(3, n * 2 + 1)} хв`;
+  if (!path || !a || !b) return null;
+  const line = path.transfers.length ? '' : ` ${metroStation(fromId)!.line.replace('M', 'М')}`;
+  const change = path.transfers.map((t) => `, пересадка «${t.from.name}» → «${t.to.name}»`).join('');
+  return { text: `метро${line} «${a}» → «${b}», ${path.hops} ${stationsWord(path.hops)}${change}, ≈ ${path.minutes} хв`, minutes: path.minutes };
+}
+
+/** Лише текст підказки (див. `metroTrip`) */
+export function metroHint(fromId: string, toId: string): string | null {
+  return metroTrip(fromId, toId)?.text ?? null;
 }
 
 /** Маршрут громадським транспортом у Google Maps (Maps URLs) */

@@ -13,7 +13,7 @@ describe('місця в примітці водія', () => {
     expect(out('(ст.м. Берестейська далі по проспекту)').kyiv).toBe('kyiv.beresteiska');
     expect(out('(ст.м.Героїв Дніпра)').kyiv).toBe('kyiv.heroiv');
     expect(out('Є місця; до Цирку').kyiv).toBe('kyiv.tsyrk');
-    expect(out('(Печерськ)').kyiv).toBe('kyiv.pechersk');
+    expect(out('(Печерськ)').kyiv).toBe('kyiv.m.pecherska');
     expect(out('Оболонь').kyiv).toBe('kyiv.obolon');
   });
 
