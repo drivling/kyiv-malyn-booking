@@ -14,6 +14,7 @@ const hm = (h: number, m: number) => h * 60 + m;
 const NAMES: Record<string, string> = {
   st_0079: 'ПТЛ',
   st_0049: 'м-н «Промінь»',
+  st_0070: 'пл. Соборна (біля РБК)',
   st_0004: 'Автостанція',
   st_0090: 'Царське село',
   st_0019: 'Залізничний вокзал',
@@ -21,6 +22,7 @@ const NAMES: Record<string, string> = {
 const COORDS: Record<string, [number, number]> = {
   st_0079: [50.75975, 29.28151],
   st_0049: [50.76699, 29.24245],
+  st_0070: [50.76804, 29.24266],
   st_0004: [50.77398, 29.23669],
   st_0090: [50.76995, 29.26604],
   st_0019: [50.77417, 29.2951],
@@ -90,7 +92,7 @@ describe('Київ (Святошин) → Малин, вокзал — пʼят�
   ];
   const p = planner({
     'st_0079>st_0019': [bus('8', 'st_0079', 'st_0019', hm(16, 24), hm(16, 26)), bus('7', 'st_0079', 'st_0019', hm(16, 28), hm(16, 33)), bus('7', 'st_0079', 'st_0019', hm(16, 41), hm(16, 46)), bus('8', 'st_0079', 'st_0019', hm(17, 24), hm(17, 26))],
-    'st_0049>st_0019': [bus('8', 'st_0049', 'st_0019', hm(16, 46), hm(16, 56))],
+    'st_0070>st_0019': [bus('8', 'st_0070', 'st_0019', hm(16, 46), hm(16, 56))],
   });
   const out = composeStories({ intent, now: NOW, date: resolveDate(intent.when.day, NOW), schedules, planner: p });
 
@@ -288,7 +290,7 @@ describe('попутки серед варіантів', () => {
   const schedules = [sched({ id: 11, route: 'Malyn-Kyiv-Irpin', departureTime: '07:30', boardingPlace: 'Автостанція Малин' })];
   const p = planner({
     'st_0090>st_0049': [bus('9', 'st_0090', 'st_0049', hm(6, 40), hm(6, 47)), bus('9', 'st_0090', 'st_0049', hm(7, 9), hm(7, 16))],
-    'st_0049>st_0019': [bus('8', 'st_0049', 'st_0019', hm(20, 0), hm(20, 10))],
+    'st_0070>st_0019': [bus('8', 'st_0070', 'st_0019', hm(20, 0), hm(20, 10))],
   });
   const notePlaces = (note: string, dir: 'from_malyn' | 'to_malyn') => placesInNote(note, [], dir);
   const ask = (text: string, listings: ViberListing[], extra: Partial<Parameters<typeof composeStories>[0]> = {}) => {
@@ -397,7 +399,7 @@ describe('попутки серед варіантів', () => {
     const s = out.stories[0];
     expect(out.askMode).toBe(false);
     expect(kinds(s)).toEqual(['ride', 'wait', 'bus']);
-    expect(ride(s)).toMatchObject({ boardLabel: 'від метро «Житомирська»', boardAssumed: false, alightLabel: 'у центрі, біля «Промінь»', alightAssumed: true, arrMins: hm(19, 35) });
+    expect(ride(s)).toMatchObject({ boardLabel: 'від метро «Житомирська»', boardAssumed: false, alightLabel: 'у центрі, біля РБК', alightAssumed: true, arrMins: hm(19, 35) });
     // автобус — після 19:35 + 10 хв запізнення + 3 хв на пересадку
     expect(busLeg(s).depMins).toBe(hm(20, 0));
     expect([s.arriveMins, s.arriveApprox]).toEqual([hm(20, 10), true]);
@@ -456,5 +458,22 @@ describe('кінцева точка в Києві — та, яку просил�
     expect(ic.boardMins).toBe(hm(15, 0));
     // Лівобережна → Святошин: 12 перегонів × 2 + 5 = 29 хв
     expect(s.leaveMins).toBe(hm(14, 31));
+  });
+});
+
+describe('центр Малина: висадка біля РБК, посадка від «Промінь»', () => {
+  it('з Києва «в Малин» — маршрутка довозить до центру: зупинка біля РБК', () => {
+    const intent = parseLocal('з Києва в Малин сьогодні маршруткою', NOW).intent;
+    const out = composeStories({ intent, now: NOW, date: NOW.date, schedules: [sched({ id: 31, route: 'Kyiv-Malyn-Irpin', departureTime: '16:00', boardingPlace: 'м. Академмістечко' })], planner: null });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    expect(intercity(out.stories[0]).alightLabel).toBe('у центрі, біля РБК');
+    expect(out.stories[0].endLabel).toBe('Малин, Центр, пл. Соборна (РБК)');
+  });
+
+  it('з Малина в Київ — посадка в центрі лишається від «Промінь»', () => {
+    const intent = parseLocal('з центру до Києва завтра зранку маршруткою', NOW).intent;
+    const out = composeStories({ intent, now: NOW, date: '2026-11-14', schedules: [sched({ id: 32, route: 'Malyn-Kyiv-Irpin', departureTime: '07:30', boardingPlace: 'Автостанція Малин' })], planner: planner({}) });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    expect(intercity(out.stories[0]).boardLabel).toBe('з центру, від «Промінь»');
   });
 });

@@ -45,8 +45,11 @@ export type TripShape =
 
 const MALYN = placeById('city.Malyn')!;
 const CENTRE = placeById('malyn.tsentr')!;
-/** Якір попуток у Малині, коли водій місця не назвав: центр, «Промінь» (той самий, що в маршруток) */
-const CENTRE_STOP = anchorFor('to_malyn', 'marshrutka').stops.find((s) => s.placeId === 'malyn.tsentr')!;
+/** Якір попуток у Малині, коли водій місця не назвав: центр — ті самі зупинки, що в маршруток */
+const centreOf = (corridor: 'to_malyn' | 'from_malyn') => anchorFor(corridor, 'marshrutka').stops.find((s) => s.placeId === 'malyn.tsentr')!;
+/** висадка з Києва — біля РБК; посадка на Київ — від «Промінь» (як у маршруток) */
+const RIDE_DROP = centreOf('to_malyn');
+const RIDE_PICKUP = centreOf('from_malyn');
 
 export function classify(intent: TripIntent): TripShape {
   // «коли їде маршрутка Малин — Київ завтра» (schedule) — та сама відповідь, що й «як доїхати»: історії з часом
@@ -746,11 +749,11 @@ export function rideDepartures(input: Pick<ComposeInput, 'intent' | 'now' | 'dat
 }
 
 /** Місце посадки / висадки в Малині: з примітки водія, а не названо — центр («зазвичай») */
-function malynRidePoint(note: NotePlaces | null): { place: GazetteerPlace | null; stopId: string; assumed: boolean } {
+function malynRidePoint(note: NotePlaces | null, dir: 'to_malyn' | 'from_malyn'): { place: GazetteerPlace | null; stopId: string; assumed: boolean } {
   const named = note?.malyn ? resolvePlace(note.malyn) ?? null : null;
   const stopId = named?.stopIds?.[0];
   if (named && stopId) return { place: named, stopId, assumed: false };
-  return { place: CENTRE, stopId: CENTRE_STOP.stopId, assumed: true };
+  return { place: CENTRE, stopId: (dir === 'to_malyn' ? RIDE_DROP : RIDE_PICKUP).stopId, assumed: true };
 }
 
 function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_malyn' | 'from_malyn' }>, l: ViberListing, dep: number): { story: Story; worst: number; traffic: boolean } {
@@ -758,7 +761,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
   const drive = input.driveMinutes?.(dep) ?? { minutes: DEFAULT_CAR_MINUTES, traffic: false };
   const arr = dep + drive.minutes;
   const note = l.notes ? input.notePlaces?.(l.notes, shape.kind) ?? null : null;
-  const malyn = malynRidePoint(note);
+  const malyn = malynRidePoint(note, shape.kind);
   const kyiv = note?.kyiv && KYIV_POINTS[note.kyiv] ? note.kyiv : null;
   const kyivText = kyiv ? kyivStopText(kyiv, 'marshrutka', KYIV_POINTS[kyiv].label) : null;
   const sameMalyn = (p: GazetteerPlace) => p.id === malyn.place?.id || Boolean(p.stopIds?.includes(malyn.stopId));
@@ -780,7 +783,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     const originSpot = origin.isCity ? null : spotOf(planner, origin);
     // «заберу по місту»: водій підʼїде сам — до центру їхати не треба
     const door = Boolean(note?.door) && malyn.assumed;
-    const from = door ? 'по місту — домовтесь, де сісти' : malyn.assumed ? CENTRE_STOP.from : `від «${placeLabel(malyn.place!)}»`;
+    const from = door ? 'по місту — домовтесь, де сісти' : malyn.assumed ? RIDE_PICKUP.from : `від «${placeLabel(malyn.place!)}»`;
     let before: StoryLeg[] = [];
     let leave = dep;
     if (originSpot && !door && !sameMalyn(origin)) {
@@ -828,7 +831,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     kyiv && user && user !== kyiv
       ? { kind: 'kyiv', text: toRide?.text ?? `Доїдьте: ${kyivText!.name}`, mapsUrl: mapsTransitUrl(KYIV_POINTS[user]?.mapsQuery ?? null, KYIV_POINTS[kyiv].mapsQuery) }
       : null;
-  const at = malyn.assumed ? CENTRE_STOP.label : `біля «${placeLabel(malyn.place!)}»`;
+  const at = malyn.assumed ? RIDE_DROP.label : `біля «${placeLabel(malyn.place!)}»`;
   let after: StoryLeg[] = [];
   let arrive = arr;
   let worst = arr + RIDE_LATE;
@@ -854,7 +857,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     leave: dep - (toRide?.minutes ?? 0),
     arrive,
     approx: true,
-    endLabel: dest.isCity ? `Малин, ${malyn.assumed ? CENTRE_STOP.name : placeLabel(malyn.place!)}` : placeLabel(dest),
+    endLabel: dest.isCity ? `Малин, ${malyn.assumed ? RIDE_DROP.name : placeLabel(malyn.place!)}` : placeLabel(dest),
     endNote: endNote ?? approxNote(dest),
     price: l.priceUah ?? null,
   });

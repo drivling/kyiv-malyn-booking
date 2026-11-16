@@ -5,7 +5,7 @@
  * Києва — до 1 год 40 хв; на маршрутку в Київ — бути щонайменше за 10 хв. Хвилини між точками — із
  * сегментів міських №7/№8. `confirmed: false` → історія каже «зазвичай».
  */
-export const ANCHORS_VERSION = 1;
+export const ANCHORS_VERSION = 2;
 
 export type Corridor = 'to_malyn' | 'from_malyn';
 export type IntercityMode = 'marshrutka' | 'elektrichka';
@@ -37,7 +37,9 @@ export interface IntercityAnchor {
 }
 
 const PTL: AnchorStop = { placeId: 'malyn.ptl', stopId: 'st_0079', label: 'біля ПТЛ', name: 'ПТЛ', from: 'від ПТЛ', offsetMin: -8, confirmed: true };
-const CENTRE_IN: AnchorStop = { placeId: 'malyn.tsentr', stopId: 'st_0049', label: 'у центрі, біля «Промінь»', name: 'Центр, «Промінь»', from: 'з центру, від «Промінь»', offsetMin: 0, confirmed: true };
+// Слова власника (2026-11-17): з Києва в центрі висаджують на зупинці біля РБК (пл. Соборна), а сідають на Київ —
+// від «Промінь». Зупинки сусідні (≈ 120 м), але міські автобуси від них різні
+const CENTRE_IN: AnchorStop = { placeId: 'malyn.tsentr', stopId: 'st_0070', label: 'у центрі, біля РБК', name: 'Центр, пл. Соборна (РБК)', from: 'з центру, від РБК', offsetMin: 0, confirmed: true };
 const STATION_IN: AnchorStop = { placeId: 'malyn.avtostantsiya', stopId: 'st_0004', label: 'на автостанції', name: 'Автостанція', from: 'з автостанції', offsetMin: 4, confirmed: false };
 const VOKZAL: AnchorStop = { placeId: 'malyn.vokzal', stopId: 'st_0019', label: 'на вокзалі', name: 'Залізничний вокзал', from: 'з вокзалу', offsetMin: 0, confirmed: true };
 const STATION_OUT: AnchorStop = { placeId: 'malyn.avtostantsiya', stopId: 'st_0004', label: 'на автостанції', name: 'Автостанція', from: 'з автостанції', offsetMin: 0, confirmed: true };
