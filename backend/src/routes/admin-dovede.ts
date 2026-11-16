@@ -49,6 +49,22 @@ export function intentsAgree(a: TripIntent, b: TripIntent): boolean {
   );
 }
 
+/**
+ * Примітка для підрахунку «Звідки забирають»: без чужих контактів — посилань, ніків Telegram і телефонів.
+ * Порожні після цього частини («; ;») прибираємо.
+ */
+export function pickupNote(raw: string | null | undefined): string {
+  return (raw ?? '')
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/\b(t\.me|telegram\.me|viber\.me)\/\S+/gi, ' ')
+    .replace(/(^|\s)@[A-Za-z0-9_]{3,}/g, ' ')
+    .replace(/\+?\d[\d\s()-]{8,}\d/g, ' ')
+    .split(';')
+    .map((part) => part.replace(/\s+/g, ' ').trim())
+    .filter((part) => part && !/^[\s().,:-]*$/.test(part))
+    .join('; ');
+}
+
 export function createAdminDovedeRouter(deps: {
   prisma: PrismaClient;
   /** undefined — з середовища (ANTHROPIC_API_KEY); null — ключа немає */
@@ -249,7 +265,7 @@ export function createAdminDovedeRouter(deps: {
       const groups = new Map<string, { route: string; note: string; count: number }>();
       const byRoute = new Map<string, { route: string; total: number; withNote: number }>();
       for (const row of rows) {
-        const note = (row.notes ?? '').replace(/\s+/g, ' ').trim();
+        const note = pickupNote(row.notes);
         const r0 = byRoute.get(row.route) ?? { route: row.route, total: 0, withNote: 0 };
         r0.total++;
         if (note) r0.withNote++;

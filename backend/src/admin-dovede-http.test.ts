@@ -8,7 +8,7 @@ import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
-import { createAdminDovedeRouter, intentsAgree } from './routes/admin-dovede';
+import { createAdminDovedeRouter, intentsAgree, pickupNote } from './routes/admin-dovede';
 import { validateIntent, type TripIntent } from './dovede/intent';
 import type { UnderstandFn, UnderstandResult } from './dovede/understand';
 import express from 'express';
@@ -502,4 +502,13 @@ test('звідки забирають: лише адмін; примітки в�
   });
   assert.deepEqual(select, { route: true, notes: true });
   assert.deepEqual(where, { listingType: 'driver', createdAt: { gte: new Date('2026-10-14T12:20:00.000Z') } });
+});
+
+test('звідки забирають: чужі контакти з приміток вирізано — посилання, ніки, телефони', () => {
+  assert.equal(pickupNote('Оболонь; https://t.me/some_person'), 'Оболонь');
+  assert.equal(pickupNote('https://t.me/some_person'), '');
+  assert.equal(pickupNote('пишіть @some_person або +380 50 123 45 67; до Цирку'), 'пишіть або; до Цирку');
+  assert.equal(pickupNote('t.me/abc ; (вівторок)'), '(вівторок)');
+  assert.equal(pickupNote('о 8.00 від  метро'), 'о 8.00 від метро');
+  assert.equal(pickupNote(null), '');
 });

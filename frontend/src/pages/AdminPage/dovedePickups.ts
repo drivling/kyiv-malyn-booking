@@ -5,7 +5,7 @@
  */
 import { KYIV_POINTS } from '@/pages/DovedePage/data/kyiv';
 import { placeLabel } from '@/pages/DovedePage/nlu/gazetteer';
-import { placesInNote } from '@/pages/DovedePage/nlu/notePlaces';
+import { noteDirOf, placesInNote } from '@/pages/DovedePage/nlu/notePlaces';
 import { resolvePlace, setStopPlaces } from '@/pages/DovedePage/nlu/places';
 import { buildStopPlaces, type StopLike } from '@/pages/DovedePage/nlu/stopPlaces';
 import type { DovedePickups } from '@/types';
@@ -24,10 +24,27 @@ export interface PickupTally {
   /** з місцем у Малині / у Києві */
   malynNamed: number;
   kyivNamed: number;
+  /** «заберу по місту» */
+  door: number;
+  /** чи є в напрямку Малин / Київ — інакше колонку не показуємо */
+  hasMalyn: boolean;
+  hasKyiv: boolean;
   malyn: PickupCount[];
   kyiv: PickupCount[];
   /** примітки, де жодного місця не впізнано: найчастіші першими */
   unrecognised: Array<{ note: string; count: number }>;
+}
+
+/** Частини примітки, які нічого не кажуть про місце: «є місця», день тижня, «двоє позаду», «дзвоніть або пишіть» */
+const NOISE = /^(є\s+місц[яе]|місц[яе]\s+є|понеділок|вівторок|серед[аиу]|четвер|п.?ятниц[яюі]|субот[аиу]|неділ[яюі]|сьогодні|завтра|післязавтра|двоє\s+позаду|дзвоніть(\s+(або|чи)\s+пишіть)?|пишіть|тільки\s+viber|лише\s+viber|telephone|test|від\s+метро)$/;
+
+/** Примітка без шуму; порожня — у ній не було нічого, крім шуму */
+export function meaningfulNote(note: string): string {
+  return note
+    .split(/[;,]/)
+    .map((part) => part.replace(/[()«»".]/g, ' ').replace(/\s+/g, ' ').trim())
+    .filter((part) => part && !NOISE.test(part.toLowerCase()))
+    .join('; ');
 }
 
 function bump(map: Map<string, number>, label: string, by: number): void {
@@ -44,12 +61,14 @@ export function tallyPickups(data: DovedePickups, stops: StopLike[], unrecognise
   return data.routes.map((r) => {
     const malyn = new Map<string, number>();
     const kyiv = new Map<string, number>();
-    const unrecognised: Array<{ note: string; count: number }> = [];
+    const unrecognised = new Map<string, number>();
+    const dir = noteDirOf(r.route);
     let malynNamed = 0;
     let kyivNamed = 0;
+    let door = 0;
     for (const n of data.notes) {
       if (n.route !== r.route) continue;
-      const found = placesInNote(n.note, index);
+      const found = placesInNote(n.note, index, dir);
       const m = found.malyn ? resolvePlace(found.malyn) : undefined;
       if (m) {
         bump(malyn, placeLabel(m), n.count);
@@ -60,7 +79,9 @@ export function tallyPickups(data: DovedePickups, stops: StopLike[], unrecognise
         bump(kyiv, k.label, n.count);
         kyivNamed += n.count;
       }
-      if (!m && !k) unrecognised.push({ note: n.note, count: n.count });
+      const rest = !m && !k && !found.door ? meaningfulNote(n.note) : '';
+      if (rest) bump(unrecognised, rest, n.count);
+      if (found.door) door += n.count;
     }
     return {
       route: r.route,
@@ -68,9 +89,12 @@ export function tallyPickups(data: DovedePickups, stops: StopLike[], unrecognise
       withNote: r.withNote,
       malynNamed,
       kyivNamed,
+      hasMalyn: dir != null,
+      hasKyiv: /(^|-)Kyiv(-|$)/.test(r.route),
+      door,
       malyn: sorted(malyn),
       kyiv: sorted(kyiv),
-      unrecognised: unrecognised.sort((a, b) => b.count - a.count || a.note.localeCompare(b.note, 'uk')).slice(0, unrecognisedShown),
+      unrecognised: sorted(unrecognised).slice(0, unrecognisedShown).map((u) => ({ note: u.label, count: u.count })),
     };
   });
 }
