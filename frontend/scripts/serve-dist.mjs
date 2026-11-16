@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, permanentRedirectLocation, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
+import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 import { API_BASE } from './api-base.mjs';
 
@@ -38,6 +38,7 @@ const MIME = {
   '.map': 'application/json',
   '.pdf': 'application/pdf',
   '.webmanifest': 'application/manifest+json',
+  '.mp4': 'video/mp4',
 };
 
 function safeJoin(root, urlPath) {
@@ -53,15 +54,35 @@ function distPath(filePath) {
   return `/${path.relative(dist, filePath).split(path.sep).join('/')}`;
 }
 
-function sendFile(res, filePath, extraHeaders = {}) {
+/**
+ * File with its length; `Range` → 206 with one byte range (Safari on iPhone plays MP4 only this way — the
+ * «Доведе» intro video), a range past the end → 416. HEAD gets the same headers without a body.
+ */
+function sendFile(req, res, filePath, extraHeaders = {}) {
   const ext = path.extname(filePath).toLowerCase();
-  const type = MIME[ext] || 'application/octet-stream';
-  res.writeHead(200, {
-    'Content-Type': type,
+  const size = fs.statSync(filePath).size;
+  const headers = {
+    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Accept-Ranges': 'bytes',
     ...cacheHeadersFor(distPath(filePath)),
     ...extraHeaders,
-  });
-  fs.createReadStream(filePath).pipe(res);
+  };
+  const range = parseByteRange(req.headers.range, size);
+  if (range === 'unsatisfiable') {
+    res.writeHead(416, { ...headers, 'Content-Range': `bytes */${size}` });
+    res.end();
+    return;
+  }
+  if (range) {
+    res.writeHead(206, { ...headers, 'Content-Range': `bytes ${range.start}-${range.end}/${size}`, 'Content-Length': range.end - range.start + 1 });
+  } else {
+    res.writeHead(200, { ...headers, 'Content-Length': size });
+  }
+  if (req.method === 'HEAD') {
+    res.end();
+    return;
+  }
+  fs.createReadStream(filePath, range ?? undefined).pipe(res);
 }
 
 function tryResolve(urlPath) {
@@ -205,16 +226,7 @@ const server = http.createServer((req, res) => {
 
   const resolved = tryResolve(urlPath === '/' ? '/index.html' : urlPath);
   if (resolved) {
-    if (req.method === 'HEAD') {
-      res.writeHead(200, {
-        'Content-Type': MIME[path.extname(resolved).toLowerCase()] || 'application/octet-stream',
-        ...cacheHeadersFor(distPath(resolved)),
-        ...extraHeaders,
-      });
-      res.end();
-      return;
-    }
-    sendFile(res, resolved, extraHeaders);
+    sendFile(req, res, resolved, extraHeaders);
     return;
   }
 
@@ -229,7 +241,7 @@ const server = http.createServer((req, res) => {
 
   const spa = path.join(dist, 'index.html');
   if (fs.existsSync(spa)) {
-    sendFile(res, spa, extraHeaders);
+    sendFile(req, res, spa, extraHeaders);
     return;
   }
   res.writeHead(404, { 'Content-Type': 'text/plain', ...extraHeaders });

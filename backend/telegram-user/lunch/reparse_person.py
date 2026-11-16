@@ -22,7 +22,9 @@ from .formatters import format_order_confirm
 from .order_reply import refresh_order_reply
 from .parse_summary import parse_numbered_summary
 from .summary_owner import parse_author_entry, pick_author_entry
+from .evidence import apply_claim, apply_link, settle_pending_links
 from .reparse_day import (
+    LINK_OUTCOMES,
     SKIP_REASONS,
     DayContext,
     ReparseStats,
@@ -197,6 +199,9 @@ async def reparse_person(
     orders: list[tuple[PersonMessage, Any]] = []
     no_match: list[tuple[PersonMessage, Any]] = []
     payments: list[tuple[PersonMessage, Any]] = []
+    # посилання на чек і «віддам готівкою» — окремим повідомленням або в тексті замовлення
+    links: list[tuple[PersonMessage, str]] = []
+    cash_msgs: list[PersonMessage] = []
     # нумерований підсумок цієї людини (оператор): свої страви він пише в нього, а не окремим повідомленням
     summary_msg: Optional[tuple[PersonMessage, list[str]]] = None
     for pm in src.messages:
@@ -214,6 +219,12 @@ async def reparse_person(
             allow_orders_when_closed=True,  # адмін просить явно — навіть якщо день уже закрито
             is_own=pm.outgoing,
         )
+        if plan.links:
+            links.append((pm, plan.links[0]))
+        elif plan.claim:
+            links.append((pm, ""))  # «оплатила» без суми — та сама механіка, що й посилання на чек
+        if plan.cash:
+            cash_msgs.append(pm)
         numbered = parse_numbered_summary(pm.text) if plan.kind != "order" else []
         if numbered:
             summary_msg = (pm, numbered)  # остання версія підсумку виграє
@@ -223,6 +234,8 @@ async def reparse_person(
             no_match.append((pm, plan))
         elif plan.kind == "payment":
             payments.append((pm, plan))
+        elif plan.kind in ("link", "claim", "cash"):
+            pass  # враховуємо нижче, коли відомо, чи є замовлення
         elif plan.kind in ("summary", "mega"):
             stats.skipped += 1
             stats.note(pm.id, name, pm.text, "skipped", "підсумок дня — для нього є «Розібрати поточний день»")
@@ -247,7 +260,7 @@ async def reparse_person(
             stats.skipped += 1
             stats.note(spm.id, name, "[підсумок списком]", "skipped", reason)
 
-    if not orders and not payments and not no_match and own_entry is None:
+    if not orders and not payments and not no_match and own_entry is None and not links and not cash_msgs:
         stats.errors.append("У цієї людини за день не знайдено повідомлень, схожих на замовлення чи оплату")
         return {**stats.as_dict(), **extra}
 
@@ -338,10 +351,28 @@ async def reparse_person(
         stats.payments += 1
         stats.note(pm.id, name, pm.text, "payment")
 
+    marked_cash = bool(cash_msgs) and await db.set_order_cash(day_row.id, pid)
+    for pm in cash_msgs:
+        if not any(pm is o for o, _ in orders):
+            stats.skipped += 1
+            stats.note(pm.id, name, pm.text, "skipped", "віддасть готівкою")
+    for pm, url in links:
+        if url:
+            outcome = await apply_link(db, day_row.id, pid, uid=uid, message_id=pm.id, url=url)
+        else:
+            outcome = await apply_claim(db, day_row.id, pid, uid=uid, message_id=pm.id)
+        if outcome == "added":
+            stats.payments += 1
+            stats.note(pm.id, name, pm.text, "payment", "оплата без суми: зараховано весь борг (суму не перевірено)")
+        elif not any(pm is o for o, _ in orders):
+            stats.skipped += 1
+            stats.note(pm.id, name, pm.text, "skipped", LINK_OUTCOMES.get(outcome, outcome))
+    stats.payments += await settle_pending_links(db, day_row.id, pid, uid)
+
     if confirm_for is not None:
         extra["notifiedEdit"] = await _confirm_in_group(db, day_row.id, pid, name, *confirm_for)
         extra["notified"] = True
-    elif notify and stats.payments and await refresh_order_reply(db, day_row.id, pid):
+    elif notify and (stats.payments or marked_cash) and await refresh_order_reply(db, day_row.id, pid):
         # знайшлись лише оплати — «✅ Оплатив» у нашій відповіді на наявне замовлення
         extra["notified"] = extra["notifiedEdit"] = True
     return {**stats.as_dict(), **extra}
@@ -365,6 +396,7 @@ async def _confirm_in_group(db: LunchDB, day_id: int, pid: int, name: str, pm: P
         unavailable=result.unavailable,
         ambiguous=result.ambiguous,
         paid_uah=paid,
+        cash=await db.get_order_cash(day_id, pid),
     )
     reply_id = await db.get_order_reply_message_id(day_id, pid)
     if reply_id:

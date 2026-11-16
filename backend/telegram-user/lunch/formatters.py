@@ -48,6 +48,14 @@ def format_paid_line(total_uah: int, paid_uah: int) -> str | None:
     return f"Оплатив {paid_uah} грн, залишок {total_uah - paid_uah} грн"
 
 
+CASH_LINE = "💵 Готівкою"
+
+
+def format_cash_line(total_uah: int, paid_uah: int, cash: bool) -> str | None:
+    """Людина пообіцяла готівку і ще не розрахувалась (той самий рядок у backend/src/lunch.ts: formatCashLine)."""
+    return CASH_LINE if cash and paid_uah < total_uah else None
+
+
 def format_order_confirm(
     display_name: str,
     lines: Sequence[Any],
@@ -60,9 +68,11 @@ def format_order_confirm(
     unavailable: Sequence[str] = (),
     ambiguous: dict[str, Sequence[str]] | None = None,
     paid_uah: int = 0,
+    cash: bool = False,
 ) -> str:
     """paid_uah — скільки людина вже заплатила за день: дописуємо «✅ Оплатив», щоб правка відповіді
-    (розбір, дозбір) не стирала позначку, яку поставила кнопка «Оплатив» в адмінці."""
+    (розбір, дозбір) не стирала позначку, яку поставила кнопка «Оплатив» в адмінці.
+    cash — людина написала, що віддасть готівкою: «💵 Готівкою», поки не розрахувалась."""
     parts = [f"{display_name}, заказ:"]
     for line in lines:
         name = _line_dish_name(line)
@@ -87,6 +97,9 @@ def format_order_confirm(
     paid_line = format_paid_line(total, paid_uah)
     if paid_line:
         parts.append(paid_line)
+    cash_line = format_cash_line(total, paid_uah, cash)
+    if cash_line:
+        parts.append(cash_line)
     if unavailable:
         parts.append("Сьогодні немає: " + ", ".join(unavailable) + ".")
     if unmatched:
@@ -145,7 +158,10 @@ def format_debts(rows: Sequence[dict[str, Any]]) -> str:
         return "Боргів немає — усі розраховані."
     lines = ["Хто ще винен:"]
     for r in rows:
-        lines.append(f"• {r['display_name']}: {r['debt_uah']} грн (заказ {r['total_uah']}, оплачено {r['paid_uah']})")
+        cash = " — готівкою" if r.get("cash_promised") else ""
+        lines.append(
+            f"• {r['display_name']}: {r['debt_uah']} грн (заказ {r['total_uah']}, оплачено {r['paid_uah']}){cash}"
+        )
     return "\n".join(lines)
 
 

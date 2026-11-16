@@ -364,3 +364,121 @@ describe('LunchTab · наша відповідь у групі', () => {
     expect(within(report).getByText(/нашу відповідь у групі поставлено в чергу на правку/)).toBeInTheDocument();
   });
 });
+
+describe('LunchTab · чеки, готівка і порівняння моделей', () => {
+  it('готівку видно біля боргу, а в «Оплатах» — звідки кожна оплата', async () => {
+    const cashOrder: LunchOrderRow = { ...order, cashPromised: true };
+    const paid: LunchOrderRow = { ...order, id: 901, participantId: 51, displayName: 'Лера', paidUah: 45, debtUah: 0 };
+    const summary: LunchDaySummary = {
+      ...summaryWith([cashOrder, paid]),
+      payments: [
+        { id: 1, displayName: 'Лера', amountUah: 45, rawText: 'чек (photo): 45 грн', source: 'receipt', createdAt: '2026-10-02T08:00:00.000Z' },
+        { id: 2, displayName: 'Марта', amountUah: 90, rawText: 'чек за посиланням (суму не перевірено)', source: 'link', createdAt: '2026-10-02T08:01:00.000Z' },
+        { id: 3, displayName: 'Юля', amountUah: 60, rawText: 'написав(ла), що оплатив(ла) (суму не перевірено)', source: 'claim', createdAt: '2026-10-02T08:02:00.000Z' },
+      ],
+    };
+    server.use(
+      http.get(`${API}/today`, () => HttpResponse.json(summary)),
+      http.get(`${API}/day-people`, () => HttpResponse.json(people)),
+    );
+    render(<LunchTab />);
+    const debts = (await screen.findByText(/Борги \(1\)/)).nextElementSibling as HTMLElement;
+    expect(within(debts).getByText(/45 грн · 💵 готівкою/)).toBeInTheDocument();
+    expect(screen.getByTitle('Написав(ла), що віддасть готівкою')).toBeInTheDocument();
+    const payments = screen.getByRole('list', { name: 'Оплати за день' });
+    expect(within(payments).getByText(/сума з чека \(фото \/ PDF\)/)).toBeInTheDocument();
+    expect(within(payments).getByText(/посилання на чек — суму не перевірено/)).toBeInTheDocument();
+    expect(within(payments).getByText(/написав\(ла\), що оплатив\(ла\) — суму не перевірено/)).toBeInTheDocument();
+  });
+
+  it('порівняння моделей: задача слухачеві, опитування, таблиця з розбіжностями й вартістю', async () => {
+    const posted: unknown[] = [];
+    const job = { id: 5, status: 'pending', params: { date: '2026-10-02' }, result: null, error: null, createdAt: '2026-10-02T10:00:00.000Z', finishedAt: null };
+    const report = {
+      date: '2026-10-02',
+      models: ['claude-opus-5-5', 'claude-haiku-5-5'],
+      baseline: 'claude-opus-5-5',
+      skipped: 0,
+      media: [
+        {
+          messageId: 10,
+          source: 'photo',
+          time: '11:58',
+          results: [
+            { model: 'claude-opus-5-5', seconds: 8.4, error: null, kind: 'menu', items: 34, amountUah: null, costUsd: 0.021, agree: true },
+            {
+              model: 'claude-haiku-5-5', seconds: 3.1, error: null, kind: 'menu', items: 34, amountUah: null, costUsd: 0.0005, agree: false,
+              menuDiff: { missing: ['Борщ'], extra: [], prices: [{ name: 'Суп грибний', base: 55, other: 65 }] },
+            },
+          ],
+        },
+        {
+          messageId: 12,
+          source: 'pdf',
+          time: '12:12',
+          results: [
+            { model: 'claude-opus-5-5', seconds: 2.0, error: null, kind: 'receipt', items: 0, amountUah: 115, costUsd: 0.01, agree: true },
+            { model: 'claude-haiku-5-5', seconds: 1.2, error: null, kind: 'receipt', items: 0, amountUah: 115, costUsd: 0.0003, agree: true },
+          ],
+        },
+      ],
+      summary: [
+        { model: 'claude-opus-5-5', media: 2, menu: 1, receipt: 1, other: 0, errors: 0, agree: 2, costUsd: 0.031, seconds: 10.4 },
+        { model: 'claude-haiku-5-5', media: 2, menu: 1, receipt: 1, other: 0, errors: 0, agree: 1, costUsd: 0.0008, seconds: 4.3 },
+      ],
+    };
+    let polls = 0;
+    server.use(
+      http.get(`${API}/today`, () => HttpResponse.json(summaryWith([order]))),
+      http.get(`${API}/day-people`, () => HttpResponse.json(people)),
+      http.post(`${API}/ocr-compare`, async ({ request }) => {
+        posted.push(await request.json());
+        return HttpResponse.json({ job }, { status: 201 });
+      }),
+      http.get(`${API}/ocr-compare/5`, () => {
+        polls += 1;
+        return HttpResponse.json({ job: polls === 1 ? { ...job, status: 'running' } : { ...job, status: 'done', result: report } });
+      }),
+    );
+    const user = userEvent.setup();
+    render(<LunchTab ocrComparePollMs={10} />);
+    await screen.findByText(/Борги \(1\)/);
+    expect(screen.getByLabelText('День для порівняння моделей')).toHaveValue('2026-10-02'); // день з адмінки
+
+    await user.click(screen.getByRole('button', { name: 'Порівняти моделі' }));
+    const table = await screen.findByRole('table', { name: 'Порівняння моделей за 2026-10-02' });
+    expect(posted).toEqual([{ date: '2026-10-02' }]);
+    expect(within(table).getByText('Opus 5.5 (еталон)')).toBeInTheDocument();
+    expect(within(table).getByText(/меню: 34 страв ≠/)).toBeInTheDocument();
+    expect(within(table).getByText('немає: Борщ')).toBeInTheDocument();
+    expect(within(table).getByText('ціни: Суп грибний 55 → 65')).toBeInTheDocument();
+    expect(within(table).getByText(/чек: 115 грн ✓/)).toBeInTheDocument();
+    expect(within(table).getByText(/збіглось 1 з 2/)).toBeInTheDocument();
+    expect(within(table).getByText(/\$0\.0008/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Порівняти моделі' })).toBeEnabled();
+  });
+
+  it('порівняння моделей: помилка запуску й невдала задача', async () => {
+    let fail = true;
+    server.use(
+      http.get(`${API}/today`, () => HttpResponse.json(summaryWith([order]))),
+      http.get(`${API}/day-people`, () => HttpResponse.json(people)),
+      http.post(`${API}/ocr-compare`, () =>
+        fail
+          ? HttpResponse.json({ error: 'У бекенда немає ANTHROPIC_API_KEY' }, { status: 409 })
+          : HttpResponse.json({ job: { id: 6, status: 'pending', params: null, result: null, error: null, createdAt: '', finishedAt: null } }, { status: 201 }),
+      ),
+      http.get(`${API}/ocr-compare/6`, () =>
+        HttpResponse.json({ job: { id: 6, status: 'failed', params: null, result: null, error: 'слухача перезапущено — запустіть ще раз', createdAt: '', finishedAt: null } }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<LunchTab ocrComparePollMs={10} />);
+    await screen.findByText(/Борги \(1\)/);
+    await user.click(screen.getByRole('button', { name: 'Порівняти моделі' }));
+    expect(await screen.findByText('У бекенда немає ANTHROPIC_API_KEY')).toBeInTheDocument();
+    fail = false;
+    await user.click(screen.getByRole('button', { name: 'Порівняти моделі' }));
+    expect(await screen.findByText('Не вдалося: слухача перезапущено — запустіть ще раз')).toBeInTheDocument();
+  });
+});

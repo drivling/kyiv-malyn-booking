@@ -3,9 +3,19 @@ import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
 import { Button } from '@/components/Button';
 import type { LunchDayPeople, LunchDaySummary, LunchOrderRow, LunchPerson, LunchReparseReport } from '@/types';
+import { LunchOcrCompare } from './LunchOcrCompare';
 import { LunchPeoplePanel } from './LunchPeoplePanel';
 import { LunchReparseReportView } from './LunchReparseReportView';
 import './LunchTab.css';
+
+/** Звідки взялась оплата — щоб оператор бачив, що перевіряти (посилання на чек суму не підтверджує). */
+const PAYMENT_SOURCE_LABEL: Record<string, string> = {
+  text: 'написав(ла) в чаті',
+  admin: 'кнопка «Оплатив»',
+  receipt: 'сума з чека (фото / PDF)',
+  link: 'посилання на чек — суму не перевірено',
+  claim: 'написав(ла), що оплатив(ла) — суму не перевірено',
+};
 
 const EXAMPLE_JSON = `{"items":[{"name":"Яйце з кабачковою ікрою","price":40},{"name":"Салат «Овочевий мікс»","price":45},{"name":"Пюре","price":45},{"name":"Котлети курячі","price":70}]}`;
 
@@ -60,7 +70,12 @@ type EditState = {
   asWrittenDraft: string;
 };
 
-export const LunchTab: React.FC = () => {
+type LunchTabProps = {
+  /** тести передають маленький інтервал опитування задачі порівняння моделей */
+  ocrComparePollMs?: number;
+};
+
+export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
   const [summary, setSummary] = useState<LunchDaySummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -728,7 +743,15 @@ export const LunchTab: React.FC = () => {
                           </td>
                           <td>{o.totalUah}</td>
                           <td>{o.paidUah}</td>
-                          <td className={o.debtUah > 0 ? 'lunch-debt' : ''}>{o.debtUah}</td>
+                          <td className={o.debtUah > 0 ? 'lunch-debt' : ''}>
+                            {o.debtUah}
+                            {o.cashPromised && o.debtUah > 0 && (
+                              <span className="lunch-cash" title="Написав(ла), що віддасть готівкою">
+                                {' '}
+                                💵
+                              </span>
+                            )}
+                          </td>
                           <td className="lunch-row-actions">
                             <Button
                               type="button"
@@ -970,7 +993,28 @@ export const LunchTab: React.FC = () => {
                 {summary.debts.map((d) => (
                   <li key={d.id}>
                     <span>{d.displayName}</span>
-                    <span className="lunch-debt">{d.debtUah} грн</span>
+                    <span className="lunch-debt">
+                      {d.debtUah} грн{d.cashPromised ? ' · 💵 готівкою' : ''}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <h4 className="lunch-section-title">Оплати ({summary.payments.length})</h4>
+            {summary.payments.length === 0 ? (
+              <p className="lunch-muted">Оплат ще немає.</p>
+            ) : (
+              <ul className="lunch-menu-list" aria-label="Оплати за день">
+                {summary.payments.map((p) => (
+                  <li key={p.id}>
+                    <span>
+                      {p.displayName}{' '}
+                      <span className="lunch-muted" title={p.rawText}>
+                        · {PAYMENT_SOURCE_LABEL[p.source ?? 'text']}
+                      </span>
+                    </span>
+                    <span>{p.amountUah} грн</span>
                   </li>
                 ))}
               </ul>
@@ -982,6 +1026,8 @@ export const LunchTab: React.FC = () => {
       {report && (
         <LunchReparseReportView title={report.title} report={report.data} onClose={() => setReport(null)} />
       )}
+
+      <LunchOcrCompare defaultDate={summary?.date} pollIntervalMs={ocrComparePollMs} />
 
       <LunchPeoplePanel
         data={people}

@@ -67,3 +67,7 @@ backend/telegram-user/*.session-journal
 data/korosten-transport/google/*.local.json
 data/korosten-transport/dataset/*.local.json
 data/korosten-transport/dataset/*.local.md
+
+# Скомпільований Python (тести lunch / dzhura лишають його поруч із кодом)
+__pycache__/
+*.pyc

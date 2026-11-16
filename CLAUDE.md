@@ -140,7 +140,9 @@ of `dist` in a commit.
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
 
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; research in
-  `Docs/dovede/research/`): a person asks in plain words and gets a story of cards built in the browser
+  `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
+  opens the page — `DovedePage/intro/`, flag `dovede-intro:v1`, file `public/dovede/intro-<hash>.mp4` from
+  `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs): a person asks in plain words and gets a story of cards built in the browser
   (`frontend/src/pages/DovedePage/`: `nlu/parseLocal` dictionary parse → `compose/` with `/poputky/search`, anchors
   and the Malyn RAPTOR planner → template text). **AI only understands the text, it never names a time, route or
   price.** Access is decided by the server (`src/dovede/access.ts`, page side `DovedePage/access.ts`): until
@@ -281,10 +283,39 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 
   New Telethon call sites must go through `withTelegramUserSessionExclusive` or
   `awaitTelegramSession()`.
-- OCR of the menu photo the operator posts in the lunch group, via Claude (`ANTHROPIC_API_KEY`, `LUNCH_OCR_MODEL`, default
-  `claude-opus-5-5`; `ANTHROPIC_WORKSPACE_ID` only for an organization-level key not bound to a workspace;
-  `lunch/ocr_menu.py`) in the Python lunch listener. Every photo is checked, but only one the model
-  marks as a menu with ≥ 5 priced dishes is used, and it is merged into the day's menu, never replacing it.
+- **The PoDoroguem listener is a separate Railway service with its own Telegram account** (`podoroguem-listener/`,
+  Dockerfile at the repo root context; it captures only the PoDoroguem group into `Dzhura*`, no relay). Railway redeploys
+  it on every push to `main` and starts the new container ~15 s before stopping the old one, so it takes its own row
+  (`TelegramSessionLease.id = 2`; `id = 1` is the owner's account in the backend) through `session_lease.py` — same
+  heartbeat / stale / settle rules as the Node lease, released only after `client.disconnect()`. A dead session
+  (`FATAL_SESSION_ERRORS`) ends the process with exit code 78 and a log line saying how to log in again
+  (`python3 podoroguem-listener/auth.py --fresh --export`, then replace `TELEGRAM_USER_SESSION_BASE64` of **that** service
+  only). Lease unit tests: `python3 -m unittest podoroguem-listener/test_session_lease.py` (not in CI).
+- Photos and PDFs posted in the lunch group are read by Claude (`ANTHROPIC_API_KEY`; `ANTHROPIC_WORKSPACE_ID` only for
+  an organization-level key not bound to a workspace; `lunch/ocr_menu.py` → `scan_media_bytes`) in the Python lunch
+  listener. One request answers `kind`: `menu` (≥ 5 priced dishes, merged into the day's menu, never replacing it),
+  `receipt` (the transfer amount) or `other`. **Two models:** `LUNCH_OCR_MODEL` (default the cheap
+  `claude-haiku-5-5`) looks at every file and reads receipts; when it says «menu», the menu is read again by
+  `LUNCH_MENU_MODEL` (default `claude-opus-5-5`) and that result is used. Do not put the menu on the cheap model: on
+  the real photos of 13 and 16 Nov 2026 Haiku read receipt amounts exactly like Opus (14 of 14) but shifted menu
+  prices by a row (16 wrong prices of 34 in one day). Haiku 5.5 has no server-side `fallbacks`, so that parameter is
+  sent only to models that support it. Bank PDF receipts are rejected by the API as documents («The PDF specified was
+  not valid»), so the first page is rendered to a JPEG with `pypdfium2` and sent as an image.
+  **Payment evidence** (`lunch/evidence.py`): a receipt photo/PDF becomes a `LunchPayment` with `source = 'receipt'`
+  (the same amount already recorded from «оплатив 150» or the admin button is only confirmed, never doubled, and
+  vice versa; a receipt of another amount is not added either when the debt is already settled by a payment without
+  a receipt — `apply_receipt` → `settled`); a `check.monobank.ua/p/…` link cannot be read (captcha), so it pays the person's whole current debt
+  with `source = 'link'` («суму не перевірено»; a link sent before the order is settled when the order appears);
+  «скинула гроші» / «оплатив» with no amount and no receipt does the same with `source = 'claim'` (the owner's
+  decision; past tense in the first person only — «скину», «скиньте», a question are not payments);
+  «віддам готівкою» sets `LunchOrder.cashPromised` and shows «💵 Готівкою» in our reply until paid — it is not a
+  payment. Every scanned message is journalled in `LunchMediaScan`, so catch-up after a listener pause (which now
+  also picks up a missed menu photo and receipts) and «Розібрати день» never ask the model twice; a failed scan is
+  not journalled and is retried. Nothing is posted to the group for a receipt — «✅ Оплатив» appears as an edit of
+  our reply. The reply text is built in two places that must stay identical: `lunch/formatters.py` and
+  `backend/src/lunch.ts` (`formatPaidLine`, `formatCashLine`). Admin job `ocr_compare` (`POST
+  /admin/lunch/ocr-compare`, block on the lunch tab) runs a day's real photos through several models and reports
+  where they differ, with time and cost; it changes nothing.
 - The same listener process hosts «Джура» chat capture (`DZHURA_ENABLED`, default on) — see above.
 - Python phone-lookup scripts under `backend/opendatabot-fop-parser/` and
   `backend/internet-phone-search/`, invoked from `phone-lookup.ts`/`phonecheck.ts`.

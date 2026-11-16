@@ -148,9 +148,40 @@ const NO_CACHE_FILES = new Set(['/transport-sw.js', '/transport.webmanifest', '/
  */
 export function cacheControlFor(pathname) {
   if (/\.html$/i.test(pathname) || NO_CACHE_FILES.has(pathname)) return 'no-cache';
-  if (pathname.startsWith('/assets/')) return 'public, max-age=31536000, immutable';
+  if (pathname.startsWith('/assets/') || DOVEDE_INTRO_FILE.test(pathname)) return 'public, max-age=31536000, immutable';
   if (pathname.startsWith('/icons/')) return 'public, max-age=86400';
   return 'public, max-age=3600';
+}
+
+/**
+ * Ролик-вступ «Доведе» (`public/dovede/intro-<хеш>.mp4` + постер; `npm run dovede:intro`): у назві — хеш вмісту,
+ * новий ролик = нова назва, тож файл кешується назавжди, як `/assets/*`.
+ */
+const DOVEDE_INTRO_FILE = /^\/dovede\/intro-[0-9a-f]{8}\.(mp4|jpg)$/;
+
+/**
+ * Один діапазон із заголовка `Range` (RFC 9110 §14.1.2) — без нього Safari на iPhone не грає MP4 (питає
+ * `bytes=0-1` і чекає 206).
+ * @param {string|undefined} header значення `Range`
+ * @param {number} size розмір файлу в байтах
+ * @returns {{ start: number, end: number } | 'unsatisfiable' | null} межі включно; `'unsatisfiable'` → 416;
+ *   null → відповідати цілим файлом (заголовка немає, він не про байти, кілька діапазонів або зламаний)
+ */
+export function parseByteRange(header, size) {
+  if (!header) return null;
+  const m = /^bytes=(\d*)-(\d*)$/.exec(String(header).trim());
+  if (!m || (m[1] === '' && m[2] === '')) return null;
+  if (m[1] === '') {
+    // суфікс: останні N байтів
+    const n = Number(m[2]);
+    if (n === 0 || size === 0) return 'unsatisfiable';
+    return { start: Math.max(0, size - n), end: size - 1 };
+  }
+  const start = Number(m[1]);
+  const end = m[2] === '' ? Infinity : Number(m[2]);
+  if (end < start) return null;
+  if (start >= size) return 'unsatisfiable';
+  return { start, end: Math.min(end, size - 1) };
 }
 
 /**

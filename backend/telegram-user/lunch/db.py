@@ -6,7 +6,7 @@ import json
 import os
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 import asyncpg
@@ -531,7 +531,7 @@ class LunchDB:
             o = await conn.fetchrow(
                 """
                 SELECT o.id, o."replyMessageId", o."totalUah", o."trayCount", o."trayTotalUah", o."unmatchedText",
-                       p."displayName"
+                       o."cashPromised", p."displayName"
                 FROM "LunchOrder" o
                 JOIN "LunchParticipant" p ON p.id = o."participantId"
                 WHERE o."dayId" = $1 AND o."participantId" = $2 AND o.status = 'active'
@@ -558,6 +558,7 @@ class LunchDB:
             "tray_count": int(o["trayCount"] or 0),
             "tray_total_uah": int(o["trayTotalUah"] or 0),
             "unmatched_text": o["unmatchedText"],
+            "cash_promised": bool(o["cashPromised"]),
             "lines": [
                 {
                     "menuItemName": r["name"],
@@ -756,13 +757,16 @@ class LunchDB:
         amount_uah: int,
         raw_text: str,
         source_message_id: Optional[int] = None,
+        source: str = "text",
     ) -> int:
+        """source: text — «оплатив 150» у чаті; receipt — сума з фото/PDF чека; link — посилання на чек;
+        claim — «скинула гроші» без суми й чека."""
         async with self.pool.acquire() as conn:
             row = await conn.fetchrow(
                 """
                 INSERT INTO "LunchPayment"
-                    ("dayId", "participantId", "amountUah", "sourceMessageId", "rawText")
-                VALUES ($1, $2, $3, $4, $5)
+                    ("dayId", "participantId", "amountUah", "sourceMessageId", "rawText", source)
+                VALUES ($1, $2, $3, $4, $5, $6)
                 RETURNING id
                 """,
                 day_id,
@@ -770,8 +774,153 @@ class LunchDB:
                 amount_uah,
                 source_message_id,
                 raw_text,
+                source,
             )
             return int(row["id"])
+
+    async def has_payment_from(self, day_id: int, participant_id: int, sources: Sequence[str]) -> bool:
+        """Чи є сьогодні в людини хоч одна оплата з цих джерел (будь-яка сума)."""
+        async with self.pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    """
+                    SELECT 1 FROM "LunchPayment"
+                    WHERE "dayId" = $1 AND "participantId" = $2 AND source = ANY($3::text[])
+                    LIMIT 1
+                    """,
+                    day_id,
+                    participant_id,
+                    list(sources),
+                )
+            )
+
+    async def has_payment_of_amount(
+        self, day_id: int, participant_id: int, amount_uah: int, sources: Sequence[str]
+    ) -> bool:
+        """Чи є сьогодні в людини оплата на таку саму суму з цих джерел (чек підтверджує «оплатив 150», а не подвоює)."""
+        async with self.pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    """
+                    SELECT 1 FROM "LunchPayment"
+                    WHERE "dayId" = $1 AND "participantId" = $2 AND "amountUah" = $3 AND source = ANY($4::text[])
+                    LIMIT 1
+                    """,
+                    day_id,
+                    participant_id,
+                    int(amount_uah),
+                    list(sources),
+                )
+            )
+
+    # ---------- журнал фото/PDF і посилань на чек ----------
+
+    async def get_media_scan(self, day_id: int, tg_message_id: int) -> Optional[dict[str, Any]]:
+        async with self.pool.acquire() as conn:
+            r = await conn.fetchrow(
+                """
+                SELECT source, kind, "amountUah", model, "rawJson", "senderTgId"
+                FROM "LunchMediaScan" WHERE "dayId" = $1 AND "tgMessageId" = $2
+                """,
+                day_id,
+                int(tg_message_id),
+            )
+        if not r:
+            return None
+        return {
+            "source": r["source"],
+            "kind": r["kind"],
+            "amount_uah": int(r["amountUah"]) if r["amountUah"] is not None else None,
+            "model": r["model"],
+            "raw_json": r["rawJson"],
+            "sender_tg_id": r["senderTgId"],
+        }
+
+    async def save_media_scan(
+        self,
+        day_id: int,
+        tg_message_id: int,
+        *,
+        sender_tg_id: Optional[str],
+        source: str,
+        kind: str,
+        amount_uah: Optional[int] = None,
+        model: Optional[str] = None,
+        raw: Any = None,
+    ) -> None:
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                INSERT INTO "LunchMediaScan"
+                    ("dayId", "tgMessageId", "senderTgId", source, kind, "amountUah", model, "rawJson")
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                ON CONFLICT ("dayId", "tgMessageId") DO UPDATE SET
+                    kind = EXCLUDED.kind,
+                    "amountUah" = EXCLUDED."amountUah",
+                    model = EXCLUDED.model,
+                    "rawJson" = EXCLUDED."rawJson"
+                """,
+                day_id,
+                int(tg_message_id),
+                str(sender_tg_id) if sender_tg_id else None,
+                source,
+                kind,
+                int(amount_uah) if amount_uah is not None else None,
+                model,
+                json.dumps(raw, ensure_ascii=False) if raw is not None else None,
+            )
+
+    async def scanned_message_ids(self, day_id: int) -> set[int]:
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch('SELECT "tgMessageId" FROM "LunchMediaScan" WHERE "dayId" = $1', day_id)
+        return {int(r["tgMessageId"]) for r in rows}
+
+    async def pending_link_receipts(self, day_id: int, sender_tg_id: str) -> list[int]:
+        """Посилання-чеки людини, за якими ще нічого не зараховано (надіслала чек раніше, ніж замовлення)."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT s."tgMessageId" FROM "LunchMediaScan" s
+                WHERE s."dayId" = $1 AND s."senderTgId" = $2 AND s.source IN ('link', 'claim')
+                  AND NOT EXISTS (
+                      SELECT 1 FROM "LunchPayment" p
+                      WHERE p."dayId" = s."dayId" AND p."sourceMessageId" = s."tgMessageId"
+                  )
+                ORDER BY s."tgMessageId"
+                """,
+                day_id,
+                str(sender_tg_id),
+            )
+        return [int(r["tgMessageId"]) for r in rows]
+
+    # ---------- «віддам готівкою» ----------
+
+    async def set_order_cash(self, day_id: int, participant_id: int, value: bool = True) -> bool:
+        """Позначити активне замовлення людини як «готівкою». False — замовлення немає або позначка вже така."""
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                """
+                UPDATE "LunchOrder" SET "cashPromised" = $3, "updatedAt" = NOW()
+                WHERE "dayId" = $1 AND "participantId" = $2 AND status = 'active' AND "cashPromised" <> $3
+                """,
+                day_id,
+                participant_id,
+                bool(value),
+            )
+        return res.endswith(" 1")
+
+    async def get_order_cash(self, day_id: int, participant_id: int) -> bool:
+        async with self.pool.acquire() as conn:
+            return bool(
+                await conn.fetchval(
+                    """
+                    SELECT "cashPromised" FROM "LunchOrder"
+                    WHERE "dayId" = $1 AND "participantId" = $2 AND status = 'active'
+                    """,
+                    day_id,
+                    participant_id,
+                )
+            )
 
     async def participant_balance(self, day_id: int, participant_id: int) -> tuple[int, int, int]:
         """Повертає (ordered_total, paid_total, debt). debt > 0 — ще винні."""
@@ -801,7 +950,7 @@ class LunchDB:
             orders = await conn.fetch(
                 """
                 SELECT o.id, o."rawText", o."unmatchedText", o."totalUah",
-                       o."trayCount", o."trayTotalUah",
+                       o."trayCount", o."trayTotalUah", o."cashPromised",
                        p.id AS pid, p."displayName", p.username
                 FROM "LunchOrder" o
                 JOIN "LunchParticipant" p ON p.id = o."participantId"
@@ -843,6 +992,7 @@ class LunchDB:
                         "display_name": o["displayName"],
                         "username": o["username"],
                         "raw_text": o["rawText"],
+                        "cash_promised": bool(o["cashPromised"]),
                         "unmatched_text": o["unmatchedText"],
                         "total_uah": total,
                         "tray_count": int(o["trayCount"] or 0),
@@ -1093,6 +1243,26 @@ class LunchDB:
                         params = {}
                 out.append({"id": int(r["id"]), "type": r["type"], "params": params})
             return out
+
+    async def start_job(self, job_id: int) -> None:
+        """Довга задача (порівняння моделей) іде у фоні: «running», щоб черга не взяла її вдруге."""
+        async with self.pool.acquire() as conn:
+            await conn.execute("""UPDATE "LunchAdminJob" SET status = 'running' WHERE id = $1""", job_id)
+
+    async def fail_running_jobs(self, reason: str) -> int:
+        """Слухача перезапустили посеред фонової задачі — вона вже не завершиться."""
+        async with self.pool.acquire() as conn:
+            res = await conn.execute(
+                """
+                UPDATE "LunchAdminJob" SET status = 'failed', "errorText" = $1, "finishedAt" = NOW()
+                WHERE status = 'running'
+                """,
+                reason,
+            )
+        try:
+            return int(res.split()[-1])
+        except (ValueError, IndexError):
+            return 0
 
     async def complete_job(self, job_id: int, result: Any) -> None:
         async with self.pool.acquire() as conn:

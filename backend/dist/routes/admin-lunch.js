@@ -159,6 +159,47 @@ function createAdminLunchRouter(deps) {
         }
     });
     /**
+     * Порівняти моделі розпізнавання на реальних фото й PDF дня: { date?: 'YYYY-MM-DD', models?: string[] }.
+     * Слухач проганяє кожне фото через усі моделі й повертає, де вони розходяться (меню: страви й ціни;
+     * чек: сума), час і вартість. Нічого не змінює. Відповідь — задача; стан — GET …/ocr-compare/:id.
+     */
+    r.post('/admin/lunch/ocr-compare', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const today = (0, lunch_1.todayKyivDate)().toISOString().slice(0, 10);
+            const job = await (0, lunch_reparse_1.createOcrCompareJob)(prisma, (0, lunch_reparse_1.parseOcrCompareRequest)(req.body, today), {
+                listenerWanted: deps.listenerWanted,
+                env: deps.env,
+            });
+            res.status(201).json({ job });
+        }
+        catch (e) {
+            if (e instanceof lunch_reparse_1.LunchJobError) {
+                res.status(e.status).json({ error: e.message });
+                return;
+            }
+            console.error('[admin/lunch/ocr-compare]', e);
+            res.status(500).json({ error: 'Не вдалося запустити порівняння' });
+        }
+    });
+    r.get('/admin/lunch/ocr-compare/:id', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const id = Number(req.params.id);
+            if (!Number.isInteger(id) || id <= 0) {
+                res.status(400).json({ error: 'Некоректний id' });
+                return;
+            }
+            res.json({ job: await (0, lunch_reparse_1.getOcrCompareJob)(prisma, id) });
+        }
+        catch (e) {
+            if (e instanceof lunch_reparse_1.LunchJobError) {
+                res.status(e.status).json({ error: e.message });
+                return;
+            }
+            console.error('[admin/lunch/ocr-compare/:id]', e);
+            res.status(500).json({ error: 'Не вдалося прочитати порівняння' });
+        }
+    });
+    /**
      * Історія за період (меню дня + замовлення з підсумковими рядками) — для оцінки розпізнавання на
      * реальних даних. ?from=YYYY-MM-DD&to=YYYY-MM-DD, за замовчуванням останні 14 днів, максимум 62.
      * Імен і Telegram-id немає.

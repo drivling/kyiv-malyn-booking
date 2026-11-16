@@ -16,7 +16,7 @@ import asyncio
 import os
 import signal
 import sys
-import tempfile
+from datetime import date
 from pathlib import Path
 from typing import Optional, Set
 
@@ -26,9 +26,26 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from lunch.db import LunchDB, today_kyiv  # noqa: E402
-from lunch.ocr_menu import merge_menu_items, ocr_menu_from_image_bytes  # noqa: E402
+from lunch.evidence import (  # noqa: E402
+    apply_claim,
+    apply_link,
+    compare_day,
+    handle_media_message,
+    media_of,
+    settle_pending_links,
+)
+from lunch.ocr_menu import COMPARE_MODELS, menu_model_name, ocr_model_name  # noqa: E402
 from lunch.parse_order import looks_like_order, parse_order_contextual  # noqa: E402
-from lunch.parse_payment import looks_like_card_number, parse_payment  # noqa: E402
+from lunch.parse_payment import (  # noqa: E402
+    is_cash_promise,
+    is_paid_claim,
+    looks_like_card_number,
+    parse_payment,
+    receipt_links,
+    strip_cash_promise,
+    strip_paid_claim,
+    strip_receipt_links,
+)
 from lunch.parse_summary import (  # noqa: E402
     DOZAZAK_DISPLAY_NAME,
     DOZAZAK_TELEGRAM_ID,
@@ -193,6 +210,11 @@ async def run() -> None:
     me_id = int(me.id) if me else None
     entity = await client.get_entity(group_id)
     print(f"[lunch] listening group={getattr(entity, 'title', group_id)} id={group_id} me={me_id}")
+    if ocr_enabled(os.environ.get("ANTHROPIC_API_KEY")):
+        print(f"[lunch] фото й PDF розбирає {ocr_model_name()} (чеки), меню перечитує {menu_model_name()}")
+    stale = await db.fail_running_jobs("слухача перезапущено — запустіть ще раз")
+    if stale:
+        print(f"[lunch] failed {stale} stale running job(s)")
 
     # Джура (читання обраних чатів у базу) живе в цьому ж процесі: одна Telethon-сесія на акаунт.
     # Обробники реєструються ДО лунч-обробника — Telethon виконує їх послідовно, і захват
@@ -251,45 +273,36 @@ async def run() -> None:
             if text.startswith(echo_prefixes) or ", заказ:" in text.lower() or ": зараховано " in text.lower() or ", сьогодні немає:" in text.lower():
                 return
 
-        # --- фото меню ---
-        if msg.photo:
-            print(f"[lunch] photo from {name} id={msg.id}")
+        # --- фото чи PDF: меню дня, чек оплати або щось інше ---
+        media = media_of(msg)
+        if media:
+            print(f"[lunch] {media[0]} from {name} id={msg.id}")
             # Без ANTHROPIC_API_KEY — мовчки ігноруємо (меми після обіду не спамимо)
             if not ocr_enabled(os.environ.get("ANTHROPIC_API_KEY")):
-                print("[lunch] photo ignored (OCR off)")
-                return
-            try:
-                with tempfile.TemporaryDirectory() as tmp:
-                    path = await msg.download_media(file=os.path.join(tmp, "menu.jpg"))
-                    if not path:
-                        print(f"[lunch] photo {msg.id}: не вдалося завантажити", file=sys.stderr)
+                print("[lunch] media ignored (OCR off)")
+            else:
+                try:
+                    day = await db.get_or_create_day(today_kyiv())
+                    outcome = await handle_media_message(
+                        db, msg, day.id, uid=uid, name=name, username=username,
+                        # після підсумку меню вже не міняємо; чек зараховуємо й у закритому дні
+                        allow_menu=day.status != "closed",
+                    )
+                    if outcome is None:
+                        print(f"[lunch] media {msg.id}: не вдалося завантажити або файл завеликий", file=sys.stderr)
+                    elif outcome.menu_rows:
+                        print(f"[lunch] OCR menu photo={msg.id}: {len(outcome.scan.items)} позицій ({outcome.scan.model})")
+                        await reply(event, format_menu(outcome.menu_rows, await db.get_tray_price()))
+                        for n in outcome.notices:
+                            await reply(event, format_unavailable(n["display_name"], n["missing_dishes"]))
                         return
-                    data = Path(path).read_bytes()
-                items, raw = await ocr_menu_from_image_bytes(data, known_names=await db.catalog_dish_names())
-                if not items:
-                    # чек, мем, список замовлень — не меню: мовчимо, у групу нічого не пишемо
-                    found = len(raw.get("items") or [])
-                    print(f"[lunch] photo {msg.id}: не меню (is_menu={raw.get('is_menu')}, позицій={found})")
-                    return
-                print(f"[lunch] OCR menu photo={msg.id}: {len(items)} позицій")
-                day = await db.get_or_create_day(today_kyiv())
-                # доливаємо в наявне меню дня (друге фото меню, меню з адмінки), а не стираємо його
-                existing = [(m.name, m.price_uah) for m in await db.list_menu_items(day.id)]
-                menu_rows = await db.replace_menu(
-                    day.id,
-                    merge_menu_items(existing, items),
-                    menu_message_id=msg.id,
-                    parsed_raw=raw,
-                )
-                tray_price = await db.get_tray_price()
-                await reply(event, format_menu(menu_rows, tray_price))
-                notices = await db.sync_orders_after_menu(day.id)
-                for n in notices:
-                    await reply(event, format_unavailable(n["display_name"], n["missing_dishes"]))
-            except Exception as e:
-                # у групу помилку не пишемо: фото могло бути й не меню; меню завжди можна вставити в адмінці
-                print(f"[lunch] OCR error photo={msg.id}: {e}", file=sys.stderr)
-            return
+                    else:
+                        # чек: «✅ Оплатив» дописано правкою нашої відповіді; у групу нічого не пишемо
+                        print(f"[lunch] media {msg.id}: {outcome.note} ({outcome.scan.model}, {outcome.scan.sent_as or 'журнал'})")
+                except Exception as e:
+                    # у групу помилку не пишемо: меню завжди можна вставити в адмінці, оплату — кнопкою
+                    print(f"[lunch] OCR error media={msg.id}: {e}", file=sys.stderr)
+            # підпис під фото/PDF — звичайний текст: люди шлють чек разом із замовленням
 
         if not text:
             return
@@ -440,6 +453,9 @@ async def run() -> None:
             if not uid:
                 return
             pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
+            if await db.has_payment_of_amount(day.id, pid, pay.amount_uah, ("receipt", "link", "claim")):
+                print(f"[lunch] msg {msg.id} from {name}: {pay.amount_uah} грн уже зараховано за чеком")
+                return
             await db.add_payment(day.id, pid, pay.amount_uah, text, source_message_id=msg.id)
             ordered, paid, debt = await db.participant_balance(day.id, pid)
             await reply(event, format_payment_reply(name, pay.amount_uah, ordered, paid, debt))
@@ -447,8 +463,42 @@ async def run() -> None:
             await refresh_order_reply(db, day.id, pid)
             return
 
+        # --- посилання на чек і «віддам готівкою»: окремим повідомленням або разом із замовленням ---
+        links = receipt_links(text) if uid else []
+        cash = bool(uid) and is_cash_promise(text)
+        # «скинула гроші», «оплатив» без суми й чека — як посилання на чек: гасить увесь борг
+        claim = bool(uid) and not links and is_paid_claim(text)
+        order_text = text
+        if links or cash or claim:
+            order_text = strip_paid_claim(strip_cash_promise(strip_receipt_links(text)))
+        link_added = False
+        if links or claim:
+            day = await db.get_or_create_day(today_kyiv())
+            pid = await db.upsert_participant(uid, name, f"@{username}" if username else None)
+            if links:
+                outcome = await apply_link(db, day.id, pid, uid=uid, message_id=msg.id, url=links[0])
+            else:
+                outcome = await apply_claim(db, day.id, pid, uid=uid, message_id=msg.id)
+            link_added = outcome == "added"
+            print(f"[lunch] msg {msg.id} from {name}: {'чек за посиланням' if links else 'оплата без суми'} — {outcome}")
+
+        async def note_without_order() -> None:
+            """Замовлення з цього тексту немає: чек і готівку відносимо до вже записаного замовлення людини."""
+            if not (links or cash or claim):
+                return
+            day_now = await db.get_day(today_kyiv())
+            pid_now = await db.find_participant_id_by_telegram_id(uid)
+            if day_now is None or pid_now is None:
+                return
+            marked = cash and await db.set_order_cash(day_now.id, pid_now)
+            if marked:
+                print(f"[lunch] msg {msg.id} from {name}: віддасть готівкою")
+            if marked or link_added:
+                await refresh_order_reply(db, day_now.id, pid_now)
+
         # --- замовлення ---
-        if not looks_like_order(text):
+        if not order_text or not looks_like_order(order_text):
+            await note_without_order()
             return
 
         day = await db.get_or_create_day(today_kyiv())
@@ -463,8 +513,10 @@ async def run() -> None:
         if looks_like_day_summary(text):
             return
 
-        result = parse_order_contextual(text, today_menu, fallback)
+        result = parse_order_contextual(order_text, today_menu, fallback)
         dish_count = sum(l.qty for l in result.lines)
+        if not result.lines:
+            await note_without_order()
         if not result.lines and not result.unavailable:
             why = (
                 "неоднозначно: " + "; ".join(f"«{k}» — {' / '.join(v)}" for k, v in result.ambiguous.items())
@@ -512,6 +564,10 @@ async def run() -> None:
         # Синоніми НЕ навчаємо автоматично: кожен нечіткий збіг ставав «правилом», і хибний
         # збіг («салат оливʼє» → «Салат грецький») закріплювався назавжди. Синонім додає лише
         # людина в адмінці (ручна правка замовлення / картка страви).
+        if cash:
+            await db.set_order_cash(day.id, pid)
+        # чек-посилання з цього ж повідомлення чи надісланий до замовлення гасить борг уже тепер
+        await settle_pending_links(db, day.id, pid, uid)
         tray_price = await db.get_tray_price()
         trays, tray_sum, grand = await db.apply_trays_to_lines(result.lines)
         _ordered, paid, _debt = await db.participant_balance(day.id, pid)
@@ -526,6 +582,7 @@ async def run() -> None:
             unavailable=result.unavailable,
             ambiguous=result.ambiguous,
             paid_uah=paid,
+            cash=cash or await db.get_order_cash(day.id, pid),
         )
         reply_id = await reply(event, confirm)
         if reply_id:
@@ -545,6 +602,25 @@ async def run() -> None:
     async def catch_up_on_start() -> None:
         await asyncio.sleep(3)  # дати обробникам і Джурі підняти свої gap-fill
         await run_catch_up("start")
+
+    background: Set[asyncio.Task] = set()
+
+    async def run_ocr_compare(job: dict) -> None:
+        """Ті самі фото й PDF дня через кілька моделей — лише звіт, у базі й групі нічого не міняється."""
+        try:
+            params = job.get("params") or {}
+            day = date.fromisoformat(str(params.get("date"))) if params.get("date") else today_kyiv()
+            models = [str(m) for m in (params.get("models") or COMPARE_MODELS)]
+            result = await compare_day(client, entity, db, day=day, models=models)
+            await db.complete_job(job["id"], result)
+            print(f"[lunch] job done id={job['id']} ocr_compare media={len(result['media'])}")
+        except asyncio.CancelledError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            print(f"[lunch] job fail id={job['id']}: {e}", file=sys.stderr)
+            await db.fail_job(job["id"], f"{type(e).__name__}: {e}")
+        finally:
+            background.discard(asyncio.current_task())
 
     async def outbound_loop() -> None:
         menu_sig: Optional[str] = None
@@ -606,7 +682,11 @@ async def run() -> None:
 
                 jobs = await db.fetch_pending_jobs(limit=2)
                 for job in jobs:
-                    if job["type"] == "reparse_today":
+                    if job["type"] == "ocr_compare":
+                        await db.start_job(job["id"])
+                        print(f"[lunch] job ocr_compare id={job['id']} params={job.get('params')}")
+                        background.add(asyncio.create_task(run_ocr_compare(job)))
+                    elif job["type"] == "reparse_today":
                         try:
                             from lunch.reparse_day import reparse_day_with_client
 

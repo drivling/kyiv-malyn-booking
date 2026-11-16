@@ -59,7 +59,7 @@ async def main() -> None:
     print("items:")
     for name, price in items:
         print(f"  {price:4d}  {name}")
-    print("is_menu:", raw.get("is_menu") if isinstance(raw, dict) else None)
+    print("kind:", raw.get("kind") if isinstance(raw, dict) else None)
     await client.disconnect()
     sys.exit(0 if items else 1)
 
