@@ -203,6 +203,19 @@ export function cacheHeadersFor(pathname) {
 }
 
 /**
+ * «Доведе» до публічного запуску (Docs/dovede-roadmap.md, «Доступ»): сторінка `/dovede` і все під `/dovede/` — зокрема
+ * ролик-вступ `intro-<хеш>.mp4` і його постер, чиї назви видно в публічному JS-чанку, — не потрапляють у пошук,
+ * кеш пошуковика й пошук картинок/відео. Заголовок, не `robots.txt`: `Disallow` там публічний (видав би адресу) і не дав би
+ * роботу побачити `noindex`, тож голу адресу все одно могли б проіндексувати. Діє й на роботів без JS і на медіафайли.
+ */
+export const DOVEDE_ROBOTS = 'noindex, nofollow, noarchive, nosnippet, noimageindex';
+
+/** `X-Robots-Tag` за шляхом запиту (`pathname` без query) */
+export function robotsHeadersFor(pathname) {
+  return pathname === '/dovede' || pathname.startsWith('/dovede/') ? { 'X-Robots-Tag': DOVEDE_ROBOTS } : {};
+}
+
+/**
  * Open-data and protocol files that live on the backend but have their canonical address on our domain
  * (Docs/transport-open-protocols-2026-10.md, phase 1): the feed catalogs and the docs name
  * `https://malin.kiev.ua/transport/gtfs.zip`, serve-dist answers 302 to the API. 302, not 301: the API host

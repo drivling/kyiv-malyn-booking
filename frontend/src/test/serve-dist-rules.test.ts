@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { apiRedirectPath, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
+import { apiRedirectPath, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, DOVEDE_ROBOTS, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
 
 describe('serve-dist rules: 301 for retired public URLs', () => {
   it('/poputky lands on the intercity board with the «Попутки» filter chosen', () => {
@@ -145,6 +145,22 @@ describe('serve-dist rules: «Доведе» intro video (Range for Safari on iP
     expect(parseByteRange('bytes=0-1', 0)).toBe('unsatisfiable');
     for (const h of [undefined, '', 'bytes=', 'bytes=-', 'bytes=5-1', 'bytes=0-1,5-6', 'items=0-1', 'bytes=a-b']) {
       expect(parseByteRange(h, 1000), String(h)).toBeNull();
+    }
+  });
+});
+
+describe('serve-dist rules: «Доведе» not indexed before launch (X-Robots-Tag)', () => {
+  it('marks the page, its intro video and poster noindex for every robot, with or without JS', () => {
+    expect(DOVEDE_ROBOTS).toBe('noindex, nofollow, noarchive, nosnippet, noimageindex');
+    for (const p of ['/dovede', '/dovede/', '/dovede/intro-55427b80.mp4', '/dovede/intro-55427b80.jpg']) {
+      expect(robotsHeadersFor(p), p).toEqual({ 'X-Robots-Tag': DOVEDE_ROBOTS });
+    }
+    expect(robotsHeadersFor(splitUrl('/dovede?q=%D0%B7%20%D0%9A%D0%B8%D1%94%D0%B2%D0%B0').pathname)).toEqual({ 'X-Robots-Tag': DOVEDE_ROBOTS });
+  });
+
+  it('leaves the rest of the site alone', () => {
+    for (const p of ['/', '/dovedex', '/transport', '/mizhgorodski', '/about']) {
+      expect(robotsHeadersFor(p), p).toEqual({});
     }
   });
 });
