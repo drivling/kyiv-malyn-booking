@@ -48,10 +48,17 @@ export const DovedePickupsPanel: React.FC<{ stops: StopLike[]; routeLabel: (slug
                 {routeLabel(t.route)} <span>оголошень: {t.total}</span>
               </h4>
               <p className="dovede-log-dim">
-                з приміткою — {percent(t.withNote, t.total)} · місце в Малині названо — {percent(t.malynNamed, t.total)} · у Києві —{' '}
-                {percent(t.kyivNamed, t.total)}
+                {[
+                  `з приміткою — ${percent(t.withNote, t.total)}`,
+                  t.hasMalyn ? `місце в Малині названо — ${percent(t.malynNamed, t.total)}` : null,
+                  t.hasMalyn && t.door ? `«заберу по місту» — ${t.door}` : null,
+                  t.hasKyiv ? `у Києві — ${percent(t.kyivNamed, t.total)}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </p>
               <div className="dovede-pickups-cols">
+                {t.hasMalyn ? (
                 <div>
                   <h5>Малин</h5>
                   {t.malyn.length ? (
@@ -66,6 +73,8 @@ export const DovedePickupsPanel: React.FC<{ stops: StopLike[]; routeLabel: (slug
                     <p className="dovede-log-empty">ніхто не називає</p>
                   )}
                 </div>
+                ) : null}
+                {t.hasKyiv ? (
                 <div>
                   <h5>Київ</h5>
                   {t.kyiv.length ? (
@@ -80,6 +89,7 @@ export const DovedePickupsPanel: React.FC<{ stops: StopLike[]; routeLabel: (slug
                     <p className="dovede-log-empty">ніхто не називає</p>
                   )}
                 </div>
+                ) : null}
               </div>
               {t.unrecognised.length ? (
                 <details>

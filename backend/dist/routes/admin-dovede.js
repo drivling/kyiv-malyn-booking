@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DOVEDE_MAX_TEXT = void 0;
 exports.intentsAgree = intentsAgree;
+exports.pickupNote = pickupNote;
 exports.createAdminDovedeRouter = createAdminDovedeRouter;
 /**
  * API «Доведе» (Docs/dovede-roadmap.md, фаза 2 і «Доступ»): POST /dovede/understand — текст питання →
@@ -42,6 +43,21 @@ function intentsAgree(a, b) {
         modes(a.modes) === modes(b.modes) &&
         modes(a.routes ?? []) === modes(b.routes ?? []) &&
         modes(a.avoidRoutes ?? []) === modes(b.avoidRoutes ?? []));
+}
+/**
+ * Примітка для підрахунку «Звідки забирають»: без чужих контактів — посилань, ніків Telegram і телефонів.
+ * Порожні після цього частини («; ;») прибираємо.
+ */
+function pickupNote(raw) {
+    return (raw ?? '')
+        .replace(/https?:\/\/\S+/gi, ' ')
+        .replace(/\b(t\.me|telegram\.me|viber\.me)\/\S+/gi, ' ')
+        .replace(/(^|\s)@[A-Za-z0-9_]{3,}/g, ' ')
+        .replace(/\+?\d[\d\s()-]{8,}\d/g, ' ')
+        .split(';')
+        .map((part) => part.replace(/\s+/g, ' ').trim())
+        .filter((part) => part && !/^[\s().,:-]*$/.test(part))
+        .join('; ');
 }
 function createAdminDovedeRouter(deps) {
     const { prisma } = deps;
@@ -230,7 +246,7 @@ function createAdminDovedeRouter(deps) {
             const groups = new Map();
             const byRoute = new Map();
             for (const row of rows) {
-                const note = (row.notes ?? '').replace(/\s+/g, ' ').trim();
+                const note = pickupNote(row.notes);
                 const r0 = byRoute.get(row.route) ?? { route: row.route, total: 0, withNote: 0 };
                 r0.total++;
                 if (note)

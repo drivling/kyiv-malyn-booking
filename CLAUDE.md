@@ -207,9 +207,11 @@ of `dist` in a commit.
   `GET /dovede/drive-time` (Dovede access) → `backend/src/drive-time.ts` — Google Routes with traffic
   (`GOOGLE_MAPS_API_KEY`, 15-min memory cache, `DRIVE_TIME_DAILY_CAP` 200, nothing stored), else the route's
   `TripRoute.carDurationMinutes` («Авто в дорозі, хв» in the admin «Маршрути» form), else 95. Pickup / drop-off come from
-  the driver's note (`nlu/notePlaces.ts`); no Malyn place named → centre «Промінь» marked as an assumption, and the city
-  leg to it is planned like for a marshrutka. `/admin/dovede` has «Звідки забирають попутки»
-  (`GET /admin/dovede/pickups`: notes only, no names or phones; parsed in the browser by `dovedePickups.ts`).
+  the driver's note (`nlu/notePlaces.ts`, needs the listing's direction: streets are ignored, a bare «вокзал» is Malyn's
+  only with the preposition of its own end, «заберу по місту» = no city leg; Kyiv points via `kyivNotePoint`); no Malyn
+  place named → centre «Промінь» marked as an assumption, and the city leg to it is planned like for a marshrutka; no
+  Kyiv point named → «зазвичай метро «Академмістечко»». `/admin/dovede` has «Звідки забирають попутки»
+  (`GET /admin/dovede/pickups`: notes only, links / nicknames / phones stripped by `pickupNote`; parsed in the browser by `dovedePickups.ts`).
 
 ### In-process scheduled jobs (no external cron)
 

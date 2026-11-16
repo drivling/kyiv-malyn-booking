@@ -23,6 +23,14 @@ export const KYIV_POINTS: Record<string, KyivPoint> = {
   'kyiv.sviatoshyn': { id: 'kyiv.sviatoshyn', label: 'метро «Святошин»', metro: 'Святошин', mapsQuery: 'метро Святошин, Київ' },
   'kyiv.pas': { id: 'kyiv.pas', label: 'вокзал Київ-Пасажирський', metro: 'Вокзальна', mapsQuery: 'Приміський вокзал, Київ' },
   'kyiv.borshch': { id: 'kyiv.borshch', label: 'платформа «Борщагівка»', mapsQuery: 'зупинний пункт Борщагівка, Київ' },
+  // Точки, які називають водії попуток у примітках (архів оголошень за 90 днів, 2026-11-16). У словнику питань
+  // їх немає — лише для місця посадки / висадки попутки.
+  'kyiv.shuliavka': { id: 'kyiv.shuliavka', label: 'метро «Шулявська»', metro: 'Шулявська', mapsQuery: 'метро Шулявська, Київ' },
+  'kyiv.beresteiska': { id: 'kyiv.beresteiska', label: 'метро «Берестейська»', metro: 'Берестейська', mapsQuery: 'метро Берестейська, Київ' },
+  'kyiv.heroiv': { id: 'kyiv.heroiv', label: 'метро «Героїв Дніпра»', mapsQuery: 'метро Героїв Дніпра, Київ' },
+  'kyiv.tsyrk': { id: 'kyiv.tsyrk', label: 'цирк', mapsQuery: 'Національний цирк України, Київ' },
+  'kyiv.pechersk': { id: 'kyiv.pechersk', label: 'Печерськ', mapsQuery: 'Печерськ, Київ' },
+  'kyiv.obolon': { id: 'kyiv.obolon', label: 'Оболонь', mapsQuery: 'Оболонь, Київ' },
 };
 
 /** Як назвати місце посадки / висадки: на картці, «звідки» і «де» */
@@ -36,6 +44,13 @@ const MARSH_TEXT: Record<string, KyivStopText> = {
   'kyiv.akadem': { name: 'метро «Академмістечко»', from: 'від метро «Академмістечко»', at: 'біля метро «Академмістечко»' },
   'kyiv.sviatoshyn': { name: 'метро «Святошин»', from: 'від метро «Святошин»', at: 'біля метро «Святошин»' },
   'kyiv.zhytomyrska': { name: 'метро «Житомирська»', from: 'від метро «Житомирська»', at: 'біля метро «Житомирська»' },
+  'kyiv.shuliavka': { name: 'метро «Шулявська»', from: 'від метро «Шулявська»', at: 'біля метро «Шулявська»' },
+  'kyiv.beresteiska': { name: 'метро «Берестейська»', from: 'від метро «Берестейська»', at: 'біля метро «Берестейська»' },
+  'kyiv.heroiv': { name: 'метро «Героїв Дніпра»', from: 'від метро «Героїв Дніпра»', at: 'біля метро «Героїв Дніпра»' },
+  'kyiv.tsyrk': { name: 'цирк', from: 'від цирку', at: 'біля цирку' },
+  'kyiv.pechersk': { name: 'Печерськ', from: 'з Печерська', at: 'на Печерську' },
+  'kyiv.obolon': { name: 'Оболонь', from: 'з Оболоні', at: 'на Оболоні' },
+  'kyiv.pas': { name: 'вокзал Київ-Пасажирський', from: 'від вокзалу Київ-Пасажирський', at: 'біля вокзалу Київ-Пасажирський' },
 };
 
 const TRAIN_TEXT: Record<string, KyivStopText> = {
@@ -65,6 +80,26 @@ export function kyivPointForPlace(place: string | null | undefined, route?: stri
   if (n.includes('київ-пас') || n.includes('пасаж') || n.includes('приміськ')) return 'kyiv.pas';
   if (route && /-Irpin$/.test(route)) return 'kyiv.akadem';
   if (route && /-Bucha$/.test(route)) return 'kyiv.sviatoshyn';
+  return null;
+}
+
+/**
+ * Точка в Києві з примітки водія попутки: ті самі, що в розкладі, плюс описки («Аккадемістечко», «м. Житом.») і
+ * місця, які водії називають самі. Слово «житомирська» без «м.» / «метро» — це траса, а не станція.
+ */
+export function kyivNotePoint(note: string | null | undefined): string | null {
+  const n = normalizeWord(note ?? '');
+  if (/ак+адем/.test(n)) return 'kyiv.akadem';
+  if (/(^|[^а-яіїєґ])(м|ст\.?\s*м|метро)\.?\s*житом/.test(n)) return 'kyiv.zhytomyrska';
+  if (n.includes('святош')) return 'kyiv.sviatoshyn';
+  if (n.includes('шуляв')) return 'kyiv.shuliavka';
+  if (n.includes('берестейськ')) return 'kyiv.beresteiska';
+  if (/геро[їі]в\s+дніпра/.test(n)) return 'kyiv.heroiv';
+  if (/(^|[^а-яіїєґ])цирк/.test(n)) return 'kyiv.tsyrk';
+  if (n.includes('печерськ')) return 'kyiv.pechersk';
+  if (n.includes('оболон')) return 'kyiv.obolon';
+  if (n.includes('борщаг')) return 'kyiv.borshch';
+  if (n.includes('київ-пас') || n.includes('пасаж') || n.includes('приміськ')) return 'kyiv.pas';
   return null;
 }
 

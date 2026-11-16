@@ -290,7 +290,7 @@ describe('попутки серед варіантів', () => {
     'st_0090>st_0049': [bus('9', 'st_0090', 'st_0049', hm(6, 40), hm(6, 47)), bus('9', 'st_0090', 'st_0049', hm(7, 9), hm(7, 16))],
     'st_0049>st_0019': [bus('8', 'st_0049', 'st_0019', hm(20, 0), hm(20, 10))],
   });
-  const notePlaces = (note: string) => placesInNote(note);
+  const notePlaces = (note: string, dir: 'from_malyn' | 'to_malyn') => placesInNote(note, [], dir);
   const ask = (text: string, listings: ViberListing[], extra: Partial<Parameters<typeof composeStories>[0]> = {}) => {
     const intent = parseLocal(text, NOW).intent;
     const out = composeStories({ intent, now: NOW, date: resolveDate(intent.when.day, NOW), schedules, planner: p, listings, notePlaces, ...extra });
@@ -339,6 +339,20 @@ describe('попутки серед варіантів', () => {
     expect(s.endNote).toBeNull();
     const kyiv = s.legs[s.legs.length - 1];
     expect(kyiv.kind === 'kyiv' && kyiv.text).toContain('«Академмістечко» → «Житомирська», 1 станція');
+  });
+
+  it('«заберу по місту» — без дороги до центру; київську точку не названо — «зазвичай Академмістечко»', () => {
+    const out = ask('з Царського села до Києва завтра зранку', [listing({ id: 7, notes: 'Є місця; Заберу по місту' })]);
+    const s = out.stories.find((x) => x.mode === 'poputka')!;
+    expect(kinds(s)).toEqual(['ride']);
+    expect(s.leaveMins).toBe(hm(7, 0));
+    expect(ride(s)).toMatchObject({ boardLabel: 'по місту — домовтесь, де сісти', boardAssumed: false, alightLabel: 'у Києві, зазвичай біля метро «Академмістечко»', alightAssumed: true });
+  });
+
+  it('«до вокзалу» в оголошенні з Малина — це київський вокзал, а посадка лишається в центрі', () => {
+    const out = ask('з Малина до Києва завтра зранку', [listing({ id: 7, notes: 'до вокзалу' })]);
+    const s = out.stories.find((x) => x.mode === 'poputka')!;
+    expect(ride(s)).toMatchObject({ boardAssumed: true, alightAssumed: false, alightLabel: 'біля вокзалу Київ-Пасажирський' });
   });
 
   it('«бути до» — лише попутки, що встигають із запасом 10 хв; найпізніша перша', () => {

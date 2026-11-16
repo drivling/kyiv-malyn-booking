@@ -19,7 +19,7 @@ import { useDovedeAccess } from './access';
 import { DovedeIntro } from './intro/DovedeIntro';
 import { introSeen } from './intro/introState';
 import { DEFAULT_CAR_MINUTES, classify, composeStories, corridorCities, resolveDate, rideDepartures, type DriveEstimate } from './compose/composeStories';
-import { placesInNote } from './nlu/notePlaces';
+import { placesInNote, type NoteDir } from './nlu/notePlaces';
 import { clock, shareText } from './compose/narrate';
 import type { ComposeOutcome, Story } from './compose/types';
 import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withHouses, withIntent } from './nlu/merge';
@@ -247,7 +247,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
       };
       const schedulesFor = async (d: string) => (await searchFor(d)).schedules;
       // Попутки серед варіантів: скільки авто їде при виїзді о цій годині (із заторами, а не відповів сервер — сталі 1 год 35 хв)
-      const notePlaces = (note: string) => placesInNote(note, stopIndex);
+      const notePlaces = (note: string, dir: NoteDir) => placesInNote(note, stopIndex, dir);
       const driveFor0 = async (d: string, listings: ViberListing[], asked: TripIntent) => {
         const times = cities ? rideDepartures({ intent: asked, now, date: d, listings }, shape) : [];
         const got = times.length && cities ? await apiClient.dovedeDriveTime({ from: cities.from, to: cities.to, date: d, times }) : null;
