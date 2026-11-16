@@ -283,6 +283,14 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 
   New Telethon call sites must go through `withTelegramUserSessionExclusive` or
   `awaitTelegramSession()`.
+- **The PoDoroguem listener is a separate Railway service with its own Telegram account** (`podoroguem-listener/`,
+  Dockerfile at the repo root context; it captures only the PoDoroguem group into `Dzhura*`, no relay). Railway redeploys
+  it on every push to `main` and starts the new container ~15 s before stopping the old one, so it takes its own row
+  (`TelegramSessionLease.id = 2`; `id = 1` is the owner's account in the backend) through `session_lease.py` — same
+  heartbeat / stale / settle rules as the Node lease, released only after `client.disconnect()`. A dead session
+  (`FATAL_SESSION_ERRORS`) ends the process with exit code 78 and a log line saying how to log in again
+  (`python3 podoroguem-listener/auth.py --fresh --export`, then replace `TELEGRAM_USER_SESSION_BASE64` of **that** service
+  only). Lease unit tests: `python3 -m unittest podoroguem-listener/test_session_lease.py` (not in CI).
 - Photos and PDFs posted in the lunch group are read by Claude (`ANTHROPIC_API_KEY`; `ANTHROPIC_WORKSPACE_ID` only for
   an organization-level key not bound to a workspace; `lunch/ocr_menu.py` → `scan_media_bytes`) in the Python lunch
   listener. One request answers `kind`: `menu` (≥ 5 priced dishes, merged into the day's menu, never replacing it),
