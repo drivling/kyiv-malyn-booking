@@ -142,7 +142,8 @@ of `dist` in a commit.
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
   opens the page — `DovedePage/intro/`, flag `dovede-intro:v1`, file `public/dovede/intro-<hash>.mp4` from
-  `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs): a person asks in plain words and gets a story of cards built in the browser
+  `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends
+  `X-Robots-Tag: noindex…` on `/dovede` and everything under it — `robotsHeadersFor`; never list it in `robots.txt`): a person asks in plain words and gets a story of cards built in the browser
   (`frontend/src/pages/DovedePage/`: `nlu/parseLocal` dictionary parse → `compose/` with `/poputky/search`, anchors
   and the Malyn RAPTOR planner → template text). **AI only understands the text, it never names a time, route or
   price.** Access is decided by the server (`src/dovede/access.ts`, page side `DovedePage/access.ts`): until
