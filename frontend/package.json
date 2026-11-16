@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "dovede:intro": "node scripts/dovede-intro.mjs"
   },
   "dependencies": {
     "@types/leaflet": "^1.9.21",

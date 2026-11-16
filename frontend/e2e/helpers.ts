@@ -2,6 +2,17 @@ import type { Page, Route } from '@playwright/test';
 
 const API_HOST = /localhost:3000|127\.0\.0\.1:3000/;
 
+/** Ролик-вступ «Доведе» уже бачили — сторінка відкривається одразу (ключ — intro/introState.ts) */
+export async function skipDovedeIntro(page: Page) {
+  await page.addInitScript(() => {
+    try {
+      localStorage.setItem('dovede-intro:v1', '2026-11-16T00:00:00.000Z');
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 export async function dismissCookieNotice(page: Page) {
   await page.addInitScript(() => {
     try {

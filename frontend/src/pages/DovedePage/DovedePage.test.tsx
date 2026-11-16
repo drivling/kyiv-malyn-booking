@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
+import { fireEvent } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
 import { apiClient } from '@/api/client';
 import type { PoputkySearchResponse, Schedule } from '@/types';
 import DovedePage from './DovedePage';
 import { DOVEDE_TOKEN_KEY } from './access';
+import { markIntroSeen } from './intro/introState';
 import type { DovedeUnderstanding, TripIntent } from './nlu/types';
 
 const train: Schedule = {
@@ -43,6 +45,8 @@ const understood = (intent: Partial<TripIntent>): DovedeUnderstanding => ({
 
 describe('«Доведе» — сторінка', () => {
   beforeEach(() => {
+    // ролик-вступ уже бачили (його — окремий describe нижче)
+    markIntroSeen();
     // лише Date: пʼятниця 13.11.2026, 14:20 за Києвом; таймери справжні (waitFor)
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-11-13T12:20:00Z'));
@@ -254,6 +258,9 @@ describe('«Доведе» — сторінка', () => {
 });
 
 describe('«Доведе» — доступ за паролем запрошених', () => {
+  beforeEach(() => {
+    markIntroSeen();
+  });
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -327,5 +334,53 @@ describe('«Доведе» — доступ за паролем запрошен
     renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
     expect(await lockedField()).toBeInTheDocument();
     expect(screen.getByRole('alert')).toHaveTextContent('Сервер не відповідає');
+  });
+});
+
+describe('«Доведе» — ролик-вступ перед сторінкою', () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    // без анімацій: талон відкриває сторінку затуханням, без кола
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn((query: string) => ({ matches: query.includes('reduce'), media: query, addEventListener: vi.fn(), removeEventListener: vi.fn() })),
+    );
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it('хто прийшов уперше — спершу ролик, ще до пароля; після талона — поле пароля у фокусі', async () => {
+    const access = vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: false });
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+
+    expect(screen.getByRole('dialog', { name: 'Ролик «Доведе.»' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Пароль')).not.toBeInTheDocument();
+    // доступ перевіряється, поки йде ролик — після нього чекати не доведеться
+    await waitFor(() => expect(access).toHaveBeenCalled());
+
+    fireEvent(document.querySelector('video') as HTMLVideoElement, new Event('ended'));
+    // сторінка вже під талоном, але недоступна й без фокусу (клавіатура телефона не вискочить)
+    const field = await screen.findByLabelText('Пароль');
+    expect(field.closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(field).not.toHaveFocus();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Прокомпостувати квиток і увійти' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    expect(field.closest('[aria-hidden="true"]')).toBeNull();
+    expect(field).toHaveFocus();
+  });
+
+  it('хто вже бачив ролик — одразу сторінка, навіть з посиланням на відповідь', async () => {
+    markIntroSeen();
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: false });
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede?q=%D0%B7%20%D0%9A%D0%B8%D1%94%D0%B2%D0%B0'] });
+
+    expect(await screen.findByLabelText('Пароль')).toHaveFocus();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(document.querySelector('video')).toBeNull();
   });
 });

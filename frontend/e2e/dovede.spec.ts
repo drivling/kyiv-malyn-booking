@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { dismissCookieNotice, mockBackendApi } from './helpers';
+import { dismissCookieNotice, mockBackendApi, skipDovedeIntro } from './helpers';
 
 const TRAIN = {
   id: 2,
@@ -26,6 +26,7 @@ const TRAIN = {
  */
 async function openWithAccess(page: Page, understand: { status: number; body: unknown } = { status: 503, body: { fallback: 'local', reason: 'no_key' } }) {
   await dismissCookieNotice(page);
+  await skipDovedeIntro(page);
   await mockBackendApi(page);
   const calls: string[] = [];
   const tokens: (string | undefined)[] = [];
@@ -162,5 +163,50 @@ test.describe('«Доведе» (/dovede, за паролем запрошени
     await expect(page).toHaveURL(/[?&]r=2(&|$)/);
     // номер маршруту словник розуміє сам — Claude лише перевіряє у фоні
     expect(calls.length).toBeLessThanOrEqual(1);
+  });
+});
+
+test.describe('«Доведе»: ролик-вступ перед сторінкою', () => {
+  async function openFirstTime(page: Page) {
+    await dismissCookieNotice(page);
+    await mockBackendApi(page);
+    await page.route(/(localhost|127\.0\.0\.1):3000\/dovede\/access/, (route) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ open: false, allowed: false }) }),
+    );
+  }
+
+  test('уперше — ролик без пульта поверх усього, ще до пароля', async ({ page }) => {
+    await openFirstTime(page);
+    await page.goto('/dovede');
+    const dialog = page.getByRole('dialog', { name: 'Ролик «Доведе.»' });
+    await expect(dialog).toBeVisible();
+    const video = dialog.locator('video');
+    await expect(video).toHaveAttribute('src', /^\/dovede\/intro-[0-9a-f]{8}\.mp4$/);
+    await expect(video).not.toHaveAttribute('controls', /.*/);
+    await expect(video).toHaveAttribute('playsinline', '');
+    await expect(page.getByLabel('Пароль')).toHaveCount(0);
+  });
+
+  test('ролик не завантажився — талон усе одно впускає; компостер відкриває поле пароля; ролик ще покажемо', async ({ page }) => {
+    await openFirstTime(page);
+    await page.route(/\/dovede\/intro-[0-9a-f]{8}\.mp4$/, (route) => route.fulfill({ status: 404, body: '' }));
+    await page.goto('/dovede');
+    await expect(page.getByText('Відео не завантажилося.')).toBeVisible();
+    await page.getByRole('button', { name: 'Прокомпостувати квиток і увійти' }).click();
+    await expect(page.getByRole('dialog', { name: 'Ролик «Доведе.»' })).toHaveCount(0);
+    await expect(page.getByLabel('Пароль')).toBeFocused();
+    expect(await page.evaluate(() => localStorage.getItem('dovede-intro:v1'))).toBeNull();
+  });
+
+  test('досмотрів до кінця — наступного разу одразу сторінка', async ({ page }) => {
+    await openFirstTime(page);
+    await page.goto('/dovede');
+    await expect(page.getByRole('dialog', { name: 'Ролик «Доведе.»' }).locator('video')).toBeAttached();
+    await page.evaluate(() => document.querySelector('video')?.dispatchEvent(new Event('ended')));
+    await expect(page.getByRole('button', { name: 'Прокомпостувати квиток і увійти' })).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('dovede-intro:v1'))).not.toBeNull();
+    await page.reload();
+    await expect(page.getByLabel('Пароль')).toBeFocused();
+    await expect(page.getByRole('dialog', { name: 'Ролик «Доведе.»' })).toHaveCount(0);
   });
 });

@@ -5,8 +5,10 @@
  * Історії будуються з розкладу сайту (/poputky/search), якорів і міського планувальника Малина — ШІ часу й
  * рейсів не називає. Доступ (access.ts): поки DOVEDE_PUBLIC не ON — пароль запрошених у рядку питання або
  * токен адміна. Сторінка без шапки сайту (App.tsx), не в меню, не в sitemap, noindex.
+ * Хто відкриває сторінку вперше, спершу дивиться ролик-вступ (intro/DovedeIntro.tsx) — ще до пароля; сторінка
+ * монтується під ним, коли ролик скінчився, і відкривається крізь дірку в закомпостованому талоні.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
@@ -14,6 +16,8 @@ import { getKyivDateString, getKyivMinutesNow } from '@/pages/LocalTransportPage
 import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerModel';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
+import { DovedeIntro } from './intro/DovedeIntro';
+import { introSeen } from './intro/introState';
 import { DEFAULT_CAR_MINUTES, classify, composeStories, corridorCities, resolveDate, rideDepartures, type DriveEstimate } from './compose/composeStories';
 import { placesInNote } from './nlu/notePlaces';
 import { clock, shareText } from './compose/narrate';
@@ -59,10 +63,37 @@ function kyivNow(): KyivNow {
 
 export default function DovedePage() {
   usePageSeo({ title: 'Доведе', canonicalUrl: 'https://malin.kiev.ua/dovede', robots: 'noindex, nofollow' });
+  // Доступ перевіряється вже під час ролика — після нього пароль чи пошук готові без очікування
   const access = useDovedeAccess();
+  // video — ролик, сторінки ще немає; ticket — ролик скінчився, сторінка під ним (недоступна); done — лише сторінка
+  const [intro, setIntro] = useState<'video' | 'ticket' | 'done'>(() => (introSeen() ? 'done' : 'video'));
+  const covered = intro !== 'done';
   // Розклад міста й пошук вантажаться лише після входу
-  if (access.state === 'open') return <DovedeSearch focusOnMount={access.justLoggedIn} />;
-  return <Lock checking={access.state === 'checking'} error={access.error} busy={access.busy} onLogin={access.login} />;
+  const page =
+    access.state === 'open' ? (
+      <DovedeSearch focusOnMount={access.justLoggedIn} />
+    ) : (
+      <Lock checking={access.state === 'checking'} holdFocus={covered} error={access.error} busy={access.busy} onLogin={access.login} />
+    );
+  return (
+    <>
+      {intro === 'video' ? null : <PageUnder covered={covered}>{page}</PageUnder>}
+      {covered ? <DovedeIntro onTicket={() => setIntro((s) => (s === 'video' ? 'ticket' : s))} onDone={() => setIntro('done')} /> : null}
+    </>
+  );
+}
+
+/** Сторінка під вступом: поки її накриває ролик чи талон, вона недоступна — ні фокусу, ні читача екрана */
+function PageUnder({ covered, children }: { covered: boolean; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.inert = covered;
+    if (covered) el.setAttribute('aria-hidden', 'true');
+    else el.removeAttribute('aria-hidden');
+  }, [covered]);
+  return <div ref={ref}>{children}</div>;
 }
 
 function Brand() {
@@ -77,12 +108,25 @@ function Brand() {
 }
 
 /** Пароль запрошених — у тому ж рядку, де потім буде питання; кнопка «Hasło» */
-function Lock({ checking, error, busy, onLogin }: { checking: boolean; error: string | null; busy: boolean; onLogin: (password: string) => Promise<void> }) {
+function Lock({
+  checking,
+  holdFocus = false,
+  error,
+  busy,
+  onLogin,
+}: {
+  checking: boolean;
+  /** Сторінку ще накриває ролик-вступ: фокус (і клавіатура телефона) — лише коли вона відкриється */
+  holdFocus?: boolean;
+  error: string | null;
+  busy: boolean;
+  onLogin: (password: string) => Promise<void>;
+}) {
   const [password, setPassword] = useState('');
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (!checking) input.current?.focus();
-  }, [checking]);
+    if (!checking && !holdFocus) input.current?.focus();
+  }, [checking, holdFocus]);
   useEffect(() => {
     // невірний пароль — поле порожнє й знову у фокусі
     if (error) {
