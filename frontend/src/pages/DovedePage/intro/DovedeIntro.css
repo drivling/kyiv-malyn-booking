@@ -62,7 +62,7 @@
 .dv-intro__play {
   position: absolute;
   left: 50%;
-  top: 70%;
+  top: 73%;
   transform: translate(-50%, -50%);
   display: grid;
   justify-items: center;
