@@ -9,7 +9,7 @@ import path from 'node:path';
 import { buildZhytomyrReport, buildZhytomyrRoutes, buildZhytomyrStops, loadZhytomyrRoutes, type ZhytomyrRoutesFile } from './zhytomyr-routes';
 import { extractZtFragment, parseZtDirection, parseZtHome } from './zhytomyr-site-parser';
 import { locateZhytomyrStops, sameStopName, stopKey } from './zhytomyr-stops';
-import { checkSpans, directionChecks, googleRides, minutesAgree, spanVerdict, type GoogleRide } from './zhytomyr-google-check';
+import { checkSpans, directionChecks, googleRides, judgeRide, minutesAgree, spanVerdict, type GoogleRide } from './zhytomyr-google-check';
 
 const ROOT = path.resolve(__dirname, '../../data/zhytomyr-transport');
 const read = (f: string) => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -193,4 +193,39 @@ test('відповідь Google Routes → поїздки: лінія, хвил�
   };
   assert.deepEqual(googleRides(body), [[{ line: '58', minutes: 9, stops: 6, fromStop: 'А', toStop: 'Б', fromLat: 50.1, fromLng: 28.1, toLat: null, toLng: null }]]);
   assert.deepEqual(googleRides({}), []);
+});
+
+test('причина розбіжності: наша зупинка не там; Google везе лише частину — порівнюємо на коротшому відрізку', () => {
+  const osm = [
+    { name: 'Перша', lat: 50.25, lng: 28.65 },
+    { name: 'Садова', lat: 50.254, lng: 28.65 },
+    { name: 'Невідома', lat: 50.258, lng: 28.65 },
+    { name: 'Четверта', lat: 50.262, lng: 28.65 },
+    { name: 'Далека', lat: 50.27, lng: 28.65 },
+  ];
+  const stops = locateZhytomyrStops(tiny, osm).stops;
+  const span = checkSpans(tiny, stops).find((s) => s.key === '1:2:4')!; // «Садова» → «Четверта», 4 хв, 2 зупинки
+  const chain = tiny.routes[0].directions[0].stops.map((s) => ({ name: s.name, minutes: s.minutes }));
+
+  // у Google зупинка зветься як наша, але стоїть за 1,3 км — наша координата помилкова
+  const wrong = spanVerdict(span, [[ride({ minutes: 4, stops: 2, fromStop: 'Вул. Садова', fromLat: 50.266, toStop: 'Четверта' })]], 'x', chain);
+  assert.deepEqual([wrong.verdict, wrong.cause], ['differs', 'our_stop']);
+  assert.deepEqual(wrong.google?.from, { lat: 50.266, lng: 28.65 });
+
+  // Google висаджує раніше — на «Невідомій»: порівнюємо «Садова» → «Невідома» (2 хв, 1 зупинка)
+  const part = spanVerdict(span, [[ride({ minutes: 2, stops: 1, fromStop: 'Садова', fromLat: 50.254, toStop: 'Невідома', toLat: 50.258 })]], 'x', chain);
+  assert.equal(part.verdict, 'match');
+  assert.deepEqual(part.compared, { from: 'Садова', to: 'Невідома', minutes: 2, stops: 1 });
+  const slow = spanVerdict(span, [[ride({ minutes: 9, stops: 1, fromStop: 'Садова', fromLat: 50.254, toStop: 'Невідома', toLat: 50.258 })]], 'x', chain);
+  assert.deepEqual([slow.verdict, slow.cause, slow.compared?.minutes], ['differs', 'minutes', 2]);
+
+  // зупинки Google з такою назвою в нашому ланцюжку немає — просто «везе не до нашої зупинки»
+  const other = spanVerdict(span, [[ride({ minutes: 2, stops: 1, fromStop: 'Садова', fromLat: 50.254, toStop: 'Якась інша', toLat: 50.258 })]], 'x', chain);
+  assert.deepEqual([other.verdict, other.cause], ['differs', 'partial']);
+
+  // справді інші хвилини за тих самих зупинок
+  const mins = spanVerdict(span, [[ride({ minutes: 11, stops: 2, fromLat: 50.254 })]], 'x', chain);
+  assert.deepEqual([mins.verdict, mins.cause], ['differs', 'minutes']);
+  // збережену відповідь можна оцінити наново без Google — результат той самий
+  assert.deepEqual({ ...judgeRide(span, part.google!, chain), checkedAt: 'x' }, part);
 });
