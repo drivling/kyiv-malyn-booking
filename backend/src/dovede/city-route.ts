@@ -28,8 +28,14 @@ const SETTINGS_TTL_MS = 60_000;
 /** За скільки днів до кінця строку свіжості навчання оновлює відповідь, щоб людина не натрапила на застарілу */
 export const refreshLeadDays = (freshDays: number): number => Math.min(2, Math.floor(freshDays / 4));
 
-/** Пару чи рядок, де Google дороги не знайшов (або збій), навчання не чіпає стільки днів — щоб не палити ліміт щогодини на те саме */
+/**
+ * Пару чи рядок, де Google дороги не знайшов, навчання не чіпає стільки днів — щоб не палити ліміт щогодини на те
+ * саме. Лише «дороги немає»: збій Google чи вичерпана квота — не вина пари, позначок не ставимо, крок навчання спиняємо.
+ */
 export const REFRESH_RETRY_DAYS = 7;
+
+/** Google відповів 429 (квоту проєкту в Google Cloud вичерпано): стільки часу не питаємо зовсім, відповідаємо «ліміт» */
+export const QUOTA_BACKOFF_MS = 10 * 60_000;
 
 export const isValidFreshDays = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= CITY_FRESH_DAYS_MIN && v <= CITY_FRESH_DAYS_MAX;
 export const DEFAULT_CITY_DAILY_CAP = 150;
@@ -301,6 +307,11 @@ export function createCityRoutes(deps: CityRoutesDeps) {
   // лічильник у памʼяті — на випадок, коли запис у базу вимкнено й рахувати рядки нема з чого
   let memoDay = '';
   let memoCalls = 0;
+  // квота самого Google (429): до цього моменту не питаємо; `quotaHitAt` — коли це сталося востаннє (для адмінки)
+  let quotaUntil = 0;
+  let quotaHitAt: Date | null = null;
+  /** що саме сказав Google у відмові: у тексті названо квоту («…requests per day») — за ним видно, яку піднімати */
+  let quotaMessage = '';
   let freshMemo: { at: number; days: number } | null = null;
   const refresh = deps.refresh ?? (() => cityRefreshEnabled());
   // стартові пари, які Google не знайшов: рядка в базі для позначки в них немає, тож памʼятаємо тут (до перезапуску)
@@ -402,6 +413,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     const key = deps.key();
     if (!key) return 'no_key';
     if ((await callsToday()) >= dailyCap()) return 'cap';
+    if (now().getTime() < quotaUntil) return 'cap';
     memoCalls++;
     try {
       // Google приймає лише майбутній час; для «вже зараз» — без нього
@@ -412,6 +424,18 @@ export function createCityRoutes(deps: CityRoutesDeps) {
         body: JSON.stringify({ origin: { address: from.address }, destination: { address: to.address }, travelMode: 'TRANSIT', languageCode: 'uk', ...(future ? { departureTime: q.departAt.toISOString() } : {}) }),
         signal: AbortSignal.timeout(TIMEOUT_MS),
       });
+      if (res.status === 429) {
+        // квота в Google Cloud менша за наш денний ліміт або її вже вибрали інші скрипти з тим самим ключем
+        memoCalls--;
+        quotaHitAt = now();
+        quotaUntil = quotaHitAt.getTime() + QUOTA_BACKOFF_MS;
+        const said = (await res.json().catch(() => null)) as { error?: { message?: unknown } } | null;
+        quotaMessage = typeof said?.error?.message === 'string' ? said.error.message.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
+        console.error(`⛔ city-route: Google Routes 429 — квоту вичерпано, 10 хв не питаємо${quotaMessage ? `: ${quotaMessage}` : ''}`);
+        return 'cap';
+      }
+      // 400 / 404 — Google не прийняв саме цю пару (адресу): для неї дороги немає
+      if (res.status === 400 || res.status === 404) return 'no_route';
       if (!res.ok) throw new Error(`Routes API ${res.status}`);
       return parseGoogleRoute(await res.json()) ?? 'no_route';
     } catch (e) {
@@ -499,6 +523,8 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     const at = nextWeekdayMorning(now());
     let asked = 0;
     let learned = 0;
+    // ліміт, квота, немає ключа, збій Google — не вина пари: позначок не ставимо, решту кроку не питаємо
+    let halted = false;
     for (const pair of queue) {
       if (asked >= batch) break;
       if ((await callsToday()) >= Math.floor(dailyCap() / 2)) break;
@@ -512,8 +538,11 @@ export function createCityRoutes(deps: CityRoutesDeps) {
       const seedKey = `${pair.city}|${from.key}|${to.key}`;
       if (pair.demandId === undefined && (seedFailed.get(seedKey) ?? 0) > retryFrom.getTime()) continue;
       const r = await find(q, true);
-      // ліміт, немає ключа, вимкнено — пара ні до чого
-      if (!r.ok && (r.reason === 'cap' || r.reason === 'no_key' || r.reason === 'disabled')) break;
+      if (!r.ok && r.reason !== 'no_route') {
+        if (r.reason === 'error') asked++;
+        halted = true;
+        break;
+      }
       asked++;
       if (r.ok) {
         learned++;
@@ -526,7 +555,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
 
     // Оновлення збереженого: той самий тип дня й година, що в рядку, — людина з тим самим питанням і далі отримає
     // відповідь із бази. Архів не чіпаємо (рішення власника); власні дані оновлює їхній генератор.
-    if (refresh()) {
+    if (refresh() && !halted) {
       const days = await freshDays();
       const edge = new Date(now().getTime() - (days - refreshLeadDays(days)) * 24 * 3600_000);
       const retryFrom = new Date(now().getTime() - REFRESH_RETRY_DAYS * 24 * 3600_000);
@@ -552,8 +581,11 @@ export function createCityRoutes(deps: CityRoutesDeps) {
           learned++;
           continue;
         }
-        // ліміт, немає ключа, вимкнено — рядок ні до чого, спробуємо наступного разу
-        if (!r.ok && (r.reason === 'cap' || r.reason === 'no_key' || r.reason === 'disabled')) break;
+        // ліміт, квота, немає ключа, збій Google — рядок ні до чого, спробуємо наступного разу
+        if (!r.ok && r.reason !== 'no_route') {
+          if (r.reason === 'error') asked++;
+          break;
+        }
         await giveUp(row.id);
         // `r.ok` тут — пару тепер закривають власні дані: Google не питали, лічити нічого
         if (!r.ok) asked++;
@@ -579,6 +611,9 @@ export function createCityRoutes(deps: CityRoutesDeps) {
       enabled: enabled(),
       store: store(),
       hasKey: Boolean(deps.key()),
+      // коли Google востаннє відмовив через власну квоту (429) — з моменту запуску сервера; null — не відмовляв
+      googleQuotaHitAt: quotaHitAt ? quotaHitAt.toISOString() : null,
+      googleQuotaMessage: quotaMessage,
       callsToday: today,
       dailyCap: dailyCap(),
       freshDays: fresh,

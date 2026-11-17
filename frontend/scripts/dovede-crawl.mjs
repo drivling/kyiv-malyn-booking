@@ -410,7 +410,7 @@ async function main() {
       }
     } else if (res.status === 200 && body && body.ok === false && (body.reason === 'cap' || body.reason === 'disabled' || body.reason === 'no_key')) {
       // питання не записуємо: наступного запуску воно знову буде в черзі
-      why = body.reason === 'cap' ? 'сервер каже: денний ліміт Google вичерпано — продовжіть завтра' : 'на сервері дорогу містом вимкнено або немає ключа Google';
+      why = body.reason === 'cap' ? 'сервер каже «ліміт»: вичерпано наш денний ліміт або квоту в Google Cloud (429) — продовжіть пізніше, питання лишилось у черзі' : 'на сервері дорогу містом вимкнено або немає ключа Google';
       console.log(`${n} ⛔ ${body.reason}  ${label}`);
       break;
     } else if ((res.status === 200 && body && body.ok === false) || res.status === 400) {

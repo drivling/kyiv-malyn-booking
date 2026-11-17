@@ -19,6 +19,7 @@ function mock(over: Partial<DovedeCityStats> = {}) {
     freshDaysDefault: 30,
     staleRoutes: 3,
     refresh: true,
+    googleQuotaHitAt: '2026-11-17T21:45:00.000Z',
     archivedRoutes: 0,
     routes: [{ city: 'Kyiv', source: 'google', count: 4 }],
     lines: [],
@@ -64,6 +65,7 @@ describe('DovedeCityPanel', () => {
     const { user, field } = await open();
     expect(field.value).toBe('30');
     expect(screen.getByText(/застаріло доріг: 3 — сервер оновлює їх сам/)).toBeInTheDocument();
+    expect(screen.getByText(/Google відмовив через власну квоту \(429\) 17 листопада о 23:45/)).toBeInTheDocument();
     const save = screen.getByRole('button', { name: 'Зберегти' });
     expect(save).toBeDisabled(); // те саме значення
 

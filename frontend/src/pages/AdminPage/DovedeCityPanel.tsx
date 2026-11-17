@@ -8,6 +8,9 @@ const SOURCE: Record<string, string> = { google: 'з Google', own: 'свої', o
 const FRESH_MIN = 1;
 const FRESH_MAX = 365;
 
+/** «17 листопада о 23:45» за Києвом */
+const quotaTime = (iso: string) => new Date(iso).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+
 const count = (rows: Array<{ city: string; count: number }>, city: string) => rows.filter((r) => r.city === city).reduce((n, r) => n + r.count, 0);
 
 /**
@@ -114,6 +117,9 @@ export const DovedeCityPanel: React.FC = () => {
               data.hasKey ? null : 'немає ключа GOOGLE_MAPS_API_KEY — відповідаємо лише з бази',
               data.store ? null : 'запис у базу вимкнено (DOVEDE_CITY_STORE=0)',
               `запитів до Google сьогодні: ${data.callsToday} з ${data.dailyCap}`,
+              data.googleQuotaHitAt
+                ? `Google відмовив через власну квоту (429) ${quotaTime(data.googleQuotaHitAt)} — у Google Cloud вона менша за наш ліміт або її вибрали інші скрипти${data.googleQuotaMessage ? `; Google: «${data.googleQuotaMessage}»` : ''}`
+                : null,
               data.staleRoutes ? `застаріло доріг: ${data.staleRoutes} — ${data.refresh ? 'сервер оновлює їх сам, потроху щогодини' : 'оновлення вимкнено (DOVEDE_CITY_REFRESH=0)'}` : null,
               data.archivedRoutes ? `в архіві маршрутів: ${data.archivedRoutes}` : null,
             ]

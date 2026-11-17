@@ -264,7 +264,10 @@ of `dist` in a commit.
   (`DOVEDE_CITY_REFRESH=0` switches it off). A row whose refresh failed gets `refreshFailedAt` and is left alone for
   `REFRESH_RETRY_DAYS` (7); archived rows are never refreshed. The same pause applies to a demand pair the learning
   asked Google about without success (`DovedeCityDemand.learnFailedAt`) and to a failed seed pair (in memory) — a few
-  dead pairs must not eat every tick. A person's own question is never held back by these marks. Admin block «Місто: що вже знаємо»
+  dead pairs must not eat every tick. A person's own question is never held back by these marks. Only «no route» is
+  the pair's fault (also Google's 400 / 404). Google's own quota (HTTP 429) answers `reason: 'cap'`, is not counted in
+  our cap, blocks further calls for `QUOTA_BACKOFF_MS` (10 min) and shows in the admin block (`googleQuotaHitAt`); a
+  429, our cap or a Google failure stops the learning tick and marks nothing. Admin block «Місто: що вже знаємо»
   (`AdminPage/DovedeCityPanel.tsx`, `GET /admin/dovede/city`). Golden `scope: city`.
   The same block has «Скинути лічильник попиту» (`POST /admin/dovede/city/demand/reset`): it sets `asked = 0` and
   deletes nothing; a row with `asked = 0` is in neither the list nor the learning queue until a person asks again.
