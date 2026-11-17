@@ -58,6 +58,15 @@ describe('картка дороги містом', () => {
     expect(screen.getByText(/перевірено 3 дні тому/)).toBeInTheDocument();
   });
 
+  it('власний розклад Житомира: час відправлення з розкладу, джерело з датою знімка, посилання на сайт розкладу', () => {
+    const own = route({ source: 'own', fetchedAt: '2026-11-17T00:00:00.000Z', steps: [{ kind: 'transit', minutes: 14, mode: 'BUS', line: '58', fromStop: 'Автовокзал', toStop: 'Обласна лікарня', stops: 7, departs: '09:10' }] });
+    render(<CityLegCard l={leg(own)} />);
+    expect(screen.getByText('7 зупинок · ≈ 14 хв · за розкладом о 09:10')).toBeInTheDocument();
+    expect(screen.getByText(/розклад zt\.rozklad\.in\.ua від 17\.11, звірено з Google/)).toBeInTheDocument();
+    expect(screen.queryByText(/за даними Google/)).toBeNull();
+    expect(screen.getByRole('link', { name: 'Розклад ↗' })).toHaveAttribute('href', 'https://zt.rozklad.in.ua/');
+  });
+
   it('лише пішки — «Пішки ≈ …», таблички немає; чужий колір не потрапляє у стиль', () => {
     const { container } = render(<CityLegCard l={leg(route({ minutes: 9, steps: [{ kind: 'walk', minutes: 9, meters: 590 }] }))} />);
     expect(container.querySelector('.dv-city__plate')).toBeNull();

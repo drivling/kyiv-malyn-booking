@@ -2516,6 +2516,11 @@ button.dv-tear__slip:active {
   font-weight: 400;
   color: var(--dv-muted);
 }
+.dv-city__links {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
 .dv-city__maps {
   font-size: 13px;
   font-weight: 600;

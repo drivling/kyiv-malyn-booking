@@ -16,6 +16,7 @@ const guard_1 = require("./guard");
 exports.CITY_FRESH_DAYS = 30;
 exports.DEFAULT_CITY_DAILY_CAP = 150;
 const TIMEOUT_MS = 4000;
+const zhytomyr_own_1 = require("./zhytomyr-own");
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 const FIELD_MASK = [
     'routes.duration',
@@ -158,6 +159,8 @@ function createCityRoutes(deps) {
     const enabled = deps.enabled ?? (() => cityRoutesEnabled());
     const store = deps.store ?? (() => cityStoreEnabled());
     const dailyCap = deps.dailyCap ?? (() => cityDailyCap());
+    const ownRoute = deps.ownRoute ?? zhytomyr_own_1.ownZhytomyrRoute;
+    const ownEnabled = deps.ownEnabled ?? (() => (process.env.DOVEDE_CITY_OWN ?? '1').trim() !== '0');
     // лічильник у памʼяті — на випадок, коли запис у базу вимкнено й рахувати рядки нема з чого
     let memoDay = '';
     let memoCalls = 0;
@@ -256,6 +259,15 @@ function createCityRoutes(deps) {
         const hour = Number(q.time.slice(0, 2));
         if (!from || !to || from.key === to.key || !Number.isInteger(hour))
             return { ok: false, fallback: 'maps', reason: 'no_route' };
+        // Житомир: спершу пряма поїздка за власним розкладом (zt.rozklad.in.ua), звіреним з Google, — без запитів назовні
+        if (q.city === 'Zhytomyr' && ownEnabled()) {
+            const own = ownRoute({ from: q.from.trim(), to: q.to.trim(), date: q.date, time: q.time }, { from: from.label, to: to.label });
+            if (own) {
+                if (!background)
+                    await noteDemand(q.city, from, to, true);
+                return own;
+            }
+        }
         const stored = await findStored(q, from, to, hour).catch((e) => {
             console.error('❌ city-route: читання з бази:', e);
             return null;

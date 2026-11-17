@@ -116,7 +116,7 @@ function make(over: Partial<Parameters<typeof createCityRoutes>[0]> = {}, fetchB
   const db = fakeDb();
   const net = fakeFetch(fetchBody, ok);
   let now = NOW;
-  const svc = createCityRoutes({ prisma: db.prisma, key: () => 'k', fetchImpl: net.fetchImpl, now: () => now, enabled: () => true, store: () => true, dailyCap: () => 10, ...over });
+  const svc = createCityRoutes({ prisma: db.prisma, key: () => 'k', fetchImpl: net.fetchImpl, now: () => now, enabled: () => true, store: () => true, dailyCap: () => 10, ownRoute: () => null, ...over });
   return { ...db, ...net, svc, setNow: (d: Date) => (now = d) };
 }
 
@@ -247,4 +247,24 @@ test('навчання вимкнено без ключа чи без запис
   assert.deepEqual(await make({ store: () => false }).svc.learnTick(), { asked: 0, learned: 0 });
   // пʼятниця → понеділок
   assert.equal(nextWeekdayMorning(new Date('2026-11-20T10:00:00.000Z')).date, '2026-11-23');
+});
+
+test('Житомир: власна пряма поїздка — перед базою й Google, без запитів назовні; Київ її не питає; вимикач', async () => {
+  const own = { ok: true as const, source: 'own' as const, city: 'Zhytomyr' as const, fromLabel: 'a', toLabel: 'b', steps: [{ kind: 'transit' as const, minutes: 9, line: '58', departs: '09:25' }], minutes: 14, fetchedAt: '2026-11-17T00:00:00.000Z' };
+  const asked: unknown[] = [];
+  const t = make({ ownRoute: (q, labels) => (asked.push([q, labels]), own) });
+  const got = await t.svc.find(Q);
+  assert.deepEqual(got, own);
+  assert.deepEqual(asked, [[{ from: 'zhytomyr.avtovokzal', to: 'Польова 12', date: Q.date, time: Q.time }, { from: 'автовокзал Житомир-1', to: 'Польова 12' }]]);
+  assert.equal(t.calls.length, 0);
+  assert.equal(t.dovedeCityRoute.rows.length, 0);
+  // попит усе одно рахуємо: людина спитала й отримала відповідь
+  assert.deepEqual(t.dovedeCityDemand.rows.map((r) => [r.asked, r.answered]), [[1, true]]);
+
+  await t.svc.find({ ...Q, city: 'Kyiv', from: 'kyiv.akadem', to: 'Охматдит' });
+  assert.equal(asked.length, 1);
+  assert.equal(t.calls.length, 1);
+
+  const off = make({ ownRoute: () => own, ownEnabled: () => false });
+  assert.equal(((await off.svc.find(Q)) as { source?: string }).source, 'google');
 });
