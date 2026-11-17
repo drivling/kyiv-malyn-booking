@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
-import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
+import type { AdWallSnapshot, PeopleWallSnapshot, StickerWallSnapshot } from '@/types';
 import { WallAds } from './WallAds';
+import { WallPeople } from './WallPeople';
 import { WallBadges } from './WallBadges';
 import {
   TAB_ROTATE_MS,
@@ -19,8 +20,9 @@ export type { WallTab } from './stickerWall';
 import type { WallTab } from './stickerWall';
 
 const opens = (n: number) => plural(n, ['відкриття', 'відкриття', 'відкриттів']);
+const TAB_LABELS: Record<WallTab, string> = { top: 'Топ дня', growing: 'Зараз ростуть', ads: 'Реклама', people: 'Люди' };
 
-/** Головний екран віджета: ліворуч — сьогодні разом і по годинах, праворуч — «Топ дня» / «Зараз ростуть» / «Реклама» */
+/** Головний екран віджета: ліворуч — сьогодні разом і по годинах, праворуч — «Топ дня» / «Зараз ростуть» / «Реклама» / «Люди» */
 export function WallBoard({
   snapshot,
   stops,
@@ -32,6 +34,7 @@ export function WallBoard({
   offline,
   soundOn,
   ads = null,
+  people = null,
   stopName = (id: string) => id,
   cityName = 'МАЛИН',
 }: {
@@ -47,6 +50,8 @@ export function WallBoard({
   soundOn: boolean;
   /** Вкладка «Реклама»: GET /ads/wall */
   ads?: AdWallSnapshot | null;
+  /** Вкладка «Люди»: GET /transport/sticker-wall/people */
+  people?: PeopleWallSnapshot | null;
   stopName?: (id: string) => string;
   /** Назва міста наклейок у шапці (великими) */
   cityName?: string;
@@ -129,7 +134,7 @@ export function WallBoard({
         )}
       </section>
 
-      <section className="wall-list" aria-label={tab === 'top' ? 'Топ дня' : tab === 'growing' ? 'Зараз ростуть' : 'Реклама'}>
+      <section className="wall-list" aria-label={TAB_LABELS[tab]}>
         <div className="wall-tabs" role="tablist">
           <button
             type="button"
@@ -167,6 +172,18 @@ export function WallBoard({
           >
             Реклама
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'people'}
+            className="wall-tab"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTab('people');
+            }}
+          >
+            Люди
+          </button>
           <span
             key={`${tab}-${tabCycle}`}
             className="wall-tabs-timer"
@@ -176,6 +193,8 @@ export function WallBoard({
         </div>
         {tab === 'ads' ? (
           <WallAds ads={ads} stopName={stopName} now={now} />
+        ) : tab === 'people' ? (
+          <WallPeople data={people} stopName={stopName} now={now} />
         ) : list.length === 0 ? (
           <div className="wall-empty">
             <span className="wall-empty-qr" aria-hidden="true" />

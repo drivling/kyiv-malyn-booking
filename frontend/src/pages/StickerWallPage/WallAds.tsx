@@ -1,6 +1,7 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import type { CSSProperties } from 'react';
 import type { AdWallSnapshot } from '@/types';
-import { adWhen, plural, whoHue } from './stickerWall';
+import { adWhen, pctWidth as pct, plural, whoHue } from './stickerWall';
+import { WallFeed, WallTile as Tile } from './WallTiles';
 
 /**
  * Вкладка «Реклама» на стіні (GET /ads/wall, Docs/dovede-roadmap.md, «Облік реклами»). Читається з кількох метрів:
@@ -8,7 +9,7 @@ import { adWhen, plural, whoHue } from './stickerWall';
  *   (показали → почали → до кінця; для сторінки — гості проти адміна);
  * - стрічка останніх переглядів — по рядку на перегляд: що з ним сталося, де, з чого, хто (анонімно: кольорова
  *   крапка й останні 4 символи id браузера — та сама людина впізнається в різних рядках). Рядків рівно стільки,
- *   скільки вміщається цілими (FeedList міряє висоту), решта не стискається;
+ *   скільки вміщається цілими (WallFeed у WallTiles.tsx міряє висоту), решта не стискається;
  * - внизу тихим рядком — 90 днів.
  */
 type View = AdWallSnapshot['views'][number];
@@ -21,42 +22,6 @@ const ACCESS: Record<string, string> = { guest: 'гість', admin: 'адмін
 
 const shows = (n: number) => plural(n, ['показу', 'показів', 'показів']);
 const people = (n: number) => `${n} ${plural(n, ['людина', 'людини', 'людей'])}`;
-const pct = (part: number, whole: number) => (whole > 0 ? `${Math.min(100, (part / whole) * 100)}%` : '0%');
-
-function Tile({
-  title,
-  color,
-  value,
-  unit,
-  bar,
-  sub,
-}: {
-  title: string;
-  color: string;
-  value: number;
-  unit: string;
-  bar: { width: string; tone: 'solid' | 'soft' | 'muted' }[];
-  /** [головне, подробиця] — подробицю вертикальний телефон ховає */
-  sub: [string, string?];
-}) {
-  return (
-    <div className="wall-ads-tile" style={{ '--c': color } as CSSProperties}>
-      <span className="wall-ads-tile-title">{title}</span>
-      <span className="wall-ads-tile-value">
-        <b>{value}</b> {unit}
-      </span>
-      <span className="wall-ads-bar" aria-hidden="true">
-        {bar.map((s, i) => (
-          <span key={i} className={`wall-ads-bar-${s.tone}`} style={{ width: s.width }} />
-        ))}
-      </span>
-      <span className="wall-ads-tile-sub">
-        {sub[0]}
-        {sub[1] ? <span className="wall-ads-extra"> · {sub[1]}</span> : null}
-      </span>
-    </div>
-  );
-}
 
 /** Смужка перегляду: частка «до кінця» і «почали» від показів (сегменти йдуть один за одним) */
 function funnel(c: { shown: number; started: number; completed: number }) {
@@ -108,42 +73,6 @@ function FeedRow({ v, stopName, now }: { v: View; stopName: (id: string) => stri
         {adWhen(v.at, now)}
       </time>
     </li>
-  );
-}
-
-const ROW_EM = 2.2;
-const GAP_EM = 0.3;
-
-/** Скільки цілих рядків вміщає стрічка; поки не виміряно (або jsdom) — усі */
-function useRowsThatFit(total: number) {
-  const ref = useRef<HTMLOListElement>(null);
-  const [fit, setFit] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const measure = () => {
-      const h = el.clientHeight;
-      if (h <= 0) return setFit(null);
-      const em = parseFloat(getComputedStyle(el).fontSize) || 16;
-      setFit(Math.max(1, Math.floor((h + GAP_EM * em) / ((ROW_EM + GAP_EM) * em))));
-    };
-    measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return [ref, Math.min(total, fit ?? total)] as const;
-}
-
-function FeedList({ views, stopName, now }: { views: View[]; stopName: (id: string) => string; now: Date }) {
-  const [ref, fit] = useRowsThatFit(views.length);
-  return (
-    <ol ref={ref} className="wall-ads-feed" aria-label="Останні перегляди">
-      {views.slice(0, fit).map((v) => (
-        <FeedRow key={v.viewId} v={v} stopName={stopName} now={now} />
-      ))}
-    </ol>
   );
 }
 
@@ -201,7 +130,9 @@ export function WallAds({ ads, stopName, now }: { ads: AdWallSnapshot | null; st
           <p>Ще ніхто не бачив рекламу — чекаємо на перший скан наклейки</p>
         </div>
       ) : (
-        <FeedList views={ads.views} stopName={stopName} now={now} />
+        <WallFeed items={ads.views} label="Останні перегляди" keyOf={(v) => v.viewId}>
+          {(v) => <FeedRow v={v} stopName={stopName} now={now} />}
+        </WallFeed>
       )}
       <p className="wall-ads-foot">
         <span>90 днів</span> {total90.join(' · ')}

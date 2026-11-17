@@ -13,6 +13,7 @@ const transport_revisions_1 = require("../transport-revisions");
 const transport_segments_1 = require("../transport-segments");
 const sticker_scans_1 = require("../sticker-scans");
 const sticker_wall_1 = require("../sticker-wall");
+const sticker_people_1 = require("../sticker-people");
 const arrival_reports_1 = require("../arrival-reports");
 const gtfs_feed_1 = require("../gtfs-feed");
 const transport_gps_1 = require("../transport-gps");
@@ -30,6 +31,9 @@ function createTransportRouter(deps) {
     const adminPassword = (0, require_admin_1.resolveAdminPassword)(deps.adminPassword);
     const r = express_1.default.Router();
     const isRepeatScan = (0, sticker_scans_1.createScanDeduper)();
+    // історія людини — за id браузера, а не за IP: двоє людей за одним IP оператора (CGNAT) біля тієї самої наклейки —
+    // один скан у лічильнику, але дві людини з власними першими зупинками
+    const isRepeatPersonScan = (0, sticker_scans_1.createScanDeduper)();
     // Повернення — раз за сесію на клієнті; сервер ще відсіює повтори того самого id за 30 хв
     const isRepeatReturn = (0, sticker_scans_1.createScanDeduper)(30 * 60 * 1000);
     // Той самий звіт про рейс із того самого клієнта за 10 хв — подвійне натискання, не новий факт
@@ -366,8 +370,10 @@ function createTransportRouter(deps) {
         }
     });
     /**
-     * Публічний: відкриття табло з QR-наклейки (src/sticker-scans.ts). Body: { stopId, side: a|b|s }.
-     * Невідома зупинка — 404; повтор із того самого клієнта за 2 хв — 200 { counted: false }.
+     * Публічний: відкриття табло з QR-наклейки (src/sticker-scans.ts). Body: { stopId, side: a|b|s, clientId? }.
+     * Невідома зупинка — 404; повтор із того самого клієнта за 2 хв — 200 { counted: false }. З clientId відповідь несе
+     * `person` — номер пасажира й коротку історію (src/sticker-people.ts) для паспорта на телефоні; збій обліку людини
+     * скан не ламає.
      */
     r.post('/transport/sticker-scans', async (req, res) => {
         const scan = (0, sticker_scans_1.parseStickerScan)(req.body);
@@ -385,12 +391,24 @@ function createTransportRouter(deps) {
                 res.status(404).json({ error: 'Unknown stop' });
                 return;
             }
-            if (isRepeatScan(`${cityCode}|${(0, sticker_scans_1.clientKey)(req.headers, req.ip)}|${scan.stopId}|${scan.side}`)) {
-                res.json({ ok: true, counted: false });
-                return;
-            }
-            await prisma.stickerScan.create({ data: { ...scan, cityCode } });
-            res.status(201).json({ ok: true, counted: true });
+            const person = async () => {
+                if (!scan.clientId)
+                    return null;
+                try {
+                    return isRepeatPersonScan(`${cityCode}|${scan.clientId}|${scan.stopId}|${scan.side}`)
+                        ? await (0, sticker_people_1.personSummary)(prisma, cityCode, scan.clientId)
+                        : await (0, sticker_people_1.recordPersonScan)(prisma, { cityCode, clientId: scan.clientId, stopId: scan.stopId, side: scan.side });
+                }
+                catch (e) {
+                    console.error('[POST /transport/sticker-scans] person', e);
+                    return null;
+                }
+            };
+            const repeat = isRepeatScan(`${cityCode}|${(0, sticker_scans_1.clientKey)(req.headers, req.ip)}|${scan.stopId}|${scan.side}`);
+            if (!repeat)
+                await prisma.stickerScan.create({ data: { ...scan, cityCode } });
+            const p = await person();
+            res.status(repeat ? 200 : 201).json({ ok: true, counted: !repeat, ...(p ? { person: p } : {}) });
         }
         catch (e) {
             console.error('[POST /transport/sticker-scans]', e);
@@ -416,6 +434,12 @@ function createTransportRouter(deps) {
                 return;
             }
             await prisma.stickerReturn.create({ data: { ...ret, cityCode: city.cityCode } });
+            try {
+                await (0, sticker_people_1.recordPersonReturn)(prisma, { cityCode: city.cityCode, clientId: ret.clientId, stopId: ret.stopId, side: ret.side });
+            }
+            catch (e) {
+                console.error('[POST /transport/sticker-returns] person', e);
+            }
             res.status(201).json({ ok: true, counted: true });
         }
         catch (e) {
@@ -520,6 +544,37 @@ function createTransportRouter(deps) {
         catch (e) {
             console.error('[GET /transport/sticker-wall]', e);
             res.status(500).json({ error: 'Failed to load sticker wall' });
+        }
+    });
+    /** Віджет на стіну, вкладка «Люди»: нові й ті, що повернулись, сьогодні, останні пасажири (src/sticker-people.ts) */
+    r.get('/transport/sticker-wall/people', async (req, res) => {
+        res.set({ 'Cache-Control': 'no-store' });
+        if (!(0, sticker_wall_1.isStickerWallKey)(req.query.key, adminPassword)) {
+            res.status(403).json({ error: 'Invalid wall key' });
+            return;
+        }
+        try {
+            const cityCode = adminCity(res, req.query.city);
+            if (!cityCode)
+                return;
+            res.json(await (0, sticker_people_1.peopleWallSnapshot)(prisma, { cityCode }));
+        }
+        catch (e) {
+            console.error('[GET /transport/sticker-wall/people]', e);
+            res.status(500).json({ error: 'Failed to load sticker people' });
+        }
+    });
+    /** Адмін: «Наклейки зупинок» → «Люди» — люди з наклейок за ?days=1|7|30|90 (src/sticker-people.ts) */
+    r.get('/admin/transport/sticker-people', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const cityCode = adminCity(res, req.query.city);
+            if (!cityCode)
+                return;
+            res.json(await (0, sticker_people_1.stickerPeopleStats)(prisma, { cityCode, days: (0, sticker_scans_1.parseStatsDays)(req.query.days) }));
+        }
+        catch (e) {
+            console.error('[GET /admin/transport/sticker-people]', e);
+            res.status(500).json({ error: 'Failed to load sticker people' });
         }
     });
     /** Адмін: друк або SVG наклейок зупинки. Body: { stopId, sides: (a|b|s)[], size: A5|A4 } */

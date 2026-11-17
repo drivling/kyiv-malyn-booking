@@ -1061,6 +1061,41 @@ model StickerPrint {
   @@index([cityCode])
 }
 
+/// Людина з QR-наклейок (Docs/stop-stickers.md, «Люди з наклейок»): рядок на анонімний id браузера в місті — перша й
+/// остання наклейка, зупинки за порядком першого скану, київські доби зі сканами, повернення на сайт, досмотрений тизер
+/// «Доведе». Номер пасажира — порядок появи в місті (рахується з id, src/sticker-people.ts). Пише сервер при скані,
+/// поверненні й досмотреному тизері; минулі люди — бекфілом міграції. Не персональні дані: без імені й телефону.
+model StickerPerson {
+  /// Місто датасету — TripPoint.code (Docs/transport-tenancy-2026-11.md); кожен запит обмежується ним
+  cityCode     String    @default("Malyn")
+  id           Int       @id @default(autoincrement())
+  /// Анонімний id браузера — той самий, що в StickerScan / StickerReturn / AdEvent
+  clientId     String
+  firstStopId  String
+  firstSide    String
+  firstAt      DateTime
+  /// Остання наклейка, яку людина відсканувала (або наклейка повернення, поки сканів із id немає)
+  lastStopId   String
+  lastSide     String
+  lastAt       DateTime
+  /// Зарахованих сканів (повтор за 2 хв не рахується, як у StickerScan)
+  scans        Int       @default(0)
+  /// Зупинки за порядком першого скану
+  stopIds      String[]
+  /// Різних київських діб зі сканом і остання з них (YYYY-MM-DD) — «повертався»
+  scanDays     Int       @default(0)
+  lastScanDay  String?
+  /// Повернень на сайт (StickerReturn) і останнє
+  returns      Int       @default(0)
+  lastReturnAt DateTime?
+  /// Коли вперше досмотрів тизер «Доведе» перед табло
+  teaserAt     DateTime?
+
+  @@unique([cityCode, clientId])
+  @@index([cityCode, firstAt])
+  @@index([cityCode, lastAt])
+}
+
 /// Реклама «Доведе» (Docs/dovede-roadmap.md, «Облік реклами»): міні-тизер перед табло зупинки після скану наклейки
 /// (placement sticker) і ролик-вступ /dovede (placement dovede); подія на рядок. viewId — один перегляд у браузері
 /// (shown — показали, started — почав грати, completed — досмотрів); page — відкрив /dovede з доступом (access:

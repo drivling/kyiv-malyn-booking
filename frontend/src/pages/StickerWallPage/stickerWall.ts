@@ -17,9 +17,9 @@ export const CELEBRATION_MS = 7_000;
 /** Автоперемикання вкладок «Топ дня» / «Зараз ростуть» */
 export const TAB_ROTATE_MS = 20_000;
 
-/** Вкладки правої колонки: «Топ дня», «Зараз ростуть», «Реклама» — у порядку автоперемикання */
-export type WallTab = 'top' | 'growing' | 'ads';
-export const WALL_TABS: WallTab[] = ['top', 'growing', 'ads'];
+/** Вкладки правої колонки: «Топ дня», «Зараз ростуть», «Реклама», «Люди» — у порядку автоперемикання */
+export type WallTab = 'top' | 'growing' | 'ads' | 'people';
+export const WALL_TABS: WallTab[] = ['top', 'growing', 'ads', 'people'];
 
 /**
  * Палітра ліній схеми міста стіни (місто датасету, який завантажила стіна) — для смуги, конфеті й зупинок
@@ -105,7 +105,42 @@ export type Celebration = {
   totalAfter: number;
   /** Лише `newcomer`: скільки новеньких (досмотріли тизер) сьогодні разом із цим */
   newToday?: number;
+  /** Лише `newcomer`: номер пасажира в місті (backend sticker-people.ts), якщо сервер його знає */
+  passenger?: number | null;
 };
+
+/** Рубежі номера пасажира: «до № 400 — ще 88» на стіні й особливе святкування, коли новенький їх досягає */
+export const PASSENGER_MILESTONES = [10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000];
+const PASSENGER_ORDINALS: Record<number, string> = {
+  10: 'Десятий',
+  25: 'Двадцять пʼятий',
+  50: 'Пʼятдесятий',
+  100: 'Сотий',
+  150: 'Сто пʼятдесятий',
+  200: 'Двохсотий',
+  300: 'Трьохсотий',
+  400: 'Чотирьохсотий',
+  500: 'Пʼятисотий',
+  1000: 'Тисячний',
+};
+
+/** Найближчий рубіж після `total` (за останнім із списку — наступна тисяча) */
+export function nextPassengerMilestone(total: number): number {
+  return PASSENGER_MILESTONES.find((m) => m > total) ?? (Math.floor(total / 1000) + 1) * 1000;
+}
+
+/** Заголовок святкування новенького: на рубежі — «Сотий пасажир!», інакше — «Новий пасажир № 37!» */
+export function newcomerHeadline(passenger: number | null | undefined): { headline: string; milestone: boolean } {
+  if (passenger && PASSENGER_MILESTONES.includes(passenger)) {
+    return { headline: PASSENGER_ORDINALS[passenger] ? `${PASSENGER_ORDINALS[passenger]} пасажир!` : `Пасажир № ${passenger}!`, milestone: true };
+  }
+  return { headline: passenger ? `Новий пасажир № ${passenger}!` : 'Новий пасажир!', milestone: false };
+}
+
+/** Ширина смужки: частка від цілого, у відсотках */
+export function pctWidth(part: number, whole: number): string {
+  return whole > 0 ? `${Math.min(100, (part / whole) * 100)}%` : '0%';
+}
 
 export const MILESTONES = [10, 25, 50, 75, 100, 150, 200, 300, 500, 750, 1000];
 /** Рекорд святкуємо, коли попередній кращий день був хоч якимось */
@@ -210,7 +245,8 @@ export function buildNewcomerCelebrations(fresh: AdView[], ads: AdWallSnapshot, 
     return {
       key: `new-${v.viewId}`,
       kind: 'newcomer',
-      headline: 'Новий пасажир!',
+      headline: newcomerHeadline(v.number).headline,
+      passenger: v.number ?? null,
       stopId: v.stopId,
       name: info?.name ?? v.stopId ?? 'Табло зупинки',
       lines: info?.lines ?? [],

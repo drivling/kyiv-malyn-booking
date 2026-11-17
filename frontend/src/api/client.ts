@@ -46,6 +46,9 @@ import type {
   NotificationSettingsPatch,
   NotificationSettingsUsage,
   StickerScanStats,
+  StickerScanResult,
+  StickerPeopleStats,
+  PeopleWallSnapshot,
   StickerWallSnapshot,
   AdEventBody,
   AdWallSnapshot,
@@ -1280,7 +1283,7 @@ class ApiClient {
   }
 
   /** Відкриття табло з QR-наклейки (stickerScan.ts шле один раз за сесію при завантаженні табло) */
-  async trackStickerScan(scan: { stopId: string; side: StickerSide; clientId?: string; city?: string }): Promise<{ ok: boolean; counted: boolean }> {
+  async trackStickerScan(scan: { stopId: string; side: StickerSide; clientId?: string; city?: string }): Promise<StickerScanResult> {
     return this.request('/transport/sticker-scans', {
       method: 'POST',
       body: JSON.stringify(scan),
@@ -1331,6 +1334,16 @@ class ApiClient {
   /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */
   async getStickerScanStats(days: StickerStatsDays = 30, city?: string): Promise<StickerScanStats> {
     return this.request(`/admin/transport/sticker-scans?days=${days}${cityQuery(city, '&')}`);
+  }
+
+  /** Адмін: люди з наклейок — нові, постійні, перші зупинки (вкладка «Наклейки зупинок» → «Люди») */
+  async getStickerPeople(days: StickerStatsDays = 30, city?: string): Promise<StickerPeopleStats> {
+    return this.request(`/admin/transport/sticker-people?days=${days}${cityQuery(city, '&')}`);
+  }
+
+  /** Стіна наклейок, вкладка «Люди» — тим самим ключем стіни, що й GET /transport/sticker-wall */
+  async getPeopleWall(key: string, city?: string): Promise<PeopleWallSnapshot> {
+    return this.request(`/transport/sticker-wall/people?key=${encodeURIComponent(key)}${cityQuery(city, '&')}`);
   }
 
   /** Віджет на стіну: сьогоднішні відкриття з QR + нові скани з id > after (доступ за ключем посилання) */

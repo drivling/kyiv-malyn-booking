@@ -69,6 +69,7 @@ async function adWallSnapshot(prisma, opts) {
     const dovede = { today: { ...zero(), pages: 0 }, total: { ...zero(), pages: 0 }, access: noAccess(), todayAccess: noAccess(), people: 0 };
     const people = { sticker: new Set(), dovede: new Set() };
     const views = new Map();
+    const viewClient = new Map();
     const seenByClient = new Map();
     for (const r of rows) {
         const placement = r.placement;
@@ -107,6 +108,7 @@ async function adWallSnapshot(prisma, opts) {
                 stopId: r.stopId,
                 device: r.device,
                 who: r.clientId ? r.clientId.slice(-4) : null,
+                number: null,
                 seenBefore: before,
                 access: r.access,
                 at: r.createdAt.toISOString(),
@@ -114,6 +116,8 @@ async function adWallSnapshot(prisma, opts) {
                 completed: false,
             };
             views.set(r.viewId, v);
+            if (r.clientId)
+                viewClient.set(r.viewId, r.clientId);
         }
         if (r.event === 'started')
             v.started = true;
@@ -124,11 +128,22 @@ async function adWallSnapshot(prisma, opts) {
     }
     sticker.people = people.sticker.size;
     dovede.people = people.dovede.size;
+    const latest = [...views.values()].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)).slice(0, LIMIT);
+    // номер пасажира з наклейок — порядок появи людини в місті стіни (src/sticker-people.ts)
+    const clients = [...new Set(latest.map((v) => viewClient.get(v.viewId)).filter((c) => !!c))];
+    if (clients.length) {
+        const persons = await prisma.stickerPerson.findMany({ where: { cityCode: opts.cityCode }, select: { id: true, clientId: true } });
+        const numberOf = new Map([...persons].sort((a, b) => a.id - b.id).map((p, i) => [p.clientId, i + 1]));
+        for (const v of latest) {
+            const c = viewClient.get(v.viewId);
+            v.number = (c && numberOf.get(c)) || null;
+        }
+    }
     return {
         now: now.toISOString(),
         day,
         sticker,
         dovede,
-        views: [...views.values()].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0)).slice(0, LIMIT),
+        views: latest,
     };
 }

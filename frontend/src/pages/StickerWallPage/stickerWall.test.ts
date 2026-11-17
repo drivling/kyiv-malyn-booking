@@ -6,6 +6,8 @@ import {
   buildCelebrations,
   buildNewcomerCelebrations,
   freshNewcomers,
+  newcomerHeadline,
+  nextPassengerMilestone,
   growingStops,
   isNightHour,
   isQuietHour,
@@ -200,11 +202,11 @@ describe('новий пасажир — досмотрів тизер', () => {
   });
 
   it('святкування: зупинка з довідника, нових за сьогодні; понад чотири — три + «Ще +N новеньких»', () => {
-    const fresh = [view('v1', { at: '2026-11-17T11:00:00Z' }), view('v2', { stopId: 'st_0019', at: '2026-11-17T11:10:00Z' })];
+    const fresh = [view('v1', { at: '2026-11-17T11:00:00Z' }), view('v2', { stopId: 'st_0019', at: '2026-11-17T11:10:00Z', number: 100 })];
     const out = buildNewcomerCelebrations(fresh, ads(fresh, 5), dir);
-    expect(out.map((c) => [c.kind, c.headline, c.name, c.newToday])).toEqual([
-      ['newcomer', 'Новий пасажир!', 'з-д «Прожектор»', 4],
-      ['newcomer', 'Новий пасажир!', 'Залізничний вокзал', 5],
+    expect(out.map((c) => [c.kind, c.headline, c.name, c.newToday, c.passenger])).toEqual([
+      ['newcomer', 'Новий пасажир!', 'з-д «Прожектор»', 4, null],
+      ['newcomer', 'Сотий пасажир!', 'Залізничний вокзал', 5, 100],
     ]);
     const many = ['a', 'b', 'c', 'd', 'e'].map((id) => view(`v-${id}`));
     const five = buildNewcomerCelebrations(many, ads(many), dir);
@@ -231,5 +233,21 @@ describe('новий пасажир — досмотрів тизер', () => {
     expect(withNewcomers([scan('st_0015'), scan('st_0019')], newcomers).map((c) => c.key)).toEqual(['st_0019-scan', 'new-v1']);
     expect(withNewcomers([scan('st_0015', 'first')], newcomers).map((c) => c.kind)).toEqual(['first', 'newcomer']);
     expect(withNewcomers([scan('st_0015')], [])).toHaveLength(1);
+  });
+});
+
+describe('номер пасажира: заголовок і рубежі', () => {
+  it('новенький із номером — «Новий пасажир № 37!», на рубежі — порядковим словом, без номера — просто «новий»', () => {
+    expect(newcomerHeadline(null)).toEqual({ headline: 'Новий пасажир!', milestone: false });
+    expect(newcomerHeadline(37)).toEqual({ headline: 'Новий пасажир № 37!', milestone: false });
+    expect(newcomerHeadline(100)).toEqual({ headline: 'Сотий пасажир!', milestone: true });
+    expect(newcomerHeadline(25)).toEqual({ headline: 'Двадцять пʼятий пасажир!', milestone: true });
+    expect(newcomerHeadline(750)).toEqual({ headline: 'Пасажир № 750!', milestone: true });
+  });
+  it('найближчий рубіж після числа; за останнім зі списку — наступна тисяча', () => {
+    expect(nextPassengerMilestone(0)).toBe(10);
+    expect(nextPassengerMilestone(99)).toBe(100);
+    expect(nextPassengerMilestone(100)).toBe(150);
+    expect(nextPassengerMilestone(10000)).toBe(11000);
   });
 });

@@ -1,6 +1,7 @@
 /**
  * Облік реклами «Доведе» (ad-events.ts, Docs/dovede-roadmap.md, «Облік реклами»):
  * - POST /ads/events — подія перегляду з браузера (публічний, як скани наклейок; повтор viewId + event — 200 без запису);
+ *   досмотрений тизер перед табло позначається й у людини з наклейок (StickerPerson.teaserAt, src/sticker-people.ts);
  *   `page` (відкрив /dovede з доступом) приймається лише із заголовком доступу «Доведе» чи адміна — інакше 403;
  * - GET /ads/wall?key=&city= — зведення для стіни наклейок (вкладка «Реклама»), той самий ключ стіни, що й
  *   GET /transport/sticker-wall (лише читання, HMAC від ADMIN_PASSWORD).
@@ -9,6 +10,7 @@ import { Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { adWallSnapshot, deviceOf, parseAdEvent } from '../ad-events';
 import { type DovedeAccessConfig, dovedeAccessFromEnv, dovedeAccessKind } from '../dovede/access';
+import { recordPersonTeaser } from '../sticker-people';
 import { isStickerWallKey } from '../sticker-wall';
 import { DEFAULT_TRANSPORT_CITY, parseTransportCity } from '../transport-city';
 
@@ -42,6 +44,9 @@ export function createAdsRouter(deps: { prisma: PrismaClient; adminPassword: str
         if ((e as { code?: string })?.code !== 'P2002') throw e;
         res.json({ ok: true, counted: false });
         return;
+      }
+      if (ev.placement === 'sticker' && ev.event === 'completed' && ev.clientId) {
+        await recordPersonTeaser(deps.prisma, { cityCode, clientId: ev.clientId }).catch((e) => console.error('[POST /ads/events] person', e));
       }
       res.status(201).json({ ok: true, counted: true });
     } catch (e) {

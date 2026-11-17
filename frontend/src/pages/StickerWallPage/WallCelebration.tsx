@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { WallBadges } from './WallBadges';
-import { plural, schemePalette, textOn, type Celebration } from './stickerWall';
+import { newcomerHeadline, plural, schemePalette, textOn, type Celebration } from './stickerWall';
 
 const PIECES = 30;
 /** Тизер «Крапка»: біле тло, блакитна крапка, темно-бірюзовий текст (video/src/brand/tokens.ts, сторінка /dovede) */
@@ -49,6 +49,8 @@ export function WallCelebration({ celebration: c }: { celebration: Celebration }
   });
   const fg = newcomer ? INK : textOn(c.color);
   const special = newcomer || c.kind === 'first' || c.kind === 'milestone' || c.kind === 'record';
+  // рубіж номера пасажира (10-й, 100-й…) — заголовок більший
+  const milestone = newcomer && newcomerHeadline(c.passenger).milestone;
   return (
     <div
       className={`wall-cele wall-cele--${c.kind}`}
@@ -69,7 +71,7 @@ export function WallCelebration({ celebration: c }: { celebration: Celebration }
         ))}
       </div>
       <div className="wall-cele-body">
-        <p className={`wall-cele-headline${special ? ' wall-cele-headline--special' : ''}`}>{c.headline}</p>
+        <p className={`wall-cele-headline${special ? ' wall-cele-headline--special' : ''}${milestone ? ' wall-cele-headline--milestone' : ''}`}>{c.headline}</p>
         <h2 className="wall-cele-name">{c.name}</h2>
         <WallBadges lines={c.lines} max={8} />
         {newcomer ? (

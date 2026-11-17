@@ -25,6 +25,7 @@ import {
 } from './stopSticker/stickerSheets';
 import { renderStickerSvg, type StickerSize } from './stopSticker/stickerSvg';
 import { stickerStopCatalog, stopStatRows } from './stopSticker/scanStats';
+import { StickerPeoplePanel } from './stopSticker/StickerPeoplePanel';
 import { StickerStatsPanel } from './stopSticker/StickerStatsPanel';
 import { StickerStopList } from './stopSticker/StickerStopList';
 import './StopStickerTab.css';
@@ -58,6 +59,8 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
   const cityLabel = siteForCityCode(city).cityNameUk.toLocaleUpperCase('uk');
   const [searchParams, setSearchParams] = useSearchParams();
   const stopId = searchParams.get('stop') ?? '';
+  // підвкладка: наклейки (за замовчуванням) або люди з наклейок (?view=people)
+  const view = searchParams.get('view') === 'people' ? 'people' : 'stickers';
   const [dataset, setDataset] = useState<TransportDataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -107,6 +110,9 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
     const names = new Map(dataset?.stops.map((s) => [s.id, prettyStopName(s.name)]) ?? []);
     return stopStatRows(catalog, scans, (id) => names.get(id) ?? id);
   }, [catalog, scans, dataset]);
+
+  const stopNames = useMemo(() => new Map(dataset?.stops.map((s) => [s.id, prettyStopName(s.name)]) ?? []), [dataset]);
+  const stopName = useCallback((id: string) => stopNames.get(id) ?? id, [stopNames]);
 
   const stop = dataset?.stops.find((s) => s.id === stopId) ?? null;
   const lines = useMemo<StickerLine[]>(() => (dataset && stop ? stickerLines(dataset, stop.id) : []), [dataset, stop]);
@@ -184,11 +190,38 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
       .catch(() => undefined);
   };
 
+  const setView = (next: 'stickers' | 'people') => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'people') params.set('view', 'people');
+    else params.delete('view');
+    setSearchParams(params, { replace: true });
+  };
+  const viewSwitch = (
+    <div className="sticker-view-switch" role="group" aria-label="Розділ">
+      <button type="button" className="sticker-chip" aria-pressed={view === 'stickers'} onClick={() => setView('stickers')}>
+        Наклейки
+      </button>
+      <button type="button" className="sticker-chip" aria-pressed={view === 'people'} onClick={() => setView('people')}>
+        Люди
+      </button>
+    </div>
+  );
+
   if (loading) return <div className="sticker-tab-status">Завантаження зупинок…</div>;
   if (error) return <div className="sticker-tab-status sticker-tab-status--error">{error}</div>;
 
+  if (view === 'people') {
+    return (
+      <div className="tab-content sticker-tab">
+        {viewSwitch}
+        <StickerPeoplePanel city={city} stopName={stopName} />
+      </div>
+    );
+  }
+
   return (
     <div className="tab-content sticker-tab">
+      {viewSwitch}
       <p className="sticker-tab-intro">
         Наклейка на зупинку у стилі схеми маршрутів: назва, лінії з напрямком і QR-код на табло цієї зупинки (найближчі
         відправлення). Якщо обидва боки дороги в даних — одна зупинка, лінії розкладено на два боки за напрямком руху;

@@ -22,6 +22,7 @@ import {
   stickerScanStats,
 } from '../sticker-scans';
 import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from '../sticker-wall';
+import { peopleWallSnapshot, personSummary, recordPersonReturn, recordPersonScan, stickerPeopleStats, type PassengerSummary } from '../sticker-people';
 import { arrivalReportStats, buildArrivalRow, parseArrivalReport, parseReportDays } from '../arrival-reports';
 import { GTFS_ZIP_FILENAME, createGtfsFeedProvider, isGtfsFeedFile } from '../gtfs-feed';
 import { listGpsPositions, parseGpsRange } from '../transport-gps';
@@ -52,6 +53,9 @@ export function createTransportRouter(deps: {
   const adminPassword = resolveAdminPassword(deps.adminPassword);
   const r = express.Router();
   const isRepeatScan = createScanDeduper();
+  // історія людини — за id браузера, а не за IP: двоє людей за одним IP оператора (CGNAT) біля тієї самої наклейки —
+  // один скан у лічильнику, але дві людини з власними першими зупинками
+  const isRepeatPersonScan = createScanDeduper();
   // Повернення — раз за сесію на клієнті; сервер ще відсіює повтори того самого id за 30 хв
   const isRepeatReturn = createScanDeduper(30 * 60 * 1000);
   // Той самий звіт про рейс із того самого клієнта за 10 хв — подвійне натискання, не новий факт
@@ -379,8 +383,10 @@ export function createTransportRouter(deps: {
   });
 
   /**
-   * Публічний: відкриття табло з QR-наклейки (src/sticker-scans.ts). Body: { stopId, side: a|b|s }.
-   * Невідома зупинка — 404; повтор із того самого клієнта за 2 хв — 200 { counted: false }.
+   * Публічний: відкриття табло з QR-наклейки (src/sticker-scans.ts). Body: { stopId, side: a|b|s, clientId? }.
+   * Невідома зупинка — 404; повтор із того самого клієнта за 2 хв — 200 { counted: false }. З clientId відповідь несе
+   * `person` — номер пасажира й коротку історію (src/sticker-people.ts) для паспорта на телефоні; збій обліку людини
+   * скан не ламає.
    */
   r.post('/transport/sticker-scans', async (req, res) => {
     const scan = parseStickerScan(req.body);
@@ -397,12 +403,21 @@ export function createTransportRouter(deps: {
         res.status(404).json({ error: 'Unknown stop' });
         return;
       }
-      if (isRepeatScan(`${cityCode}|${clientKey(req.headers, req.ip)}|${scan.stopId}|${scan.side}`)) {
-        res.json({ ok: true, counted: false });
-        return;
-      }
-      await prisma.stickerScan.create({ data: { ...scan, cityCode } });
-      res.status(201).json({ ok: true, counted: true });
+      const person = async (): Promise<PassengerSummary | null> => {
+        if (!scan.clientId) return null;
+        try {
+          return isRepeatPersonScan(`${cityCode}|${scan.clientId}|${scan.stopId}|${scan.side}`)
+            ? await personSummary(prisma, cityCode, scan.clientId)
+            : await recordPersonScan(prisma, { cityCode, clientId: scan.clientId, stopId: scan.stopId, side: scan.side });
+        } catch (e) {
+          console.error('[POST /transport/sticker-scans] person', e);
+          return null;
+        }
+      };
+      const repeat = isRepeatScan(`${cityCode}|${clientKey(req.headers, req.ip)}|${scan.stopId}|${scan.side}`);
+      if (!repeat) await prisma.stickerScan.create({ data: { ...scan, cityCode } });
+      const p = await person();
+      res.status(repeat ? 200 : 201).json({ ok: true, counted: !repeat, ...(p ? { person: p } : {}) });
     } catch (e) {
       console.error('[POST /transport/sticker-scans]', e);
       res.status(500).json({ error: 'Failed to save sticker scan' });
@@ -427,6 +442,11 @@ export function createTransportRouter(deps: {
         return;
       }
       await prisma.stickerReturn.create({ data: { ...ret, cityCode: city.cityCode } });
+      try {
+        await recordPersonReturn(prisma, { cityCode: city.cityCode, clientId: ret.clientId, stopId: ret.stopId, side: ret.side });
+      } catch (e) {
+        console.error('[POST /transport/sticker-returns] person', e);
+      }
       res.status(201).json({ ok: true, counted: true });
     } catch (e) {
       console.error('[POST /transport/sticker-returns]', e);
@@ -527,6 +547,35 @@ export function createTransportRouter(deps: {
     } catch (e) {
       console.error('[GET /transport/sticker-wall]', e);
       res.status(500).json({ error: 'Failed to load sticker wall' });
+    }
+  });
+
+  /** Віджет на стіну, вкладка «Люди»: нові й ті, що повернулись, сьогодні, останні пасажири (src/sticker-people.ts) */
+  r.get('/transport/sticker-wall/people', async (req, res) => {
+    res.set({ 'Cache-Control': 'no-store' });
+    if (!isStickerWallKey(req.query.key, adminPassword)) {
+      res.status(403).json({ error: 'Invalid wall key' });
+      return;
+    }
+    try {
+      const cityCode = adminCity(res, req.query.city);
+      if (!cityCode) return;
+      res.json(await peopleWallSnapshot(prisma, { cityCode }));
+    } catch (e) {
+      console.error('[GET /transport/sticker-wall/people]', e);
+      res.status(500).json({ error: 'Failed to load sticker people' });
+    }
+  });
+
+  /** Адмін: «Наклейки зупинок» → «Люди» — люди з наклейок за ?days=1|7|30|90 (src/sticker-people.ts) */
+  r.get('/admin/transport/sticker-people', requireAdmin, async (req, res) => {
+    try {
+      const cityCode = adminCity(res, req.query.city);
+      if (!cityCode) return;
+      res.json(await stickerPeopleStats(prisma, { cityCode, days: parseStatsDays(req.query.days) }));
+    } catch (e) {
+      console.error('[GET /admin/transport/sticker-people]', e);
+      res.status(500).json({ error: 'Failed to load sticker people' });
     }
   });
 

@@ -10,7 +10,7 @@ import {
 import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import type { TransportDataset } from '@/api/transportDataset';
-import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
+import type { AdWallSnapshot, PeopleWallSnapshot, StickerWallSnapshot } from '@/types';
 import { WallBoard } from './WallBoard';
 import { WallCelebration } from './WallCelebration';
 import {
@@ -22,6 +22,7 @@ import {
   buildCelebrations,
   buildNewcomerCelebrations,
   freshNewcomers,
+  newcomerHeadline,
   isNightHour,
   isQuietHour,
   loadWallSettings,
@@ -74,6 +75,8 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   const [snapshot, setSnapshot] = useState<StickerWallSnapshot | null>(null);
   // вкладка «Реклама»: перегляди тизера перед табло й ролика «Доведе»
   const [ads, setAds] = useState<AdWallSnapshot | null>(null);
+  // вкладка «Люди»: пасажири з наклейок (номери, нові, ті, що повернулись)
+  const [people, setPeople] = useState<PeopleWallSnapshot | null>(null);
   const [offline, setOffline] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [started, setStarted] = useState(false);
@@ -138,8 +141,12 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
 
   const poll = useCallback(async () => {
     if (!key) return;
-    // реклама — окремим запитом паралельно: її збій не заважає стіні
+    // реклама й люди — окремими запитами паралельно: їхній збій не заважає стіні
     const adsRequest = apiClient.getAdWall(key, city).catch(() => null);
+    void apiClient
+      .getPeopleWall(key, city)
+      .then(setPeople)
+      .catch(() => {});
     let scans: Celebration[] = [];
     try {
       const snap = await apiClient.getStickerWall(key, cursor.current ?? 0, city);
@@ -256,12 +263,14 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   const testCelebration = (kind: 'scan' | 'newcomer') => {
     const top = topStops(stops, 1)[0];
     const total = snapshot?.total ?? 0;
+    // наступний номер пасажира — як було б зараз
+    const passenger = kind === 'newcomer' ? (people?.total ?? 0) + 1 : null;
     setQueue((q) => [
       ...q,
       {
         key: `test-${Date.now()}`,
         kind,
-        headline: kind === 'newcomer' ? 'Новий пасажир! (перевірка)' : 'Перевірка святкування',
+        headline: kind === 'newcomer' ? `${newcomerHeadline(passenger).headline} (перевірка)` : 'Перевірка святкування',
         stopId: top?.stopId ?? 'test',
         name: top?.name ?? 'Тестова зупинка',
         lines: top?.lines ?? [],
@@ -271,6 +280,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         rank: top ? 1 : 0,
         totalAfter: total,
         newToday: Math.max(1, ads?.sticker.today.completed ?? 0),
+        passenger,
       },
     ]);
     setControls(false);
@@ -308,6 +318,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         offline={offline}
         soundOn={soundOn}
         ads={ads}
+        people={people}
         stopName={(id) => dir.get(id)?.name ?? id}
         cityName={cityName}
       />
