@@ -146,10 +146,12 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
 
   it('Житомир ↔ Малин (scope zhytomyr): словник у браузері розуміє міста й місця цих питань', () => {
     const misses: string[] = [];
+    // номер будинку в id («street.zhytomyrska:5») дописує браузер — еталон звіряє саму вулицю
+    const bare = (id: string | undefined) => (id?.startsWith('street.') ? id.split(':')[0] : id) ?? null;
     for (const c of cases.filter((x) => x.scope === 'zhytomyr')) {
       const intent = parseLocal(c.text, NOW, STOP_INDEX).intent;
       for (const role of ['from', 'to'] as const) {
-        if (c.expect[role] !== undefined && (intent[role]?.id ?? null) !== c.expect[role]) misses.push(`${c.id} «${c.text}» ${role}: ${intent[role]?.id ?? null} ≠ ${c.expect[role]}`);
+        if (c.expect[role] !== undefined && bare(intent[role]?.id) !== c.expect[role]) misses.push(`${c.id} «${c.text}» ${role}: ${intent[role]?.id ?? null} ≠ ${c.expect[role]}`);
       }
     }
     expect(misses).toEqual([]);

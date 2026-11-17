@@ -102,6 +102,18 @@ test('міська електричка Києва: станції без мет
   assert.equal(bad.to, null);
 });
 
+test('промпт: «Житомирська» без слова «метро» — станція, вулиця Малина — лише з «вулиця» чи номером (як у словнику браузера)', () => {
+  const prompt = buildSystemPrompt();
+  const metro = prompt.split('\n').find((l) => l.startsWith('- kyiv.zhytomyrska — метро Житомирська'))!;
+  assert.ok(metro.endsWith('— і без слова «метро»: див. правило про «Житомирську» вище'), metro);
+  assert.ok(!metro.includes('лише зі словом'));
+  const street = prompt.split('\n').find((l) => l.startsWith('- street.zhytomyrska — '))!;
+  assert.ok(street.includes('саме «Житомирська» — це метро kyiv.zhytomyrska'), street);
+  assert.ok(prompt.includes('«Житомирська» — виняток із правила про слово «метро»'));
+  // решта назв, що без слова «метро» означають інше, лишились під правилом
+  assert.ok(prompt.split('\n').some((l) => l.startsWith('- kyiv.m.kharkivska — ') && l.endsWith('— лише зі словом «метро / м. / ст.»')));
+});
+
 test('validateIntent: не обʼєкт — IntentShapeError', () => {
   assert.throws(() => validateIntent('trip'), IntentShapeError);
   assert.throws(() => validateIntent(null), IntentShapeError);
