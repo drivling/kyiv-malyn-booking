@@ -611,7 +611,9 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
 - `/transport*` of a secondary domain is its own static tree `dist/sites/<key>/` (`PRERENDER_SITE=<key>` for
   `prerender-transport-stops` + `prerender-spa`, `SEO_SMOKE_SITE=<key>` for `seo-smoke`; canonicals there are the city's
   domain, as in the SPA). The tree is built only when the city's public dataset answers (`hasLocalTransport` on) — flip
-  the flag, then redeploy the frontend. `serve-dist` never serves Malyn's HTML or data snapshots from the root
+  the flag, then redeploy the frontend. The Railway frontend service has `NO_CACHE=1`: without it a redeploy with
+  unchanged frontend files takes `npm run build` from the layer cache, so prerendered pages ignore new API data (flags,
+  datasets). Korosten went live this way on 2026-11-17. `serve-dist` never serves Malyn's HTML or data snapshots from the root
   `dist/transport` on another host (shell instead; poster files are fine), takes 410 / stop-301 data from the site's
   tree, and adds `city=` to the API 302s (pure rules in `serve-dist-rules.mjs`). Stop articles are per city: Korosten's
   `src/content/stops/korosten-articles.json` is generated from the council stop list by `scripts/city-stop-articles.mjs`
