@@ -246,6 +246,7 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
 | Archive old listings (`ViberRideEvent` import, delete inactive > 90 d) | `VIBER_ARCHIVE_INTERVAL_MIN` (1440) | `viber-listing-archive.ts` |
 | Trip reminders: 20:00 day before, 08:00, one pre-departure (2 h / 30 min) | `BOOKING_REMINDERS_INTERVAL_MIN` (1) | `booking-reminders.ts` |
 | Watch external timetable sources (Korosten council page, data.gov.ua sets) → admin-chat alert on change | `TRANSPORT_SOURCE_WATCH_INTERVAL_MIN` (360) | `transport-source-watch.ts` |
+| Watch the Zhytomyr-1 bus station board (`tablo.bus-ua.info`, fares Zhytomyr → Malyn; sources with `group: 'board'`) → admin-chat alert listing the changed trips and the mismatches with `Schedule`; never more than once an hour | `TRANSPORT_BOARD_WATCH_INTERVAL_MIN` (720) | `transport-source-watch.ts`, `zhytomyr-board-parser.ts` |
 
 - A listing is visible until `endsAt + 1 h`. `endsAt` = trip day + end of `departureTime` **in Kyiv time** stored as
   UTC (`getListingEndsAt`; Railway runs TZ=UTC). Public reads (`/viber-listings`, `/search`, `/:id/contact`,
@@ -614,6 +615,18 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   text, italics = other path), so alerts list the changed runs; the committed source snapshot and `timetable.json`
   live in `data/korosten-transport/source/` (`npm run korosten:snapshot` in `backend/`, a test keeps the two in step).
   Never change how `snapshotHtmlTables` hashes a table — a new fingerprint would alert on every source at deploy.
+  **Fare watch** (`Docs/fare-source-watch-2026-11.md`): the same `WATCHED_SOURCES` list carries the Malyn-side sources —
+  the Zhytomyr-1 bus station board (`kind: 'bus-board'`, pure `zhytomyr-board-parser.ts`: rows through Malyn, price +
+  carrier per trip, today/tomorrow deduplicated; part = direction, alert lines «08:25 Житомир → Малин: 299,00 → 339,30 грн»,
+  «новий рейс …», «зник рейс …», plus a «База:» block from `loadSchedules` comparing trips to Malyn with `Schedule`
+  `Zhytomyr-Malyn` by `departureTime` — rounded board price = `priceUah`), five data.gov.ua sets (`ckanSource(…, 'Malyn')`),
+  the malyn.media station article (`parser: 'station-table'`) and its RSS feed (`kind: 'rss'`, `MALYN_MEDIA_KEYWORDS`;
+  seen entries are kept in the row, so an entry leaving the feed is never «зникло»). The board runs on its own timer
+  (`group: 'board'`, `TRANSPORT_BOARD_WATCH_INTERVAL_MIN`), `minGapMin: 60` makes a manual check within the hour answer
+  `skipped`, requests go out as `SOURCE_WATCH_USER_AGENT`, and **nothing is ever written to `Schedule`** — the owner
+  changes prices by hand. `GET /admin/transport/sources/:key/board` + `SourceWatchBoard.tsx` show the last snapshot
+  next to the DB prices with the attribution «за даними табло автовокзалу Житомир-1 (МПП «ВПІ»)». Fixtures (live pages
+  of 2026-11-17, trimmed) live in `backend/src/__fixtures__/`; tests never touch the network.
   Stop order and minutes between stops come from the owner's 2025 project (`data/korosten-transport/project-2025/`:
   16 HTML pages → `chains.json` via `korosten-project-parser.ts`); names are mapped to the council's `z-0NN` stops by
   `stop-aliases.json` (`korosten-stop-aliases.ts`, manual hints in `stop-aliases.hints.json`), and `REPORT.md` compares
