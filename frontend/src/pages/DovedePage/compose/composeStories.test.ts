@@ -337,12 +337,13 @@ describe('попутки серед варіантів', () => {
     const s = out.stories.find((x) => x.mode === 'poputka')!;
     expect(ride(s)).toMatchObject({ boardAssumed: false, alightAssumed: false, alightLabel: 'біля метро «Академмістечко»' });
     expect(ride(s).boardLabel).toContain('вокзал');
-    // просили «Житомирську» — кінець історії там: висадка 08:35 + метро (1 перегін + вхід і вихід = 7 хв)
+    // просили «Житомирську» — кінець історії там: висадка 08:35 + метро (1 перегін, очікування, вхід і вихід ≈ 10 хв)
     expect(s.endLabel).toBe('Київ, метро «Житомирська»');
-    expect(s.arriveMins).toBe(hm(8, 42));
+    expect(s.arriveMins).toBe(hm(8, 45));
     expect(s.endNote).toBeNull();
-    const kyiv = s.legs[s.legs.length - 1];
-    expect(kyiv.kind === 'kyiv' && kyiv.text).toContain('«Академмістечко» → «Житомирська», 1 станція');
+    const m = s.legs[s.legs.length - 1] as Extract<StoryLeg, { kind: 'metro' }>;
+    expect(m.kind).toBe('metro');
+    expect([m.segments[0].from.name, m.segments[0].to.name, m.segments[0].hops, m.depMins, m.arrMins]).toEqual(['Академмістечко', 'Житомирська', 1, hm(8, 35), hm(8, 45)]);
   });
 
   it('«заберу по місту» — без дороги до центру; київську точку не названо — «зазвичай Академмістечко»', () => {
@@ -429,17 +430,19 @@ describe('кінцева точка в Києві — та, яку просил�
     const ic = intercity(s);
     // рядок маршрутки лишає свою висадку
     expect([ic.alightLabel, ic.alightMins]).toEqual(['біля метро «Святошин»', hm(9, 0)]);
-    const k = s.legs[s.legs.length - 1] as Extract<StoryLeg, { kind: 'kyiv' }>;
-    expect(k.text).toBe('метро М1 «Святошин» → «Вокзальна», 5 станцій, ≈ 15 хв');
-    expect([s.endLabel, s.arriveMins, s.arriveApprox]).toEqual(['Київ, вокзал Київ-Пасажирський', hm(9, 15), true]);
-    expect(s.lead).toContain('Київ, вокзал Київ-Пасажирський — приблизно о 09:15');
+    const m = s.legs[s.legs.length - 1] as Extract<StoryLeg, { kind: 'metro' }>;
+    expect(m).toMatchObject({ kind: 'metro', minutes: 20, depMins: hm(9, 0), arrMins: hm(9, 20), priceUah: 30, closed: false });
+    expect(m.segments[0].towards.name).toBe('Лісова');
+    expect([s.endLabel, s.arriveMins, s.arriveApprox]).toEqual(['Київ, вокзал Київ-Пасажирський', hm(9, 20), true]);
+    expect(s.lead).toBe('Маршрутка о 07:30 з автостанції, далі метро до «Вокзальна». Київ, вокзал Київ-Пасажирський — приблизно о 09:20.');
   });
 
   it('будь-яка станція з пересадкою: «на Позняки» — через «Палац спорту»', () => {
     const s = story('з малина на позняки завтра маршруткою');
-    const k = s.legs[s.legs.length - 1] as Extract<StoryLeg, { kind: 'kyiv' }>;
-    expect(k.text).toContain('«Святошин» → «Позняки»');
-    expect(k.text).toContain('пересадка');
+    const m = s.legs[s.legs.length - 1] as Extract<StoryLeg, { kind: 'metro' }>;
+    expect(m.transfers.map((t) => [t.from.name, t.to.name])).toEqual([['Театральна', 'Золоті ворота']]);
+    // за «Видубичами» зараз автобус замість метро
+    expect(m.segments.map((x) => [x.line, x.to.name, x.bus])).toEqual([['M1', 'Театральна', null], ['M3', 'Видубичі', null], ['M3', 'Позняки', '318']]);
     expect(s.endLabel).toBe('Київ, метро «Позняки»');
     expect(s.arriveMins).toBeGreaterThan(hm(9, 30));
   });
@@ -453,11 +456,13 @@ describe('кінцева точка в Києві — та, яку просил�
   it('у зворотний бік історія починається з метро: вийти раніше на час дороги до посадки', () => {
     const back = [sched({ id: 22, route: 'Kyiv-Malyn-Bucha', departureTime: '15:00', boardingPlace: 'м. Святошино' })];
     const s = story('з лівобережної в малин сьогодні маршруткою', back);
-    expect(kinds(s)[0]).toBe('kyiv');
+    expect(kinds(s)[0]).toBe('metro');
     const ic = intercity(s);
     expect(ic.boardMins).toBe(hm(15, 0));
-    // Лівобережна → Святошин: 12 перегонів × 2 + 5 = 29 хв
-    expect(s.leaveMins).toBe(hm(14, 31));
+    // Лівобережна → Святошин: 12 перегонів × 158 с + очікування 180 с + вхід і вихід 240 с ≈ 39 хв
+    expect(s.leaveMins).toBe(hm(14, 21));
+    const m = s.legs[0] as Extract<StoryLeg, { kind: 'metro' }>;
+    expect([m.depMins, m.arrMins, m.segments[0].towards.name]).toEqual([hm(14, 21), hm(15, 0), 'Академмістечко']);
   });
 });
 
@@ -475,5 +480,19 @@ describe('центр Малина: висадка біля РБК, посадк�
     const out = composeStories({ intent, now: NOW, date: '2026-11-14', schedules: [sched({ id: 32, route: 'Malyn-Kyiv-Irpin', departureTime: '07:30', boardingPlace: 'Автостанція Малин' })], planner: planner({}) });
     if (out.kind !== 'stories') throw new Error(out.kind);
     expect(intercity(out.stories[0]).boardLabel).toBe('з центру, від «Промінь»');
+  });
+});
+
+describe('метро поза годинами роботи', () => {
+  it('пізня маршрутка: метро вже зачинене — час лишається до висадки, і про це сказано', () => {
+    const intent = parseLocal('з малина до вокзалу в києві завтра маршруткою', NOW).intent;
+    const out = composeStories({ intent, now: NOW, date: '2026-11-14', schedules: [sched({ id: 41, route: 'Malyn-Kyiv-Bucha', departureTime: '21:20', boardingPlace: 'Автостанція Малин', alightingPlace: 'м. Святошино' })], planner: null });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    const s = out.stories[0];
+    const m = s.legs[s.legs.length - 1] as Extract<StoryLeg, { kind: 'metro' }>;
+    expect(m.closed).toBe(true);
+    // висадка 22:50 — до закриття о 23:00 доїхати не встигнути
+    expect([s.arriveMins, s.endLabel]).toEqual([hm(22, 50), 'Київ, вокзал Київ-Пасажирський']);
+    expect(s.endNote).toBe('метро о цій порі не працює (05:30–23:00); час — до висадки біля метро «Святошин»');
   });
 });

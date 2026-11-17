@@ -1,6 +1,8 @@
 import type { DayPlan, Endpoint } from '@/pages/LocalTransportPage/journey';
 import type { Schedule } from '@/types';
 import type { IntercityMode } from '../data/anchors';
+import type { TripSegment } from '../data/kyiv';
+import type { MetroStation } from '../nlu/kyivMetroData';
 
 /** Міський планувальник Малина на один день (RAPTOR з LocalTransportPage/journey) */
 export interface LocalPlanner {
@@ -83,6 +85,21 @@ export type StoryLeg =
       boardAssumed: boolean;
       alightLabel: string;
       alightAssumed: boolean;
+    }
+  | {
+      /** Київське метро: свої дані (nlu/kyivMetroData, data/kyivMetroService). Час — завжди приблизний */
+      kind: 'metro';
+      segments: TripSegment[];
+      transfers: Array<{ from: MetroStation; to: MetroStation }>;
+      /** від входу до виходу, хв */
+      minutes: number;
+      depMins: number;
+      arrMins: number;
+      headwayMin: number;
+      priceUah: number;
+      /** о цій порі метро не працює — час не враховано */
+      closed: boolean;
+      mapsUrl: string;
     }
   | { kind: 'wait'; text: string };
 

@@ -207,7 +207,11 @@ of `dist` in a commit.
   that resembles a Malyn place is a station only once the person has said «з Малина», a verbatim Malyn name stays
   Malyn's) and finds the path with transfers. When the person asks for another Kyiv point than the one the trip
   reaches, the story ends at the requested point with metro minutes added (`metroTrip` in `data/kyiv.ts`: 2 min per
-  hop + 5 per transfer + 5), and a trip from Kyiv starts earlier by the same. Golden sets: `eval/kyiv-metro.json`
+  hop + 5 per transfer + 5), and a trip from Kyiv starts earlier by the same. The metro part is a story step of its own
+  (`kind: 'metro'`, `kyivStep` in the composer, card `ui/MetroCard.tsx`): `metroTrip(from, to, at)` in `data/kyiv.ts` times it
+  from our own `data/kyivMetroService.ts` (hours 05:30–23:00, fare, average hop per line, headways by time of day) and
+  marks it `closed` outside working hours. `METRO_SHUTTLE` there records the stretch where a bus runs instead of trains
+  (green line beyond «Видубичі», bus 318 — inferred from Google on 2026-11-17, owner to confirm; set to `null` when trains return). Golden sets: `eval/kyiv-metro.json`
   (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in
   `eval/golden.json` for the real-model run.
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
