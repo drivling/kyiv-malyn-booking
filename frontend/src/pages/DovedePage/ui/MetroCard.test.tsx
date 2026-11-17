@@ -44,6 +44,26 @@ describe('картка метро', () => {
     expect(bus.querySelector('.dv-metro__m')!.textContent?.trim()).toBe('А');
   });
 
+  it('лише автобус-замінник (від «Видубичів» далі): картка не видає його за метро — рядок «поїзди не ходять», без жетона й турнікета', () => {
+    const { container } = render(<MetroCard l={leg('kyiv.m.vydubychi', 'kyiv.m.pozniaky')} />);
+    expect(screen.getByText('Поїзди метро тут не ходять — автобус №318 від «Видубичі»')).toBeInTheDocument();
+    expect(container.querySelectorAll('.dv-metro__seg')).toHaveLength(1);
+    expect(container.querySelector('.dv-metro__seg--bus .dv-metro__m')!.textContent?.trim()).toBe('А');
+    expect(container.querySelector('.dv-metro__token')).toBeNull();
+    expect(container.querySelector('.dv-metro__foot--plain')).not.toBeNull();
+    expect(screen.getByText(/з очікуванням автобуса/)).toBeInTheDocument();
+    expect(screen.getByText('автобус їде замість поїздів метро, зупинки — біля станцій')).toBeInTheDocument();
+    expect(screen.queryByText(/поїзди кожні/)).toBeNull();
+    expect(screen.queryByText(/турнікет/)).toBeNull();
+  });
+
+  it('метро з автобусом у кінці: жетон і турнікет лишаються — частину шляху їде поїзд', () => {
+    const { container } = render(<MetroCard l={leg('kyiv.m.zoloti-vorota', 'kyiv.m.pozniaky')} />);
+    expect(container.querySelector('.dv-metro__token')).not.toBeNull();
+    expect(screen.getByText(/поїзди кожні/)).toBeInTheDocument();
+    expect(screen.queryByText(/Поїзди метро тут не ходять/)).toBeNull();
+  });
+
   it('поза годинами роботи: каже, що метро не працює, шлях лишається для довідки', () => {
     const { container } = render(<MetroCard l={leg('kyiv.sviatoshyn', 'kyiv.pas', { mins: 23 * 60 + 20, date: '2026-11-17' })} />);
     expect(screen.getByText(/Метро о цій порі не працює: вхід 05:30–23:00/)).toBeInTheDocument();

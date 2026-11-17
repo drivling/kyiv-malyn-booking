@@ -449,6 +449,24 @@ describe('кінцева точка в Києві — та, яку просил�
     expect(m.segments.map((x) => [x.line, x.to.name, x.bus])).toEqual([['M1', 'Театральна', null], ['M3', 'Видубичі', null], ['M3', 'Позняки', '318']]);
     expect(s.endLabel).toBe('Київ, метро «Позняки»');
     expect(s.arriveMins).toBeGreaterThan(hm(9, 30));
+    // текст не видає автобус-замінник за метро
+    expect(s.lead).toContain('далі метро до «Видубичі», далі автобус №318 замість метро до «Позняки».');
+    expect(shareText(s, (id) => id, 'Як доїхати')).toContain('пересадка «Театральна» → «Золоті ворота», від «Видубичі» до «Позняки» — автобус №318 замість метро, ≈ ');
+  });
+
+  it('електричкою до Борщагівки й далі на Позняки: міська електричка до «Видубичів», а звідти — автобус замість метро, так і сказано', () => {
+    const train = [sched({ id: 59, route: 'Malyn-Kyiv', vehicleType: 'elektrichka', departureTime: '06:58', arrivalTime: '09:06', boardingPlace: 'Малин', alightingPlace: 'Борщагівка', tripNumber: '6610', priceUah: 60 })];
+    // середа 18.11.2026 — як у зверненні власника
+    const now = { date: '2026-11-17', mins: hm(17, 0) };
+    const intent = parseLocal('з малина на позняки електричкою завтра', now).intent;
+    const out = composeStories({ intent, now, date: '2026-11-18', schedules: train, planner: null });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    const s = out.stories[0];
+    expect(kinds(s)).toEqual(['intercity', 'ring', 'metro']);
+    const m = s.legs[2] as Extract<StoryLeg, { kind: 'metro' }>;
+    expect(m.segments.map((x) => [x.from.name, x.to.name, x.bus])).toEqual([['Видубичі', 'Позняки', '318']]);
+    expect(s.lead).toBe('Електричка 6610 о 06:58 з вокзалу, далі міська електричка Б09 о 09:15 з платформи «Борщагівка», далі автобус №318 замість метро до «Позняки». Київ, метро «Позняки» — приблизно о 10:09.');
+    expect(shareText(s, (id) => id, 'Як доїхати')).toContain('— автобус №318 замість метро «Видубичі» → «Позняки», ≈ 19 хв');
   });
 
   it('точка не на метро, але на кільці міської електрички: далі — рейс за розкладом, час точний', () => {

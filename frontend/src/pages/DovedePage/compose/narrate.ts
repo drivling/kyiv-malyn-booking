@@ -20,13 +20,27 @@ function cap(s: string): string {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
+/**
+ * «метро до «Позняки»» — але там, де поїзди не ходять і їде автобус-замінник, так і кажемо: «автобус №318 замість
+ * метро до «Позняки»», а коли частину шляху все ж метро — «метро до «Видубичі», далі автобус №318 замість метро до…».
+ */
+export function metroPhrase(l: Pick<Extract<StoryLeg, { kind: 'metro' }>, 'segments'>): string {
+  const last = l.segments[l.segments.length - 1];
+  const firstBus = l.segments.findIndex((sg) => sg.bus);
+  if (firstBus < 0) return `метро до «${last.to.name}»`;
+  const bus = l.segments[firstBus];
+  const tail = `автобус №${bus.bus} замість метро до «${last.bus ? last.to.name : bus.to.name}»`;
+  const after = last.bus ? '' : `, далі метро до «${last.to.name}»`;
+  return firstBus === 0 ? `${tail}${after}` : `метро до «${bus.from.name}», далі ${tail}${after}`;
+}
+
 function legPhrase(l: StoryLeg): string | null {
   if (l.kind === 'intercity') {
     const name = l.mode === 'elektrichka' ? `електричка${l.tripNumber ? ` ${l.tripNumber}` : ''}` : 'маршрутка';
     return `${name} о ${clock(l.boardMins, l.boardApprox)} ${l.boardLabel}`;
   }
   if (l.kind === 'bus') return `автобус №${routeNo(l.routeId)} о ${clock(l.depMins)}`;
-  if (l.kind === 'metro') return l.closed ? null : `метро до «${l.segments[l.segments.length - 1].to.name}»`;
+  if (l.kind === 'metro') return l.closed ? null : metroPhrase(l);
   if (l.kind === 'ring') return `міська електричка ${l.ride.train} о ${clock(l.depMins)} з платформи «${l.ride.from.name}»`;
   if (l.kind === 'ride') return `попутка о ${clock(l.depMins)} ${l.boardLabel}`;
   if (l.kind === 'city' && l.route) {
@@ -61,7 +75,14 @@ export function shareText(story: Story, stopName: (id: string) => string, header
       const first = l.segments[0];
       const last = l.segments[l.segments.length - 1];
       const change = l.transfers.map((t) => `, пересадка «${t.from.name}» → «${t.to.name}»`).join('');
-      lines.push(l.closed ? `метро «${first.from.name}» → «${last.to.name}» — о цій порі не працює` : `${clock(l.depMins, true)} — метро «${first.from.name}» → «${last.to.name}»${change}, ≈ ${l.minutes} хв`);
+      // де поїзди не ходять — автобус-замінник: кажемо, звідки й яким номером
+      const shuttle = l.segments.filter((sg) => sg.bus).map((sg) => `, від «${sg.from.name}» до «${sg.to.name}» — автобус №${sg.bus} замість метро`).join('');
+      const name = l.segments.every((sg) => sg.bus) ? `автобус №${first.bus} замість метро` : 'метро';
+      lines.push(
+        l.closed
+          ? `метро «${first.from.name}» → «${last.to.name}» — о цій порі не працює`
+          : `${clock(l.depMins, true)} — ${name} «${first.from.name}» → «${last.to.name}»${change}${name === 'метро' ? shuttle : ''}, ≈ ${l.minutes} хв`,
+      );
     } else if (l.kind === 'ring') {
       lines.push(`${clock(l.depMins)} — міська електричка ${l.ride.train} з платформи «${l.ride.from.name}», ${l.priceUah} ₴`);
       lines.push(`${clock(l.arrMins)} — вийти на «${l.ride.to.name}»`);
