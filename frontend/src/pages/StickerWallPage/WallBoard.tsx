@@ -30,6 +30,7 @@ export function WallBoard({
   tab,
   onTab,
   tabCycle,
+  tabHoldMs = TAB_ROTATE_MS,
   awake,
   offline,
   soundOn,
@@ -45,6 +46,8 @@ export function WallBoard({
   onTab: (t: WallTab) => void;
   /** Лічильник перемикань — перезапускає смужку автоперемикання */
   tabCycle: number;
+  /** Скільки триматиметься ця вкладка — стільки ж іде смужка (TabRotation у stickerWall.ts) */
+  tabHoldMs?: number;
   awake: boolean;
   offline: boolean;
   soundOn: boolean;
@@ -187,7 +190,7 @@ export function WallBoard({
           <span
             key={`${tab}-${tabCycle}`}
             className="wall-tabs-timer"
-            style={{ animationDuration: `${TAB_ROTATE_MS}ms` }}
+            style={{ animationDuration: `${tabHoldMs}ms` }}
             aria-hidden="true"
           />
         </div>

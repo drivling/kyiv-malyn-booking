@@ -6,10 +6,15 @@ import {
   buildCelebrations,
   buildNewcomerCelebrations,
   buildTicketCelebrations,
+  chooseTabRotation,
+  firstTabRotation,
   freshNewcomers,
   freshTickets,
   newcomerHeadline,
   nextPassengerMilestone,
+  nextTabRotation,
+  TAB_PAUSE_MS,
+  TAB_ROTATE_MS,
   growingStops,
   isNightHour,
   isQuietHour,
@@ -51,6 +56,25 @@ function snap(over: Partial<StickerWallSnapshot> = {}): StickerWallSnapshot {
     ...over,
   };
 }
+
+describe('автоперемикання вкладок', () => {
+  it('коло топ → ростуть → реклама → люди → топ, кожна по TAB_ROTATE_MS; ручний вибір — хвилина й новий цикл смужки', () => {
+    let r = firstTabRotation();
+    expect(r).toEqual({ tab: 'top', cycle: 0, holdMs: TAB_ROTATE_MS });
+    const seen = [r.tab];
+    for (let i = 0; i < 4; i += 1) {
+      r = nextTabRotation(r);
+      seen.push(r.tab);
+      expect(r.holdMs).toBe(TAB_ROTATE_MS);
+    }
+    expect(seen).toEqual(['top', 'growing', 'ads', 'people', 'top']);
+    const chosen = chooseTabRotation(r, 'ads');
+    expect(chosen).toEqual({ tab: 'ads', cycle: r.cycle + 1, holdMs: TAB_PAUSE_MS });
+    // той самий таб ще раз — однаково новий цикл (смужка й таймер починаються заново)
+    expect(chooseTabRotation(chosen, 'ads').cycle).toBe(chosen.cycle + 1);
+    expect(nextTabRotation(chosen)).toEqual({ tab: 'people', cycle: chosen.cycle + 1, holdMs: TAB_ROTATE_MS });
+  });
+});
 
 describe('зупинки віджета', () => {
   it('назви й кольори з датасету; топ за сьогодні, «ростуть» — за годину, тихі 3 год — ні', () => {

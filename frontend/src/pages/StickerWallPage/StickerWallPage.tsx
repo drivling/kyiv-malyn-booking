@@ -15,9 +15,12 @@ import { WallBoard } from './WallBoard';
 import { WallCelebration } from './WallCelebration';
 import {
   CELEBRATION_MS,
+  TAB_PAUSE_MS,
   TAB_ROTATE_MS,
-  WALL_TABS,
-  type WallTab,
+  chooseTabRotation,
+  firstTabRotation,
+  nextTabRotation,
+  type TabRotation,
   WALL_POLL_MS,
   buildCelebrations,
   buildNewcomerCelebrations,
@@ -53,7 +56,6 @@ const SOUND_BY_KIND: Record<Celebration['kind'], WallSound> = {
   ticket: 'ticket',
 };
 const CONTROLS_MS = 8_000;
-const TAB_PAUSE_MS = 60_000;
 
 /**
  * Віджет «Відкриття з QR» на стіну (`/admin/wall?key=…`): телефон горизонтально, екран не гасне,
@@ -61,7 +63,16 @@ const TAB_PAUSE_MS = 60_000;
  * назвою зупинки й лічильником за сьогодні, потім знову табло. Без меню, підвалу й кнопки «Назад»:
  * дотик до екрана показує кілька налаштувань і ховає їх сам.
  */
-export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) {
+export function StickerWallPage({
+  pollMs = WALL_POLL_MS,
+  tabMs = TAB_ROTATE_MS,
+  tabPauseMs = TAB_PAUSE_MS,
+}: {
+  pollMs?: number;
+  /** Скільки триматися вкладці при автоперемиканні й після ручного вибору (тести скорочують) */
+  tabMs?: number;
+  tabPauseMs?: number;
+}) {
   usePageSeo({
     title: 'Віджет · Відкриття з QR | malin.kiev.ua',
     canonicalUrl: 'https://malin.kiev.ua/admin/wall',
@@ -88,8 +99,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   const [awake, setAwake] = useState(false);
   const [settings, setSettings] = useState<WallSettings>(loadWallSettings);
   const [queue, setQueue] = useState<Celebration[]>([]);
-  const [tab, setTab] = useState<WallTab>('top');
-  const [tabCycle, setTabCycle] = useState(0);
+  const [rotation, setRotation] = useState<TabRotation>(() => firstTabRotation(tabMs));
   const [controls, setControls] = useState(false);
 
   const cursor = useRef<number | null>(null);
@@ -98,7 +108,6 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   const seenTickets = useRef<Set<string> | null>(null);
   const day = useRef<string | null>(null);
   const startedRef = useRef(false);
-  const tabPausedUntil = useRef(0);
   const dir = useMemo(() => stopDirectory(dataset), [dataset]);
   const dirRef = useRef(dir);
   dirRef.current = dir;
@@ -211,15 +220,11 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
     return () => window.clearInterval(t);
   }, []);
 
-  // Автоперемикання вкладок (після ручного вибору — пауза на хвилину)
+  // Автоперемикання вкладок: один таймер на кожну вкладку (після ручного вибору — хвилина), смужка — той самий час
   useEffect(() => {
-    const t = window.setInterval(() => {
-      if (Date.now() < tabPausedUntil.current) return;
-      setTab((x) => WALL_TABS[(WALL_TABS.indexOf(x) + 1) % WALL_TABS.length]);
-      setTabCycle((n) => n + 1);
-    }, TAB_ROTATE_MS);
-    return () => window.clearInterval(t);
-  }, []);
+    const t = window.setTimeout(() => setRotation((r) => nextTabRotation(r, tabMs)), rotation.holdMs);
+    return () => window.clearTimeout(t);
+  }, [rotation, tabMs]);
 
   const quiet = settings.quietNights && isQuietHour(now);
   const soundOn = settings.sound && soundReady && !quiet;
@@ -342,13 +347,10 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         snapshot={snapshot}
         stops={stops}
         now={now}
-        tab={tab}
-        onTab={(t) => {
-          tabPausedUntil.current = Date.now() + TAB_PAUSE_MS;
-          setTab(t);
-          setTabCycle((n) => n + 1);
-        }}
-        tabCycle={tabCycle}
+        tab={rotation.tab}
+        onTab={(t) => setRotation((r) => chooseTabRotation(r, t, tabPauseMs))}
+        tabCycle={rotation.cycle}
+        tabHoldMs={rotation.holdMs}
         awake={awake}
         offline={offline}
         soundOn={soundOn}

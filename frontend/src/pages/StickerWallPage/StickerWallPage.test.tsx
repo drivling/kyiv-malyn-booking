@@ -208,6 +208,44 @@ describe('StickerWallPage', () => {
     expect(cele.querySelectorAll('.wall-talon-hole')).toHaveLength(3);
   });
 
+  it('вкладки перемикаються по колу без кінця; після ручного вибору смужка йде стільки, скільки тримається вкладка', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/admin/wall?key=k123']}>
+        <Routes>
+          <Route path="/admin/wall" element={<StickerWallPage pollMs={60_000} tabMs={120} tabPauseMs={500} />} />
+        </Routes>
+      </MemoryRouter>
+    );
+    await screen.findByTestId('wall-total');
+    const selected = () => screen.getByRole('tab', { selected: true }).textContent;
+    const timer = () => document.querySelector<HTMLElement>('.wall-tabs-timer');
+    // два повних кола — ніде не зупиняється
+    const seen: string[] = [];
+    await waitFor(
+      () => {
+        const t = selected() ?? '';
+        if (seen[seen.length - 1] !== t) seen.push(t);
+        expect(seen.length).toBeGreaterThanOrEqual(9);
+      },
+      { timeout: 4000, interval: 20 }
+    );
+    const order = ['Топ дня', 'Зараз ростуть', 'Реклама', 'Люди'];
+    for (let i = 1; i < seen.length; i += 1) {
+      expect(order.indexOf(seen[i])).toBe((order.indexOf(seen[i - 1]) + 1) % 4);
+    }
+    expect(timer()?.style.animationDuration).toBe('120ms');
+    // рукою «Реклама»: смужка — 500 мс, вкладка тримається стільки ж, далі коло йде само
+    await user.click(screen.getByRole('tab', { name: 'Реклама' }));
+    expect(selected()).toBe('Реклама');
+    expect(timer()?.style.animationDuration).toBe('500ms');
+    await new Promise((r) => setTimeout(r, 300));
+    expect(selected()).toBe('Реклама');
+    await waitFor(() => expect(selected()).toBe('Люди'), { timeout: 1000 });
+    expect(timer()?.style.animationDuration).toBe('120ms');
+    await waitFor(() => expect(selected()).toBe('Топ дня'), { timeout: 1000 });
+  });
+
   it('у шапці — місто наклейок: ?city=Korosten — «КОРОСТЕНЬ», без нього — «МАЛИН»', async () => {
     const { unmount } = renderWall('/admin/wall?key=k123&city=Korosten');
     await screen.findByTestId('wall-total');
