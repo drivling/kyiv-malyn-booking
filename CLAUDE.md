@@ -248,9 +248,12 @@ of `dist` in a commit.
   Google Routes (`zhytomyr-google-check.ts` → `google/checks.json`, `REPORT.md`: three large spans decide `checked`, then
   every hop; resumable, Google's quota stops it early). The server has no `data/` directory, so the script also writes
   `backend/src/dovede/zhytomyr-own-data.ts`; tests keep all generated files equal to the generators — never edit them
-  by hand, rerun the script. `dovede/zhytomyr-own.ts` answers a **direct** trip from it (`source: 'own'`, before the DB
-  and Google, `DOVEDE_CITY_OWN=0` switches it off): only `checked` directions, only when both ends are the bus station
-  or a place named like one of our stops; everything else still goes to the DB and Google.
+  by hand, rerun the script. `dovede/zhytomyr-own.ts` can answer a **direct** trip from it (`source: 'own'`, before the DB
+  and Google; only `checked` directions, only when both ends are the bus station or a place named like one of our
+  stops) but is **off by default** (`DOVEDE_CITY_OWN=1` turns it on): the owner said on 2026-11-17 that the site's
+  timetable has not been updated for over a year and Google knows better, so where numbers differ Google is right and
+  Zhytomyr is answered by the DB and Google. Stop names that differ between the site and Google are not decided in
+  favour of either: `REPORT.md` lists each pair with what OpenStreetMap calls the stops nearby (`nameChecks`).
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
   listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
   `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:

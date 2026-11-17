@@ -160,7 +160,9 @@ function createCityRoutes(deps) {
     const store = deps.store ?? (() => cityStoreEnabled());
     const dailyCap = deps.dailyCap ?? (() => cityDailyCap());
     const ownRoute = deps.ownRoute ?? zhytomyr_own_1.ownZhytomyrRoute;
-    const ownEnabled = deps.ownEnabled ?? (() => (process.env.DOVEDE_CITY_OWN ?? '1').trim() !== '0');
+    // Розклад zt.rozklad.in.ua понад рік не оновлювався (власник, 2026-11-17: «Google точно знає краще») — тому
+    // відповідь із нього типово вимкнена; вмикається `DOVEDE_CITY_OWN=1`, коли розклад на сайті оновлять
+    const ownEnabled = deps.ownEnabled ?? (() => (process.env.DOVEDE_CITY_OWN ?? '0').trim() === '1');
     // лічильник у памʼяті — на випадок, коли запис у базу вимкнено й рахувати рядки нема з чого
     let memoDay = '';
     let memoCalls = 0;

@@ -63,7 +63,8 @@ function buildZhytomyrReport(root) {
     const routes = loadZhytomyrRoutes(root);
     const stops = JSON.parse(buildZhytomyrStops(root));
     const verdicts = readJson(node_path_1.default.join(root, 'google/checks.json'), { checks: {} }).checks;
-    return (0, zhytomyr_google_check_1.buildCheckReport)(routes, stops, (0, zhytomyr_google_check_1.checkSpans)(routes, stops.stops), verdicts);
+    const osm = readJson(node_path_1.default.join(root, 'osm/stops.json'), { stops: [] }).stops;
+    return (0, zhytomyr_google_check_1.buildCheckReport)(routes, stops, (0, zhytomyr_google_check_1.checkSpans)(routes, stops.stops), verdicts, osm);
 }
 /**
  * backend/src/dovede/zhytomyr-own-data.ts — те, з чого сервер «Доведе» складає пряму поїздку Житомиром без Google:

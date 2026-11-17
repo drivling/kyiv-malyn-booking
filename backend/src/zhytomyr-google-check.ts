@@ -9,7 +9,7 @@
 import { distanceM } from './korosten-osm';
 import { normalizeLine } from './korosten-google';
 import type { ZhytomyrRoutesFile } from './zhytomyr-routes';
-import { sameStopName, type ZhytomyrStop } from './zhytomyr-stops';
+import { sameStopName, stopKey as stopKeyOf, type ZhytomyrStop } from './zhytomyr-stops';
 
 export interface CheckSpan {
   /** `<напрямок>:<зупинка звідки>:<зупинка куди>` */
@@ -227,7 +227,57 @@ export function directionChecks(routes: ZhytomyrRoutesFile, spans: CheckSpan[], 
 
 const STATUS_UK: Record<RouteStatus, string> = { checked: 'збігається', differs: 'розходиться', unknown: 'Google не знає', pending: 'ще не звірено' };
 
-export function buildCheckReport(routes: ZhytomyrRoutesFile, stops: { stops: ZhytomyrStop[]; missing: unknown[] }, spans: CheckSpan[], verdicts: Record<string, SpanVerdict>): string {
+export interface NameCheck {
+  ours: string;
+  google: string;
+  /** найменша відстань між нашою зупинкою й зупинкою Google, м */
+  offM: number;
+  /** як зупинки поруч (до 200 м) звуться в OpenStreetMap — третє джерело */
+  osm: string[];
+  /** кого підтверджує OSM: site — нашу назву, google — назву Google, both — поруч є обидві (це сусідні зупинки), none — нікого */
+  confirms: 'site' | 'google' | 'both' | 'none';
+}
+
+/**
+ * Зупинки, які сайт і Google називають по-різному, хоча стоять вони поруч (до 250 м). Розклад сайту понад рік не
+ * оновлювався (власник, 2026-11-17), тож назву Google не відкидаємо, а шукаємо підтвердження в третьому джерелі.
+ */
+export function nameChecks(spans: CheckSpan[], verdicts: Record<string, SpanVerdict>, osm: Array<{ name: string; lat: number; lng: number }>): NameCheck[] {
+  const side = (name: string) => name.replace(/\s+\[?0\d{1,2}\]?\s*$/, '').trim();
+  const out = new Map<string, NameCheck>();
+  for (const span of spans) {
+    const g = verdicts[span.key]?.google;
+    if (!g) continue;
+    for (const [stop, name, off] of [
+      [span.from, g.fromStop, g.fromOffM],
+      [span.to, g.toStop, g.toOffM],
+    ] as const) {
+      if (!name || off == null || off > FAR_M || sameStopName(stop.name, name)) continue;
+      const key = `${stopKeyOf(stop.name)}|${stopKeyOf(name)}`;
+      const near = [...new Set(osm.filter((o) => distanceM(o, stop) <= 200).map((o) => o.name))].sort();
+      const site = near.some((n) => sameStopName(n, stop.name));
+      const goog = near.some((n) => sameStopName(n, name));
+      const prev = out.get(key);
+      if (!prev || off < prev.offM) out.set(key, { ours: side(stop.name), google: name, offM: off, osm: near, confirms: site && goog ? 'both' : site ? 'site' : goog ? 'google' : 'none' });
+    }
+  }
+  return [...out.values()].sort((a, b) => a.ours.localeCompare(b.ours, 'uk') || a.google.localeCompare(b.google, 'uk'));
+}
+
+const CONFIRMS_UK: Record<NameCheck['confirms'], string> = {
+  site: 'OSM підтверджує назву сайту',
+  google: 'OSM підтверджує назву Google',
+  both: 'в OSM поруч обидві — це сусідні зупинки',
+  none: 'в OSM немає жодної — перевірити на місці',
+};
+
+export function buildCheckReport(
+  routes: ZhytomyrRoutesFile,
+  stops: { stops: ZhytomyrStop[]; missing: unknown[] },
+  spans: CheckSpan[],
+  verdicts: Record<string, SpanVerdict>,
+  osm: Array<{ name: string; lat: number; lng: number }> = [],
+): string {
   const dirs = directionChecks(routes, spans, verdicts);
   const n = (s: RouteStatus) => dirs.filter((d) => d.status === s).length;
   const src = (s: ZhytomyrStop['source']) => stops.stops.filter((x) => x.source === s).length;
@@ -276,5 +326,13 @@ export function buildCheckReport(routes: ZhytomyrRoutesFile, stops: { stops: Zhy
   const unknown = spans.filter((s) => s.level === 'thirds' && verdicts[s.key]?.verdict === 'unknown');
   if (!unknown.length) lines.push('Немає.');
   for (const s of unknown) lines.push(`- №${s.number}, «${s.from.name}» → «${s.to.name}»: Google пропонує ${verdicts[s.key].otherLines?.join(', ') || 'лише пішки'}`);
+  const names = nameChecks(spans, verdicts, osm);
+  lines.push('', '## Назви зупинок: сайт і Google називають по-різному', '');
+  lines.push('Зупинки стоять поруч (до 250 м), а звуться інакше. Третє джерело — OpenStreetMap (зупинки в межах 200 м).', '');
+  if (!names.length) lines.push('Немає.');
+  else {
+    lines.push('| Сайт | Google | Між ними | OpenStreetMap поруч | Висновок |', '|---|---|---|---|---|');
+    for (const n of names) lines.push(`| ${n.ours} | ${n.google} | ${n.offM} м | ${n.osm.join('; ') || '—'} | ${CONFIRMS_UK[n.confirms]} |`);
+  }
   return `${lines.join('\n')}\n`;
 }

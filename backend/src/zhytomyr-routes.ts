@@ -72,7 +72,8 @@ export function buildZhytomyrReport(root: string): string {
   const routes = loadZhytomyrRoutes(root);
   const stops = JSON.parse(buildZhytomyrStops(root)) as { stops: ZhytomyrStop[]; missing: unknown[] };
   const verdicts = readJson<{ checks: Record<string, SpanVerdict> }>(path.join(root, 'google/checks.json'), { checks: {} }).checks;
-  return buildCheckReport(routes, stops, checkSpans(routes, stops.stops), verdicts);
+  const osm = readJson<{ stops: OsmNamedStop[] }>(path.join(root, 'osm/stops.json'), { stops: [] }).stops;
+  return buildCheckReport(routes, stops, checkSpans(routes, stops.stops), verdicts, osm);
 }
 
 /**
