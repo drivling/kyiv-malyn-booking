@@ -17,6 +17,7 @@ export const CITY_FRESH_DAYS = 30;
 export const DEFAULT_CITY_DAILY_CAP = 150;
 const TIMEOUT_MS = 4000;
 import { ownZhytomyrRoute } from './zhytomyr-own';
+import { ZT_OWN } from './zhytomyr-own-data';
 
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 const FIELD_MASK = [
@@ -237,6 +238,8 @@ export const SEED_PAIRS: Array<{ city: CityCode; from: string; to: string }> = [
   { city: 'Zhytomyr', from: 'zhytomyr.avtovokzal', to: 'Житній ринок' },
   { city: 'Kyiv', from: 'kyiv.akadem', to: 'Охматдит' },
   { city: 'Kyiv', from: 'kyiv.akadem', to: 'Центральний автовокзал' },
+  // Житомир: від автовокзалу до кінцевих усіх маршрутів міста — щоб база наповнювалась сама, не чекаючи питань
+  ...[...new Set(ZT_OWN.dirs.map((d) => d.stops[d.stops.length - 1][0]))].sort().map((to) => ({ city: 'Zhytomyr' as const, from: 'zhytomyr.avtovokzal', to })),
 ];
 
 export function createCityRoutes(deps: CityRoutesDeps) {
@@ -247,6 +250,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
   const store = deps.store ?? (() => cityStoreEnabled());
   const dailyCap = deps.dailyCap ?? (() => cityDailyCap());
   const ownRoute = deps.ownRoute ?? ownZhytomyrRoute;
+  // Власні дані Житомира: маршрути й зупинки із сайту власника, хвилини виправлено за Google; `DOVEDE_CITY_OWN=0` вимикає
   const ownEnabled = deps.ownEnabled ?? (() => (process.env.DOVEDE_CITY_OWN ?? '1').trim() !== '0');
   // лічильник у памʼяті — на випадок, коли запис у базу вимкнено й рахувати рядки нема з чого
   let memoDay = '';

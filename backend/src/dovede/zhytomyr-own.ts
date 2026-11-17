@@ -1,5 +1,6 @@
 /**
- * «Доведе» · пряма поїздка Житомиром за власними даними (zt.rozklad.in.ua — сайт власника), без Google
+ * «Доведе» · пряма поїздка Житомиром за власними даними (маршрути й зупинки — із сайту власника zt.rozklad.in.ua,
+ * хвилини виправлено за Google), без запитів назовні
  * (Docs/dovede-roadmap.md, «Житомир зі свого сайту»). Чиста функція над `ZT_OWN`.
  *
  * Лише напрямки, звірені з Google (`checked`), лише без пересадок, і лише коли обидві точки — це автовокзал
@@ -69,14 +70,21 @@ export function ownZhytomyrRoute(q: OwnQuery, labels: { from: string; to: string
         const walkBefore = Math.ceil(a.walkM / WALK_M_PER_MIN);
         const walkAfter = Math.ceil(b.walkM / WALK_M_PER_MIN);
         const offset = dir.stops[a.i][1];
-        const board = departures.map((d) => d + offset).find((t) => t >= start + walkBefore);
-        if (board == null || board - start > MAX_WAIT_MIN) continue;
+        const at = departures.map((d) => d + offset);
+        const next = at.findIndex((t) => t >= start + walkBefore);
+        // рейси ще (або вже) не ходять, чи чекати задовго
+        if (next < 0 || at[next] - start > MAX_WAIT_MIN) continue;
+        // Точного часу відправлення не називаємо — розклад сайту давній; лише як часто ходить о цій порі,
+        // а чекати рахуємо пів інтервалу
+        const gaps = [next > 0 ? at[next] - at[next - 1] : null, next + 1 < at.length ? at[next + 1] - at[next] : null].filter((g): g is number => g != null && g > 0);
+        const headway = gaps.length ? Math.round(gaps.reduce((n, g) => n + g, 0) / gaps.length) : null;
+        const wait = Math.max(walkBefore, headway ? Math.min(Math.ceil(headway / 2), MAX_WAIT_MIN) : at[next] - start);
         const ride = Math.max(1, dir.stops[b.i][1] - offset);
-        const arrive = board + ride + walkAfter;
+        const arrive = start + wait + ride + walkAfter;
         if (best && best.arrive <= arrive) continue;
         const steps: CityStep[] = [];
         if (a.walkM >= 60) steps.push({ kind: 'walk', minutes: walkBefore, meters: a.walkM });
-        steps.push({ kind: 'transit', minutes: ride, mode: 'BUS', line: dir.no, headsign: dir.stops[dir.stops.length - 1][0], fromStop: dir.stops[a.i][0], toStop: dir.stops[b.i][0], stops: b.i - a.i, departs: clock(board) });
+        steps.push({ kind: 'transit', minutes: ride, mode: 'BUS', line: dir.no, headsign: dir.stops[dir.stops.length - 1][0], fromStop: dir.stops[a.i][0], toStop: dir.stops[b.i][0], stops: b.i - a.i, ...(headway ? { headwayMin: headway } : {}) });
         if (b.walkM >= 60) steps.push({ kind: 'walk', minutes: walkAfter, meters: b.walkM });
         best = { arrive, steps };
       }

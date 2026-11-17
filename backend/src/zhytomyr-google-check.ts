@@ -9,7 +9,7 @@
 import { distanceM } from './korosten-osm';
 import { normalizeLine } from './korosten-google';
 import type { ZhytomyrRoutesFile } from './zhytomyr-routes';
-import type { ZhytomyrStop } from './zhytomyr-stops';
+import { sameStopName, stopKey as stopKeyOf, type ZhytomyrStop } from './zhytomyr-stops';
 
 export interface CheckSpan {
   /** `<напрямок>:<зупинка звідки>:<зупинка куди>` */
@@ -43,7 +43,24 @@ export interface SpanVerdict {
   /** match — Google знає нашу лінію тут і хвилини збігаються; differs — лінія є, цифри інші; unknown — Google нашої лінії тут не пропонує */
   verdict: 'match' | 'differs' | 'unknown';
   ours: { minutes: number; stops: number };
-  google?: { minutes: number; stops: number | null; fromStop: string; toStop: string; fromOffM: number | null; toOffM: number | null };
+  google?: {
+    minutes: number;
+    stops: number | null;
+    fromStop: string;
+    toStop: string;
+    fromOffM: number | null;
+    toOffM: number | null;
+    /** де саме Google садить і висаджує (зберігаємо за договором власника з Google) */
+    from?: { lat: number; lng: number };
+    to?: { lat: number; lng: number };
+  };
+  /**
+   * Чому «розходиться»: our_stop — зупинка Google зветься як наша, але стоїть далеко (помилка нашої координати);
+   * partial — Google везе нашою лінією не до нашої зупинки; minutes / stops — справді інші цифри.
+   */
+  cause?: 'our_stop' | 'partial' | 'minutes' | 'stops';
+  /** partial: порівняли на коротшому відрізку — до нашої зупинки з назвою, як у зупинки Google */
+  compared?: { from: string; to: string; minutes: number; stops: number };
   /** які лінії запропонував Google замість нашої */
   otherLines?: string[];
   checkedAt: string;
@@ -90,7 +107,12 @@ export function checkSpans(routes: ZhytomyrRoutesFile, stops: ZhytomyrStop[]): C
 /** Номер із зірочкою на сайті («18*») — різновид того ж маршруту: у Google це «18» */
 const sameLine = (ours: string, google: string): boolean => normalizeLine(ours.replace(/\*/g, '')) === normalizeLine(google.replace(/\*/g, ''));
 
-export function spanVerdict(span: CheckSpan, alternatives: GoogleRide[][], checkedAt: string): SpanVerdict {
+/** Наш ланцюжок напрямку — щоб порівняти на коротшому відрізку, коли Google везе не до нашої зупинки */
+export type ChainStop = { name: string; minutes: number };
+
+const FAR_M = 250;
+
+export function spanVerdict(span: CheckSpan, alternatives: GoogleRide[][], checkedAt: string, chain: ChainStop[] = []): SpanVerdict {
   const ours = { minutes: span.minutes, stops: span.stops };
   const rides = alternatives.flat();
   const mine = rides.filter((r) => sameLine(span.number, r.line));
@@ -101,11 +123,45 @@ export function spanVerdict(span: CheckSpan, alternatives: GoogleRide[][], check
   // серед поїздок нашою лінією — та, що найближча за хвилинами (Google може посадити на сусідній зупинці)
   const best = [...mine].sort((a, b) => Math.abs(a.minutes - span.minutes) - Math.abs(b.minutes - span.minutes))[0];
   const off = (lat: number | null, lng: number | null, p: { lat: number; lng: number }) => (lat == null || lng == null ? null : Math.round(distanceM({ lat, lng }, p)));
-  const google = { minutes: best.minutes, stops: best.stops, fromStop: best.fromStop, toStop: best.toStop, fromOffM: off(best.fromLat, best.fromLng, span.from), toOffM: off(best.toLat, best.toLng, span.to) };
-  // Google посадив чи висадив далі ніж за 250 м від нашої зупинки — це інший відрізок, хвилини не порівнюємо
-  const sameEnds = (google.fromOffM ?? 0) <= 250 && (google.toOffM ?? 0) <= 250;
-  const agree = sameEnds && minutesAgree(span.minutes, best.minutes) && (best.stops == null || Math.abs(best.stops - span.stops) <= Math.max(1, Math.round(span.stops * 0.2)));
-  return { verdict: agree ? 'match' : 'differs', ours, google, checkedAt };
+  const at = (lat: number | null, lng: number | null) => (lat == null || lng == null ? undefined : { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 });
+  const from = at(best.fromLat, best.fromLng);
+  const to = at(best.toLat, best.toLng);
+  const google = { minutes: best.minutes, stops: best.stops, fromStop: best.fromStop, toStop: best.toStop, fromOffM: off(best.fromLat, best.fromLng, span.from), toOffM: off(best.toLat, best.toLng, span.to), ...(from ? { from } : {}), ...(to ? { to } : {}) };
+  return { ...judgeRide(span, google, chain), checkedAt };
+}
+
+/**
+ * Вердикт за тим, що Google відповів про нашу лінію на цьому відрізку. Окремо від запиту — щоб уже збережені
+ * відповіді можна було оцінити наново без Google (`--reclassify`).
+ */
+export function judgeRide(span: CheckSpan, google: NonNullable<SpanVerdict['google']>, chain: ChainStop[] = []): Omit<SpanVerdict, 'checkedAt'> {
+  const ours = { minutes: span.minutes, stops: span.stops };
+  const stopsAgree = (a: number, b: number | null) => b == null || Math.abs(b - a) <= Math.max(1, Math.round(a * 0.2));
+  const farFrom = (google.fromOffM ?? 0) > FAR_M;
+  const farTo = (google.toOffM ?? 0) > FAR_M;
+  if (!farFrom && !farTo) {
+    const okMinutes = minutesAgree(span.minutes, google.minutes);
+    const okStops = stopsAgree(span.stops, google.stops);
+    if (okMinutes && okStops) return { verdict: 'match', ours, google };
+    return { verdict: 'differs', ours, google, cause: okMinutes ? 'stops' : 'minutes' };
+  }
+  // Google посадив чи висадив далеко від нашої зупинки. Зветься так само — помилка нашої координати
+  const sameFrom = !farFrom || sameStopName(span.from.name, google.fromStop);
+  const sameTo = !farTo || sameStopName(span.to.name, google.toStop);
+  if (sameFrom && sameTo) return { verdict: 'differs', ours, google, cause: 'our_stop' };
+  // Інша назва — Google везе нашою лінією лише частину: шукаємо в ланцюжку зупинки з назвами, як у Google
+  const i0 = chain.findIndex((c) => sameStopName(c.name, span.from.name));
+  const i1 = chain.findIndex((c, i) => i > i0 && sameStopName(c.name, span.to.name));
+  if (i0 >= 0 && i1 > i0) {
+    const a = farFrom ? chain.findIndex((c, i) => i >= i0 && i < i1 && sameStopName(c.name, google.fromStop)) : i0;
+    const b = farTo ? chain.findIndex((c, i) => i > Math.max(a, i0) && i <= i1 && sameStopName(c.name, google.toStop)) : i1;
+    if (a >= 0 && b > a) {
+      const compared = { from: chain[a].name, to: chain[b].name, minutes: chain[b].minutes - chain[a].minutes, stops: b - a };
+      const agree = minutesAgree(compared.minutes, google.minutes) && stopsAgree(compared.stops, google.stops);
+      return agree ? { verdict: 'match', ours, google, compared } : { verdict: 'differs', ours, google, cause: 'minutes', compared };
+    }
+  }
+  return { verdict: 'differs', ours, google, cause: 'partial' };
 }
 
 /** Кроки транспорту з відповіді Google Routes (усі альтернативи) */
@@ -171,7 +227,57 @@ export function directionChecks(routes: ZhytomyrRoutesFile, spans: CheckSpan[], 
 
 const STATUS_UK: Record<RouteStatus, string> = { checked: 'збігається', differs: 'розходиться', unknown: 'Google не знає', pending: 'ще не звірено' };
 
-export function buildCheckReport(routes: ZhytomyrRoutesFile, stops: { stops: ZhytomyrStop[]; missing: unknown[] }, spans: CheckSpan[], verdicts: Record<string, SpanVerdict>): string {
+export interface NameCheck {
+  ours: string;
+  google: string;
+  /** найменша відстань між нашою зупинкою й зупинкою Google, м */
+  offM: number;
+  /** як зупинки поруч (до 200 м) звуться в OpenStreetMap — третє джерело */
+  osm: string[];
+  /** кого підтверджує OSM: site — нашу назву, google — назву Google, both — поруч є обидві (це сусідні зупинки), none — нікого */
+  confirms: 'site' | 'google' | 'both' | 'none';
+}
+
+/**
+ * Зупинки, які сайт і Google називають по-різному, хоча стоять вони поруч (до 250 м). Розклад сайту понад рік не
+ * оновлювався (власник, 2026-11-17), тож назву Google не відкидаємо, а шукаємо підтвердження в третьому джерелі.
+ */
+export function nameChecks(spans: CheckSpan[], verdicts: Record<string, SpanVerdict>, osm: Array<{ name: string; lat: number; lng: number }>): NameCheck[] {
+  const side = (name: string) => name.replace(/\s+\[?0\d{1,2}\]?\s*$/, '').trim();
+  const out = new Map<string, NameCheck>();
+  for (const span of spans) {
+    const g = verdicts[span.key]?.google;
+    if (!g) continue;
+    for (const [stop, name, off] of [
+      [span.from, g.fromStop, g.fromOffM],
+      [span.to, g.toStop, g.toOffM],
+    ] as const) {
+      if (!name || off == null || off > FAR_M || sameStopName(stop.name, name)) continue;
+      const key = `${stopKeyOf(stop.name)}|${stopKeyOf(name)}`;
+      const near = [...new Set(osm.filter((o) => distanceM(o, stop) <= 200).map((o) => o.name))].sort();
+      const site = near.some((n) => sameStopName(n, stop.name));
+      const goog = near.some((n) => sameStopName(n, name));
+      const prev = out.get(key);
+      if (!prev || off < prev.offM) out.set(key, { ours: side(stop.name), google: name, offM: off, osm: near, confirms: site && goog ? 'both' : site ? 'site' : goog ? 'google' : 'none' });
+    }
+  }
+  return [...out.values()].sort((a, b) => a.ours.localeCompare(b.ours, 'uk') || a.google.localeCompare(b.google, 'uk'));
+}
+
+const CONFIRMS_UK: Record<NameCheck['confirms'], string> = {
+  site: 'OSM підтверджує назву сайту',
+  google: 'OSM підтверджує назву Google',
+  both: 'в OSM поруч обидві — це сусідні зупинки',
+  none: 'в OSM немає жодної — перевірити на місці',
+};
+
+export function buildCheckReport(
+  routes: ZhytomyrRoutesFile,
+  stops: { stops: ZhytomyrStop[]; missing: unknown[] },
+  spans: CheckSpan[],
+  verdicts: Record<string, SpanVerdict>,
+  osm: Array<{ name: string; lat: number; lng: number }> = [],
+): string {
   const dirs = directionChecks(routes, spans, verdicts);
   const n = (s: RouteStatus) => dirs.filter((d) => d.status === s).length;
   const src = (s: ZhytomyrStop['source']) => stops.stops.filter((x) => x.source === s).length;
@@ -197,13 +303,36 @@ export function buildCheckReport(routes: ZhytomyrRoutesFile, stops: { stops: Zhy
   ];
   const diffs = spans.filter((s) => s.level === 'thirds' && verdicts[s.key]?.verdict === 'differs');
   if (!diffs.length) lines.push('Немає.');
-  for (const s of diffs) {
-    const g = verdicts[s.key].google!;
-    lines.push(`- №${s.number}, «${s.from.name}» → «${s.to.name}»: наше — ${s.minutes} хв, ${s.stops} зуп.; Google — ${g.minutes} хв, ${g.stops ?? '?'} зуп. («${g.fromStop}» → «${g.toStop}», від наших зупинок ${g.fromOffM ?? '?'} м і ${g.toOffM ?? '?'} м)`);
+  const CAUSE: Record<string, string> = {
+    minutes: 'Справжні розбіжності в хвилинах (зупинки ті самі)',
+    stops: 'Інша кількість зупинок',
+    our_stop: 'Наша зупинка стоїть не там (у Google вона зветься так само, але далеко)',
+    partial: 'Google везе нашою лінією не до нашої зупинки',
+    '': 'Причину ще не розібрано',
+  };
+  for (const cause of ['minutes', 'stops', 'our_stop', 'partial', '']) {
+    const list = diffs.filter((s) => (verdicts[s.key].cause ?? '') === cause);
+    if (!list.length) continue;
+    lines.push(`### ${CAUSE[cause]} — ${list.length}`, '');
+    for (const s of list) {
+      const v = verdicts[s.key];
+      const g = v.google!;
+      const ours = v.compared ? `наше («${v.compared.from}» → «${v.compared.to}») — ${v.compared.minutes} хв, ${v.compared.stops} зуп.` : `наше — ${s.minutes} хв, ${s.stops} зуп.`;
+      lines.push(`- №${s.number}, «${s.from.name}» → «${s.to.name}»: ${ours}; Google — ${g.minutes} хв, ${g.stops ?? '?'} зуп. («${g.fromStop}» → «${g.toStop}», від наших зупинок ${g.fromOffM ?? '?'} м і ${g.toOffM ?? '?'} м)`);
+    }
+    lines.push('');
   }
   lines.push('', '## Де Google нашої лінії не пропонує (великі відрізки)', '');
   const unknown = spans.filter((s) => s.level === 'thirds' && verdicts[s.key]?.verdict === 'unknown');
   if (!unknown.length) lines.push('Немає.');
   for (const s of unknown) lines.push(`- №${s.number}, «${s.from.name}» → «${s.to.name}»: Google пропонує ${verdicts[s.key].otherLines?.join(', ') || 'лише пішки'}`);
+  const names = nameChecks(spans, verdicts, osm);
+  lines.push('', '## Назви зупинок: сайт і Google називають по-різному', '');
+  lines.push('Зупинки стоять поруч (до 250 м), а звуться інакше. Третє джерело — OpenStreetMap (зупинки в межах 200 м).', '');
+  if (!names.length) lines.push('Немає.');
+  else {
+    lines.push('| Сайт | Google | Між ними | OpenStreetMap поруч | Висновок |', '|---|---|---|---|---|');
+    for (const n of names) lines.push(`| ${n.ours} | ${n.google} | ${n.offM} м | ${n.osm.join('; ') || '—'} | ${CONFIRMS_UK[n.confirms]} |`);
+  }
   return `${lines.join('\n')}\n`;
 }

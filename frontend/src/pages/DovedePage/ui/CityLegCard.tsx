@@ -11,15 +11,10 @@ function lineColor(step: CityStep): string | undefined {
 }
 
 /**
- * Звідки відповідь: щойно від Google — так і пишемо; з нашої бази — коли звіряли; власний розклад Житомира
- * (zt.rozklad.in.ua, звірений з Google) — з якого числа знімок.
+ * Коли це звіряли. Звідки дані — не пишемо: усе, що в картці, — дані «Доведе» (рішення власника 2026-11-17:
+ * «не приписуй „за даними Google“ — це мої дані тепер»).
  */
 function sourceNote(r: CityRoute): string {
-  if (r.source === 'google') return 'за даними Google';
-  if (r.source === 'own') {
-    const [y, m, d] = r.fetchedAt.slice(0, 10).split('-');
-    return y && m && d ? `розклад zt.rozklad.in.ua від ${d}.${m}, звірено з Google` : 'розклад zt.rozklad.in.ua, звірено з Google';
-  }
   return `перевірено ${checkedAgo(r.fetchedAt)}`;
 }
 
@@ -29,7 +24,6 @@ function Ride({ s }: { s: CityStep }) {
     s.headsign ? `у бік «${s.headsign}»` : null,
     s.stops ? stopsText(s.stops) : null,
     `≈ ${durationText(s.minutes)}`,
-    s.departs ? `за розкладом о ${s.departs}` : null,
     s.headwayMin ? `кожні ≈ ${s.headwayMin} хв` : null,
   ].filter(Boolean);
   return (
@@ -54,8 +48,7 @@ function Ride({ s }: { s: CityStep }) {
 
 /**
  * Дорога містом (Київ, Житомир) до місця, названого словами (Docs/dovede-roadmap.md, «Місто»). Кроки дав сервер:
- * зі своєї бази або щойно від Google. «За даними Google» пишемо лише на щойно отриманій відповіді; збережена
- * (до 30 днів) — наші дані, з рядком, коли їх звіряли (рішення власника 2026-11-17).
+ * зі своєї бази. Джерело в картці не називаємо — лише коли це звіряли (рішення власника 2026-11-17).
  */
 export function CityLegCard({ l }: { l: CityLeg }) {
   if (!l.route) {
@@ -96,11 +89,6 @@ export function CityLegCard({ l }: { l: CityLeg }) {
           <small>{sourceNote(r)} · час приблизний</small>
         </p>
         <span className="dv-city__links">
-          {r.source === 'own' && l.city === 'Zhytomyr' ? (
-            <a className="dv-city__maps" href="https://zt.rozklad.in.ua/" target="_blank" rel="noopener noreferrer">
-              Розклад ↗
-            </a>
-          ) : null}
           <a className="dv-city__maps" href={l.mapsUrl} target="_blank" rel="noopener noreferrer">
             Google Maps ↗
           </a>

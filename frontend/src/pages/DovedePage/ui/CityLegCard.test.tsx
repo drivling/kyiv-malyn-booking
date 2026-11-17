@@ -37,7 +37,7 @@ const leg = (r: CityRoute | null): CityLeg => ({
 });
 
 describe('картка дороги містом', () => {
-  it('щойно від Google: табличка з номером і видом транспорту, зупинки, пішки, підпис «за даними Google»', () => {
+  it('табличка з номером і видом транспорту, зупинки, пішки; про Google — ані слова, лише «перевірено сьогодні»', () => {
     const { container } = render(<CityLegCard l={leg(route())} />);
     expect(screen.getByLabelText('автобус 110')).toBeInTheDocument();
     expect(container.querySelector('.dv-city__stops')!.textContent).toContain('Автовокзал');
@@ -46,7 +46,8 @@ describe('картка дороги містом', () => {
     expect(screen.getByText('ЖТТУ')).toBeInTheDocument();
     expect(screen.getAllByText(/^Пішки/)).toHaveLength(2);
     expect(screen.getByText(/Разом ≈ 21 хв/)).toBeInTheDocument();
-    expect(screen.getByText(/за даними Google/)).toBeInTheDocument();
+    expect(screen.queryByText(/за даними Google/)).toBeNull();
+    expect(screen.getByText(/перевірено сьогодні/)).toBeInTheDocument();
     expect(container.querySelector<HTMLElement>('.dv-city__ride')!.style.getPropertyValue('--dv-cc')).toBe('#1a73e8');
     expect(screen.getByRole('link', { name: 'Google Maps ↗' })).toHaveAttribute('target', '_blank');
   });
@@ -58,13 +59,12 @@ describe('картка дороги містом', () => {
     expect(screen.getByText(/перевірено 3 дні тому/)).toBeInTheDocument();
   });
 
-  it('власний розклад Житомира: час відправлення з розкладу, джерело з датою знімка, посилання на сайт розкладу', () => {
-    const own = route({ source: 'own', fetchedAt: '2026-11-17T00:00:00.000Z', steps: [{ kind: 'transit', minutes: 14, mode: 'BUS', line: '58', fromStop: 'Автовокзал', toStop: 'Обласна лікарня', stops: 7, departs: '09:10' }] });
-    render(<CityLegCard l={leg(own)} />);
-    expect(screen.getByText('7 зупинок · ≈ 14 хв · за розкладом о 09:10')).toBeInTheDocument();
-    expect(screen.getByText(/розклад zt\.rozklad\.in\.ua від 17\.11, звірено з Google/)).toBeInTheDocument();
-    expect(screen.queryByText(/за даними Google/)).toBeNull();
-    expect(screen.getByRole('link', { name: 'Розклад ↗' })).toHaveAttribute('href', 'https://zt.rozklad.in.ua/');
+  it('власні дані Житомира: інтервал замість точного часу, без згадок про джерело', () => {
+    const own = route({ source: 'own', fetchedAt: new Date().toISOString(), steps: [{ kind: 'transit', minutes: 14, mode: 'BUS', line: '58', fromStop: 'Автовокзал', toStop: 'Обласна лікарня', stops: 7, headwayMin: 20 }] });
+    const { container } = render(<CityLegCard l={leg(own)} />);
+    expect(screen.getByText('7 зупинок · ≈ 14 хв · кожні ≈ 20 хв')).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/Google(?! Maps)|rozklad/);
+    expect(screen.getByText(/перевірено сьогодні/)).toBeInTheDocument();
   });
 
   it('лише пішки — «Пішки ≈ …», таблички немає; чужий колір не потрапляє у стиль', () => {

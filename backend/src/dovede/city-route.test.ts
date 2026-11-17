@@ -250,9 +250,9 @@ test('навчання вимкнено без ключа чи без запис
 });
 
 test('Житомир: власна пряма поїздка — перед базою й Google, без запитів назовні; Київ її не питає; вимикач', async () => {
-  const own = { ok: true as const, source: 'own' as const, city: 'Zhytomyr' as const, fromLabel: 'a', toLabel: 'b', steps: [{ kind: 'transit' as const, minutes: 9, line: '58', departs: '09:25' }], minutes: 14, fetchedAt: '2026-11-17T00:00:00.000Z' };
+  const own = { ok: true as const, source: 'own' as const, city: 'Zhytomyr' as const, fromLabel: 'a', toLabel: 'b', steps: [{ kind: 'transit' as const, minutes: 9, line: '58', headwayMin: 20 }], minutes: 14, fetchedAt: '2026-11-17T00:00:00.000Z' };
   const asked: unknown[] = [];
-  const t = make({ ownRoute: (q, labels) => (asked.push([q, labels]), own) });
+  const t = make({ ownRoute: (q, labels) => (asked.push([q, labels]), own), ownEnabled: () => true });
   const got = await t.svc.find(Q);
   assert.deepEqual(got, own);
   assert.deepEqual(asked, [[{ from: 'zhytomyr.avtovokzal', to: 'Польова 12', date: Q.date, time: Q.time }, { from: 'автовокзал Житомир-1', to: 'Польова 12' }]]);

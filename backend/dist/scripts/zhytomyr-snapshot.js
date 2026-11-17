@@ -24,7 +24,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
  *                                                зберігаємо за договором власника з Google — Docs/dovede-roadmap.md)
  * npm run zhytomyr:snapshot -- --google        — звірити маршрути з Google Routes: спершу три великі відрізки кожного
  *                                                напрямку, далі перегони; уже звірене не питає вдруге, ZT_GOOGLE_LIMIT
- *                                                (типово 400) — скільки запитів за запуск → google/checks.json, REPORT.md
+ *                                                (типово 400) — скільки запитів за запуск → google/checks.json, REPORT.md;
+ *                                                з --recheck-differs — перепитати відрізки, що розходяться
+ * npm run zhytomyr:snapshot -- --reclassify    — без мережі: оцінити збережені відповіді Google наново
+ * npm run zhytomyr:snapshot -- --apply-google-hints — зупинки, які Google знає під тією самою назвою в іншому місці,
+ *                                                → stops.hints.json; далі знову --google (змінені відрізки перепитає)
  */
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
@@ -162,7 +166,23 @@ async function googleCheck() {
     const file = node_path_1.default.join(ROOT, 'google/checks.json');
     const state = node_fs_1.default.existsSync(file) ? JSON.parse(node_fs_1.default.readFileSync(file, 'utf8')) : { checks: {} };
     const stops = JSON.parse((0, zhytomyr_routes_1.buildZhytomyrStops)(ROOT)).stops;
-    const spans = (0, zhytomyr_google_check_1.checkSpans)((0, zhytomyr_routes_1.loadZhytomyrRoutes)(ROOT), stops).filter((s) => !state.checks[s.key]);
+    const routes = (0, zhytomyr_routes_1.loadZhytomyrRoutes)(ROOT);
+    const chains = new Map(routes.routes.flatMap((r) => r.directions.map((d) => [d.dirId, d.stops.map((x) => ({ name: x.name, minutes: x.minutes }))])));
+    // --recheck-differs: перепитати відрізки з вердиктом «розходиться» (щоб дізнатись причину й координати зупинок Google)
+    if (process.argv.includes('--recheck-differs')) {
+        for (const [k, v] of Object.entries(state.checks))
+            if (v.verdict === 'differs')
+                delete state.checks[k];
+    }
+    // відрізок, якого вже немає серед наших (зупинка змінила координату чи зникла), у звіті не лишаємо
+    const all = (0, zhytomyr_google_check_1.checkSpans)(routes, stops);
+    const live = new Set(all.map((s) => `${s.key}@${s.from.lat},${s.from.lng}>${s.to.lat},${s.to.lng}`));
+    for (const [k, v] of Object.entries(state.checks)) {
+        const at = v.at;
+        if (at && !live.has(`${k}@${at}`))
+            delete state.checks[k];
+    }
+    const spans = all.filter((s) => !state.checks[s.key]);
     const limit = Number(process.env.ZT_GOOGLE_LIMIT ?? 400);
     const departureTime = nextWeekdayTen();
     const point = (p) => ({ location: { latLng: { latitude: p.lat, longitude: p.lng } } });
@@ -191,12 +211,62 @@ async function googleCheck() {
             console.warn(`Routes: HTTP ${res?.status} ${(await res?.text())?.slice(0, 160)} — зупиняюсь, продовжити можна пізніше`);
             break;
         }
-        const v = (0, zhytomyr_google_check_1.spanVerdict)(span, (0, zhytomyr_google_check_1.googleRides)(await res.json()), new Date().toISOString().slice(0, 10));
-        state.checks[span.key] = v;
+        const v = (0, zhytomyr_google_check_1.spanVerdict)(span, (0, zhytomyr_google_check_1.googleRides)(await res.json()), new Date().toISOString().slice(0, 10), chains.get(span.dirId) ?? []);
+        // з якими нашими координатами питали: зміниться координата — відрізок перепитаємо
+        state.checks[span.key] = { ...v, at: `${span.from.lat},${span.from.lng}>${span.to.lat},${span.to.lng}` };
         console.log(`№${span.number} ${span.level} «${span.from.name}» → «${span.to.name}»: ${v.verdict}${v.google ? ` (наше ${span.minutes} хв / Google ${v.google.minutes} хв)` : v.otherLines ? ` (Google: ${v.otherLines.join(', ')})` : ''}`);
         node_fs_1.default.mkdirSync(node_path_1.default.dirname(file), { recursive: true });
         node_fs_1.default.writeFileSync(file, `${JSON.stringify(state)}\n`);
     }
+}
+/** Оцінити вже збережені відповіді Google наново (причина розбіжності, порівняння на коротшому відрізку) — без запитів */
+function reclassify() {
+    const file = node_path_1.default.join(ROOT, 'google/checks.json');
+    const state = JSON.parse(node_fs_1.default.readFileSync(file, 'utf8'));
+    const routes = (0, zhytomyr_routes_1.loadZhytomyrRoutes)(ROOT);
+    const chains = new Map(routes.routes.flatMap((r) => r.directions.map((d) => [d.dirId, d.stops.map((x) => ({ name: x.name, minutes: x.minutes }))])));
+    const stops = JSON.parse((0, zhytomyr_routes_1.buildZhytomyrStops)(ROOT)).stops;
+    let changed = 0;
+    for (const span of (0, zhytomyr_google_check_1.checkSpans)(routes, stops)) {
+        const v = state.checks[span.key];
+        if (!v?.google)
+            continue;
+        const next = { ...v, ...(0, zhytomyr_google_check_1.judgeRide)(span, v.google, chains.get(span.dirId) ?? []) };
+        if (next.verdict !== 'differs')
+            delete next.cause;
+        if (JSON.stringify(next) !== JSON.stringify(v))
+            changed++;
+        state.checks[span.key] = next;
+    }
+    node_fs_1.default.writeFileSync(file, `${JSON.stringify(state)}\n`);
+    console.log(`checks.json: переоцінено ${changed}`);
+}
+/**
+ * Зупинки, які Google знає під тією самою назвою, але в іншому місці, — у stops.hints.json (координата Google).
+ * Ручних підказок не перезаписує: у файлі вони позначені `"by": "manual"`.
+ */
+function applyGoogleHints() {
+    const file = node_path_1.default.join(ROOT, 'google/checks.json');
+    const hintsFile = node_path_1.default.join(ROOT, 'stops.hints.json');
+    const checks = JSON.parse(node_fs_1.default.readFileSync(file, 'utf8')).checks;
+    const hints = node_fs_1.default.existsSync(hintsFile) ? JSON.parse(node_fs_1.default.readFileSync(hintsFile, 'utf8')) : {};
+    let n = 0;
+    for (const [key, v] of Object.entries(checks)) {
+        if (v.cause !== 'our_stop' || !v.google)
+            continue;
+        const [, fromId, toId] = key.split(':');
+        const put = (id, p, offM) => {
+            if (!p || (offM ?? 0) <= 250 || hints[id]?.by === 'manual')
+                return;
+            hints[id] = { lat: p.lat, lng: p.lng, by: 'google' };
+            n++;
+        };
+        put(fromId, v.google.from, v.google.fromOffM);
+        put(toId, v.google.to, v.google.toOffM);
+    }
+    const sorted = Object.fromEntries(Object.entries(hints).sort(([a], [b]) => Number(a) - Number(b)));
+    node_fs_1.default.writeFileSync(hintsFile, `${JSON.stringify(sorted, null, 2)}\n`);
+    console.log(`stops.hints.json: з Google — ${n}`);
 }
 async function main() {
     if (process.argv.includes('--fetch'))
@@ -207,6 +277,10 @@ async function main() {
         await googleStops();
     if (process.argv.includes('--google'))
         await googleCheck();
+    if (process.argv.includes('--reclassify'))
+        reclassify();
+    if (process.argv.includes('--apply-google-hints'))
+        applyGoogleHints();
     const json = (0, zhytomyr_routes_1.buildZhytomyrRoutes)(ROOT);
     node_fs_1.default.writeFileSync(node_path_1.default.join(ROOT, 'routes.json'), json);
     console.log(`routes.json: ${json.length} chars`);
