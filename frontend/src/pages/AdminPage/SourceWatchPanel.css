@@ -72,3 +72,30 @@
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
+
+.source-watch-board-row > td {
+  padding: 4px 8px 12px;
+  background: #fafafa;
+}
+
+.source-watch-board-table {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.source-watch-verdict {
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.source-watch-verdict--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.source-watch-verdict--warn {
+  background: #fef3c7;
+  color: #92400e;
+}

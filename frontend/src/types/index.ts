@@ -1186,10 +1186,15 @@ export interface ArrivalReportView {
 /** Зовнішнє джерело розкладу, за яким стежить бекенд (GET /admin/transport/sources) */
 export interface WatchedSource {
   key: string;
-  kind: 'html-tables' | 'ckan';
+  /** bus-board — табло автовокзалу (ціни), rss — стрічка новин із фільтром слів */
+  kind: 'html-tables' | 'ckan' | 'bus-board' | 'rss';
   cityCode: string;
   label: string;
   url: string;
+  /** board — рідкий таймер табло (TRANSPORT_BOARD_WATCH_INTERVAL_MIN) */
+  group?: 'board' | null;
+  /** «за даними табло автовокзалу Житомир-1 (МПП «ВПІ»)» — показується під таблицею */
+  attribution?: string | null;
   /** Дата зміни за даними самого джерела */
   modified: string | null;
   lastCheckedAt: string | null;
@@ -1204,6 +1209,47 @@ export interface WatchedSource {
   parts: number;
   failCount: number;
   lastError: string | null;
+}
+
+/** Рейс з табло автовокзалу (останній знімок джерела bus-board) */
+export interface BoardTrip {
+  time: string;
+  from: string;
+  to: string;
+  arrival: string | null;
+  priceUah: number | null;
+  carrier: string;
+  bus: string | null;
+  status: string | null;
+  seats: number | null;
+}
+
+export type BoardVerdict = 'same' | 'differs' | 'missing' | 'no-db-price' | 'no-board-price' | 'only-db';
+
+/** Рейс до міста проти рядка Schedule за часом відправлення (нічого не пише) */
+export interface BoardComparisonRow {
+  time: string;
+  from: string | null;
+  to: string;
+  arrival: string | null;
+  boardPriceUah: number | null;
+  carrier: string | null;
+  dbPriceUah: number | null;
+  scheduleId: number | null;
+  verdict: BoardVerdict;
+}
+
+/** GET /admin/transport/sources/:key/board — знімок табло таблицею і звірка з базою */
+export interface BoardSourceSnapshot {
+  key: string;
+  label: string;
+  url: string;
+  attribution: string | null;
+  boardDate: string | null;
+  lastCheckedAt: string | null;
+  trips: BoardTrip[];
+  scheduleRoute: string | null;
+  comparison: BoardComparisonRow[];
 }
 
 /** GET /admin/transport/arrival-reports — зведення по рейсах на зупинках і останні звіти */

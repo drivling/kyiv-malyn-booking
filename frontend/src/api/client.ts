@@ -54,6 +54,7 @@ import type {
   ArrivalReportResult,
   ArrivalReportDays,
   ArrivalReportStats,
+  BoardSourceSnapshot,
   WatchedSource,
   DeleteAccountResponse,
 } from '@/types';
@@ -1289,6 +1290,11 @@ class ApiClient {
   /** Адмін: «Переглянуто» — зміну джерела враховано */
   async acknowledgeWatchedSource(key: string): Promise<{ sources: WatchedSource[] }> {
     return this.request(`/admin/transport/sources/${encodeURIComponent(key)}/ack`, { method: 'POST' });
+  }
+
+  /** Адмін: останній знімок табло автовокзалу таблицею рейсів і звірка з Schedule (лише читання) */
+  async getWatchedSourceBoard(key: string): Promise<BoardSourceSnapshot> {
+    return this.request(`/admin/transport/sources/${encodeURIComponent(key)}/board`);
   }
 
   /** Адмін: статистика наклейок — відкриття по наклейках, по добах і годинах за `days`, облік друку */

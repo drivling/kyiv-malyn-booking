@@ -8,7 +8,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import type { WatchedSource } from '@/types';
+import type { BoardSourceSnapshot, WatchedSource } from '@/types';
 import { SourceWatchPanel } from './SourceWatchPanel';
 
 const SOURCES_URL = `${TEST_API_URL}/admin/transport/sources`;
@@ -83,4 +83,64 @@ describe('SourceWatchPanel', () => {
     expect(screen.getByText('не відповідає: 1')).toBeInTheDocument();
     expect(checks).toBe(1);
   });
+
+  it('табло автовокзалу: кнопка «Табло» показує рейси проти цін у базі, розходження підсвічено, атрибуція є', async () => {
+    const board = source({
+      key: 'zhytomyr-board-malyn',
+      kind: 'bus-board',
+      cityCode: 'Malyn',
+      label: 'Табло АС Житомир-1: рейси через Малин',
+      url: 'http://tablo.example/zhytomyr',
+      group: 'board',
+      attribution: 'за даними табло автовокзалу Житомир-1 (МПП «ВПІ»)',
+      modified: null,
+    });
+    const snapshot: BoardSourceSnapshot = {
+      key: board.key,
+      label: board.label,
+      url: board.url,
+      attribution: board.attribution ?? null,
+      boardDate: '17 листопада 2026 р. (Вівторок)',
+      lastCheckedAt: '2026-11-17T03:00:00.000Z',
+      scheduleRoute: 'Zhytomyr-Malyn',
+      trips: [
+        { time: '06:20', from: 'Житомир', to: 'Малин', arrival: '08:30', priceUah: 334.8, carrier: 'ПП "РІМ-БОГДАН"', bus: 'ФОЛЬКСВАГЕН18', status: 'В продажі', seats: 18 },
+        { time: '07:00', from: 'Житомир', to: 'Малин', arrival: '08:25', priceUah: 334.8, carrier: 'ПП "РІМ-БОГДАН"', bus: null, status: null, seats: null },
+        { time: '07:40', from: 'Малин', to: 'Хмільник', arrival: '10:30', priceUah: 357.2, carrier: 'ПП "РІМ-БОГДАН"', bus: null, status: null, seats: null },
+      ],
+      comparison: [
+        { time: '06:20', from: 'Житомир', to: 'Малин', arrival: '08:30', boardPriceUah: 334.8, carrier: 'ПП "РІМ-БОГДАН"', dbPriceUah: 335, scheduleId: 78, verdict: 'same' },
+        { time: '07:00', from: 'Житомир', to: 'Малин', arrival: '08:25', boardPriceUah: 334.8, carrier: 'ПП "РІМ-БОГДАН"', dbPriceUah: null, scheduleId: null, verdict: 'missing' },
+        { time: '23:30', from: null, to: 'Малин', arrival: null, boardPriceUah: null, carrier: null, dbPriceUah: 300, scheduleId: 99, verdict: 'only-db' },
+      ],
+    };
+    let boardRequests = 0;
+    server.use(
+      http.get(SOURCES_URL, () => HttpResponse.json({ sources: [board] })),
+      http.get(`${SOURCES_URL}/:key/board`, ({ params }) => {
+        boardRequests += 1;
+        expect(params.key).toBe('zhytomyr-board-malyn');
+        return HttpResponse.json(snapshot);
+      }),
+    );
+    render(<SourceWatchPanel />);
+
+    expect(await screen.findByRole('link', { name: 'Табло АС Житомир-1: рейси через Малин' })).toBeInTheDocument();
+    expect(screen.getByText('за даними табло автовокзалу Житомир-1 (МПП «ВПІ»)')).toBeInTheDocument();
+    expect(boardRequests).toBe(0);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Табло' }));
+    expect(await screen.findByText(/розходжень: 2/)).toBeInTheDocument();
+    expect(screen.getAllByText('334,80')).toHaveLength(2); // 06:20 і 07:00 на табло
+    expect(screen.getByText('збігається')).toBeInTheDocument();
+    expect(screen.getByText('нема в базі')).toBeInTheDocument();
+    expect(screen.getByText('лише в базі')).toBeInTheDocument();
+    expect(screen.getByText(/07:40 Малин → Хмільник · 357,20 грн/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'за даними табло автовокзалу Житомир-1 (МПП «ВПІ»)' })).toHaveAttribute('href', 'http://tablo.example/zhytomyr');
+    expect(boardRequests).toBe(1);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Сховати табло' }));
+    expect(screen.queryByText('збігається')).not.toBeInTheDocument();
+  });
 });
+
