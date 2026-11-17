@@ -153,11 +153,11 @@ describe('dovede-crawl: обхід у ширину', () => {
     expect(createCrawl({ records: [base], seeds: [seed], slots: WEEKDAY, now }).next()).toBeNull();
     expect(createCrawl({ records: [{ ...base, hour: 12 }], seeds: [seed], slots: WEEKDAY, now }).next()).not.toBeNull();
     expect(createCrawl({ records: [{ ...base, at: '2026-10-01T10:00:00Z' }], seeds: [seed], slots: WEEKDAY, now }).next()).not.toBeNull();
-    // «маршруту немає» теж памʼятаємо; разовий збій Google — ні, два — так
+    // «маршруту немає» теж памʼятаємо; збій Google — ні, скільки б разів він не стався: це не відповідь про місце
     const fail = { ...base, ok: false, source: undefined, reason: 'error' };
     expect(createCrawl({ records: [{ ...fail, reason: 'no_route' }], seeds: [seed], slots: WEEKDAY, now }).next()).toBeNull();
     expect(createCrawl({ records: [fail], seeds: [seed], slots: WEEKDAY, now }).next()).not.toBeNull();
-    expect(createCrawl({ records: [fail, fail], seeds: [seed], slots: WEEKDAY, now }).next()).toBeNull();
+    expect(createCrawl({ records: [fail, fail, fail], seeds: [seed], slots: WEEKDAY, now }).next()).not.toBeNull();
   });
 
   it('те саме місце двічі не питає, хоч би як його написали', () => {

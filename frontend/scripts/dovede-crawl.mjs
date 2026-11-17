@@ -359,6 +359,8 @@ async function main() {
     });
 
   let failStreak = 0;
+  // Google відмовляв чи не відповідав: наприкінці спитаємо в сервера, що саме він сказав
+  let googleTrouble = false;
   let why = 'обхід закінчено: нових місць немає';
   const startedAt = Date.now();
 
@@ -408,24 +410,29 @@ async function main() {
         why = `денний ліміт Google: людям лишено ${o.reserve}`;
         break;
       }
-    } else if (res.status === 200 && body && body.ok === false && (body.reason === 'cap' || body.reason === 'disabled' || body.reason === 'no_key')) {
+    } else if (res.status === 200 && body && body.ok === false && ['cap', 'denied', 'disabled', 'no_key'].includes(body.reason)) {
       // питання не записуємо: наступного запуску воно знову буде в черзі
-      why = body.reason === 'cap' ? 'сервер каже «ліміт»: вичерпано наш денний ліміт або квоту в Google Cloud (429) — продовжіть пізніше, питання лишилось у черзі' : 'на сервері дорогу містом вимкнено або немає ключа Google';
+      why =
+        body.reason === 'cap'
+          ? 'сервер каже «ліміт»: вичерпано наш денний ліміт або квоту в Google Cloud (429) — продовжіть пізніше, питання лишилось у черзі'
+          : body.reason === 'denied'
+            ? 'Google відмовив серверу в доступі (403): обмеження ключа, вимкнений Routes API або білінг — питання лишилось у черзі'
+            : 'на сервері дорогу містом вимкнено або немає ключа Google';
       console.log(`${n} ⛔ ${body.reason}  ${label}`);
+      googleTrouble = true;
       break;
+    } else if (res.status === 200 && body && body.ok === false && body.reason !== 'no_route') {
+      // збій Google — не відповідь про місце: у журнал не пишемо, питання повториться наступного запуску
+      count.failed++;
+      failStreak++;
+      googleTrouble = true;
+      console.log(`${n} ⚠️  Google не відповів     ${label}`);
     } else if ((res.status === 200 && body && body.ok === false) || res.status === 400) {
-      const reason = res.status === 400 ? 'bad_request' : body.reason === 'no_route' ? 'no_route' : 'error';
-      const { record } = crawl.done(task, { ok: false, reason });
+      const { record } = crawl.done(task, { ok: false, reason: res.status === 400 ? 'bad_request' : 'no_route' });
       appendJournal(file, record);
-      if (reason === 'error') {
-        count.failed++;
-        failStreak++;
-        console.log(`${n} ⚠️  Google не відповів     ${label}`);
-      } else {
-        failStreak = 0;
-        count.noRoute++;
-        console.log(`${n} ·  маршруту немає        ${label}`);
-      }
+      failStreak = 0;
+      count.noRoute++;
+      console.log(`${n} ·  маршруту немає        ${label}`);
     } else {
       // мережа або збій сервера: у журнал не пишемо, питання повториться наступного запуску
       count.failed++;
@@ -437,6 +444,13 @@ async function main() {
       break;
     }
     if (!stopping) await sleep(body?.ok && body.source !== 'google' ? Math.min(o.pause, 300) : o.pause);
+  }
+
+  if (googleTrouble) {
+    const st = await cityStats(o.api, headers);
+    const ge = st?.googleError;
+    if (ge) console.log(`\nGoogle сказав серверу (HTTP ${ge.status}, ${new Date(ge.at).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' })}): ${ge.message || 'без пояснення'}`);
+    else if (st) console.log('\nЩо саме відповів Google, сервер не зберіг — дивіться журнал сервера (Railway), рядки «city-route».');
   }
 
   const all = summarizeRecords(readJournal(file), { freshDays });
