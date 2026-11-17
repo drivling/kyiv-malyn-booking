@@ -9,6 +9,7 @@ import type { DovedeLog, DovedeLogDays, DovedeLogFlag, DovedeLogItem } from '@/t
 import { intentLine } from './dovedeLogText';
 import { DovedeSynonymsPanel } from './DovedeSynonymsPanel';
 import { DovedePickupsPanel } from './DovedePickupsPanel';
+import { DovedeCityPanel } from './DovedeCityPanel';
 import './DovedeLogTab.css';
 
 const PERIODS: DovedeLogDays[] = [1, 7, 30, 90];
@@ -240,6 +241,8 @@ const DovedeLogTab: React.FC = () => {
           <DovedeSynonymsPanel stops={stops} seed={seed} />
 
           <DovedePickupsPanel stops={stops} routeLabel={pickupRouteLabel} />
+
+          <DovedeCityPanel />
 
           <div className="dovede-log-head">
             <h3>Питання</h3>

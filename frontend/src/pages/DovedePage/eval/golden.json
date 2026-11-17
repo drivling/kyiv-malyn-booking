@@ -165,6 +165,22 @@
     {"id": "zt-09", "text": "попутка з малина до житомира завтра", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "when": {"day": "tomorrow"}, "modes": ["poputka"]}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
     {"id": "zt-10", "text": "скільки коштує маршрутка до житомира", "expect": {"intent": "price", "to": "city.Zhytomyr"}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
     {"id": "zt-11", "text": "з автовокзалу житомира в малин до лікарні", "expect": {"intent": "trip", "from": "city.Zhytomyr", "to": "malyn.likarnia"}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
-    {"id": "zt-12", "text": "з малина до житомирської", "expect": {"intent": "trip", "from": "city.Malyn", "to": "kyiv.zhytomyrska"}, "tags": ["zhytomyr"], "scope": "zhytomyr"}
+    {"id": "zt-12", "text": "з малина до житомирської", "expect": {"intent": "trip", "from": "city.Malyn", "to": "kyiv.zhytomyrska"}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "ct-01", "text": "з малина в житомир на польову 12", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "toDetail": true}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-02", "text": "як доїхати з малина до житомира до обласної лікарні завтра зранку", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "toDetail": true, "when": {"day": "tomorrow", "part": "morning"}}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-03", "text": "з житомира з вулиці покровської в малин", "expect": {"intent": "trip", "from": "city.Zhytomyr", "fromDetail": true, "to": "city.Malyn"}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-04", "text": "з малина до києва до охматдиту", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "toDetail": true}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-05", "text": "з малина в київ на вулицю січових стрільців 10 завтра о 9", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "toDetail": true, "when": {"day": "tomorrow", "time": "09:00"}}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-06", "text": "в житомир на глобал сьогодні", "expect": {"intent": "trip", "to": "city.Zhytomyr", "toDetail": true, "when": {"day": "today"}}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-07", "text": "з малина в житомир на автовокзал", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "toDetail": false}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-08", "text": "з малина в житомир на маршрутці завтра", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "toDetail": false, "modes": ["marshrutka"], "when": {"day": "tomorrow"}}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-09", "text": "з малина в житомир на 8 ранку", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "toDetail": false, "when": {"time": "08:00"}}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-10", "text": "з малина в київ на хрещатик", "expect": {"intent": "trip", "from": "city.Malyn", "to": "kyiv.m.khreshchatyk", "toDetail": false}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-11", "text": "з малина до києва на вокзал", "expect": {"intent": "trip", "from": "city.Malyn", "to": "kyiv.pas", "toDetail": false}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-12", "text": "из малина в житомир на улицу киевскую 77", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "toDetail": true}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-13", "text": "мені в житомир до політеху в понеділок", "expect": {"intent": "trip", "to": "city.Zhytomyr", "toDetail": true}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-14", "text": "з малина до києва в лікарню феофанія", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "toDetail": true}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-15", "text": "з малина в київ до тц лавина електричкою", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Kyiv", "toDetail": true, "modes": ["elektrichka"]}, "tags": ["city"], "scope": "city"},
+    {"id": "ct-16", "text": "з малина в житомир", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "toDetail": false}, "tags": ["city"], "scope": "city"}
   ]
 }

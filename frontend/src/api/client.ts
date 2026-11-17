@@ -1101,6 +1101,41 @@ class ApiClient {
     }
   }
 
+  /**
+   * «Доведе»: дорога містом (Київ, Житомир) від точки висадки до місця, названого словами. Сервер віддає її зі
+   * своєї бази або питає Google і запамʼятовує. Немає відповіді, помилка чи не встиг за `timeoutMs` — `null`:
+   * сторінка показує кнопку Google Maps.
+   */
+  async dovedeCityRoute(q: import('@/pages/DovedePage/compose/types').CityAsk, timeoutMs = 6000): Promise<import('@/pages/DovedePage/compose/types').CityRoute | null> {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const p = new URLSearchParams({ city: q.city, from: q.from, to: q.to, date: q.date, time: q.time });
+      const r = await this.request<{ ok: boolean } & Partial<import('@/pages/DovedePage/compose/types').CityRoute>>(`/dovede/city-route?${p.toString()}`, { headers: this.dovedeHeaders(), cache: 'no-store', signal: ctrl.signal });
+      if (!r.ok || !Array.isArray(r.steps) || !r.steps.length || typeof r.minutes !== 'number' || !r.source) return null;
+      return { source: r.source, fromLabel: r.fromLabel ?? '', toLabel: r.toLabel ?? '', steps: r.steps, minutes: r.minutes, fetchedAt: r.fetchedAt ?? '' };
+    } catch {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  /** Адмін: що «Доведе» вже знає про транспорт Києва й Житомира (маршрути, лінії, зупинки, попит, ліміт Google) */
+  async getDovedeCity(): Promise<import('@/types').DovedeCityStats> {
+    return this.request('/admin/dovede/city');
+  }
+
+  /** Адмін: один крок навчання зараз — оновити найзапитуваніші пари без свіжої відповіді */
+  async dovedeCityLearn(): Promise<{ asked: number; learned: number }> {
+    return this.request('/admin/dovede/city/learn', { method: 'POST' });
+  }
+
+  /** Адмін: заархівувати все, що прийшло з Google, або повернути з архіву. Нічого не видаляється */
+  async dovedeCityArchive(action: 'archive' | 'restore'): Promise<{ action: string; routes: number; lines: number; stops: number }> {
+    return this.request('/admin/dovede/city/archive', { method: 'POST', body: JSON.stringify({ action }) });
+  }
+
   /** Адмін: примітки оголошень водіїв за період — для підрахунку «Звідки забирають попутки» */
   async getDovedePickups(days: import('@/types').DovedeLogDays = 90): Promise<import('@/types').DovedePickups> {
     return this.request(`/admin/dovede/pickups?days=${days}`);

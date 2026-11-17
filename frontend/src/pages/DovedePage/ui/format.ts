@@ -38,3 +38,25 @@ export function storySummary(story: Story): { title: string; sub: string; time: 
   if (story.priceUah) parts.push(`${story.priceUah} ₴`);
   return { title, sub: parts.join(' · '), time: clock(story.arriveMins, story.arriveApprox) };
 }
+
+export function stopsText(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return `${n} зупинка`;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} зупинки`;
+  return `${n} зупинок`;
+}
+
+const DAY_MS = 24 * 3600_000;
+
+/** «сьогодні», «вчора», «5 днів тому» — коли відповідь із нашої бази востаннє звіряли */
+export function checkedAgo(fetchedAt: string, now = Date.now()): string {
+  const t = Date.parse(fetchedAt);
+  const days = Number.isFinite(t) ? Math.max(0, Math.floor((now - t) / DAY_MS)) : 0;
+  if (days === 0) return 'сьогодні';
+  if (days === 1) return 'вчора';
+  const mod10 = days % 10;
+  const mod100 = days % 100;
+  const word = mod10 === 1 && mod100 !== 11 ? 'день' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'дні' : 'днів';
+  return `${days} ${word} тому`;
+}

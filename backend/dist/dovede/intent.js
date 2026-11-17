@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IntentShapeError = exports.INTENT_SCHEMA = void 0;
+exports.IntentShapeError = exports.INTENT_SCHEMA = exports.DETAIL_CITY_IDS = void 0;
 exports.isKnownPlaceId = isKnownPlaceId;
 exports.validateIntent = validateIntent;
 /**
@@ -25,6 +25,8 @@ function isStreetId(id) {
 function isKnownPlaceId(id, stopIds) {
     return (0, gazetteer_1.placeById)(id) != null || stopIds?.has(id) === true || isStreetId(id) || LANDMARK_IDS.has(id) || METRO_IDS.has(id);
 }
+/** Міста, всередині яких «Доведе» шукає дорогу до місця, названого словами (dovede/city-route.ts) */
+exports.DETAIL_CITY_IDS = new Set(['city.Kyiv', 'city.Zhytomyr']);
 const INTENTS = ['trip', 'schedule', 'route', 'price', 'contact', 'other'];
 const MODES = ['marshrutka', 'elektrichka', 'poputka', 'city_bus'];
 const KINDS = ['depart', 'arrive', 'any'];
@@ -37,8 +39,14 @@ const PLACE_REF_SCHEMA = {
             properties: {
                 id: { type: 'string', description: 'id зі словника місць, точно як у списку' },
                 text: { type: 'string', description: 'як це місце назвала людина' },
+                detail: {
+                    anyOf: [
+                        { type: 'string', description: 'лише з city.Kyiv або city.Zhytomyr: місце в цьому місті, якого немає у списках, у називному відмінку' },
+                        { type: 'null' },
+                    ],
+                },
             },
-            required: ['id', 'text'],
+            required: ['id', 'text', 'detail'],
             additionalProperties: false,
         },
         { type: 'null' },
@@ -110,7 +118,8 @@ function validateIntent(raw, stopIds, routeIds) {
             pushUnknown(text || id.slice(0, MAX_TEXT));
             return null;
         }
-        return { id, text: text || id };
+        const detail = exports.DETAIL_CITY_IDS.has(id) ? clip(p.detail) : '';
+        return { id, text: text || id, ...(detail.length >= 2 ? { detail } : {}) };
     };
     const from = place(o.from);
     const to = place(o.to);

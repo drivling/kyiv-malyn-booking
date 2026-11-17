@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSupportPhoneForRoute = exports.getRegisteredRoutes = exports.createApp = exports.CODE_VERSION = void 0;
+const city_route_1 = require("./dovede/city-route");
 const client_1 = require("@prisma/client");
 const create_app_1 = require("./create-app");
 const lunch_listener_1 = require("./lunch-listener");
@@ -27,6 +28,7 @@ function main() {
     let archiveJob = null;
     let reminderJob = null;
     let sourceWatchJob = null;
+    let cityLearnJob = null;
     const app = (0, create_app_1.createApp)({ prisma });
     // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
     void (0, transport_revisions_1.ensureInitialTransportRevision)(prisma).then((row) => {
@@ -108,6 +110,14 @@ function main() {
                     console.log(`🛰️ Джерела розкладу: ${notable.map((r) => `${r.key}=${r.status}`).join(', ')}`);
                 }
             }, { intervalMin: Number(process.env.TRANSPORT_SOURCE_WATCH_INTERVAL_MIN ?? 360), firstDelayMs: 5 * 60000 });
+            // «Доведе»: поступове навчання дороги містом (Київ, Житомир) — найзапитуваніші пари без свіжої відповіді,
+            // у межах половини денного ліміту Google; DOVEDE_CITY_LEARN_INTERVAL_MIN (за замовч. 60, 0 = вимкнено)
+            const cityRoutes = (0, city_route_1.cityRoutesFromEnv)(prisma);
+            cityLearnJob = (0, interval_job_1.startIntervalJob)('dovede-city-learn', async () => {
+                const r = await cityRoutes.learnTick();
+                if (r.asked)
+                    console.log(`🧭 Доведе · місто: спитано ${r.asked}, вивчено ${r.learned}`);
+            }, { intervalMin: Number(process.env.DOVEDE_CITY_LEARN_INTERVAL_MIN ?? 60), firstDelayMs: 15 * 60000 });
         }
     });
     const shutdown = async (signal) => {
@@ -118,6 +128,7 @@ function main() {
         archiveJob?.stop();
         reminderJob?.stop();
         sourceWatchJob?.stop();
+        cityLearnJob?.stop();
         // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
         await (0, lunch_listener_1.stopLunchListenerAndWait)(3000);
         await lease?.stop();

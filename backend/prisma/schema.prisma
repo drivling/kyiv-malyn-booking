@@ -1256,6 +1256,85 @@ model DovedeSynonym {
   placeId   String
 }
 
+/// «Доведе» · транспорт містом (етап 3а): готовий маршрут між двома точками міста на тип дня й годину.
+/// source: google — відповідь Google Routes (за договором власника зберігаємо), own — дані власника, open — відкриті.
+/// Рядки не видаляються: archivedAt прибирає їх з відповідей, «відновити» знімає позначку.
+model DovedeCityRoute {
+  id          Int       @id @default(autoincrement())
+  createdAt   DateTime  @default(now())
+  cityCode    String
+  /// нормалізований ключ точки: id («zhytomyr.avtovokzal», «kyiv.akadem») або слова людини малими літерами
+  fromKey     String
+  toKey       String
+  fromLabel   String
+  toLabel     String
+  /// weekday | saturday | sunday
+  dayType     String
+  /// година входу за Києвом (0–23)
+  hour        Int
+  /// CityStep[] — див. backend/src/dovede/city-route.ts
+  steps       Json
+  minutes     Int
+  source      String
+  fetchedAt   DateTime
+  hits        Int       @default(0)
+  lastAskedAt DateTime?
+  archivedAt  DateTime?
+
+  @@unique([cityCode, fromKey, toKey, dayType, hour, source], map: "DovedeCityRoute_key")
+  @@index([source, fetchedAt])
+}
+
+/// Довідник ліній міста, що складається сам із відповідей: «автобус №121, ФОП …»
+model DovedeCityLine {
+  id         Int       @id @default(autoincrement())
+  createdAt  DateTime  @default(now())
+  cityCode   String
+  /// BUS | TROLLEYBUS | TRAM | SUBWAY | SHARE_TAXI | …
+  mode       String
+  name       String
+  agency     String    @default("")
+  color      String?
+  source     String
+  seenCount  Int       @default(1)
+  lastSeenAt DateTime
+  archivedAt DateTime?
+
+  @@unique([cityCode, mode, name, agency], map: "DovedeCityLine_key")
+}
+
+/// Довідник зупинок міста з відповідей
+model DovedeCityStop {
+  id         Int       @id @default(autoincrement())
+  createdAt  DateTime  @default(now())
+  cityCode   String
+  name       String
+  lat        Float?
+  lng        Float?
+  source     String
+  seenCount  Int       @default(1)
+  lastSeenAt DateTime
+  archivedAt DateTime?
+
+  @@unique([cityCode, name], map: "DovedeCityStop_key")
+}
+
+/// Журнал попиту: які пари точок у місті питають і чи є на них відповідь — з нього фонове навчання бере роботу
+model DovedeCityDemand {
+  id          Int      @id @default(autoincrement())
+  createdAt   DateTime @default(now())
+  cityCode    String
+  fromKey     String
+  toKey       String
+  fromLabel   String
+  toLabel     String
+  asked       Int      @default(1)
+  answered    Boolean  @default(false)
+  lastAskedAt DateTime
+
+  @@unique([cityCode, fromKey, toKey], map: "DovedeCityDemand_key")
+}
+
 /// «Доведе» — журнал розуміння питань (Docs/dovede-roadmap.md, фаза 2): що зрозумів браузер, що — Claude,
 /// скільки це коштувало. Лише адмін; строк зберігання текстів визначимо перед публічним запуском (фаза 5).
 model DovedeQuery {

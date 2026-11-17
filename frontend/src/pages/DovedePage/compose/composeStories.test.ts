@@ -4,8 +4,9 @@ import type { Schedule, ViberListing } from '@/types';
 import { parseLocal } from '../nlu/parseLocal';
 import type { KyivNow } from '../nlu/types';
 import { placesInNote } from '../nlu/notePlaces';
-import { classify, composeStories, corridorCities, resolveDate, rideDepartures, ridesWanted } from './composeStories';
-import type { LocalPlanner, Story, StoryLeg } from './types';
+import { cityAsks, classify, composeStories, corridorCities, resolveDate, rideDepartures, ridesWanted } from './composeStories';
+import { shareText } from './narrate';
+import { cityAskKey, type CityRoute, type LocalPlanner, type Story, type StoryLeg } from './types';
 
 /** п'ятниця 13.11.2026, 14:20 */
 const NOW: KyivNow = { date: '2026-11-13', mins: 14 * 60 + 20 };
@@ -522,6 +523,85 @@ describe('Житомир ↔ Малин — між містами', () => {
     if (out.kind !== 'stories') throw new Error(out.kind);
     return out;
   };
+
+  describe('містом до місця, названого словами', () => {
+    const cityLeg = (st: Story) => st.legs.find((l): l is Extract<StoryLeg, { kind: 'city' }> => l.kind === 'city')!;
+    const route: CityRoute = {
+      source: 'google',
+      fromLabel: 'автовокзал Житомир-1',
+      toLabel: 'Польова 12',
+      minutes: 21,
+      fetchedAt: '2026-11-13T10:00:00.000Z',
+      steps: [
+        { kind: 'walk', minutes: 3, meters: 190 },
+        { kind: 'transit', minutes: 14, mode: 'BUS', line: '110', fromStop: 'Автовокзал', toStop: 'Агротехнічний коледж', stops: 6 },
+        { kind: 'walk', minutes: 1, meters: 50 },
+      ],
+    };
+
+    it('з Малина: відповіді сервера ще немає — крок із кнопкою Google Maps, час до висадки, і список «що спитати»', () => {
+      const out = run('з Малина в Житомир на Польову 12 завтра зранку', fromMalyn.slice(0, 1));
+      const st = out.stories[0];
+      const leg = cityLeg(st);
+      const ic = intercity(st);
+      expect(kinds(st).at(-1)).toBe('city');
+      expect(leg.route).toBeNull();
+      expect(leg.ask).toMatchObject({ city: 'Zhytomyr', from: 'zhytomyr.avtovokzal', to: 'Польова 12', date: '2026-11-14' });
+      expect(leg.ask.time).toMatch(/^\d\d:\d0$/);
+      expect(leg.mapsUrl).toContain(encodeURIComponent('Польова 12, Житомир').replace(/%20/g, '+'));
+      expect(st.arriveMins).toBe(ic.alightMins);
+      expect(st.endLabel).toBe('Житомир, Польова 12');
+      expect(st.endNote).toContain('час — до висадки');
+      expect(st.toLabel).toBe('Житомир, Польова 12');
+      expect(cityAsks(out)).toEqual([leg.ask]);
+      // спитали, відповіді немає — удруге не питаємо
+      expect(cityAsks(out, new Map([[cityAskKey(leg.ask), null]]))).toEqual([]);
+    });
+
+    it('з Малина: відповідь є — історія закінчується на місці, час прибуття з хвилинами міста, завжди «≈»', () => {
+      const first = run('з Малина в Житомир на Польову 12 завтра зранку', fromMalyn.slice(0, 1));
+      const ask = cityLeg(first.stories[0]).ask;
+      const out = run('з Малина в Житомир на Польову 12 завтра зранку', fromMalyn.slice(0, 1), { cityRoutes: new Map([[cityAskKey(ask), route]]) });
+      const st = out.stories[0];
+      const leg = cityLeg(st);
+      const ic = intercity(st);
+      expect(leg.route).toBe(route);
+      expect(leg.depMins).toBe(ic.alightMins);
+      expect(leg.arrMins).toBe(ic.alightMins + 21);
+      expect(st.arriveMins).toBe(ic.alightMins + 21);
+      expect(st.arriveApprox).toBe(true);
+      expect(st.endNote).toBeNull();
+      expect(st.transfers).toBe(1);
+      expect(st.lead).toContain('автобус 110');
+      expect(cityAsks(out)).toEqual([]);
+      expect(shareText(st, (id) => id, 'x')).toContain('автобус 110: «Автовокзал» → «Агротехнічний коледж», ≈ 14 хв');
+    });
+
+    it('з Житомира: спершу містом до автовокзалу — вийти на 7 хв раніше за дорогу містом', () => {
+      const q = 'з Житомира з вулиці Покровської в Малин сьогодні';
+      const first = run(q, toMalyn.slice(0, 1));
+      const ask = cityLeg(first.stories[0]).ask;
+      expect(kinds(first.stories[0])[0]).toBe('city');
+      // 15:50 − 7 хв запасу − 40 хв «на дорогу» → питаємо на 15:00
+      expect(ask).toEqual({ city: 'Zhytomyr', from: 'вулиця Покровська', to: 'zhytomyr.avtovokzal', date: '2026-11-13', time: '15:00' });
+      expect(first.stories[0].leaveMins).toBe(hm(15, 50));
+      const out = run(q, toMalyn.slice(0, 1), { cityRoutes: new Map([[cityAskKey(ask), route]]) });
+      const st = out.stories[0];
+      expect(st.leaveMins).toBe(hm(15, 50) - 7 - 21);
+      expect(cityLeg(st)).toMatchObject({ depMins: hm(15, 50) - 7 - 21, arrMins: hm(15, 50) - 7 });
+      expect(st.fromLabel).toBe('Житомир, вулиця Покровська');
+    });
+
+    it('Київ: місце словами — від точки висадки рейсу; назване метро лишається метро', () => {
+      const kyiv = [sched({ id: 71, route: 'Malyn-Kyiv', departureTime: '15:00', arrivalTime: '17:00', alightingPlace: 'м. Академмістечко' })];
+      const out = run('з Малина до Києва до Охматдиту сьогодні', kyiv);
+      const leg = cityLeg(out.stories[0]);
+      expect(leg.ask).toMatchObject({ city: 'Kyiv', to: 'Охматдиту' });
+      expect(leg.ask.from).toMatch(/^kyiv\./);
+      const metro = run('з Малина в Київ на Хрещатик сьогодні', kyiv);
+      expect(kinds(metro.stories[0])).not.toContain('city');
+    });
+  });
 
   it('з Житомира в Малин: посадка на автовокзалі, прибуття з розкладу, далі містом від автостанції', () => {
     const out = run('з Житомира в Малин на вокзал сьогодні', toMalyn.slice(0, 2));

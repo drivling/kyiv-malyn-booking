@@ -168,7 +168,7 @@ of `dist` in a commit.
   `eval/golden.json` is manual (`DOVEDE_EVAL=1`, `src/dovede/eval.test.ts`). Page UX (`DovedePage/ui/`):
   `QueryField` highlights recognised words in a layer under the transparent textarea and suggests gazetteer places
   for the word at the caret (`suggest.ts` — every inserted form must parse back to its place, a test checks it);
-  `SlotSheet` edits one slot of the «Розумію…» row; the answer is built from ids in the URL (`url.ts`, `?f=&t=&d=&h=&a=&p=&m=&r=&x=`);
+  `SlotSheet` edits one slot of the «Розумію…» row; the answer is built from ids in the URL (`url.ts`, `?f=&t=&fd=&td=&d=&h=&a=&p=&m=&r=&x=`);
   the question's words always ride along in `q=` in full (owner's decision: a reload or a shared link shows the same
   highlighted phrase and the same answer; the house number is read back from those words). Opening a link never calls
   Claude. The tab also keeps its question in sessionStorage (`rememberQuestion` / `recallQuestion`) as a fallback. Slot edits and id links do not call Claude.
@@ -221,6 +221,23 @@ of `dist` in a commit.
   Google Maps link. Schedules from Malyn carry no arrival time or price, so the arrival is an
   estimate by the path in the route slug (via Потіївка / Радомишль / through routes) and always «≈»; through routes to
   Базар read the Malyn time from the boarding text. No elektrichka there; rides use `defaultCarMinutes(far)`.
+  City transport in Kyiv and Zhytomyr (stage 3а): a place inside the far city named in words («в Житомир на Польову 12»,
+  «до Києва до Охматдиту») is `PlaceRef.detail` — only together with `city.Kyiv` / `city.Zhytomyr` (dictionary:
+  `farDetails` in `nlu/parseLocal.ts`, words right after the city name, put into the nominative; Claude: the `detail`
+  field of the schema; URL `fd=` / `td=`). The composer adds a story step `kind: 'city'` (`cityStep`: from the point
+  where the intercity trip arrives, or to the boarding point with a 7-minute buffer) and the page asks the server for
+  what is missing in up to three rounds (`cityAsks` → `GET /dovede/city-route` → compose again); no answer = the old
+  Google Maps button. Card `ui/CityLegCard.tsx`. Server `backend/src/dovede/city-route.ts`: a stored answer of the same
+  pair, day type and hour ± 1 not older than 30 days is served from `DovedeCityRoute` (`source: 'stored'`), otherwise
+  Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`, `DOVEDE_CITY_DAILY_CAP` 150) and the route, its lines
+  (`DovedeCityLine`), stops (`DovedeCityStop`) and the demand (`DovedeCityDemand`) are written to the DB. **Owner's
+  decisions (2026-11-17):** Google answers are stored under his own contract with Google (switch `DOVEDE_CITY_STORE=0`,
+  `DOVEDE_CITY_ROUTES=off`); «за даними Google» is shown only on an answer that has just come from Google, a stored one
+  shows «перевірено N днів тому»; **these tables are never deleted from — only archived** (`archivedAt`,
+  `POST /admin/dovede/city/archive { action: archive | restore }`; archived rows are neither served nor refreshed).
+  Background learning: `startIntervalJob('dovede-city-learn')` (`DOVEDE_CITY_LEARN_INTERVAL_MIN`, default 60) refreshes
+  the most asked pairs and `SEED_PAIRS` within half of the daily cap. Admin block «Місто: що вже знаємо»
+  (`AdminPage/DovedeCityPanel.tsx`, `GET /admin/dovede/city`). Golden `scope: city`.
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
   listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
   `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:

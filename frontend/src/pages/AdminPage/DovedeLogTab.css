@@ -310,3 +310,19 @@
   margin-top: 6px;
   color: #3d4950;
 }
+
+/* «Місто: що вже знаємо» */
+.dovede-city h4 {
+  margin: 14px 0 6px;
+  font-size: 14px;
+}
+.dovede-city-demand {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.dovede-city .dovede-log-chips {
+  flex-wrap: wrap;
+  margin-top: 10px;
+}

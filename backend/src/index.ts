@@ -1,3 +1,4 @@
+import { cityRoutesFromEnv } from './dovede/city-route';
 import { PrismaClient } from '@prisma/client';
 import { CODE_VERSION, createApp, getRegisteredRoutes } from './create-app';
 import {
@@ -31,6 +32,7 @@ function main(): void {
   let archiveJob: IntervalJob | null = null;
   let reminderJob: IntervalJob | null = null;
   let sourceWatchJob: IntervalJob | null = null;
+  let cityLearnJob: IntervalJob | null = null;
   const app = createApp({ prisma });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {
@@ -129,6 +131,17 @@ function main(): void {
         },
         { intervalMin: Number(process.env.TRANSPORT_SOURCE_WATCH_INTERVAL_MIN ?? 360), firstDelayMs: 5 * 60_000 },
       );
+      // «Доведе»: поступове навчання дороги містом (Київ, Житомир) — найзапитуваніші пари без свіжої відповіді,
+      // у межах половини денного ліміту Google; DOVEDE_CITY_LEARN_INTERVAL_MIN (за замовч. 60, 0 = вимкнено)
+      const cityRoutes = cityRoutesFromEnv(prisma);
+      cityLearnJob = startIntervalJob(
+        'dovede-city-learn',
+        async () => {
+          const r = await cityRoutes.learnTick();
+          if (r.asked) console.log(`🧭 Доведе · місто: спитано ${r.asked}, вивчено ${r.learned}`);
+        },
+        { intervalMin: Number(process.env.DOVEDE_CITY_LEARN_INTERVAL_MIN ?? 60), firstDelayMs: 15 * 60_000 },
+      );
     }
   });
 
@@ -140,6 +153,7 @@ function main(): void {
     archiveJob?.stop();
     reminderJob?.stop();
     sourceWatchJob?.stop();
+    cityLearnJob?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);
     await lease?.stop();

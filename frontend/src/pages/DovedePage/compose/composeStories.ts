@@ -25,13 +25,13 @@ import { clock, leadFor } from './narrate';
 import type { RouteLike } from '../nlu/routes';
 import type { Endpoint } from '@/pages/LocalTransportPage/journey';
 import type { NoteDir, NotePlaces } from '../nlu/notePlaces';
-import type { ComposeOutcome, LocalPlanner, PoputkaRide, PriceLine, RouteBoard, RouteInfoItem, Story, StoryLeg } from './types';
+import { cityAskKey, type CityAsk, type CityRoute, type ComposeOutcome, type LocalPlanner, type PoputkaRide, type PriceLine, type RouteBoard, type RouteInfoItem, type Story, type StoryLeg } from './types';
 
 // ─── Форма поїздки ────────────────────────────────────────────────────────────────────────────
 
 export type TripShape =
-  | { kind: 'to_malyn'; far: FarCity; kyivPoint: string | null; dest: GazetteerPlace }
-  | { kind: 'from_malyn'; far: FarCity; origin: GazetteerPlace; kyivPoint: string | null }
+  | { kind: 'to_malyn'; far: FarCity; kyivPoint: string | null; dest: GazetteerPlace; detail?: string | null }
+  | { kind: 'from_malyn'; far: FarCity; origin: GazetteerPlace; kyivPoint: string | null; detail?: string | null }
   | { kind: 'intra'; origin: GazetteerPlace; dest: GazetteerPlace }
   | { kind: 'ask_from'; dest: GazetteerPlace }
   | { kind: 'ask_to' }
@@ -79,17 +79,17 @@ export function classify(intent: TripIntent): TripShape {
   }
   if (to.city === 'Kyiv') {
     // рідне місто сайту — Малин: «мені в Київ» = з Малина
-    if (!from || from.city === 'Malyn') return { kind: 'from_malyn', far: 'Kyiv', origin: from ?? MALYN, kyivPoint: to.isCity ? null : to.id };
+    if (!from || from.city === 'Malyn') return { kind: 'from_malyn', far: 'Kyiv', origin: from ?? MALYN, kyivPoint: to.isCity ? null : to.id, detail: to.isCity ? intent.to?.detail ?? null : null };
     return { kind: 'outside', city: from.city };
   }
-  // Житомир ↔ Малин — поки лише між містами: до автовокзалу Житомира й з нього
+  // Житомир ↔ Малин: між містами — до автовокзалу Житомира й з нього; далі містом — крок `city`
   if (to.city === 'Zhytomyr') {
-    if (!from || from.city === 'Malyn') return { kind: 'from_malyn', far: 'Zhytomyr', origin: from ?? MALYN, kyivPoint: null };
+    if (!from || from.city === 'Malyn') return { kind: 'from_malyn', far: 'Zhytomyr', origin: from ?? MALYN, kyivPoint: null, detail: intent.to?.detail ?? null };
     return { kind: 'outside', city: from.city };
   }
   if (to.city === 'Malyn') {
-    if (from?.city === 'Kyiv') return { kind: 'to_malyn', far: 'Kyiv', kyivPoint: from.isCity ? null : from.id, dest: to };
-    if (from?.city === 'Zhytomyr') return { kind: 'to_malyn', far: 'Zhytomyr', kyivPoint: null, dest: to };
+    if (from?.city === 'Kyiv') return { kind: 'to_malyn', far: 'Kyiv', kyivPoint: from.isCity ? null : from.id, dest: to, detail: from.isCity ? intent.from?.detail ?? null : null };
+    if (from?.city === 'Zhytomyr') return { kind: 'to_malyn', far: 'Zhytomyr', kyivPoint: null, dest: to, detail: intent.from?.detail ?? null };
     if (from?.city === 'Malyn') return { kind: 'intra', origin: from.isCity ? CENTRE : from, dest: to.isCity ? CENTRE : to };
     if (from) return { kind: 'outside', city: from.city };
     return { kind: 'ask_from', dest: to };
@@ -330,6 +330,54 @@ function kyivStep(fromId: string, toId: string, anchor: 'from' | 'until', mins: 
   };
 }
 
+/** Запас перед посадкою на міжміський рейс після дороги містом, хв */
+const CITY_BOARD_BUFFER = 7;
+/** Для «встигнути до» ще не знаємо, скільки їхати містом, — питаємо дорогу на цей час раніше */
+const CITY_LOOKBACK = 40;
+
+/** Точка далекого міста, куди привозить (і звідки забирає) міжміський рейс: id для сервера, назва, запит для Google Maps */
+function farPoint(far: FarCity, kyivPoint: string | null): { id: string; label: string; maps: string | null } | null {
+  if (far === 'Zhytomyr') return { id: 'zhytomyr.avtovokzal', label: ZHYTOMYR_STATION.name, maps: ZHYTOMYR_STATION.maps };
+  const p = kyivPoint ? KYIV_POINTS[kyivPoint] : null;
+  return p && kyivPoint ? { id: kyivPoint, label: p.label, maps: p.mapsQuery ?? null } : null;
+}
+
+/**
+ * Крок містом до місця, названого словами. Кроки дає сервер: складальник лише каже, що спитати (`ask`), і
+ * підставляє відповідь, коли сторінка її принесла (`cityRoutes`). Без відповіді — кнопка Google Maps, час 0.
+ */
+function cityStep(
+  input: Pick<ComposeInput, 'date' | 'cityRoutes'>,
+  far: FarCity,
+  point: { id: string; label: string; maps: string | null },
+  detail: string,
+  anchor: 'from' | 'until',
+  mins: number,
+): { leg: StoryLeg; minutes: number } {
+  const cityName = CITY_LABEL[far];
+  const there = `${detail}, ${cityName}`;
+  const at = Math.floor((((anchor === 'from' ? mins : mins - CITY_LOOKBACK) % 1440) + 1440) % 1440 / 10) * 10;
+  const ask: CityAsk = { city: far, from: anchor === 'from' ? point.id : detail, to: anchor === 'from' ? detail : point.id, date: input.date, time: clock(at) };
+  const route: CityRoute | null = input.cityRoutes?.get(cityAskKey(ask)) ?? null;
+  const minutes = route ? route.minutes : 0;
+  const dep = anchor === 'from' ? mins : mins - minutes;
+  return {
+    leg: {
+      kind: 'city',
+      city: far,
+      cityName,
+      ask,
+      fromLabel: anchor === 'from' ? point.label : detail,
+      toLabel: anchor === 'from' ? detail : point.label,
+      route,
+      depMins: route ? dep : null,
+      arrMins: route ? dep + minutes : null,
+      mapsUrl: anchor === 'from' ? mapsTransitUrl(point.maps, there) : mapsTransitUrl(there, point.maps),
+    },
+    minutes,
+  };
+}
+
 const METRO_CLOSED_NOTE = 'метро о цій порі не працює (05:30–23:00)';
 
 // ─── Варіанти ─────────────────────────────────────────────────────────────────────────────────
@@ -404,7 +452,7 @@ function intercityLeg(
 }
 
 function busTransfers(legs: StoryLeg[]): number {
-  return legs.filter((l) => l.kind === 'bus' || l.kind === 'intercity' || l.kind === 'ride' || l.kind === 'metro').length - 1;
+  return legs.filter((l) => l.kind === 'bus' || l.kind === 'intercity' || l.kind === 'ride' || l.kind === 'metro').length + legs.reduce((n, l) => n + (l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit').length : 0), 0) - 1;
 }
 
 function makeStory(id: string, mode: Story['mode'], date: string, fromLabel: string, toLabel: string, legs: StoryLeg[], o: {
@@ -439,7 +487,7 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
   const out: Option[] = [];
   const dest = shape.dest;
   const destSpot = spotOf(planner, dest);
-  const fromLabel = shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[shape.far];
+  const fromLabel = shape.detail ? `${CITY_LABEL[shape.far]}, ${shape.detail}` : shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[shape.far];
   for (const trip of intercityTrips(input.schedules, 'to_malyn', date, shape.far)) {
     if (!modeAllowed(trip.mode, input.intent.modes)) continue;
     const anchor = anchorFor('to_malyn', trip.mode, shape.far);
@@ -460,6 +508,13 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
         kyivLead = step.minutes;
         kyivLeg = step.leg;
       }
+    }
+    // місце в далекому місті словами: спершу містом до посадки
+    const boardPoint = shape.detail ? farPoint(shape.far, bp) : null;
+    if (shape.detail && boardPoint) {
+      const step = cityStep(input, shape.far, boardPoint, shape.detail, 'until', trip.depMins - CITY_BOARD_BUFFER);
+      kyivLeg = step.leg;
+      kyivLead = step.minutes ? step.minutes + CITY_BOARD_BUFFER : 0;
     }
     // Малин: найкраща точка виходу
     let best: MalynPick | null = null;
@@ -518,7 +573,7 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
   const out: Option[] = [];
   const origin = shape.origin;
   const originSpot = origin.isCity ? null : spotOf(planner, origin);
-  const toLabel = shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[shape.far];
+  const toLabel = shape.detail ? `${CITY_LABEL[shape.far]}, ${shape.detail}` : shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[shape.far];
   for (const trip of intercityTrips(input.schedules, 'from_malyn', date, shape.far)) {
     if (!modeAllowed(trip.mode, input.intent.modes)) continue;
     const anchor = anchorFor('from_malyn', trip.mode, shape.far);
@@ -555,7 +610,19 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
     let kyivLeg: StoryLeg | null = null;
     const target = shape.kyivPoint;
     const ap = trip.kyivPoint;
-    if (target && ap && target !== ap) {
+    const alightPoint = shape.detail ? farPoint(shape.far, ap) : null;
+    if (shape.detail && alightPoint) {
+      // місце в далекому місті словами: кінець історії — воно; без відповіді сервера час лишається до висадки
+      const step = cityStep(input, shape.far, alightPoint, shape.detail, 'from', arrive);
+      kyivLeg = step.leg;
+      endLabel = shape.detail;
+      if (step.minutes) {
+        arrive += step.minutes;
+        approx = true;
+      } else {
+        endNote = `час — до висадки ${alightText.at}`;
+      }
+    } else if (target && ap && target !== ap) {
       const passes = trip.mode === 'elektrichka' && TRAIN_POS[target] != null && TRAIN_POS[ap] != null && TRAIN_POS[target] > TRAIN_POS[ap];
       if (passes) {
         arrive = trip.arrMins - (TRAIN_POS[target] - TRAIN_POS[ap]);
@@ -857,7 +924,14 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     let end = arr;
     let endLabel = kyivText ? `Київ, ${kyivText.name}` : CITY_LABEL[far];
     let endNote: string | null = null;
-    if (kyiv && target && target !== kyiv) {
+    const dropPoint = shape.detail ? farPoint(far, kyiv ?? null) : null;
+    if (shape.detail && dropPoint) {
+      const step = cityStep(input, far, dropPoint, shape.detail, 'from', arr);
+      kyivLeg = step.leg;
+      endLabel = `${CITY_LABEL[far]}, ${shape.detail}`;
+      if (step.minutes) end = arr + step.minutes;
+      else endNote = `час — до висадки ${kyivText?.at ?? farUsual.at}`;
+    } else if (kyiv && target && target !== kyiv) {
       const step = kyivStep(kyiv, target, 'from', arr, date, `Далі до: ${KYIV_POINTS[target]?.label ?? 'місця'}`);
       kyivLeg = step.leg;
       endLabel = `Київ, ${KYIV_POINTS[target]?.label ?? kyivText!.name}`;
@@ -867,7 +941,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
       kyivLeg = { kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[kyiv].mapsQuery, null) };
     }
     const legs: StoryLeg[] = [...before, leg(from, malyn.assumed && !door, kyivText?.at ?? farUsual.at, !kyiv), ...(kyivLeg ? [kyivLeg] : [])];
-    const story = makeStory(`ride-${l.id}`, 'poputka', date, placeLabel(origin), shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[far], legs, {
+    const story = makeStory(`ride-${l.id}`, 'poputka', date, placeLabel(origin), shape.detail ? `${CITY_LABEL[far]}, ${shape.detail}` : shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[far], legs, {
       leave,
       arrive: end,
       approx: true,
@@ -1017,6 +1091,20 @@ export interface ComposeInput {
   driveMinutes?: (depMins: number) => DriveEstimate;
   /** місця в примітці водія (nlu/notePlaces з індексом зупинок сторінки) */
   notePlaces?: (note: string, dir: NoteDir) => NotePlaces;
+  /** дороги містом, які сторінка вже спитала в сервера (ключ — `cityAskKey`); null — спитали, відповіді немає */
+  cityRoutes?: ReadonlyMap<string, CityRoute | null>;
+}
+
+/** Дороги містом, яких бракує показаним історіям: сторінка питає їх у сервера і складає відповідь ще раз */
+export function cityAsks(outcome: ComposeOutcome, known?: ReadonlyMap<string, CityRoute | null>): CityAsk[] {
+  if (outcome.kind !== 'stories') return [];
+  const out = new Map<string, CityAsk>();
+  for (const s of outcome.stories) {
+    for (const l of s.legs) {
+      if (l.kind === 'city' && !l.route && !known?.has(cityAskKey(l.ask))) out.set(cityAskKey(l.ask), l.ask);
+    }
+  }
+  return [...out.values()];
 }
 
 export function composeStories(input: ComposeInput, shape: TripShape = classify(input.intent)): ComposeOutcome {

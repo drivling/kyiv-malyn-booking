@@ -38,7 +38,12 @@ export interface TripWhen {
 export interface PlaceRef {
   id: string;
   text: string;
+  /** місце всередині Києва чи Житомира, якого немає у словнику («Польова 12», «Охматдит»); лише з id міста */
+  detail?: string;
 }
+
+/** Міста, всередині яких «Доведе» шукає дорогу до місця, названого словами (dovede/city-route.ts) */
+export const DETAIL_CITY_IDS = new Set(['city.Kyiv', 'city.Zhytomyr']);
 
 export interface TripIntent {
   /** route — питання про сам маршрут («куди їде №5») */
@@ -68,8 +73,14 @@ const PLACE_REF_SCHEMA = {
       properties: {
         id: { type: 'string', description: 'id зі словника місць, точно як у списку' },
         text: { type: 'string', description: 'як це місце назвала людина' },
+        detail: {
+          anyOf: [
+            { type: 'string', description: 'лише з city.Kyiv або city.Zhytomyr: місце в цьому місті, якого немає у списках, у називному відмінку' },
+            { type: 'null' },
+          ],
+        },
       },
-      required: ['id', 'text'],
+      required: ['id', 'text', 'detail'],
       additionalProperties: false,
     },
     { type: 'null' },
@@ -142,7 +153,8 @@ export function validateIntent(raw: unknown, stopIds?: ReadonlySet<string>, rout
       pushUnknown(text || id.slice(0, MAX_TEXT));
       return null;
     }
-    return { id, text: text || id };
+    const detail = DETAIL_CITY_IDS.has(id) ? clip(p.detail) : '';
+    return { id, text: text || id, ...(detail.length >= 2 ? { detail } : {}) };
   };
   const from = place(o.from);
   const to = place(o.to);

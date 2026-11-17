@@ -17,6 +17,9 @@ export function sameAnswer(a: TripIntent, b: TripIntent): boolean {
     kind(a.intent) === kind(b.intent) &&
     (a.from?.id ?? null) === (b.from?.id ?? null) &&
     (a.to?.id ?? null) === (b.to?.id ?? null) &&
+    // місце в іншому місті словами пишуть у різних відмінках — звіряємо лише, чи воно названо
+    Boolean(a.from?.detail) === Boolean(b.from?.detail) &&
+    Boolean(a.to?.detail) === Boolean(b.to?.detail) &&
     a.when.day === b.when.day &&
     (a.when.time ?? null) === (b.when.time ?? null) &&
     (a.when.part ?? null) === (b.when.part ?? null) &&

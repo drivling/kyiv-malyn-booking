@@ -9,6 +9,13 @@ export function clock(mins: number, approx = false): string {
   return `${approx ? '≈' : ''}${minsToClock(mins)}`;
 }
 
+const CITY_MODE: Record<string, string> = { BUS: 'автобус', TROLLEYBUS: 'тролейбус', TRAM: 'трамвай', SUBWAY: 'метро', SHARE_TAXI: 'маршрутка', COMMUTER_TRAIN: 'електричка' };
+
+/** Вид міського транспорту словом; номер поруч пишемо без «№» — у метро це «1», у маршрутки «110» */
+export function cityModeName(mode: string | undefined): string {
+  return CITY_MODE[mode ?? ''] ?? 'транспорт';
+}
+
 function cap(s: string): string {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
@@ -21,6 +28,10 @@ function legPhrase(l: StoryLeg): string | null {
   if (l.kind === 'bus') return `автобус №${routeNo(l.routeId)} о ${clock(l.depMins)}`;
   if (l.kind === 'metro') return l.closed ? null : `метро до «${l.segments[l.segments.length - 1].to.name}»`;
   if (l.kind === 'ride') return `попутка о ${clock(l.depMins)} ${l.boardLabel}`;
+  if (l.kind === 'city' && l.route) {
+    const rides = l.route.steps.filter((x) => x.kind === 'transit');
+    return rides.length ? `${l.cityName === 'Київ' ? 'Києвом' : 'містом'} — ${rides.map((x) => `${cityModeName(x.mode)} ${x.line ?? ''}`.trim()).join(', ')}` : `пішки до «${l.toLabel}»`;
+  }
   return null;
 }
 
@@ -53,6 +64,14 @@ export function shareText(story: Story, stopName: (id: string) => string, header
     } else if (l.kind === 'ride') {
       // телефону тут немає: номер людина відриває сама на сторінці
       lines.push(`${clock(l.depMins)} — попутка ${l.boardLabel}${l.ride.priceUah ? `, ${l.ride.priceUah} ₴` : ''} (місце уточніть у водія)`);
+    } else if (l.kind === 'city') {
+      if (!l.route) lines.push(`далі містом (${l.cityName}): ${l.fromLabel} → ${l.toLabel}`);
+      else {
+        for (const x of l.route.steps) {
+          if (x.kind === 'walk') lines.push(`пішки${x.meters ? ` ${x.meters} м` : ''}, ≈ ${x.minutes} хв`);
+          else lines.push(`${cityModeName(x.mode)} ${x.line ?? ''}`.trim() + `: «${x.fromStop ?? '?'}» → «${x.toStop ?? '?'}», ≈ ${x.minutes} хв`);
+        }
+      }
     } else if (l.kind === 'walk') {
       lines.push(`пішки ${l.meters} м${l.toLabel ? ` до «${l.toLabel}»` : ''}`);
     }

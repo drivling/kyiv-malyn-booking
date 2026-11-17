@@ -21,6 +21,11 @@ export function stripSegments(story: Story): Segment[] {
     } else if (leg.kind === 'metro') {
       if (!leg.closed) out.push({ start: leg.depMins, end: leg.arrMins, cls: 'metro', style: { background: METRO_LINE[leg.segments[0].line].color } });
       cursor = Math.max(cursor, leg.arrMins);
+    } else if (leg.kind === 'city') {
+      if (leg.route && leg.depMins != null && leg.arrMins != null) {
+        out.push({ start: leg.depMins, end: leg.arrMins, cls: leg.route.steps.some((x) => x.kind === 'transit') ? 'city' : 'walk' });
+        cursor = Math.max(cursor, leg.arrMins);
+      }
     } else if (leg.kind === 'ride') {
       out.push({ start: leg.depMins, end: leg.arrMins, cls: 'poputka' });
       cursor = leg.arrMins;

@@ -1,5 +1,5 @@
 /**
- * Адреса відповіді (Docs/dovede-roadmap.md, принцип 7). Відповідь будується з id: `?f=&t=&d=&h=&m=` (+ `a=1` —
+ * Адреса відповіді (Docs/dovede-roadmap.md, принцип 7). Відповідь будується з id: `?f=&t=&d=&h=&m=` (+ `fd=` / `td=` — місце словами в Києві чи Житомирі, `a=1` —
  * «прибути до», `p=` — частина дня, `r=` — маршрути, `x=` — маршрути, яких уникати). Слова людини завжди йдуть у
  * `q=` цілком: посилання відкриває ту саму фразу з підсвіткою й ту саму відповідь (номер будинку береться з цих
  * слів). Рішення власника 2026-11-13: людина сама вирішує, кому надсилати посилання зі своєю адресою.
@@ -13,7 +13,10 @@ const MODES: TripMode[] = ['marshrutka', 'elektrichka', 'poputka', 'city_bus'];
 const PARTS = ['morning', 'day', 'evening'] as const;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
-export const DOVEDE_URL_KEYS = ['f', 't', 'd', 'h', 'a', 'p', 'm', 'r', 'x', 'q'] as const;
+export const DOVEDE_URL_KEYS = ['f', 't', 'fd', 'td', 'd', 'h', 'a', 'p', 'm', 'r', 'x', 'q'] as const;
+/** Міста, де до місця «словами» веде сервер (`fd=` / `td=` — це місце) */
+const DETAIL_CITIES = new Set(['city.Kyiv', 'city.Zhytomyr']);
+const MAX_DETAIL = 80;
 /** Найдовше питання, яке приймає сторінка й сервер */
 const MAX_QUESTION = 300;
 const ROUTE_ID_RE = /^[\w-]{1,12}$/;
@@ -24,6 +27,8 @@ export function intentToParams(intent: TripIntent, date: string): URLSearchParam
   // вулиця — без номера будинку: домашня адреса в посиланні не лишається
   if (intent.from) q.set('f', streetIdForUrl(intent.from.id));
   if (intent.to) q.set('t', streetIdForUrl(intent.to.id));
+  if (intent.from?.detail) q.set('fd', intent.from.detail);
+  if (intent.to?.detail) q.set('td', intent.to.detail);
   q.set('d', date);
   if (intent.when.time) {
     q.set('h', intent.when.time);
@@ -39,7 +44,9 @@ export function intentToParams(intent: TripIntent, date: string): URLSearchParam
 export function paramsToIntent(q: URLSearchParams, now: KyivNow): TripIntent | null {
   const place = (key: 'f' | 't') => {
     const p = resolvePlace(q.get(key) ?? '');
-    return p ? { id: p.id, text: p.label } : null;
+    if (!p) return null;
+    const detail = DETAIL_CITIES.has(p.id) ? (q.get(`${key}d`) ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_DETAIL) : '';
+    return { id: p.id, text: p.label, ...(detail.length >= 2 ? { detail } : {}) };
   };
   const from = place('f');
   const to = place('t');

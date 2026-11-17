@@ -19,9 +19,11 @@ interface GoldenCase {
   expect: Partial<Omit<TripIntent, 'from' | 'to' | 'when'>> & {
     from?: string | null;
     to?: string | null;
+    fromDetail?: boolean;
+    toDetail?: boolean;
     when?: Partial<TripIntent['when']>;
   };
-  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'zhytomyr' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'zhytomyr' | 'city' | 'later';
 }
 
 /** Порівнюємо лише поля з expect; повертаємо [збіглося, усього, що не так] */
@@ -44,6 +46,8 @@ function grade(c: GoldenCase): [number, number, string[]] {
   const bare = (id: string | undefined) => (id?.startsWith('street.') ? id.split(':')[0] : id) ?? null;
   if (e.from !== undefined) check('from', bare(got.from?.id), e.from);
   if (e.to !== undefined) check('to', bare(got.to?.id), e.to);
+  if (e.fromDetail !== undefined) check('fromDetail', Boolean(got.from?.detail), e.fromDetail);
+  if (e.toDetail !== undefined) check('toDetail', Boolean(got.to?.detail), e.toDetail);
   for (const k of ['day', 'time', 'kind', 'part'] as const) {
     if (e.when?.[k] !== undefined) check(`when.${k}`, got.when[k], e.when[k]);
   }
@@ -134,6 +138,40 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
       }
     }
     expect(misses).toEqual([]);
+  });
+
+  it('місце словами в Києві чи Житомирі (scope city): словник у браузері розуміє ≥ 80 % слотів', () => {
+    let ok = 0;
+    let total = 0;
+    const misses: string[] = [];
+    for (const c of cases.filter((x) => x.scope === 'city')) {
+      const [o, t, why] = grade(c);
+      ok += o;
+      total += t;
+      if (why.length) misses.push(`${c.id} «${c.text}»: ${why.join('; ')}`);
+    }
+    if (misses.length) console.info(`parseLocal, місто: ${ok}/${total}\n  ${misses.join('\n  ')}`);
+    expect(ok / total).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it('місце в далекому місті: у називному, з номером будинку; час, транспорт і відомі місця ним не стають', () => {
+    const to = (q: string) => parseLocal(q, NOW, STOP_INDEX).intent.to;
+    expect(to('з Малина в Житомир на Польову 12')).toMatchObject({ id: 'city.Zhytomyr', detail: 'Польова 12' });
+    expect(to('з Малина до Житомира до обласної лікарні')).toMatchObject({ id: 'city.Zhytomyr', detail: 'обласна лікарня' });
+    expect(to('з Малина в Київ на вулицю Січових Стрільців 10 о 9')).toMatchObject({ id: 'city.Kyiv', detail: 'вулиця Січових Стрільців 10' });
+    expect(to('в Житомир, вул. Київська 77 завтра')).toMatchObject({ id: 'city.Zhytomyr', detail: 'вул. Київська 77' });
+    expect(parseLocal('з Житомира з вулиці Покровської в Малин', NOW, STOP_INDEX).intent.from).toMatchObject({ id: 'city.Zhytomyr', detail: 'вулиця Покровська' });
+    // «Польова» є й у Малині — але сказано «в Житомир»: це житомирська
+    expect(parseLocal('з Малина в Житомир на Польову 12', NOW, STOP_INDEX).intent.confidence).toBe('high');
+    for (const q of ['з Малина в Житомир на завтра', 'з Малина в Житомир на 8 ранку', 'з Малина в Житомир на маршрутці', 'з Малина в Житомир на автовокзал', 'з Малина в Житомир']) {
+      expect(to(q), q).toEqual(expect.objectContaining({ id: 'city.Zhytomyr' }));
+      expect(to(q)?.detail, q).toBeUndefined();
+    }
+    expect(to('з Малина в Київ на Святошин')).toMatchObject({ id: 'kyiv.sviatoshyn' });
+    expect(to('з Малина до Києва на вокзал')).toMatchObject({ id: 'kyiv.pas' });
+    // підсвітка: слова про місце — частина «куди»
+    const spans = parseLocal('з Малина в Житомир на Польову 12', NOW, STOP_INDEX).spans.filter((x) => x.kind === 'to');
+    expect(spans.some((x) => 'з Малина в Житомир на Польову 12'.slice(x.start, x.end) === 'на Польову 12')).toBe(true);
   });
 
   it('усі id у еталонах є в словнику', () => {

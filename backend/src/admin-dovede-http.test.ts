@@ -13,6 +13,7 @@ import { validateIntent, type TripIntent } from './dovede/intent';
 import type { UnderstandFn, UnderstandResult } from './dovede/understand';
 import express from 'express';
 import type { DriveTimeFn } from './drive-time';
+import type { CityRoutes, CityRouteQuery } from './dovede/city-route';
 import { setAdminPassword } from './middleware/require-admin';
 
 const PASSWORD = 'http-test-admin-password-dovede';
@@ -87,7 +88,7 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
   return { prisma, rows, countWhere, synonymRows };
 }
 
-function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null; enabled?: boolean; cap?: number; driveTime?: DriveTimeFn }) {
+function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null; enabled?: boolean; cap?: number; driveTime?: DriveTimeFn; cityRoutes?: CityRoutes }) {
   const app = express();
   app.use(express.json());
   setAdminPassword(app, PASSWORD);
@@ -99,6 +100,7 @@ function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null;
       dailyCap: () => opts.cap ?? 300,
       now: () => new Date('2026-11-13T12:20:00.000Z'),
       driveTime: opts.driveTime ?? (async ({ fixedMinutes }) => ({ minutes: fixedMinutes, source: 'fixed' })),
+      ...(opts.cityRoutes ? { cityRoutes: opts.cityRoutes } : {}),
     }),
   );
   return app;
@@ -511,4 +513,50 @@ test('звідки забирають: чужі контакти з приміт
   assert.equal(pickupNote('t.me/abc ; (вівторок)'), '(вівторок)');
   assert.equal(pickupNote('о 8.00 від  метро'), 'о 8.00 від метро');
   assert.equal(pickupNote(null), '');
+});
+
+test('дорога містом: лише з доступом; час за Києвом переводиться в UTC; будь-яка невдача — 200 з fallback', async () => {
+  const asked: CityRouteQuery[] = [];
+  let fail = false;
+  const cityRoutes = {
+    find: async (q: CityRouteQuery) => {
+      asked.push(q);
+      if (fail) throw new Error('db down');
+      return { ok: true, source: 'stored', city: q.city, fromLabel: 'автовокзал Житомир-1', toLabel: q.to, steps: [{ kind: 'walk', minutes: 4, meters: 300 }], minutes: 4, fetchedAt: '2026-11-17T08:00:00.000Z' };
+    },
+  } as unknown as CityRoutes;
+  const app = appWith({ prisma: {} as PrismaClient, cityRoutes });
+  const url = '/dovede/city-route?city=Zhytomyr&from=zhytomyr.avtovokzal&to=%D0%9F%D0%BE%D0%BB%D1%8C%D0%BE%D0%B2%D0%B0&date=2026-11-18&time=09:20';
+  assert.equal((await request(app).get(url)).status, 401);
+
+  const res = await request(app).get(url).set('Authorization', AUTH);
+  assert.equal(res.status, 200);
+  assert.equal(res.headers['cache-control'], 'private, no-store');
+  assert.deepEqual([res.body.ok, res.body.source, res.body.minutes], [true, 'stored', 4]);
+  assert.deepEqual([asked[0].city, asked[0].to, asked[0].time, asked[0].departAt.toISOString()], ['Zhytomyr', 'Польова', '09:20', '2026-11-18T07:20:00.000Z']);
+
+  fail = true;
+  assert.deepEqual((await request(app).get(url).set('Authorization', AUTH)).body, { ok: false, fallback: 'maps', reason: 'error' });
+  for (const bad of ['city=Malyn&from=a&to=b&date=2026-11-18&time=09:20', 'city=Kyiv&from=a&to=b&date=18.11&time=09:20', 'city=Kyiv&from=a&date=2026-11-18&time=09:20', 'city=Kyiv&from=a&to=b&date=2026-11-18&time=9']) {
+    assert.equal((await request(app).get(`/dovede/city-route?${bad}`).set('Authorization', AUTH)).status, 400);
+  }
+});
+
+test('місто в адмінці: лише адмін; зведення, крок навчання, архів і відновлення — нічого не видаляється', async () => {
+  const done: string[] = [];
+  const cityRoutes = {
+    stats: async () => ({ callsToday: 3, dailyCap: 150, archivedRoutes: 0, routes: [], lines: [], stops: [], demand: [] }),
+    learnTick: async (n: number) => (done.push(`learn:${n}`), { asked: 2, learned: 1 }),
+    archiveGoogle: async () => (done.push('archive'), { routes: 5, lines: 3, stops: 9 }),
+    restoreGoogle: async () => (done.push('restore'), { routes: 5, lines: 3, stops: 9 }),
+  } as unknown as CityRoutes;
+  const app = appWith({ prisma: {} as PrismaClient, cityRoutes });
+  assert.equal((await request(app).get('/admin/dovede/city')).status, 401);
+  assert.equal((await request(app).post('/admin/dovede/city/archive').send({ action: 'archive' })).status, 401);
+  assert.equal((await request(app).get('/admin/dovede/city').set('Authorization', AUTH)).body.callsToday, 3);
+  assert.deepEqual((await request(app).post('/admin/dovede/city/learn').set('Authorization', AUTH)).body, { asked: 2, learned: 1 });
+  assert.deepEqual((await request(app).post('/admin/dovede/city/archive').set('Authorization', AUTH).send({ action: 'archive' })).body, { action: 'archive', routes: 5, lines: 3, stops: 9 });
+  assert.deepEqual((await request(app).post('/admin/dovede/city/archive').set('Authorization', AUTH).send({ action: 'restore' })).body, { action: 'restore', routes: 5, lines: 3, stops: 9 });
+  assert.equal((await request(app).post('/admin/dovede/city/archive').set('Authorization', AUTH).send({ action: 'delete' })).status, 400);
+  assert.deepEqual(done, ['learn:5', 'archive', 'restore']);
 });
