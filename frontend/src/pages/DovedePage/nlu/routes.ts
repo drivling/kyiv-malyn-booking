@@ -22,7 +22,7 @@ export interface RouteMention {
 }
 
 /** «№5», «номер 5», «маршрут 11/1», «автобус 9», «маршрутка 7» */
-const MARKED_RE = /(?:№|#|(?:номер|маршрут|автобус)[\p{L}']*\s)\s*№?\s*(\d{1,2}(?:\/\d)?[а-яіїєa-z]?)(?![\d:.\p{L}])/gu;
+const MARKED_RE = /(?:№|#|(?:номер|маршрут|автобус)[\p{L}']*\s)\s*№?\s*(\d{1,2}(?:\/\d)?(?:-?[а-яіїєa-z])?)(?![\d:.\p{L}])/gu;
 /** «2 маршрут», «5-й автобус», «12-го маршруту» */
 const BEFORE_RE = /(?<![\d:.\p{L}])(\d{1,2}(?:\/\d)?)(?:-?(?:й|го|му|м|ий))?\s+(?:маршрут|автобус)/gu;
 /** «9-ка», «5ку», «11-кою» */
@@ -43,9 +43,12 @@ const WORD_RE = /[\p{L}][\p{L}']*/gu;
 /** «крім сімки», «окрім №5», «кроме девятки», «без 7-ки», «тільки не автобусом №3» — слова перед згадкою */
 const AVOID_BEFORE_RE = /(?:^|[^\p{L}])(?:крім|окрім|кроме|опріч|без|не)(?:\s+(?:на|автобус\p{L}*|маршрут\p{L}*))?\s*$/u;
 
+/** «2-Б», «2б», «2b» — той самий номер: без дефіса, латинська «b» як «б» (id маршруту Коростеня — «2b») */
+const sameNo = (s: string) => s.toLowerCase().replace(/-/g, '').replace(/b/g, 'б');
+
 function routeByNumber(routes: RouteLike[], shown: string): RouteLike | undefined {
-  const n = shown.toLowerCase();
-  return routes.find((r) => r.no.toLowerCase() === n) ?? routes.find((r) => r.id.toLowerCase() === n);
+  const n = sameNo(shown);
+  return routes.find((r) => sameNo(r.no) === n) ?? routes.find((r) => sameNo(r.id) === n);
 }
 
 /** Усі згадки маршрутів у тексті, без перекриттів, у порядку появи */
