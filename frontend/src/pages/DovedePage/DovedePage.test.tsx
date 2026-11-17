@@ -377,8 +377,8 @@ describe('«Доведе» — ролик-вступ перед сторінко
     expect(field).toHaveFocus();
   });
 
-  it('облік реклами: ролик (показ, досмотр) і вхід на сторінку з доступом — раз за сесію, з токеном гостя', async () => {
-    const events: { body: { placement: string; event: string; video?: string }; token: string | null }[] = [];
+  it('облік реклами: ролик (показ, досмотр), талон і вхід на сторінку з доступом — раз за сесію, з токеном гостя', async () => {
+    const events: { body: { placement: string; event: string; viewId: string; video?: string }; token: string | null }[] = [];
     server.use(
       http.post(`${TEST_API_URL}/ads/events`, async ({ request }) => {
         events.push({ body: (await request.json()) as (typeof events)[number]['body'], token: request.headers.get('x-dovede-token') });
@@ -392,10 +392,11 @@ describe('«Доведе» — ролик-вступ перед сторінко
     fireEvent(document.querySelector('video') as HTMLVideoElement, new Event('ended'));
     await userEvent.click(await screen.findByRole('button', { name: 'Прокомпостувати квиток і увійти' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
-    await waitFor(() => expect(events.map((e) => e.body.event)).toEqual(['shown', 'completed', 'page']));
+    await waitFor(() => expect(events.map((e) => e.body.event)).toEqual(['shown', 'completed', 'punched', 'page']));
     expect(events.every((e) => e.body.placement === 'dovede')).toBe(true);
     expect(events[0].body.video).toMatch(/^intro-[0-9a-f]{8}$/);
-    expect(events[2].token).toBe('guest-token');
+    expect(events[3].token).toBe('guest-token');
+    expect(events[2].body.viewId, 'талон — той самий перегляд, що ролик').toBe(events[0].body.viewId);
   });
 
   it('хто вже бачив ролик — одразу сторінка, навіть з посиланням на відповідь', async () => {

@@ -1,14 +1,16 @@
 /**
  * Облік реклами «Доведе» (Docs/dovede-roadmap.md, «Облік реклами»): міні-тизер перед табло зупинки після скану
  * наклейки (placement `sticker`) і ролик-вступ /dovede (`dovede`). Браузер шле події перегляду — shown (показали),
- * started (почав грати), completed (досмотрів) — і page: відкрив /dovede з доступом (хто саме — адмін, гість із
- * паролем, усі — визначає сервер за заголовками). Стіна наклейок (/admin/wall, вкладка «Реклама») читає зведення.
+ * started (почав грати), completed (досмотрів) — і лише для /dovede: page — відкрив сторінку з доступом (хто саме —
+ * адмін, гість із паролем, усі — визначає сервер за заголовками), punched — прокомпостував талон після ролика (доступ
+ * не потрібен, хто — так само, якщо заголовок є). Стіна наклейок (/admin/wall, вкладка «Реклама» і святкування
+ * «квиток») читає зведення.
  */
 import type { PrismaClient } from '@prisma/client';
 import { kyivDayHour } from './sticker-scans';
 
 export const AD_PLACEMENTS = ['sticker', 'dovede'] as const;
-export const AD_EVENTS = ['shown', 'started', 'completed', 'page'] as const;
+export const AD_EVENTS = ['shown', 'started', 'completed', 'page', 'punched'] as const;
 export type AdPlacement = (typeof AD_PLACEMENTS)[number];
 export type AdEventName = (typeof AD_EVENTS)[number];
 export type AdDevice = 'ios' | 'android' | 'desktop' | 'other';
@@ -33,8 +35,8 @@ export function parseAdEvent(body: unknown): AdEventInput | null {
   const placement = AD_PLACEMENTS.find((p) => p === b.placement);
   const event = AD_EVENTS.find((e) => e === b.event);
   if (!placement || !event) return null;
-  // «відкрив сторінку з доступом» буває лише в «Доведе»
-  if (event === 'page' && placement !== 'dovede') return null;
+  // «відкрив сторінку з доступом» і талон після ролика бувають лише в «Доведе»
+  if ((event === 'page' || event === 'punched') && placement !== 'dovede') return null;
   if (typeof b.viewId !== 'string' || !ID.test(b.viewId)) return null;
   const clientId = typeof b.clientId === 'string' && ID.test(b.clientId) ? b.clientId : null;
   const video = typeof b.video === 'string' && VIDEO.test(b.video) ? b.video : null;
@@ -74,14 +76,17 @@ export interface AdWallView {
   at: string;
   started: boolean;
   completed: boolean;
+  /** Лише «Доведе»: прокомпостував талон після ролика */
+  punched: boolean;
 }
 export interface AdWallSnapshot {
   now: string;
   day: string;
   sticker: { today: Counts; total: Counts; people: number };
   dovede: {
-    today: Counts & { pages: number };
-    total: Counts & { pages: number };
+    /** punched — прокомпостували талон після ролика */
+    today: Counts & { pages: number; punched: number };
+    total: Counts & { pages: number; punched: number };
     /** Входи на /dovede за 91 день і сьогодні — хто: адмін, гість із паролем, усі (відкрито) */
     access: AccessCounts;
     todayAccess: AccessCounts;
@@ -113,7 +118,7 @@ export async function adWallSnapshot(prisma: PrismaClient, opts: { cityCode: str
   const zero = (): Counts => ({ shown: 0, started: 0, completed: 0 });
   const sticker = { today: zero(), total: zero(), people: 0 };
   const noAccess = (): AccessCounts => ({ admin: 0, guest: 0, public: 0 });
-  const dovede = { today: { ...zero(), pages: 0 }, total: { ...zero(), pages: 0 }, access: noAccess(), todayAccess: noAccess(), people: 0 };
+  const dovede = { today: { ...zero(), pages: 0, punched: 0 }, total: { ...zero(), pages: 0, punched: 0 }, access: noAccess(), todayAccess: noAccess(), people: 0 };
   const people = { sticker: new Set<string>(), dovede: new Set<string>() };
   const views = new Map<string, AdWallView>();
   const viewClient = new Map<string, string>();
@@ -129,6 +134,9 @@ export async function adWallSnapshot(prisma: PrismaClient, opts: { cityCode: str
         dovede.access[r.access]++;
         if (isToday) dovede.todayAccess[r.access]++;
       }
+    } else if (r.event === 'punched') {
+      dovede.total.punched++;
+      if (isToday) dovede.today.punched++;
     } else if (r.event === 'shown' || r.event === 'started' || r.event === 'completed') {
       const bucket = placement === 'sticker' ? sticker : dovede;
       bucket.total[r.event]++;
@@ -157,6 +165,7 @@ export async function adWallSnapshot(prisma: PrismaClient, opts: { cityCode: str
         at: r.createdAt.toISOString(),
         started: false,
         completed: false,
+        punched: false,
       };
       views.set(r.viewId, v);
       if (r.clientId) viewClient.set(r.viewId, r.clientId);
@@ -165,6 +174,11 @@ export async function adWallSnapshot(prisma: PrismaClient, opts: { cityCode: str
     if (r.event === 'completed') {
       v.started = true;
       v.completed = true;
+    }
+    if (r.event === 'punched') {
+      v.punched = true;
+      // хто компостував (адмін, гість) — якщо перегляд сам цього не знав
+      v.access ??= r.access;
     }
   }
   sticker.people = people.sticker.size;

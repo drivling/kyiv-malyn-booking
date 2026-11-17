@@ -180,6 +180,34 @@ describe('StickerWallPage', () => {
     expect(cele).not.toHaveTextContent('Нове відкриття з QR');
   });
 
+  it('квиток «Доведе»: ролик на /dovede і прокомпостований талон після старту — святкування з талоном', async () => {
+    const user = userEvent.setup();
+    const views: AdWallSnapshot['views'] = [];
+    const adsNow = (): AdWallSnapshot => ({
+      now: new Date().toISOString(),
+      day: '2026-10-06',
+      sticker: { today: { shown: 0, started: 0, completed: 0 }, total: { shown: 0, started: 0, completed: 0 }, people: 0 },
+      dovede: {
+        today: { shown: 2, started: 2, completed: 2, pages: 0, punched: views.length },
+        total: { shown: 2, started: 2, completed: 2, pages: 0, punched: views.length },
+        access: { admin: 0, guest: 0, public: 0 },
+        people: 2,
+      },
+      views,
+    });
+    server.use(http.get(`${TEST_API_URL}/ads/wall`, () => HttpResponse.json(adsNow())));
+    renderWall('/admin/wall?key=k123');
+    await screen.findByTestId('wall-total');
+    await user.click(screen.getByRole('button', { name: 'Почати' }));
+    views.push({ viewId: 'intro-view-1', placement: 'dovede', kind: 'view', stopId: null, device: 'ios', who: 'ef56', number: 7, seenBefore: 0, access: 'guest', at: new Date().toISOString(), started: true, completed: true, punched: true });
+    const cele = await screen.findByRole('status', {}, { timeout: 3000 });
+    expect(cele).toHaveTextContent('Перший квиток сьогодні!');
+    expect(cele).toHaveTextContent('Квиток на проїзд');
+    expect(cele).toHaveTextContent('щасливий');
+    expect(cele).toHaveTextContent('досмотрів ролик · iPhone · гість із паролем · пасажир № 7 з наклейок · квитків сьогодні 1');
+    expect(cele.querySelectorAll('.wall-talon-hole')).toHaveLength(3);
+  });
+
   it('у шапці — місто наклейок: ?city=Korosten — «КОРОСТЕНЬ», без нього — «МАЛИН»', async () => {
     const { unmount } = renderWall('/admin/wall?key=k123&city=Korosten');
     await screen.findByTestId('wall-total');

@@ -1067,6 +1067,252 @@ body.wall-mode {
   }
 }
 
+/*
+ * Квиток «Доведе» (на /dovede подивилися ролик і прокомпостували талон): біле тло, той самий талон, що на сайті
+ * (порт .dv-talon з DovedePage/intro/DovedeIntro.css, у em). Хід — у такт зі звуком `ticket` (wallSound.ts):
+ * талон виїжджає (0,2 с), щелепа падає (0,95 с), дірки (1,04 с), штамп «щасливий» (1,27 с), конфеті (1,4 с).
+ */
+.wall-cele--ticket .wall-cele-bg {
+  background: radial-gradient(circle at 50% 55%, #ffffff 0%, #ffffff 35%, #eef7fb 75%, #dff0f7 100%);
+}
+
+.wall-cele--ticket .wall-cele-rings {
+  display: none;
+}
+
+.wall-cele--ticket .wall-cele-headline--special {
+  background: #0079ad;
+  color: #ffffff;
+}
+
+.wall-cele--ticket .wall-cele-confetti > span {
+  animation-delay: calc(var(--delay) + 1.4s);
+}
+
+.wall-cele--ticket .wall-cele-meta {
+  text-wrap: balance;
+  animation-delay: 1.5s;
+}
+
+.wall-cele-nowrap {
+  white-space: nowrap;
+}
+
+.wall-talon-wrap {
+  position: relative;
+  display: block;
+  margin: 0.35em 0 0.25em;
+  font-size: 1.3em;
+  filter: drop-shadow(0 0.9em 1.2em rgba(5, 71, 82, 0.16)) drop-shadow(0 0.12em 0.12em rgba(5, 71, 82, 0.12));
+  animation: wall-talon-in 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.15) 0.2s both;
+}
+
+.wall-talon {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 1.1em;
+  width: 21em;
+  padding: 1.1em 1.4em 1.25em 1.6em;
+  border-radius: 0.2em;
+  color: #054752;
+  text-align: left;
+  transform: rotate(-1.5deg);
+  background:
+    radial-gradient(120% 90% at 15% 20%, rgba(255, 255, 255, 0.7), transparent 60%),
+    repeating-linear-gradient(115deg, rgba(0, 175, 245, 0.08) 0 1px, transparent 1px 0.38em),
+    repeating-linear-gradient(65deg, rgba(0, 175, 245, 0.06) 0 1px, transparent 1px 0.38em),
+    #fffaf0;
+  -webkit-mask:
+    radial-gradient(circle at 0 0.44em, transparent 0.22em, #000 0.25em) left / 51% 0.88em repeat-y,
+    radial-gradient(circle at 100% 0.44em, transparent 0.22em, #000 0.25em) right / 51% 0.88em repeat-y;
+  mask:
+    radial-gradient(circle at 0 0.44em, transparent 0.22em, #000 0.25em) left / 51% 0.88em repeat-y,
+    radial-gradient(circle at 100% 0.44em, transparent 0.22em, #000 0.25em) right / 51% 0.88em repeat-y;
+  animation: wall-talon-hit 0.3s ease-out 0.95s both;
+}
+
+.wall-talon-body {
+  display: grid;
+  gap: 0.12em;
+  min-width: 0;
+}
+
+.wall-talon-brand {
+  font-size: 1.75em;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.wall-talon-brand span {
+  color: #00aff5;
+}
+
+.wall-talon-kind {
+  margin-top: 0.7em;
+  font-size: 0.7em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #4f6f75;
+}
+
+.wall-talon-route {
+  font-size: 0.95em;
+  font-weight: 600;
+}
+
+.wall-talon-no {
+  margin-top: 0.75em;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.8em;
+  letter-spacing: 0.06em;
+  color: #a3301f;
+}
+
+.wall-talon-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1.5em);
+  grid-auto-rows: 1.5em;
+  border: 0.1em solid rgba(5, 71, 82, 0.35);
+  border-radius: 0.2em;
+}
+
+.wall-talon-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-right: 1px solid rgba(5, 71, 82, 0.18);
+  border-bottom: 1px solid rgba(5, 71, 82, 0.18);
+}
+
+.wall-talon-cell:nth-child(3n) {
+  border-right: 0;
+}
+
+.wall-talon-cell:nth-child(n + 7) {
+  border-bottom: 0;
+}
+
+.wall-talon-digit {
+  font-size: 0.7em;
+  font-weight: 700;
+  color: rgba(5, 71, 82, 0.4);
+}
+
+.wall-talon-hole {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.88em;
+  height: 0.88em;
+  margin: -0.44em 0 0 -0.44em;
+  border-radius: 50%;
+  background: #dfeef4;
+  box-shadow:
+    inset 0 0.1em 0.12em rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(5, 71, 82, 0.12);
+  animation: wall-talon-hole 0.12s ease-out calc(1.04s + var(--i, 0) * 25ms) both;
+}
+
+/* Щелепа компостера: червона емаль зверху, сталь знизу; падає на сітку й піднімається */
+.wall-talon-jaw {
+  position: absolute;
+  z-index: 2;
+  right: 0.9em;
+  top: 50%;
+  width: 5.75em;
+  height: 5.75em;
+  margin-top: -2.9em;
+  border-radius: 0.6em;
+  background:
+    linear-gradient(#d8402f 0 1.4em, #9b231b 1.4em 1.55em, transparent 1.55em),
+    linear-gradient(160deg, #e6ecee 0%, #aab6ba 40%, #6b797e 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -0.12em 0 rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  animation: wall-talon-jaw 0.32s cubic-bezier(0.55, 0, 0.45, 1) 0.95s both;
+}
+
+.wall-talon-stamp {
+  position: absolute;
+  left: 7.4em;
+  bottom: 0.75em;
+  padding: 0.05em 0.5em;
+  border: 0.12em solid #c62828;
+  border-radius: 0.25em;
+  color: #c62828;
+  font-size: 0.75em;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  mix-blend-mode: multiply;
+  animation: wall-talon-stamp 0.22s cubic-bezier(0.3, 1.6, 0.5, 1) 1.27s both;
+}
+
+@keyframes wall-talon-in {
+  from {
+    opacity: 0;
+    transform: translateY(4.4em) rotate(5deg);
+  }
+}
+
+@keyframes wall-talon-hit {
+  0%,
+  26% {
+    transform: rotate(-1.5deg);
+  }
+  32% {
+    transform: rotate(-1.5deg) translateY(0.2em) scale(0.99);
+  }
+  60%,
+  100% {
+    transform: rotate(-1.5deg);
+  }
+}
+
+@keyframes wall-talon-hole {
+  from {
+    transform: scale(0);
+  }
+}
+
+@keyframes wall-talon-jaw {
+  0% {
+    opacity: 0;
+    transform: translateY(-8em) rotate(-1.5deg);
+  }
+  20% {
+    opacity: 1;
+  }
+  28% {
+    transform: translateY(0) rotate(-1.5deg);
+  }
+  42% {
+    opacity: 1;
+    transform: translateY(0.12em) rotate(-1.5deg) scale(0.98);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-9.4em) rotate(-1.5deg);
+  }
+}
+
+@keyframes wall-talon-stamp {
+  from {
+    opacity: 0;
+    transform: rotate(-9deg) scale(1.9);
+  }
+  to {
+    opacity: 0.85;
+    transform: rotate(-9deg) scale(1);
+  }
+}
+
 /* ---- Старт, повідомлення, налаштування */
 .wall-start,
 .wall--message {

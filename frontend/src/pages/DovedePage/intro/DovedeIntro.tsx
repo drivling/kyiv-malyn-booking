@@ -34,8 +34,8 @@ function useUnmount(fn: () => void) {
   useEffect(() => () => ref.current(), []);
 }
 
-/** Події перегляду (для обліку реклами): показали, почав грати, досмотрів */
-export type IntroEvent = 'shown' | 'started' | 'completed';
+/** Події перегляду (для обліку реклами): показали, почав грати, досмотрів, прокомпостував талон (стіна наклейок святкує) */
+export type IntroEvent = 'shown' | 'started' | 'completed' | 'punched';
 
 const ReplayIcon = () => (
   <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -97,6 +97,7 @@ export function DovedeIntro({ onTicket, onDone, onEvent }: { onTicket: () => voi
   const punch = () => {
     if (end !== 'ticket') return;
     setEnd('punching');
+    callbacks.current.onEvent?.('punched');
     playPunch();
     try {
       navigator.vibrate?.(15);

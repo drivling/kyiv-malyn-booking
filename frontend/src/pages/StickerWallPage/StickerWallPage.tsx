@@ -21,7 +21,9 @@ import {
   WALL_POLL_MS,
   buildCelebrations,
   buildNewcomerCelebrations,
+  buildTicketCelebrations,
   freshNewcomers,
+  freshTickets,
   newcomerHeadline,
   isNightHour,
   isQuietHour,
@@ -32,6 +34,7 @@ import {
   storedWallKey,
   topStops,
   wallStops,
+  wallTicket,
   withNewcomers,
   type Celebration,
   type WallSettings,
@@ -47,6 +50,7 @@ const SOUND_BY_KIND: Record<Celebration['kind'], WallSound> = {
   record: 'record',
   summary: 'scan',
   newcomer: 'newcomer',
+  ticket: 'ticket',
 };
 const CONTROLS_MS = 8_000;
 const TAB_PAUSE_MS = 60_000;
@@ -91,6 +95,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   const cursor = useRef<number | null>(null);
   // досмотрені тизери, які стіна вже бачила (null — ще жодного знімка «Реклами»)
   const seenNewcomers = useRef<Set<string> | null>(null);
+  const seenTickets = useRef<Set<string> | null>(null);
   const day = useRef<string | null>(null);
   const startedRef = useRef(false);
   const tabPausedUntil = useRef(0);
@@ -163,16 +168,23 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         setKeyProblem('Посилання застаріло — відкрийте нове в адмінці («Наклейки зупинок» → «Віджет на стіну»).');
       } else setOffline(true);
     }
-    // новенькі (досмотріли тизер) — особливе святкування; їхній скан у тому ж опитуванні звичайного не отримує
+    // новенькі (досмотріли тизер) — особливе святкування; їхній скан у тому ж опитуванні звичайного не отримує.
+    // Квитки — на malin.kiev.ua/dovede подивилися ролик і прокомпостували талон
     let newcomers: Celebration[] = [];
+    let tickets: Celebration[] = [];
     const ads = await adsRequest;
     if (ads) {
       setAds(ads);
       const found = freshNewcomers(seenNewcomers.current, ads);
       seenNewcomers.current = found.seen;
-      if (startedRef.current) newcomers = buildNewcomerCelebrations(found.fresh, ads, dirRef.current);
+      const punched = freshTickets(seenTickets.current, ads);
+      seenTickets.current = punched.seen;
+      if (startedRef.current) {
+        newcomers = buildNewcomerCelebrations(found.fresh, ads, dirRef.current);
+        tickets = buildTicketCelebrations(punched.fresh, ads);
+      }
     }
-    const items = withNewcomers(scans, newcomers);
+    const items = [...withNewcomers(scans, newcomers), ...tickets];
     if (items.length) setQueue((q) => [...q, ...items]);
   }, [key, city]);
 
@@ -260,7 +272,30 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
     saveWallSettings(next);
   };
 
-  const testCelebration = (kind: 'scan' | 'newcomer') => {
+  const testCelebration = (kind: 'scan' | 'newcomer' | 'ticket') => {
+    if (kind === 'ticket') {
+      const key = `test-${Date.now()}`;
+      const today = (ads?.dovede.today.punched ?? 0) + 1;
+      setQueue((q) => [
+        ...q,
+        {
+          key,
+          kind,
+          headline: 'Квиток прокомпостовано! (перевірка)',
+          stopId: null,
+          name: 'Доведе.',
+          lines: [],
+          color: '#00aff5',
+          added: 1,
+          stopToday: 0,
+          rank: 0,
+          totalAfter: 0,
+          ticket: wallTicket(key, { watched: true, device: 'ios', access: null, passenger: people?.total || null, today }),
+        },
+      ]);
+      setControls(false);
+      return;
+    }
     const top = topStops(stops, 1)[0];
     const total = snapshot?.total ?? 0;
     // наступний номер пасажира — як було б зараз
@@ -337,6 +372,9 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
           </button>
           <button type="button" onClick={() => testCelebration('newcomer')}>
             🔵 Новий пасажир
+          </button>
+          <button type="button" onClick={() => testCelebration('ticket')}>
+            🎫 Квиток «Доведе»
           </button>
           <button type="button" onClick={() => void enterWallFullscreen()}>
             ⛶ На весь екран

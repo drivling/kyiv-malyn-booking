@@ -419,7 +419,8 @@ paths:
         Міні-тизер перед табло зупинки після скану наклейки (`sticker`) чи ролик-вступ /dovede (`dovede`): `shown` —
         показали, `started` — почав грати, `completed` — досмотрів. `page` (лише `dovede`) — відкрив сторінку з
         доступом: потрібен заголовок `X-Dovede-Token` чи токен адміна, інакше 403; хто саме (адмін, гість, усі) визначає
-        сервер. Повтор тієї ж пари `viewId + event` — `200 { counted: false }`.
+        сервер. `punched` (лише `dovede`) — прокомпостував талон після ролика; доступ не потрібен. Повтор тієї ж пари
+        `viewId + event` — `200 { counted: false }`.
       requestBody:
         required: true
         content:
@@ -976,7 +977,7 @@ components:
       required: [placement, event, viewId]
       properties:
         placement: { type: string, enum: [sticker, dovede], description: 'sticker — тизер перед табло після скану наклейки; dovede — ролик-вступ /dovede' }
-        event: { type: string, enum: [shown, started, completed, page], description: 'page — лише для dovede' }
+        event: { type: string, enum: [shown, started, completed, page, punched], description: 'page і punched — лише для dovede' }
         viewId: { type: string, pattern: '^[A-Za-z0-9-]{8,64}$', description: Один перегляд у браузері (UUID) }
         clientId: { $ref: '#/components/schemas/ClientId' }
         video: { type: string, pattern: '^[a-z0-9-]{1,40}$', example: hint-1a2b3c4d, description: Файл ролика без розширення }

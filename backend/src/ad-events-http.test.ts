@@ -1,5 +1,6 @@
 /**
- * Облік реклами «Доведе»: розбір подій, клас пристрою, POST /ads/events (повтор, `page` лише з доступом і хто саме)
+ * Облік реклами «Доведе»: розбір подій, клас пристрою, POST /ads/events (повтор, `page` лише з доступом і хто саме,
+ * `punched` — талон після ролика)
  * і зведення для стіни (GET /ads/wall — лише з ключем стіни; сьогодні / усього, входи, останні перегляди).
  */
 import { test } from 'vitest';
@@ -71,7 +72,7 @@ const VIEW = '0f4c2a8e-1b2c-4d5e-8f90-a1b2c3d4e5f6';
 const CLIENT = 'aa11bb22-cc33-dd44-ee55-ff6677889900';
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15';
 
-test('parseAdEvent: наклейка з зупинкою, «Доведе» без; page — лише «Доведе»; сміття — null', () => {
+test('parseAdEvent: наклейка з зупинкою, «Доведе» без; page і punched — лише «Доведе»; сміття — null', () => {
   assert.deepEqual(parseAdEvent({ placement: 'sticker', event: 'shown', viewId: VIEW, clientId: CLIENT, video: 'hint-1a2b3c4d', stopId: 'st_0015' }), {
     placement: 'sticker',
     event: 'shown',
@@ -84,6 +85,8 @@ test('parseAdEvent: наклейка з зупинкою, «Доведе» бе�
   assert.equal(parseAdEvent({ placement: 'dovede', event: 'page', viewId: VIEW })?.stopId, null);
   assert.equal(parseAdEvent({ placement: 'dovede', event: 'shown', viewId: VIEW, stopId: 'st_0015' })?.stopId, null);
   assert.equal(parseAdEvent({ placement: 'sticker', event: 'page', viewId: VIEW, stopId: 'st_1' }), null);
+  assert.equal(parseAdEvent({ placement: 'dovede', event: 'punched', viewId: VIEW })?.event, 'punched');
+  assert.equal(parseAdEvent({ placement: 'sticker', event: 'punched', viewId: VIEW, stopId: 'st_1' }), null);
   for (const bad of [null, {}, { placement: 'x', event: 'shown', viewId: VIEW }, { placement: 'dovede', event: 'clicked', viewId: VIEW }, { placement: 'dovede', event: 'shown', viewId: 'short' }]) {
     assert.equal(parseAdEvent(bad), null, JSON.stringify(bad));
   }
@@ -131,6 +134,25 @@ test('POST /ads/events page: без доступу — 403; гість із па
   );
 });
 
+test('POST /ads/events punched: талон після ролика — без доступу; хто компостував — за заголовком, якщо є', async () => {
+  const { prisma, rows } = store();
+  const a = app(prisma);
+  const punched = (viewId: string) => ({ placement: 'dovede', event: 'punched', viewId, clientId: CLIENT, video: 'intro-55427b80' });
+  await request(a).post('/ads/events').send(punched('11111111-aaaa')).expect(201);
+  await request(a).post('/ads/events').set('X-Dovede-Token', dovedeAccessToken(GUEST_PASSWORD)).send(punched('22222222-bbbb')).expect(201);
+  await request(a).post('/ads/events').set('Authorization', adminAuthToken(ADMIN_PASSWORD)).send(punched('33333333-cccc')).expect(201);
+  await request(a).post('/ads/events').send(punched('11111111-aaaa')).expect(200);
+  await request(a).post('/ads/events').send({ ...punched('44444444-dddd'), placement: 'sticker', stopId: 'st_0015' }).expect(400);
+  assert.deepEqual(
+    rows.map((r) => [r.event, r.access]),
+    [
+      ['punched', null],
+      ['punched', 'guest'],
+      ['punched', 'admin'],
+    ],
+  );
+});
+
 test('зведення стіни: сьогодні й усього, хто дивився, входи на /dovede, наклейки лише свого міста', async () => {
   const NOW = new Date('2026-11-17T12:00:00Z'); // 14:00 за Києвом
   const row = (id: number, r: Partial<Row>): Row => ({
@@ -162,6 +184,8 @@ test('зведення стіни: сьогодні й усього, хто ди
     // пізніша подія того самого перегляду з іншим id браузера — не нова людина
     row(11, { viewId: 'view-0002', event: 'started', clientId: 'third-client-0003', device: 'android' }),
     row(12, { placement: 'dovede', viewId: 'page-0006', stopId: null, event: 'page', access: 'admin', video: null, createdAt: yesterday }),
+    // після ролика — талон; компостував адмін (перегляд сам цього не знав)
+    row(13, { placement: 'dovede', viewId: 'view-0004', stopId: null, event: 'punched', access: 'admin', device: 'desktop' }),
   ], [
     // люди з наклейок Малина: CLIENT — другий за появою (id 7 після id 3), other-client — не з наклейки
     { id: 7, cityCode: 'Malyn', clientId: CLIENT, teaserAt: null },
@@ -173,7 +197,8 @@ test('зведення стіни: сьогодні й усього, хто ди
   assert.deepEqual(snap.sticker.today, { shown: 2, started: 2, completed: 1 });
   assert.deepEqual(snap.sticker.total, { shown: 3, started: 3, completed: 1 });
   assert.equal(snap.sticker.people, 2, 'люди — за першою подією перегляду, як «хто» у списку');
-  assert.deepEqual(snap.dovede.today, { shown: 1, started: 0, completed: 1, pages: 1 });
+  assert.deepEqual(snap.dovede.today, { shown: 1, started: 0, completed: 1, pages: 1, punched: 1 });
+  assert.equal(snap.dovede.total.punched, 1);
   assert.deepEqual(snap.dovede.access, { admin: 1, guest: 1, public: 0 });
   assert.deepEqual(snap.dovede.todayAccess, { admin: 0, guest: 1, public: 0 }, 'адмін заходив учора');
   assert.equal(snap.dovede.total.pages, 2);
@@ -190,6 +215,9 @@ test('зведення стіни: сьогодні й усього, хто ди
   const dovede = snap.views.find((v) => v.viewId === 'view-0004');
   assert.equal(dovede?.completed, true);
   assert.equal(dovede?.started, true, 'досмотрів — значить грав');
+  assert.equal(dovede?.punched, true);
+  assert.equal(dovede?.access, 'admin', 'хто компостував');
+  assert.equal(mine?.punched, false);
 });
 
 test('GET /ads/wall: лише з ключем стіни, без кешу', async () => {

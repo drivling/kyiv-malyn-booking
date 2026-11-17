@@ -20,8 +20,9 @@ const video = () => document.querySelector('video') as HTMLVideoElement;
 function renderIntro() {
   const onTicket = vi.fn();
   const onDone = vi.fn();
-  render(<DovedeIntro onTicket={onTicket} onDone={onDone} />);
-  return { onTicket, onDone };
+  const onEvent = vi.fn();
+  render(<DovedeIntro onTicket={onTicket} onDone={onDone} onEvent={onEvent} />);
+  return { onTicket, onDone, onEvent };
 }
 
 describe('ролик-вступ «Доведе»', () => {
@@ -111,10 +112,13 @@ describe('ролик-вступ «Доведе»', () => {
 
   it('компостер: дірки, штамп — і вхід (без анімацій — затухання)', async () => {
     reducedMotion(true);
-    const { onDone } = renderIntro();
+    const { onDone, onEvent } = renderIntro();
     fireEvent(video(), new Event('ended'));
+    expect(onEvent).not.toHaveBeenCalledWith('punched');
     fireEvent.click(await screen.findByRole('button', { name: 'Прокомпостувати квиток і увійти' }));
     expect(screen.getByRole('dialog')).toHaveClass('dv-intro--punching');
+    // облік реклами: талон прокомпостовано (стіна наклейок святкує) — один раз
+    expect(onEvent.mock.calls.filter(([e]) => e === 'punched')).toHaveLength(1);
     expect(document.querySelectorAll('.dv-talon__hole')).toHaveLength(3);
     // фон сторінки повертається одразу: крізь дірку видно справжню сторінку
     expect(document.body.style.backgroundColor).toBe('');

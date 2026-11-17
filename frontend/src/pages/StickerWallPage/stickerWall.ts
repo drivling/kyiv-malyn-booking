@@ -8,6 +8,7 @@ import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
 import { stickerStopCatalog } from '@/pages/AdminPage/stopSticker/scanStats';
 import { brightestLineColor, prettyStopName } from '@/pages/AdminPage/stopSticker/stickerModel';
 import { currentScheme, textColorOn } from '@/pages/LocalTransportPage/routeColors';
+import { luckyTicketNumber, punchCells } from '@/pages/DovedePage/intro/ticket';
 import { TRANSPORT_CITY_PARAM, isDefaultTransportCity } from '@/site/transportCity';
 
 /** Як часто віджет тягне знімок: скани поодинокі, 30 с — «одразу» для людини біля стіни */
@@ -83,8 +84,26 @@ export function recentHours(hourly: number[], hour: number, count = 8): { hour: 
   });
 }
 
-/** `newcomer` — новий пасажир: уперше відсканував наклейку й досмотрів тизер «Доведе» (тизер — раз на браузер) */
-export type CelebrationKind = 'scan' | 'first' | 'milestone' | 'record' | 'summary' | 'newcomer';
+/**
+ * `newcomer` — новий пасажир: уперше відсканував наклейку й досмотрів тизер «Доведе» (тизер — раз на браузер);
+ * `ticket` — на malin.kiev.ua/dovede подивилися ролик і прокомпостували талон
+ */
+export type CelebrationKind = 'scan' | 'first' | 'milestone' | 'record' | 'summary' | 'newcomer' | 'ticket';
+
+/** Талон для святкування `ticket` — як на сайті після ролика; номер і дірки — з id перегляду (стабільні між рендерами) */
+export type WallTicket = {
+  no: string;
+  holes: number[];
+  /** Досмотрів ролик до кінця (інакше ролик не завантажився — талон однаково зʼявляється) */
+  watched: boolean;
+  device: string | null;
+  /** Хто компостував: admin / guest / public; null — без доступу (сторінка ще за паролем) */
+  access: string | null;
+  /** Номер пасажира з наклейок у місті стіни, якщо це той самий браузер */
+  passenger: number | null;
+  /** Квитків сьогодні разом із цим */
+  today: number;
+};
 
 export type Celebration = {
   key: string;
@@ -107,7 +126,21 @@ export type Celebration = {
   newToday?: number;
   /** Лише `newcomer`: номер пасажира в місті (backend sticker-people.ts), якщо сервер його знає */
   passenger?: number | null;
+  /** Лише `ticket` */
+  ticket?: WallTicket;
 };
+
+/** Детерміноване «випадкове» число з рядка — конфеті й талон різні, але стабільні між рендерами */
+export function seeded(key: string): () => number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i += 1) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  return () => {
+    h = Math.imul(h ^ (h >>> 15), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+}
 
 /** Рубежі номера пасажира: «до № 400 — ще 88» на стіні й особливе святкування, коли новенький їх досягає */
 export const PASSENGER_MILESTONES = [10, 25, 50, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000, 10000];
@@ -287,6 +320,61 @@ export function withNewcomers(scans: Celebration[], newcomers: Celebration[]): C
   if (!newcomers.length) return scans;
   const stops = new Set(newcomers.map((c) => c.stopId).filter(Boolean));
   return [...scans.filter((c) => !(c.kind === 'scan' && c.added === 1 && c.stopId && stops.has(c.stopId))), ...newcomers];
+}
+
+/** Колір святкування «квиток» — блакитна крапка «Доведе.» */
+export const TICKET_COLOR = '#00aff5';
+const MAX_TICKETS = 3;
+
+/** Талон із id перегляду: щасливий номер і три пробиті клітинки, як на сайті (DovedePage/intro/ticket.ts) */
+export function wallTicket(viewId: string, rest: Omit<WallTicket, 'no' | 'holes'>): WallTicket {
+  const rnd = seeded(viewId);
+  return { no: luckyTicketNumber(rnd), holes: punchCells(rnd), ...rest };
+}
+
+/**
+ * Нові прокомпостовані талони «Доведе» (ролик на /dovede → талон → компостер), яких стіна ще не бачила; старі — першими.
+ * Перший знімок — лише точка відліку.
+ */
+export function freshTickets(seen: ReadonlySet<string> | null, ads: AdWallSnapshot): { fresh: AdView[]; seen: Set<string> } {
+  const done = ads.views.filter((v) => v.placement === 'dovede' && v.punched);
+  const next = new Set(done.map((v) => v.viewId));
+  if (!seen) return { fresh: [], seen: next };
+  return { fresh: done.filter((v) => !seen.has(v.viewId)).sort((a, b) => a.at.localeCompare(b.at)), seen: next };
+}
+
+/** Свято на кожен талон (до трьох; більше — три + «Ще +N квитків»); перший за київську добу — «Перший квиток сьогодні!» */
+export function buildTicketCelebrations(fresh: AdView[], ads: AdWallSnapshot): Celebration[] {
+  if (!fresh.length) return [];
+  const today = Math.max(fresh.length, ads.dovede.today.punched ?? 0);
+  const shown = fresh.length > MAX_TICKETS + 1 ? fresh.slice(0, MAX_TICKETS) : fresh;
+  const base = { stopId: null, lines: [], color: TICKET_COLOR, stopToday: 0, rank: 0, totalAfter: 0 };
+  const out: Celebration[] = shown.map((v, i) => {
+    const count = Math.max(1, today - (fresh.length - 1 - i));
+    return {
+      ...base,
+      key: `ticket-${v.viewId}`,
+      kind: 'ticket',
+      headline: count === 1 ? 'Перший квиток сьогодні!' : 'Квиток прокомпостовано!',
+      name: 'Доведе.',
+      added: 1,
+      ticket: wallTicket(v.viewId, { watched: v.completed, device: v.device, access: v.access, passenger: v.number ?? null, today: count }),
+    };
+  });
+  const rest = fresh.length - shown.length;
+  if (rest > 0) {
+    const last = fresh[fresh.length - 1].viewId;
+    out.push({
+      ...base,
+      key: `ticket-rest-${last}`,
+      kind: 'ticket',
+      headline: `Ще +${rest} ${plural(rest, ['квиток', 'квитки', 'квитків'])}`,
+      name: 'Доведе.',
+      added: rest,
+      ticket: wallTicket(last, { watched: true, device: null, access: null, passenger: null, today }),
+    });
+  }
+  return out;
 }
 
 /** Українські форми числа: [1, 2–4, 5+] */

@@ -6,6 +6,7 @@ exports.createAdsRouter = createAdsRouter;
  * - POST /ads/events — подія перегляду з браузера (публічний, як скани наклейок; повтор viewId + event — 200 без запису);
  *   досмотрений тизер перед табло позначається й у людини з наклейок (StickerPerson.teaserAt, src/sticker-people.ts);
  *   `page` (відкрив /dovede з доступом) приймається лише із заголовком доступу «Доведе» чи адміна — інакше 403;
+ *   `punched` (прокомпостував талон після ролика /dovede) — без доступу, але з тим самим «хто», якщо заголовок є;
  * - GET /ads/wall?key=&city= — зведення для стіни наклейок (вкладка «Реклама»), той самий ключ стіни, що й
  *   GET /transport/sticker-wall (лише читання, HMAC від ADMIN_PASSWORD).
  */
@@ -37,6 +38,9 @@ function createAdsRouter(deps) {
                     res.status(403).json({ error: 'No access to Dovede' });
                     return;
                 }
+            }
+            else if (ev.event === 'punched') {
+                kind = (0, access_1.dovedeAccessKind)(req, access);
             }
             try {
                 await deps.prisma.adEvent.create({ data: { ...ev, cityCode, access: kind, device: (0, ad_events_1.deviceOf)(req.headers['user-agent']) } });
