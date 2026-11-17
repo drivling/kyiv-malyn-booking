@@ -1391,3 +1391,29 @@ model DovedeQuery {
   @@index([createdAt])
   @@index([aiCalled, createdAt])
 }
+
+/// GPS-точки міського транспорту з публічного фіду (Коростень: набір ради «Реальний час», CC BY) — треки рейсів для
+/// звірки шляхів і зупинок (src/transport-gps.ts, Docs/korosten-gps-tracks-2026-11.md). Пише інтервальна задача
+/// TRANSPORT_GPS_INTERVAL_MIN; старші за 30 днів видаляються. Публічно не віддається — лише адмінці.
+model TransportVehiclePosition {
+  id         BigInt   @id @default(autoincrement())
+  /// Місто датасету — TripPoint.code; кожен запит обмежується ним
+  cityCode   String
+  /// imei трекера (стабільний id автобуса у фіді)
+  vehicleId  String
+  /// Держномер з фіду
+  plate      String
+  /// Номер маршруту, як у фіді («2Б») — не TransportRoute.id
+  routeNo    String
+  /// Час точки (у фіді — київський без поясу, тут — UTC)
+  at         DateTime
+  lat        Float
+  lng        Float
+  speed      Float
+  satellites Int?
+  createdAt  DateTime @default(now())
+
+  @@unique([cityCode, vehicleId, at])
+  @@index([cityCode, at])
+  @@index([cityCode, routeNo, at])
+}

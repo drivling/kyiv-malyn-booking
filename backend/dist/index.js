@@ -15,6 +15,7 @@ const viber_listing_archive_1 = require("./viber-listing-archive");
 const booking_reminders_1 = require("./booking-reminders");
 const listing_match_jobs_1 = require("./listing-match-jobs");
 const transport_source_watch_1 = require("./transport-source-watch");
+const transport_gps_1 = require("./transport-gps");
 var create_app_2 = require("./create-app");
 Object.defineProperty(exports, "CODE_VERSION", { enumerable: true, get: function () { return create_app_2.CODE_VERSION; } });
 Object.defineProperty(exports, "createApp", { enumerable: true, get: function () { return create_app_2.createApp; } });
@@ -28,6 +29,7 @@ function main() {
     let archiveJob = null;
     let reminderJob = null;
     let sourceWatchJob = null;
+    let gpsJob = null;
     let cityLearnJob = null;
     const app = (0, create_app_1.createApp)({ prisma });
     // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
@@ -110,6 +112,18 @@ function main() {
                     console.log(`🛰️ Джерела розкладу: ${notable.map((r) => `${r.key}=${r.status}`).join(', ')}`);
                 }
             }, { intervalMin: Number(process.env.TRANSPORT_SOURCE_WATCH_INTERVAL_MIN ?? 360), firstDelayMs: 5 * 60000 });
+            // GPS-треки міського транспорту з публічного фіду (Коростень) — для звірки шляхів і зупинок;
+            // TRANSPORT_GPS_INTERVAL_MIN (за замовч. 1, 0 = вимкнено), точки старші за TRANSPORT_GPS_RETENTION_DAYS (30) — геть
+            gpsJob = (0, interval_job_1.startIntervalJob)('transport-gps', async () => {
+                const results = await (0, transport_gps_1.recordGpsPositions)(prisma, {
+                    fetchText: transport_gps_1.fetchGpsFeedText,
+                    now: () => new Date(),
+                    retentionDays: Number(process.env.TRANSPORT_GPS_RETENTION_DAYS ?? 30),
+                });
+                for (const r of results)
+                    if (r.error)
+                        console.log(`🛰️ GPS ${r.cityCode}: ${r.error}`);
+            }, { intervalMin: Number(process.env.TRANSPORT_GPS_INTERVAL_MIN ?? 1), firstDelayMs: 90000 });
             // «Доведе»: поступове навчання дороги містом (Київ, Житомир) — найзапитуваніші пари без свіжої відповіді,
             // у межах половини денного ліміту Google; DOVEDE_CITY_LEARN_INTERVAL_MIN (за замовч. 60, 0 = вимкнено)
             const cityRoutes = (0, city_route_1.cityRoutesFromEnv)(prisma);
@@ -128,6 +142,7 @@ function main() {
         archiveJob?.stop();
         reminderJob?.stop();
         sourceWatchJob?.stop();
+        gpsJob?.stop();
         cityLearnJob?.stop();
         // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
         await (0, lunch_listener_1.stopLunchListenerAndWait)(3000);

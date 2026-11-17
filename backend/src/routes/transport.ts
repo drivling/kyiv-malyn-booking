@@ -24,6 +24,7 @@ import {
 import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from '../sticker-wall';
 import { arrivalReportStats, buildArrivalRow, parseArrivalReport, parseReportDays } from '../arrival-reports';
 import { GTFS_ZIP_FILENAME, createGtfsFeedProvider, isGtfsFeedFile } from '../gtfs-feed';
+import { listGpsPositions, parseGpsRange } from '../transport-gps';
 import { DEFAULT_TRANSPORT_CITY, parseTransportCity, resolveTransportCity, type TransportCityAccess } from '../transport-city';
 import {
   WATCHED_SOURCES,
@@ -445,6 +446,25 @@ export function createTransportRouter(deps: {
     } catch (e) {
       console.error('[GET /admin/transport/sticker-scans]', e);
       res.status(500).json({ error: 'Failed to load sticker scans' });
+    }
+  });
+
+  /**
+   * Адмін: GPS-точки міського транспорту за проміжок (?from=&to= ISO, за замовч. останні 24 год, до 7 діб; ?route= —
+   * номер маршруту, як у фіді) і зведена по автобусах — для звірки шляхів і зупинок (src/transport-gps.ts)
+   */
+  r.get('/admin/transport/gps', requireAdmin, async (req, res) => {
+    try {
+      const cityCode = adminCity(res, req.query.city);
+      if (!cityCode) return;
+      const range = parseGpsRange(req.query.from, req.query.to, new Date());
+      if (!range) return res.status(400).json({ error: 'from / to: ISO, from < to, не більше 7 діб' });
+      const routeNo = typeof req.query.route === 'string' && req.query.route.trim() ? req.query.route.trim() : undefined;
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ cityCode, from: range.from.toISOString(), to: range.to.toISOString(), ...(await listGpsPositions(prisma, { cityCode, ...range, routeNo })) });
+    } catch (e) {
+      console.error('[GET /admin/transport/gps]', e);
+      res.status(500).json({ error: 'Failed to load GPS positions' });
     }
   });
 

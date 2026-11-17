@@ -15,10 +15,11 @@ exports.TRANSPORT_MODELS = [
     'stickerReturn',
     'stickerPrint',
     'transportArrivalReport',
+    'transportVehiclePosition',
 ];
 const OTHER_MODELS = ['tripPoint', 'watchedSource'];
 /** Моделі з автоінкрементним числовим id */
-const AUTO_ID = new Set(['transportRouteStop', 'transportSegment', 'stickerScan', 'stickerReturn', 'stickerPrint', 'transportArrivalReport', 'tripPoint']);
+const AUTO_ID = new Set(['transportRouteStop', 'transportSegment', 'stickerScan', 'stickerReturn', 'stickerPrint', 'transportArrivalReport', 'transportVehiclePosition', 'tripPoint']);
 /** Значення за замовчуванням із схеми (колонки з DEFAULT) */
 const DEFAULTS = Object.fromEntries(exports.TRANSPORT_MODELS.map((m) => [m, { cityCode: 'Malyn' }]));
 /** Унікальні ключі таблиць — як у схемі після tenancy M2: тест має падати там, де впала б база (P2002) */
@@ -30,6 +31,7 @@ const UNIQUE_KEYS = {
     transportSegment: [['cityCode', 'routeId', 'fromStopId', 'toStopId']],
     transportMeta: [['cityCode'], ['id']],
     transportRevision: [['cityCode', 'revision']],
+    transportVehiclePosition: [['cityCode', 'vehicleId', 'at']],
 };
 const cmp = (a, b) => {
     const x = a instanceof Date ? a.getTime() : a;
@@ -107,7 +109,7 @@ function createTransportTestStore(initial = {}) {
             if (name === 'transportMeta' && row.id === undefined)
                 row.id = 1 + Math.max(0, ...tables[name].map((r) => Number(r.id) || 0));
             for (const key of UNIQUE_KEYS[name] ?? []) {
-                if (tables[name].some((other) => key.every((field) => other[field] === row[field]))) {
+                if (tables[name].some((other) => key.every((field) => cmp(other[field], row[field]) === 0))) {
                     throw Object.assign(new Error(`Unique constraint failed on ${name} (${key.join(', ')})`), { code: 'P2002' });
                 }
             }
@@ -145,8 +147,19 @@ function createTransportTestStore(initial = {}) {
             },
             createMany: async (args) => {
                 log('createMany', args);
-                args.data.forEach((d) => insert(d));
-                return { count: args.data.length };
+                let count = 0;
+                for (const d of args.data) {
+                    try {
+                        insert(d);
+                        count += 1;
+                    }
+                    catch (e) {
+                        // як Postgres з ON CONFLICT DO NOTHING: повтор за унікальним ключем мовчки пропускається
+                        if (!(args.skipDuplicates && e.code === 'P2002'))
+                            throw e;
+                    }
+                }
+                return { count };
             },
             update: async (args) => {
                 log('update', args);
