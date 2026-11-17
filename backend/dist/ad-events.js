@@ -50,7 +50,7 @@ const WINDOW_DAYS = 91;
 const LIMIT = 30;
 /**
  * Зведення для стіни: сьогодні (київська доба) і за 91 день — показали / почали / досмотріли, входи на /dovede (хто),
- * унікальні браузери, і 30 останніх переглядів із подробицями. Подій небагато — читаються сирими рядками.
+ * унікальні браузери (люди — за першою подією кожного перегляду, як «хто» у списку), і 30 останніх переглядів. Подій небагато — читаються сирими рядками.
  * Наклейки — лише міста стіни (`cityCode`), «Доведе» — завжди.
  */
 async function adWallSnapshot(prisma, opts) {
@@ -65,7 +65,8 @@ async function adWallSnapshot(prisma, opts) {
     });
     const zero = () => ({ shown: 0, started: 0, completed: 0 });
     const sticker = { today: zero(), total: zero(), people: 0 };
-    const dovede = { today: { ...zero(), pages: 0 }, total: { ...zero(), pages: 0 }, access: { admin: 0, guest: 0, public: 0 }, people: 0 };
+    const noAccess = () => ({ admin: 0, guest: 0, public: 0 });
+    const dovede = { today: { ...zero(), pages: 0 }, total: { ...zero(), pages: 0 }, access: noAccess(), todayAccess: noAccess(), people: 0 };
     const people = { sticker: new Set(), dovede: new Set() };
     const views = new Map();
     const seenByClient = new Map();
@@ -76,8 +77,11 @@ async function adWallSnapshot(prisma, opts) {
             dovede.total.pages++;
             if (isToday)
                 dovede.today.pages++;
-            if (r.access === 'admin' || r.access === 'guest' || r.access === 'public')
+            if (r.access === 'admin' || r.access === 'guest' || r.access === 'public') {
                 dovede.access[r.access]++;
+                if (isToday)
+                    dovede.todayAccess[r.access]++;
+            }
         }
         else if (r.event === 'shown' || r.event === 'started' || r.event === 'completed') {
             const bucket = placement === 'sticker' ? sticker : dovede;
@@ -85,10 +89,11 @@ async function adWallSnapshot(prisma, opts) {
             if (isToday)
                 bucket.today[r.event]++;
         }
-        if (r.clientId)
-            (placement === 'sticker' ? people.sticker : people.dovede).add(r.clientId);
         let v = views.get(r.viewId);
         if (!v) {
+            // людина — браузер першої події перегляду: та сама, що «хто» у списку
+            if (r.clientId)
+                (placement === 'sticker' ? people.sticker : people.dovede).add(r.clientId);
             const before = r.clientId ? (seenByClient.get(r.clientId)?.size ?? 0) : 0;
             if (r.clientId && r.event !== 'page') {
                 const set = seenByClient.get(r.clientId) ?? new Set();

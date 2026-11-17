@@ -3,6 +3,9 @@ import { WallBadges } from './WallBadges';
 import { plural, schemePalette, textOn, type Celebration } from './stickerWall';
 
 const PIECES = 30;
+/** Тизер «Крапка»: біле тло, блакитна крапка, темно-бірюзовий текст (video/src/brand/tokens.ts, сторінка /dovede) */
+const DOT = '#00aff5';
+const INK = '#054752';
 
 /** Детерміноване «випадкове» число з ключа святкування — конфеті різне, але стабільне між рендерами */
 function seeded(key: string): () => number {
@@ -19,10 +22,15 @@ function seeded(key: string): () => number {
 /**
  * Святкування нового відкриття: екран заливає колір лінії зупинки, від центру розходяться кола
  * «як від QR», летять конфеті в кольорах схеми; назва зупинки, лінії, «+1» і скільки вже сьогодні.
+ * Новий пасажир (`newcomer` — досмотрів тизер, тобто прийшов уперше) — відлуння самого тизера: біле тло, блакитна
+ * крапка падає й тричі підскакує («тук-тук-тук» у wallSound.ts), «дзинь» — і кола «ви тут» від крапки.
  */
 export function WallCelebration({ celebration: c }: { celebration: Celebration }) {
   const rnd = seeded(c.key);
-  const palette = [c.color, ...c.lines.map((l) => l.color).filter((x): x is string => !!x), ...schemePalette(), '#ffffff'];
+  const newcomer = c.kind === 'newcomer';
+  const palette = newcomer
+    ? [DOT, DOT, INK, ...c.lines.map((l) => l.color).filter((x): x is string => !!x), ...schemePalette()]
+    : [c.color, ...c.lines.map((l) => l.color).filter((x): x is string => !!x), ...schemePalette(), '#ffffff'];
   const pieces = Array.from({ length: PIECES }, (_, i) => {
     const angle = rnd() * Math.PI * 2;
     const dist = 28 + rnd() * 34;
@@ -39,12 +47,12 @@ export function WallCelebration({ celebration: c }: { celebration: Celebration }
       } as CSSProperties,
     };
   });
-  const fg = textOn(c.color);
-  const special = c.kind === 'first' || c.kind === 'milestone' || c.kind === 'record';
+  const fg = newcomer ? INK : textOn(c.color);
+  const special = newcomer || c.kind === 'first' || c.kind === 'milestone' || c.kind === 'record';
   return (
     <div
       className={`wall-cele wall-cele--${c.kind}`}
-      style={{ '--c': c.color, '--fg': fg } as CSSProperties}
+      style={{ '--c': newcomer ? DOT : c.color, '--fg': fg } as CSSProperties}
       role="status"
       aria-live="assertive"
       aria-label={`${c.headline}: ${c.name}`}
@@ -64,11 +72,22 @@ export function WallCelebration({ celebration: c }: { celebration: Celebration }
         <p className={`wall-cele-headline${special ? ' wall-cele-headline--special' : ''}`}>{c.headline}</p>
         <h2 className="wall-cele-name">{c.name}</h2>
         <WallBadges lines={c.lines} max={8} />
-        <div className="wall-cele-plus" aria-hidden="true">
-          +{c.added}
-        </div>
+        {newcomer ? (
+          <div className="wall-cele-dot-stage" aria-hidden="true">
+            <span className="wall-cele-dot" />
+          </div>
+        ) : (
+          <div className="wall-cele-plus" aria-hidden="true">
+            +{c.added}
+          </div>
+        )}
         <p className="wall-cele-meta">
-          {c.stopId ? (
+          {newcomer ? (
+            <>
+              {c.stopId ? 'уперше тут — досмотрів тизер «Доведе»' : 'досмотріли тизер «Доведе»'} · нових сьогодні{' '}
+              <b>{c.newToday ?? c.added}</b>
+            </>
+          ) : c.stopId ? (
             <>
               сьогодні вже <b>{c.stopToday}</b> {plural(c.stopToday, ['відкриття', 'відкриття', 'відкриттів'])}
               {c.rank > 0 && <> · №{c.rank} серед зупинок</>} · усього {c.totalAfter}

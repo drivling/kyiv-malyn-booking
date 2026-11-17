@@ -4,7 +4,7 @@
  * тихі години й підписи часу за Києвом.
  */
 import type { TransportDataset } from '@/api/transportDataset';
-import type { StickerWallSnapshot } from '@/types';
+import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
 import { stickerStopCatalog } from '@/pages/AdminPage/stopSticker/scanStats';
 import { brightestLineColor, prettyStopName } from '@/pages/AdminPage/stopSticker/stickerModel';
 import { currentScheme, textColorOn } from '@/pages/LocalTransportPage/routeColors';
@@ -83,7 +83,8 @@ export function recentHours(hourly: number[], hour: number, count = 8): { hour: 
   });
 }
 
-export type CelebrationKind = 'scan' | 'first' | 'milestone' | 'record' | 'summary';
+/** `newcomer` — новий пасажир: уперше відсканував наклейку й досмотрів тизер «Доведе» (тизер — раз на браузер) */
+export type CelebrationKind = 'scan' | 'first' | 'milestone' | 'record' | 'summary' | 'newcomer';
 
 export type Celebration = {
   key: string;
@@ -102,6 +103,8 @@ export type Celebration = {
   rank: number;
   /** Відкриттів усього сьогодні після цього святкування */
   totalAfter: number;
+  /** Лише `newcomer`: скільки новеньких (досмотріли тизер) сьогодні разом із цим */
+  newToday?: number;
 };
 
 export const MILESTONES = [10, 25, 50, 75, 100, 150, 200, 300, 500, 750, 1000];
@@ -183,6 +186,73 @@ export function buildCelebrations(snapshot: StickerWallSnapshot, stops: WallStop
   return out;
 }
 
+type AdView = AdWallSnapshot['views'][number];
+const MAX_NEWCOMERS = 3;
+
+/**
+ * Новенькі з опитування «Реклами»: досмотрені тизери з наклейок, яких стіна ще не бачила (старі за часом — першими).
+ * Перший знімок — лише точка відліку, щоб після перезавантаження стіна не святкувала вчорашніх.
+ */
+export function freshNewcomers(seen: ReadonlySet<string> | null, ads: AdWallSnapshot): { fresh: AdView[]; seen: Set<string> } {
+  const done = ads.views.filter((v) => v.placement === 'sticker' && v.kind === 'view' && v.completed);
+  const next = new Set(done.map((v) => v.viewId));
+  if (!seen) return { fresh: [], seen: next };
+  return { fresh: done.filter((v) => !seen.has(v.viewId)).sort((a, b) => a.at.localeCompare(b.at)), seen: next };
+}
+
+/** Особливе святкування на кожного новенького (до трьох; більше — три + «Ще +N новеньких») */
+export function buildNewcomerCelebrations(fresh: AdView[], ads: AdWallSnapshot, dir: Map<string, StopInfo>): Celebration[] {
+  if (!fresh.length) return [];
+  const today = ads.sticker.today.completed;
+  const shown = fresh.length > MAX_NEWCOMERS + 1 ? fresh.slice(0, MAX_NEWCOMERS) : fresh;
+  const out: Celebration[] = shown.map((v, i) => {
+    const info = v.stopId ? dir.get(v.stopId) : undefined;
+    return {
+      key: `new-${v.viewId}`,
+      kind: 'newcomer',
+      headline: 'Новий пасажир!',
+      stopId: v.stopId,
+      name: info?.name ?? v.stopId ?? 'Табло зупинки',
+      lines: info?.lines ?? [],
+      color: info?.color ?? FALLBACK_COLOR,
+      added: 1,
+      stopToday: 0,
+      rank: 0,
+      totalAfter: 0,
+      newToday: Math.max(1, today - (fresh.length - 1 - i)),
+    };
+  });
+  const rest = fresh.length - shown.length;
+  if (rest > 0) {
+    out.push({
+      key: `new-rest-${fresh[fresh.length - 1].viewId}`,
+      kind: 'newcomer',
+      headline: 'Нові пасажири!',
+      stopId: null,
+      name: `Ще +${rest} ${plural(rest, ['новенький', 'новеньких', 'новеньких'])}`,
+      lines: [],
+      color: FALLBACK_COLOR,
+      added: rest,
+      stopToday: 0,
+      rank: 0,
+      totalAfter: 0,
+      newToday: Math.max(1, today),
+    });
+  }
+  return out;
+}
+
+/**
+ * Скани й новенькі одного опитування разом: новенький (скан + досмотрений тизер в одному опитуванні) отримує лише
+ * своє, особливе святкування — звичайне «Нове відкриття з QR» тієї ж зупинки зайве. Перше за день, рубіж і рекорд
+ * лишаються.
+ */
+export function withNewcomers(scans: Celebration[], newcomers: Celebration[]): Celebration[] {
+  if (!newcomers.length) return scans;
+  const stops = new Set(newcomers.map((c) => c.stopId).filter(Boolean));
+  return [...scans.filter((c) => !(c.kind === 'scan' && c.added === 1 && c.stopId && stops.has(c.stopId))), ...newcomers];
+}
+
 /** Українські форми числа: [1, 2–4, 5+] */
 export function plural(n: number, forms: [string, string, string]): string {
   const n10 = n % 10;
@@ -211,6 +281,25 @@ export function agoLabel(iso: string | null, now: Date): string {
   if (min < 1) return 'щойно';
   if (min < 60) return `${min} хв тому`;
   return `${Math.floor(min / 60)} год тому`;
+}
+
+/** «щойно» / «12 хв» / «3 год» сьогодні; раніше — «вчора 14:05» або «15 лист.» */
+export function adWhen(iso: string, now: Date): string {
+  const min = Math.floor((now.getTime() - Date.parse(iso)) / 60_000);
+  if (min < 1) return 'щойно';
+  if (min < 60) return `${min} хв`;
+  const at = new Date(iso);
+  const dayOf = (d: Date) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv' }).format(d);
+  if (dayOf(at) === dayOf(now)) return `${Math.floor(min / 60)} год`;
+  if (dayOf(at) === dayOf(new Date(now.getTime() - 86_400_000))) return `вчора ${kyivClock(at).time}`;
+  return new Intl.DateTimeFormat('uk-UA', { timeZone: 'Europe/Kyiv', day: 'numeric', month: 'short' }).format(at);
+}
+
+/** Сталий колір для анонімного «хто»: той самий браузер — та сама крапка */
+export function whoHue(who: string): number {
+  let h = 0;
+  for (const ch of who) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return h;
 }
 
 /** Тихі години (без звуку): з 22:00 до 08:00 за Києвом */

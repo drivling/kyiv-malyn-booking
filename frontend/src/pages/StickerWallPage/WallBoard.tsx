@@ -33,6 +33,7 @@ export function WallBoard({
   soundOn,
   ads = null,
   stopName = (id: string) => id,
+  cityName = 'МАЛИН',
 }: {
   snapshot: StickerWallSnapshot | null;
   stops: WallStop[];
@@ -47,6 +48,8 @@ export function WallBoard({
   /** Вкладка «Реклама»: GET /ads/wall */
   ads?: AdWallSnapshot | null;
   stopName?: (id: string) => string;
+  /** Назва міста наклейок у шапці (великими) */
+  cityName?: string;
 }) {
   const clock = kyivClock(now);
   const hour = kyivHour(now);
@@ -64,7 +67,7 @@ export function WallBoard({
     <div className="wall-board" style={{ '--accent': accent } as CSSProperties}>
       <header className="wall-top">
         <div className="wall-brand">
-          <span className="wall-brand-name">МАЛИН</span>
+          <span className="wall-brand-name">{cityName}</span>
           <span className="wall-brand-sub">відкриття з QR-наклейок</span>
         </div>
         <div className="wall-status" aria-label="Стан віджета">

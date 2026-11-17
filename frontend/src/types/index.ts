@@ -1110,6 +1110,8 @@ export interface AdWallSnapshot {
     today: AdCounts & { pages: number };
     total: AdCounts & { pages: number };
     access: { admin: number; guest: number; public: number };
+    /** Ті самі входи, лише сьогодні (з 2026-11-17; старий бекенд — немає) */
+    todayAccess?: { admin: number; guest: number; public: number };
     people: number;
   };
   views: {

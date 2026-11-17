@@ -426,7 +426,9 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   (`GET /admin/transport/sticker-scans?days=1|7|30|90`, 1 = today since Kyiv midnight; `POST /admin/transport/sticker-prints`).
   Wall widget `/admin/wall?key=…` (`src/pages/StickerWallPage/`, rendered without NavBar): a phone in
   landscape polls `GET /transport/sticker-wall?key=&after=<id>` every 30 s and celebrates each new scan
-  (colour of the stop's line, Web Audio chime); the key is read-only, `HMAC(ADMIN_PASSWORD)` from
+  (colour of the stop's line, Web Audio chime) — a finished «Доведе» teaser (`GET /ads/wall`, shown once per browser,
+  so a new person) gets its own white «new passenger» celebration with the teaser's bouncing dot; the header shows
+  the city of `?city=`; the key is read-only, `HMAC(ADMIN_PASSWORD)` from
   `backend/src/sticker-wall.ts`, issued by `GET /admin/transport/sticker-wall-key`.
   Workflow in `Docs/stop-stickers.md`.
 - «Факт прибуття»: a long press (or right click / `contextmenu`) on a departure chip of `/transport/route/:id`
