@@ -1141,6 +1141,16 @@ class ApiClient {
     return this.request('/admin/dovede/city/archive', { method: 'POST', body: JSON.stringify({ action }) });
   }
 
+  /** Адмін: обнулити лічильник попиту «Що питають найчастіше» (після самонавчання). Збережені дороги лишаються */
+  async dovedeCityResetDemand(): Promise<{ reset: number }> {
+    return this.request('/admin/dovede/city/demand/reset', { method: 'POST' });
+  }
+
+  /** Адмін: скільки днів збережена відповідь свіжа (1–365); далі сервер питає Google знову */
+  async setDovedeCityFreshDays(freshDays: number): Promise<{ freshDays: number }> {
+    return this.request('/admin/dovede/city/settings', { method: 'PUT', body: JSON.stringify({ freshDays }) });
+  }
+
   /** Адмін: примітки оголошень водіїв за період — для підрахунку «Звідки забирають попутки» */
   async getDovedePickups(days: import('@/types').DovedeLogDays = 90): Promise<import('@/types').DovedePickups> {
     return this.request(`/admin/dovede/pickups?days=${days}`);

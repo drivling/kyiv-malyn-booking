@@ -1402,13 +1402,19 @@ export interface DovedeCityStats {
   hasKey: boolean;
   callsToday: number;
   dailyCap: number;
-  /** скільки днів збережена відповідь вважається свіжою */
+  /** скільки днів збережена відповідь вважається свіжою (власник міняє в адмінці) */
   freshDays: number;
+  /** значення з коду, поки власник не задав свого */
+  freshDaysDefault?: number;
+  /** збережених відповідей з Google, старших за строк свіжості (людям не віддаються) */
+  staleRoutes?: number;
+  /** фонове навчання оновлює їх саме (DOVEDE_CITY_REFRESH) */
+  refresh?: boolean;
   archivedRoutes: number;
   routes: Array<{ city: string; source: string; count: number }>;
   lines: Array<{ city: string; count: number }>;
   stops: Array<{ city: string; count: number }>;
-  demand: Array<{ city: string; from: string; to: string; asked: number; answered: number; lastAskedAt: string }>;
+  demand: Array<{ city: string; from: string; to: string; asked: number; answered: boolean; lastAskedAt: string }>;
 }
 
 /** «Доведе» · примітки оголошень водіїв за період (GET /admin/dovede/pickups) — без імен і телефонів */

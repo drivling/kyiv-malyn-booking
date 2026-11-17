@@ -5,11 +5,11 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
-import { createCityRoutes, dayTypeOf, nextWeekdayMorning, normalizeKey, parseGoogleRoute, resolveCityPoint, type CityRouteQuery } from './city-route';
+import { createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, type CityRouteQuery } from './city-route';
 
 type Row = Record<string, unknown>;
 
-/** Мінімальна таблиця: рівність, { in }, { gte }, { not: null }, OR; унікальний ключ — перелік полів */
+/** Мінімальна таблиця: рівність, { in }, { gte }, { gt }, { lt }, { not: null }, OR; унікальний ключ — перелік полів */
 function table(unique: string[]) {
   const rows: Row[] = [];
   let seq = 0;
@@ -17,8 +17,10 @@ function table(unique: string[]) {
     Object.entries(where ?? {}).every(([k, v]) => {
       if (k === 'OR') return (v as Row[]).some((w) => match(row, w));
       if (v && typeof v === 'object' && !(v instanceof Date)) {
-        const c = v as { in?: unknown[]; gte?: Date; not?: unknown };
+        const c = v as { in?: unknown[]; gte?: Date; gt?: number; lt?: Date; not?: unknown };
+        if (c.lt) return row[k] != null && (row[k] as Date) < c.lt;
         if (c.in) return c.in.includes(row[k]);
+        if (c.gt !== undefined) return (row[k] as number) > c.gt;
         if (c.gte) return (row[k] as Date) >= c.gte;
         if ('not' in c) return row[k] !== c.not && !(c.not === null && row[k] == null);
       }
@@ -36,6 +38,7 @@ function table(unique: string[]) {
     count: async ({ where }: { where?: Row } = {}) => rows.filter((r) => match(r, where)).length,
     findMany: async ({ where, take }: { where?: Row; take?: number } = {}) => rows.filter((r) => match(r, where)).slice(0, take ?? rows.length),
     findFirst: async ({ where }: { where?: Row } = {}) => rows.find((r) => match(r, where)) ?? null,
+    findUnique: async ({ where }: { where: Row }) => rows.find((r) => match(r, where)) ?? null,
     update: async ({ where, data }: { where: Row; data: Row }) => apply(rows.find((r) => r.id === where.id)!, data),
     updateMany: async ({ where, data }: { where?: Row; data: Row }) => {
       const hit = rows.filter((r) => match(r, where));
@@ -43,10 +46,12 @@ function table(unique: string[]) {
       return { count: hit.length };
     },
     upsert: async ({ where, create, update }: { where: Row; create: Row; update: Row }) => {
-      const key = Object.values(where)[0] as Row;
+      // складений ключ — { назва: { поля } }; простий — { id: 1 }
+      const first = Object.values(where)[0];
+      const key = (first && typeof first === 'object' ? first : where) as Row;
       const hit = rows.find((r) => unique.every((f) => r[f] === key[f]));
       if (hit) return apply(hit, update);
-      const row: Row = { id: ++seq, hits: 0, asked: 1, seenCount: 1, answered: false, archivedAt: null, ...create };
+      const row: Row = { id: ++seq, hits: 0, asked: 1, seenCount: 1, answered: false, archivedAt: null, refreshFailedAt: null, ...create };
       rows.push(row);
       return row;
     },
@@ -68,8 +73,9 @@ function fakeDb() {
   const dovedeCityLine = table(['cityCode', 'mode', 'name', 'agency']);
   const dovedeCityStop = table(['cityCode', 'name']);
   const dovedeCityDemand = table(['cityCode', 'fromKey', 'toKey']);
-  const prisma = { dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, $transaction: async (ops: Array<Promise<unknown>>) => Promise.all(ops) } as unknown as PrismaClient;
-  return { prisma, dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand };
+  const dovedeCitySettings = table(['id']);
+  const prisma = { dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, $transaction: async (ops: Array<Promise<unknown>>) => Promise.all(ops) } as unknown as PrismaClient;
+  return { prisma, dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings };
 }
 
 const GOOGLE = {
@@ -178,6 +184,71 @@ test('відповідь старша 30 днів — питаємо Google зн
   assert.equal(t.dovedeCityRoute.rows.length, 1);
 });
 
+test('строк свіжості з адмінки: 7 днів — на восьмий питаємо Google знову; 90 — на тридцять перший ще з бази; межі 1–365', async () => {
+  const short = make();
+  assert.equal((await short.svc.stats()).freshDays, 30);
+  assert.equal(await short.svc.setFreshDays(7), 7);
+  assert.deepEqual([(await short.svc.stats()).freshDays, (await short.svc.stats()).freshDaysDefault], [7, 30]);
+  await short.svc.find(Q);
+  short.setNow(new Date(NOW.getTime() + 8 * 24 * 3600_000));
+  const again = await short.svc.find({ ...Q, date: '2026-11-25', departAt: new Date('2026-11-25T07:20:00.000Z') });
+  assert.equal(again.ok && again.source, 'google');
+
+  const long = make();
+  await long.svc.setFreshDays(90);
+  await long.svc.find(Q);
+  long.setNow(new Date(NOW.getTime() + 31 * 24 * 3600_000));
+  const kept = await long.svc.find({ ...Q, date: '2026-12-18', departAt: new Date('2026-12-18T07:20:00.000Z') });
+  assert.equal(kept.ok && kept.source, 'stored');
+  assert.equal(long.calls.length, 1);
+  // значення лежить у базі одним рядком — інший екземпляр сервера його бачить
+  assert.deepEqual(long.dovedeCitySettings.rows.map((r) => [r.id, r.freshDays]), [[1, 90]]);
+  assert.equal((await createCityRoutes({ prisma: long.prisma, key: () => 'k', now: () => NOW }).stats()).freshDays, 90);
+
+  for (const bad of [0, 366, 2.5, Number.NaN]) await assert.rejects(long.svc.setFreshDays(bad), RangeError);
+  // сміття в базі не ламає відповіді: діє типове
+  long.dovedeCitySettings.rows[0].freshDays = 0;
+  assert.equal((await createCityRoutes({ prisma: long.prisma, key: () => 'k', now: () => NOW }).stats()).freshDays, 30);
+});
+
+test('скидання лічильника попиту: рядки лишаються з asked = 0, їх немає в списку й у навчанні; нове питання людини рахується з 1', async () => {
+  const t = make({ dailyCap: () => 100 });
+  await t.svc.find(Q);
+  await t.svc.find(Q);
+  assert.deepEqual((await t.svc.stats()).demand.map((d) => d.asked), [2]);
+  assert.deepEqual(await t.svc.resetDemand(), { reset: 1 });
+  assert.deepEqual(t.dovedeCityDemand.rows.map((r) => r.asked), [0]);
+  assert.deepEqual((await t.svc.stats()).demand, []);
+  assert.deepEqual(await t.svc.resetDemand(), { reset: 0 });
+  // збережена дорога на місці: людина й далі отримує її з бази
+  assert.equal(t.dovedeCityRoute.rows.length, 1);
+  const again = await t.svc.find(Q);
+  assert.equal(again.ok && again.source, 'stored');
+  assert.deepEqual((await t.svc.stats()).demand.map((d) => d.asked), [1]);
+
+  // навчання (`learn=1`): попит не росте, але пара людини, на яку знайшлась дорога, більше не «без відповіді»
+  const u = make({ dailyCap: () => 100 }, GOOGLE, false);
+  await u.svc.find(Q);
+  assert.deepEqual((await u.svc.stats()).unanswered, [{ city: 'Zhytomyr', fromKey: 'zhytomyr.avtovokzal', toKey: 'польова 12', from: 'автовокзал Житомир-1', to: 'Польова 12', asked: 1 }]);
+  const fixed = createCityRoutes({ prisma: u.prisma, key: () => 'k', fetchImpl: fakeFetch().fetchImpl, now: () => NOW, enabled: () => true, store: () => true, dailyCap: () => 100, ownRoute: () => null });
+  const learned = await fixed.find(Q, true);
+  assert.equal(learned.ok && learned.source, 'google');
+  assert.deepEqual(u.dovedeCityDemand.rows.map((r) => [r.asked, r.answered]), [[1, true]]);
+  assert.deepEqual((await fixed.stats()).unanswered, []);
+  assert.equal(u.dovedeCityRoute.rows[0].hits, 0);
+  // пари, якої люди не питали, навчання в попит не додає
+  await fixed.find({ ...Q, to: 'Богунія' }, true);
+  assert.equal(u.dovedeCityDemand.rows.length, 1);
+
+  // навчання: обнулена пара без свіжої відповіді в чергу не йде — лише стартовий набір
+  const l = make({ dailyCap: () => 100 });
+  await l.svc.find({ ...Q, to: 'Корбутівка' });
+  await l.svc.resetDemand();
+  l.dovedeCityRoute.rows.length = 0;
+  await l.svc.learnTick(1);
+  assert.notEqual(l.dovedeCityRoute.rows[0]?.toKey, 'корбутівка');
+});
+
 test('запис вимкнено — відповідаємо, але в базу не пишемо', async () => {
   const t = make({ store: () => false });
   assert.equal((await t.svc.find(Q)).ok, true);
@@ -240,6 +311,126 @@ test('навчання у фоні: стартові пари, не більше
   assert.equal(again.dovedeCityRoute.rows.filter((r) => r.archivedAt != null).length, 2);
   assert.equal(again.calls.length, before + 2);
   assert.equal(new Set(again.dovedeCityRoute.rows.map((r) => r.toKey)).size, 4);
+});
+
+test('навчання оновлює відповіді, що ось-ось застаріють: той самий тип дня й година, слова людини; свіжих не чіпає', async () => {
+  const DAY = 24 * 3600_000;
+  const t = make({ dailyCap: () => 1000 });
+  // людина спитала на суботу, 14:20
+  await t.svc.find({ ...Q, date: '2026-11-21', time: '14:20', departAt: new Date('2026-11-21T12:20:00.000Z') });
+  const row = t.dovedeCityRoute.rows[0];
+  assert.deepEqual([row.dayType, row.hour, row.toLabel, row.hits], ['saturday', 14, 'Польова 12', 0]);
+  // стартовий набір вивчено — далі навчанню лишається тільки оновлення
+  await t.svc.learnTick(500);
+  const rows = t.dovedeCityRoute.rows.length;
+  const before = t.calls.length;
+
+  // 27 днів: до кінця строку (30) ще три дні — рано
+  t.setNow(new Date(NOW.getTime() + 27 * DAY));
+  assert.deepEqual(await t.svc.learnTick(1), { asked: 0, learned: 0 });
+  // 29 днів: лишилося менше двох — оновлюємо, не чекаючи, поки людина натрапить на застарілу
+  t.setNow(new Date(NOW.getTime() + 29 * DAY));
+  assert.deepEqual(await t.svc.learnTick(1), { asked: 1, learned: 1 });
+  assert.equal(t.calls.length, before + 1);
+  const call = t.calls[t.calls.length - 1] as { destination: { address: string }; departureTime: string };
+  // 16 грудня — середа; найближча субота 19-го, 14:00 за Києвом = 12:00 UTC
+  assert.deepEqual([call.destination.address, call.departureTime], ['Польова 12, Житомир, Україна', '2026-12-19T12:00:00.000Z']);
+  assert.equal(t.dovedeCityRoute.rows.length, rows);
+  assert.deepEqual([row.dayType, row.hour, row.toLabel, row.hits, (row.fetchedAt as Date).getTime()], ['saturday', 14, 'Польова 12', 0, NOW.getTime() + 29 * DAY]);
+  // попит людей оновлення не накручує
+  assert.deepEqual(t.dovedeCityDemand.rows.map((r) => r.asked), [1]);
+
+  // вимикач, архів і половина денного ліміту
+  assert.deepEqual(await createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: t.fetchImpl, now: () => new Date(NOW.getTime() + 29 * DAY), ownRoute: () => null, refresh: () => false }).learnTick(3), { asked: 0, learned: 0 });
+  const capped = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: t.fetchImpl, now: () => new Date(NOW.getTime() + 29 * DAY), ownRoute: () => null, dailyCap: () => 4 });
+  // сьогодні вже є одна відповідь; половина від 4 — це 2, тож ще одна
+  assert.deepEqual(await capped.learnTick(5), { asked: 1, learned: 1 });
+  const stale = (await t.svc.stats()).staleRoutes;
+  assert.equal(stale, 0); // застарілих за 30 днів ще немає: оновлення йде на випередження
+  await t.svc.archiveGoogle();
+  assert.deepEqual(await t.svc.learnTick(3), { asked: 0, learned: 0 });
+});
+
+test('невдале оновлення: рядок позначено й тиждень не чіпаємо; далі — наступний; власні дані Google не питають', async () => {
+  const DAY = 24 * 3600_000;
+  const t = make({ dailyCap: () => 1000 });
+  await t.svc.find(Q);
+  await t.svc.find({ ...Q, to: 'Корбутівка' });
+  // без попиту людей: інакше навчання спершу бралося б за ці пари як за найзапитуваніші
+  await t.svc.resetDemand();
+  const later = new Date(NOW.getTime() + 31 * DAY);
+  // стартові пари на цей момент свіжі — щоб навчання їх не питало
+  for (const r of t.dovedeCityRoute.rows) r.fetchedAt = NOW;
+  const seeded = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: t.fetchImpl, now: () => later, ownRoute: () => null, dailyCap: () => 1000 });
+  await seeded.learnTick(500);
+  const [first, second] = t.dovedeCityRoute.rows;
+  first.fetchedAt = NOW;
+  second.fetchedAt = NOW;
+  assert.deepEqual([(await seeded.stats()).staleRoutes, (await seeded.stats()).refresh], [2, true]);
+
+  const down = fakeFetch(GOOGLE, false);
+  const failing = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: down.fetchImpl, now: () => later, ownRoute: () => null, dailyCap: () => 1000 });
+  assert.deepEqual(await failing.learnTick(1), { asked: 1, learned: 0 });
+  assert.deepEqual([first.refreshFailedAt, second.refreshFailedAt], [later, null]);
+  assert.equal((first.fetchedAt as Date).getTime(), NOW.getTime()); // застаріле свіжим не стало
+  // наступний крок бере інший рядок, а не той самий
+  assert.deepEqual(await failing.learnTick(1), { asked: 1, learned: 0 });
+  assert.deepEqual((down.calls as Array<{ destination: { address: string } }>).map((c) => c.destination.address), ['Польова 12, Житомир, Україна', 'Корбутівка, Житомир, Україна']);
+  assert.deepEqual(await failing.learnTick(1), { asked: 0, learned: 0 });
+  // за тиждень — ще одна спроба; вдала знімає позначку
+  first.refreshFailedAt = new Date(later.getTime() - 8 * DAY);
+  assert.deepEqual(await seeded.learnTick(1), { asked: 1, learned: 1 });
+  assert.deepEqual([first.refreshFailedAt, (first.fetchedAt as Date).getTime()], [null, later.getTime()]);
+
+  // пару тепер закривають власні дані: Google не питаємо, рядок відкладаємо
+  second.refreshFailedAt = null;
+  const callsBefore = t.calls.length;
+  const own = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: t.fetchImpl, now: () => later, dailyCap: () => 1000, ownRoute: () => ({ ok: true, source: 'own', city: 'Zhytomyr', fromLabel: 'a', toLabel: 'b', steps: [], minutes: 9, fetchedAt: later.toISOString() }) });
+  assert.deepEqual(await own.learnTick(1), { asked: 0, learned: 0 });
+  assert.equal(t.calls.length, callsBefore);
+  assert.deepEqual(second.refreshFailedAt, later);
+});
+
+test('навчання не довбає те саме: пару людей без відповіді й стартову пару, де Google не знайшов дороги, — раз на тиждень', async () => {
+  const DAY = 24 * 3600_000;
+  const t = make({ dailyCap: () => 1000 }, GOOGLE, false);
+  await t.svc.find(Q); // людина спитала, Google не відповів
+  assert.deepEqual(t.dovedeCityDemand.rows.map((r) => [r.answered, r.learnFailedAt ?? null]), [[false, null]]);
+  // крок навчання: спершу пара людини, потім дві стартові — усі три без успіху
+  assert.deepEqual(await t.svc.learnTick(3), { asked: 3, learned: 0 });
+  const tried = (t.calls as Array<{ destination: { address: string } }>).map((c) => c.destination.address);
+  assert.equal(tried[1], 'Польова 12, Житомир, Україна');
+  assert.deepEqual(t.dovedeCityDemand.rows[0].learnFailedAt, NOW);
+  // наступний крок бере інші пари, а не ті самі три
+  await t.svc.learnTick(3);
+  const next = (t.calls as Array<{ destination: { address: string } }>).map((c) => c.destination.address).slice(4);
+  assert.equal(next.length, 3);
+  assert.equal(next.filter((a) => tried.includes(a)).length, 0);
+  // за тиждень — знову з пари людини
+  t.setNow(new Date(NOW.getTime() + 8 * DAY));
+  const before = t.calls.length;
+  await t.svc.learnTick(1);
+  assert.equal((t.calls[before] as { destination: { address: string } }).destination.address, 'Польова 12, Житомир, Україна');
+  // ліміт — не «невдача пари»: позначок не ставимо
+  const capped = make({ dailyCap: () => 0 });
+  await capped.svc.find(Q);
+  assert.deepEqual(await capped.svc.learnTick(3), { asked: 0, learned: 0 });
+  assert.equal(capped.dovedeCityDemand.rows[0].learnFailedAt ?? null, null);
+});
+
+test('оновлення: коли питати й що саме', () => {
+  assert.deepEqual([1, 3, 4, 8, 30, 365].map(refreshLeadDays), [0, 0, 1, 2, 2, 2]);
+  assert.deepEqual(nextSlot(new Date('2026-11-17T08:00:00.000Z'), 'weekday', 9), { date: '2026-11-18', time: '09:00', utc: new Date('2026-11-18T07:00:00.000Z') });
+  // пʼятниця влітку → понеділок, UTC+3
+  assert.deepEqual(nextSlot(new Date('2026-06-12T08:00:00.000Z'), 'weekday', 9), { date: '2026-06-15', time: '09:00', utc: new Date('2026-06-15T06:00:00.000Z') });
+  // у Києві вже 18-те (00:30) — «завтра» це 19-те
+  assert.equal(nextSlot(new Date('2026-11-17T22:30:00.000Z'), 'weekday', 7).date, '2026-11-19');
+  assert.equal(nextSlot(new Date('2026-11-17T08:00:00.000Z'), 'sunday', 22).date, '2026-11-22');
+  // id точки лишається id; слова — як їх написала людина, а не ключ малими літерами
+  assert.equal(storedPoint('kyiv.akadem', 'метро «Академмістечко»'), 'kyiv.akadem');
+  assert.equal(storedPoint('zhytomyr.avtovokzal', 'автовокзал Житомир-1'), 'zhytomyr.avtovokzal');
+  assert.equal(storedPoint('польова 12', 'Польова 12'), 'Польова 12');
+  assert.equal(storedPoint('польова 12', 'щось інше'), 'польова 12');
 });
 
 test('навчання вимкнено без ключа чи без запису; найближчий будень о 09:00', async () => {

@@ -250,15 +250,40 @@ of `dist` in a commit.
   where the intercity trip arrives, or to the boarding point with a 7-minute buffer) and the page asks the server for
   what is missing in up to three rounds (`cityAsks` → `GET /dovede/city-route` → compose again); no answer = the old
   Google Maps button. Card `ui/CityLegCard.tsx`. Server `backend/src/dovede/city-route.ts`: a stored answer of the same
-  pair, day type and hour ± 1 not older than 30 days is served from `DovedeCityRoute` (`source: 'stored'`), otherwise
+  pair, day type and hour ± 1 not older than the fresh window (30 days by default; the owner edits it in the admin
+  block — singleton `DovedeCitySettings.freshDays`, 1–365, `PUT /admin/dovede/city/settings`, cached for a minute) is
+  served from `DovedeCityRoute` (`source: 'stored'`), otherwise
   Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`, `DOVEDE_CITY_DAILY_CAP` 150) and the route, its lines
   (`DovedeCityLine`), stops (`DovedeCityStop`) and the demand (`DovedeCityDemand`) are written to the DB. **Owner's
   decisions (2026-11-17):** Google answers are stored under his own contract with Google (switch `DOVEDE_CITY_STORE=0`,
   `DOVEDE_CITY_ROUTES=off`); the card never credits Google — every answer shows «перевірено N днів тому» (see below); **these tables are never deleted from — only archived** (`archivedAt`,
   `POST /admin/dovede/city/archive { action: archive | restore }`; archived rows are neither served nor refreshed).
   Background learning: `startIntervalJob('dovede-city-learn')` (`DOVEDE_CITY_LEARN_INTERVAL_MIN`, default 60) refreshes
-  the most asked pairs and `SEED_PAIRS` within half of the daily cap. Admin block «Місто: що вже знаємо»
+  the most asked pairs and `SEED_PAIRS` within half of the daily cap, then re-asks stored Google answers that have
+  expired or will within `refreshLeadDays` (2 days) — on the row's own day type and hour, most served first
+  (`DOVEDE_CITY_REFRESH=0` switches it off). A row whose refresh failed gets `refreshFailedAt` and is left alone for
+  `REFRESH_RETRY_DAYS` (7); archived rows are never refreshed. The same pause applies to a demand pair the learning
+  asked Google about without success (`DovedeCityDemand.learnFailedAt`) and to a failed seed pair (in memory) — a few
+  dead pairs must not eat every tick. A person's own question is never held back by these marks. Admin block «Місто: що вже знаємо»
   (`AdminPage/DovedeCityPanel.tsx`, `GET /admin/dovede/city`). Golden `scope: city`.
+  The same block has «Скинути лічильник попиту» (`POST /admin/dovede/city/demand/reset`): it sets `asked = 0` and
+  deletes nothing; a row with `asked = 0` is in neither the list nor the learning queue until a person asks again.
+  `GET /dovede/city-route?…&learn=1` with the admin token is the learning mode (`find(q, true)`): same answer, same
+  write to the DB, but no demand count and no `hits`; when it finds a road for a pair people asked, the pair is marked
+  answered. Without the admin token the flag changes nothing. Stats also return `unanswered` (pairs with keys).
+  Local crawl without AI: `npm run dovede:crawl -- "з Малина до Києва на вулицю Ентузіастів 7" --from святошин`
+  (frontend; `scripts/dovede-crawl.mjs` + pure `dovede-crawl-core.mjs`) parses the phrase with the page's own
+  `parseLocal` (bundled by esbuild), asks `GET /dovede/city-route` like the page does and walks breadth-first over the
+  places found in the answers (transfer / alighting stops and line termini; metro and rail are skipped as own data).
+  It never calls `/dovede/understand`. The journal `data/dovede-crawl/journal-<host>.jsonl` (gitignored) keeps what was
+  asked, so nothing is asked twice within the fresh window (read from the admin stats, `--fresh-days` overrides) and a
+  run without a phrase resumes — and asks again whatever has expired (`--status` says how much). The Google cap is
+  shared with people: `--budget` (default 40 new answers per run) and, with the admin token in the environment,
+  `--reserve` (default 50 of the daily cap left untouched). With the admin token it sends `learn=1`, so demand is not
+  counted (`--as-person` switches that off); with only the guests' password every ask counts like a person's.
+  `--unanswered` starts from people's questions the server could not answer; `--places <file>` from a list — the
+  starter lists are `scripts/data/dovede-places-kyiv.txt` / `-zhytomyr.txt` (a test keeps every line a «place in
+  words» for the page: no metro, no leading «Київський», no «імені», which the page's `nominative` turns into «іменя»).
   Zhytomyr from the owner's own site (stage 3б): `npm run zhytomyr:snapshot` (backend; flags in the script header) keeps
   `data/zhytomyr-transport/` — pages of `zt.rozklad.in.ua` (the site refuses requests without a browser `User-Agent`)
   parsed by `zhytomyr-site-parser.ts` into `routes.json`, stop coordinates from an OSM snapshot plus Google for names
