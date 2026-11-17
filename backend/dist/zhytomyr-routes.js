@@ -68,37 +68,73 @@ function buildZhytomyrReport(root) {
 }
 /**
  * backend/src/dovede/zhytomyr-own-data.ts — те, з чого сервер «Доведе» складає пряму поїздку Житомиром без Google:
- * зупинки з хвилинами й координатами та відправлення від першої зупинки. Каталогу `data/` на сервері немає,
- * тому дані їдуть модулем. `checked` — три великі відрізки напрямку збіглися з Google (REPORT.md); лише такі
- * напрямки йдуть у відповідь людині. Рейси «у депо» сюди не потрапляють: вони не йдуть до кінцевої.
+ * зупинки з хвилинами (виправленими за Google) й координатами та відправлення від першої зупинки. Каталогу `data/`
+ * на сервері немає, тому дані їдуть модулем. `checked` — три великі відрізки напрямку збіглися з Google або
+ * виправлені за ним (REPORT.md); лише такі напрямки йдуть у відповідь людині. Рейси «у депо» сюди не потрапляють: вони не йдуть до кінцевої.
  */
 function buildZhytomyrOwnData(root) {
     const routes = loadZhytomyrRoutes(root);
     const stops = JSON.parse(buildZhytomyrStops(root)).stops;
     const byId = new Map(stops.map((s) => [s.id, s]));
     const verdicts = readJson(node_path_1.default.join(root, 'google/checks.json'), { checks: {} }).checks;
-    const status = new Map((0, zhytomyr_google_check_1.directionChecks)(routes, (0, zhytomyr_google_check_1.checkSpans)(routes, stops), verdicts).map((d) => [d.dirId, d.status]));
+    const thirds = (0, zhytomyr_google_check_1.checkSpans)(routes, stops).filter((sp) => sp.level === 'thirds');
     const side = (name) => name.replace(/\s+\[?0\d{1,2}\]?\s*$/, '').trim();
     const times = (list) => list.filter((d) => !d.note?.includes('depot')).map((d) => d.time);
-    const dirs = routes.routes.flatMap((r) => r.directions.map((d) => ({
-        id: d.dirId,
-        no: r.number,
-        name: d.name,
-        checked: status.get(d.dirId) === 'checked',
-        stops: d.stops.map((s) => {
-            const at = byId.get(s.id);
-            // приблизна координата (між сусідами) для пошуку «поруч» не годиться
-            return at && at.source !== 'interpolated' ? [side(s.name), s.minutes, at.lat, at.lng] : [side(s.name), s.minutes, null, null];
-        }),
-        wd: times(d.workdays),
-        we: times(d.weekend),
-    })));
+    const dirs = routes.routes.flatMap((r) => r.directions.map((d) => {
+        // Хвилини між зупинками — за Google там, де він їх знає (рішення власника 2026-11-17: розклад сайту давній,
+        // «Google точно знає краще»). Відрізок із справді іншими хвилинами розтягуємо чи стискаємо до часу Google,
+        // решту ланцюжка зсуваємо. Напрямок «звірено», коли всі три великі відрізки збіглись або виправлені.
+        const minutes = d.stops.map((x) => x.minutes);
+        const mine = thirds.filter((sp) => sp.dirId === d.dirId);
+        let checked = mine.length > 0;
+        for (const sp of mine) {
+            const v = verdicts[sp.key];
+            if (v?.verdict === 'match')
+                continue;
+            if (v?.verdict !== 'differs' || v.cause !== 'minutes' || !v.google) {
+                checked = false;
+                continue;
+            }
+            const i0 = d.stops.findIndex((x) => x.id === sp.from.id);
+            const i1 = d.stops.findIndex((x) => x.id === sp.to.id);
+            const a = v.compared ? d.stops.findIndex((x, i) => i >= i0 && i <= i1 && (0, zhytomyr_stops_1.sameStopName)(x.name, v.compared.from)) : i0;
+            const b = v.compared ? d.stops.findIndex((x, i) => i > a && i <= i1 && (0, zhytomyr_stops_1.sameStopName)(x.name, v.compared.to)) : i1;
+            const span = a >= 0 && b > a ? minutes[b] - minutes[a] : 0;
+            if (span <= 0) {
+                checked = false;
+                continue;
+            }
+            const k = v.google.minutes / span;
+            const shift = v.google.minutes - span;
+            const base = minutes[a];
+            for (let i = a + 1; i < minutes.length; i++)
+                minutes[i] = i <= b ? base + (minutes[i] - base) * k : minutes[i] + shift;
+        }
+        // цілі хвилини, що не йдуть назад
+        const whole = minutes.map((m) => Math.round(m));
+        for (let i = 1; i < whole.length; i++)
+            whole[i] = Math.max(whole[i], whole[i - 1]);
+        return {
+            id: d.dirId,
+            no: r.number,
+            name: d.name,
+            checked,
+            stops: d.stops.map((x, i) => {
+                const at = byId.get(x.id);
+                // приблизна координата (між сусідами) для пошуку «поруч» не годиться
+                return at && at.source !== 'interpolated' ? [side(x.name), whole[i], at.lat, at.lng] : [side(x.name), whole[i], null, null];
+            }),
+            wd: times(d.workdays),
+            we: times(d.weekend),
+        };
+    }));
     const validFrom = routes.routes.flatMap((r) => r.directions.map((d) => d.validFrom)).find(Boolean) ?? null;
     return [
         '/**',
         ' * ЗГЕНЕРОВАНО: `npm run zhytomyr:snapshot` у backend/ (zhytomyr-routes.ts → buildZhytomyrOwnData). Руками не редагувати.',
         ' * Маршрути Житомира із zt.rozklad.in.ua (сайт власника): зупинки [назва, хвилин від початку, lat, lng] і',
-        ' * відправлення від першої зупинки (wd — робочі дні, we — вихідні). checked — напрямок звірено з Google.',
+        ' * відправлення від першої зупинки (wd — робочі дні, we — вихідні). Хвилини виправлено за Google; checked —',
+        ' * напрямок звірено.',
         ' */',
         'export interface ZtOwnDir {',
         '  id: number;',

@@ -104,7 +104,7 @@ function RideCard({ l }: { l: RideLeg }) {
           <dt>У дорозі</dt>
           <dd>
             ≈ {durationText(l.driveMinutes)}
-            <small>{l.traffic ? ' — із заторами, за даними Google' : ' — звичайний час авто'}</small>
+            <small>{l.traffic ? ' — із заторами' : ' — звичайний час авто'}</small>
           </dd>
         </div>
       </dl>

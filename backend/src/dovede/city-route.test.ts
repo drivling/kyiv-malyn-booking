@@ -250,7 +250,7 @@ test('навчання вимкнено без ключа чи без запис
 });
 
 test('Житомир: власна пряма поїздка — перед базою й Google, без запитів назовні; Київ її не питає; вимикач', async () => {
-  const own = { ok: true as const, source: 'own' as const, city: 'Zhytomyr' as const, fromLabel: 'a', toLabel: 'b', steps: [{ kind: 'transit' as const, minutes: 9, line: '58', departs: '09:25' }], minutes: 14, fetchedAt: '2026-11-17T00:00:00.000Z' };
+  const own = { ok: true as const, source: 'own' as const, city: 'Zhytomyr' as const, fromLabel: 'a', toLabel: 'b', steps: [{ kind: 'transit' as const, minutes: 9, line: '58', headwayMin: 20 }], minutes: 14, fetchedAt: '2026-11-17T00:00:00.000Z' };
   const asked: unknown[] = [];
   const t = make({ ownRoute: (q, labels) => (asked.push([q, labels]), own), ownEnabled: () => true });
   const got = await t.svc.find(Q);
@@ -265,7 +265,6 @@ test('Житомир: власна пряма поїздка — перед ба
   assert.equal(asked.length, 1);
   assert.equal(t.calls.length, 1);
 
-  // типово вимкнено: розклад сайту давній, відповідає Google
-  const off = make({ ownRoute: () => own });
+  const off = make({ ownRoute: () => own, ownEnabled: () => false });
   assert.equal(((await off.svc.find(Q)) as { source?: string }).source, 'google');
 });
