@@ -3,8 +3,11 @@
  * швидка атака, довге згасання) з легким відлунням. Браузер дозволяє звук лише після дотику,
  * тому `unlockWallSound()` викликається з кнопки «Почати».
  */
-/** `newcomer` — відлуння тизера «Крапка»: три «тук» (крапка підскакує) і «дзинь» */
-export type WallSound = 'hello' | 'scan' | 'milestone' | 'record' | 'newcomer';
+/**
+ * `newcomer` — відлуння тизера «Крапка»: три «тук» (крапка підскакує) і «дзинь»;
+ * `ticket` — компостер, як на /dovede (DovedePage/intro/punchSound.ts): «клац», штамп «тук», тоді «дзинь»
+ */
+export type WallSound = 'hello' | 'scan' | 'milestone' | 'record' | 'newcomer' | 'ticket';
 
 type Ctx = AudioContext;
 let ctx: Ctx | null = null;
@@ -77,6 +80,51 @@ function bell(freq: number, start: number, length = 1.4, level = 1) {
   }
 }
 
+/** Глухий удар: тон, що швидко падає (штамп, дно компостера) */
+function thump(start: number, from: number, to: number, level: number, length: number) {
+  if (!ctx || !master) return;
+  const osc = ctx.createOscillator();
+  osc.frequency.setValueAtTime(from, start);
+  osc.frequency.exponentialRampToValueAtTime(to, start + length);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(level, start);
+  g.gain.exponentialRampToValueAtTime(0.001, start + length);
+  osc.connect(g);
+  g.connect(master);
+  osc.start(start);
+  osc.stop(start + length + 0.02);
+}
+
+/** Металеве «клац» компостера: короткий шум крізь смуговий фільтр і удар */
+function clack(start: number) {
+  if (!ctx || !master) return;
+  const length = Math.floor(ctx.sampleRate * 0.07);
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < length; i += 1) data[i] = (Math.random() * 2 - 1) * (1 - i / length) ** 5;
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+  const band = ctx.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = 2600;
+  band.Q.value = 1.4;
+  const g = ctx.createGain();
+  g.gain.value = 1.4;
+  noise.connect(band);
+  band.connect(g);
+  g.connect(master);
+  noise.start(start);
+  thump(start, 170, 55, 1.2, 0.13);
+}
+
+/** Удари без висоти — у такт із талоном на екрані (WallTalon, StickerWall.css): щелепа на 1,04 с, штамп на 1,27 с */
+const HITS: Partial<Record<WallSound, Array<[(start: number) => void, number]>>> = {
+  ticket: [
+    [clack, 1.04],
+    [(at) => thump(at, 110, 45, 0.9, 0.16), 1.27],
+  ],
+};
+
 // Ноти пентатоніки соль-мажор — будь-яке поєднання звучить приємно
 const N = { D5: 587.33, G5: 783.99, B5: 987.77, D6: 1174.66, E6: 1318.51, G6: 1567.98, B6: 1975.53, D7: 2349.32 };
 
@@ -122,6 +170,12 @@ const MELODIES: Record<WallSound, Array<[number, number, number?, number?]>> = {
     [N.B6, 1.4, 2.6],
     [N.D7, 1.4, 2.6],
   ],
+  // «дзинь» після штампа
+  ticket: [
+    [N.G6, 1.5, 2.6],
+    [N.B6, 1.5, 2.6],
+    [N.D7, 1.5, 2.6],
+  ],
 };
 
 export function playWallSound(kind: WallSound): void {
@@ -131,4 +185,9 @@ export function playWallSound(kind: WallSound): void {
   const notes = MELODIES[kind];
   const level = 1 / Math.max(1, Math.sqrt(notes.filter((n) => n[1] === notes[notes.length - 1][1]).length));
   for (const [freq, at, len, gain] of notes) bell(freq, t0 + at, len ?? 1.3, level * (gain ?? 1));
+  try {
+    for (const [hit, at] of HITS[kind] ?? []) hit(t0 + at);
+  } catch {
+    /* удари — лише прикраса */
+  }
 }

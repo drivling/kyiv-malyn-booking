@@ -1091,7 +1091,8 @@ export interface StickerWallSnapshot {
 /** POST /ads/events — подія перегляду реклами «Доведе» (ads/adEvents.ts) */
 export interface AdEventBody {
   placement: 'sticker' | 'dovede';
-  event: 'shown' | 'started' | 'completed' | 'page';
+  /** page і punched — лише dovede: відкрив сторінку з доступом / прокомпостував талон після ролика */
+  event: 'shown' | 'started' | 'completed' | 'page' | 'punched';
   viewId: string;
   clientId?: string;
   video?: string;
@@ -1107,8 +1108,9 @@ export interface AdWallSnapshot {
   day: string;
   sticker: { today: AdCounts; total: AdCounts; people: number };
   dovede: {
-    today: AdCounts & { pages: number };
-    total: AdCounts & { pages: number };
+    /** punched — прокомпостували талон після ролика (з 2026-11-17; старий бекенд — немає) */
+    today: AdCounts & { pages: number; punched?: number };
+    total: AdCounts & { pages: number; punched?: number };
     access: { admin: number; guest: number; public: number };
     /** Ті самі входи, лише сьогодні (з 2026-11-17; старий бекенд — немає) */
     todayAccess?: { admin: number; guest: number; public: number };
@@ -1128,6 +1130,8 @@ export interface AdWallSnapshot {
     at: string;
     started: boolean;
     completed: boolean;
+    /** Лише «Доведе»: прокомпостував талон після ролика */
+    punched?: boolean;
   }[];
 }
 

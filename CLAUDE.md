@@ -453,7 +453,8 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   Wall widget `/admin/wall?key=…` (`src/pages/StickerWallPage/`, rendered without NavBar): a phone in
   landscape polls `GET /transport/sticker-wall?key=&after=<id>` every 30 s and celebrates each new scan
   (colour of the stop's line, Web Audio chime) — a finished «Доведе» teaser (`GET /ads/wall`, shown once per browser,
-  so a new person) gets its own white «new passenger» celebration with the teaser's bouncing dot; the header shows
+  so a new person) gets its own white «new passenger» celebration with the teaser's bouncing dot, and a talon punched
+  after the /dovede intro video (`AdEvent` `punched`) gets the site's own talon, punched and stamped; the header shows
   the city of `?city=`; a 4th tab «Люди» shows passengers from stickers; the key is read-only, `HMAC(ADMIN_PASSWORD)` from
   `backend/src/sticker-wall.ts`, issued by `GET /admin/transport/sticker-wall-key`.
   Workflow in `Docs/stop-stickers.md`.

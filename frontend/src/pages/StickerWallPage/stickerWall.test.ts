@@ -5,7 +5,9 @@ import {
   agoLabel,
   buildCelebrations,
   buildNewcomerCelebrations,
+  buildTicketCelebrations,
   freshNewcomers,
+  freshTickets,
   newcomerHeadline,
   nextPassengerMilestone,
   growingStops,
@@ -233,6 +235,73 @@ describe('новий пасажир — досмотрів тизер', () => {
     expect(withNewcomers([scan('st_0015'), scan('st_0019')], newcomers).map((c) => c.key)).toEqual(['st_0019-scan', 'new-v1']);
     expect(withNewcomers([scan('st_0015', 'first')], newcomers).map((c) => c.kind)).toEqual(['first', 'newcomer']);
     expect(withNewcomers([scan('st_0015')], [])).toHaveLength(1);
+  });
+});
+
+describe('квиток «Доведе» — ролик на /dovede і прокомпостований талон', () => {
+  const view = (viewId: string, over: Partial<AdWallSnapshot['views'][number]> = {}): AdWallSnapshot['views'][number] => ({
+    viewId,
+    placement: 'dovede',
+    kind: 'view',
+    stopId: null,
+    device: 'ios',
+    who: 'ab12',
+    seenBefore: 0,
+    access: null,
+    at: '2026-11-17T10:00:00Z',
+    started: true,
+    completed: true,
+    punched: true,
+    ...over,
+  });
+  const ads = (views: AdWallSnapshot['views'], punchedToday = views.length): AdWallSnapshot => ({
+    now: '2026-11-17T12:00:00Z',
+    day: '2026-11-17',
+    sticker: { today: { shown: 0, started: 0, completed: 0 }, total: { shown: 0, started: 0, completed: 0 }, people: 0 },
+    dovede: {
+      today: { shown: 9, started: 9, completed: 9, pages: 0, punched: punchedToday },
+      total: { shown: 9, started: 9, completed: 9, pages: 0, punched: 9 },
+      access: { admin: 0, guest: 0, public: 0 },
+      people: 0,
+    },
+    views,
+  });
+
+  it('перший знімок — точка відліку; далі — лише прокомпостовані талони /dovede, яких ще не було', () => {
+    const first = freshTickets(null, ads([view('d1')]));
+    expect(first.fresh).toEqual([]);
+    const next = freshTickets(
+      first.seen,
+      ads([
+        view('d4', { at: '2026-11-17T11:50:00Z' }),
+        view('d3', { at: '2026-11-17T11:40:00Z', punched: false }), // досмотрів, талон ще не пробив
+        view('d2', { at: '2026-11-17T11:30:00Z' }),
+        view('v1', { placement: 'sticker', stopId: 'st_0015' }), // тизер наклейки — це «новий пасажир»
+        view('d1'),
+      ])
+    );
+    expect(next.fresh.map((v) => v.viewId)).toEqual(['d2', 'd4']);
+    expect(freshTickets(next.seen, ads([view('d3'), view('d4')])).fresh.map((v) => v.viewId)).toEqual(['d3']);
+  });
+
+  it('святкування: перший за добу — свій заголовок; хто, з чого, номер пасажира; талон щасливий і стабільний', () => {
+    const fresh = [view('d1', { at: '2026-11-17T11:00:00Z', access: 'guest', number: 12 }), view('d2', { device: 'android', completed: false })];
+    const out = buildTicketCelebrations(fresh, ads(fresh));
+    expect(out.map((c) => [c.kind, c.headline, c.ticket?.today, c.ticket?.access, c.ticket?.passenger, c.ticket?.watched])).toEqual([
+      ['ticket', 'Перший квиток сьогодні!', 1, 'guest', 12, true],
+      ['ticket', 'Квиток прокомпостовано!', 2, null, null, false],
+    ]);
+    const t = out[0].ticket!;
+    const d = t.no.replace(/\D/g, '').split('').map(Number);
+    expect(d[0] + d[1] + d[2]).toBe(d[3] + d[4] + d[5]);
+    expect(new Set(t.holes).size).toBe(3);
+    expect(buildTicketCelebrations(fresh, ads(fresh))[0].ticket).toEqual(t);
+    const many = ['a', 'b', 'c', 'd', 'e'].map((id) => view(`d-${id}`));
+    const five = buildTicketCelebrations(many, ads(many, 7));
+    expect(five).toHaveLength(4);
+    expect(five[3]).toMatchObject({ kind: 'ticket', headline: 'Ще +2 квитки' });
+    expect(five[0].headline).toBe('Квиток прокомпостовано!');
+    expect(buildTicketCelebrations([], ads([]))).toEqual([]);
   });
 });
 

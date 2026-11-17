@@ -34,6 +34,7 @@ function funnel(c: { shown: number; started: number; completed: number }) {
 
 function status(v: View): { glyph: string; label: string; tone: string } {
   if (v.kind === 'page') return { glyph: '🔑', label: `відкрив сторінку (${ACCESS[v.access ?? ''] ?? 'з доступом'})`, tone: 'page' };
+  if (v.punched) return { glyph: '🎫', label: v.completed ? 'досмотрів і прокомпостував квиток' : 'прокомпостував квиток', tone: 'done' };
   if (v.completed) return { glyph: '✓', label: 'досмотрів', tone: 'done' };
   if (v.started) return { glyph: '▶', label: 'почав, не досмотрів', tone: 'started' };
   return { glyph: '·', label: 'лише показ', tone: 'shown' };
@@ -43,7 +44,7 @@ function FeedRow({ v, stopName, now }: { v: View; stopName: (id: string) => stri
   const st = status(v);
   const place =
     v.placement === 'sticker' ? (v.stopId ? stopName(v.stopId) : 'Табло зупинки') : v.kind === 'page' ? 'Сторінка «Доведе»' : 'Ролик «Доведе»';
-  const where = v.placement === 'sticker' ? 'табло' : v.kind === 'page' ? ACCESS[v.access ?? ''] ?? null : null;
+  const where = v.placement === 'sticker' ? 'табло' : v.kind === 'page' ? ACCESS[v.access ?? ''] ?? null : v.punched ? 'квиток' : null;
   const color = v.placement === 'sticker' ? TEASER : v.kind === 'page' ? PAGE : INTRO;
   return (
     <li className={`wall-ads-item wall-ads-item--${st.tone}`} style={{ '--c': color } as CSSProperties}>
@@ -92,7 +93,7 @@ export function WallAds({ ads, stopName, now }: { ads: AdWallSnapshot | null; st
   const guests = ta ? ta.guest + ta.public : 0;
   const total90 = [
     `тизер ${s.total.completed} з ${s.total.shown}`,
-    `ролик ${d.total.completed} з ${d.total.shown}`,
+    `ролик ${d.total.completed} з ${d.total.shown}${d.total.punched ? ` (квитків ${d.total.punched})` : ''}`,
     `сторінка ${d.total.pages}${d.access.guest + d.access.public ? ` (гості ${d.access.guest + d.access.public})` : ''}`,
     `${people(s.people)} з наклейок`,
   ];
@@ -114,7 +115,12 @@ export function WallAds({ ads, stopName, now }: { ads: AdWallSnapshot | null; st
           value={d.today.completed}
           unit="до кінця"
           bar={funnel(d.today)}
-          sub={d.today.shown ? [`з ${d.today.shown} ${shows(d.today.shown)}`, `почали ${d.today.started}`] : ['ще не показували']}
+          sub={
+            d.today.shown
+              ? // квитки (прокомпостували талон після ролика) — крок після «до кінця»; «почали» видно на смужці
+                [`з ${d.today.shown} ${shows(d.today.shown)}`, d.today.punched != null ? `квитків ${d.today.punched}` : `почали ${d.today.started}`]
+              : ['ще не показували']
+          }
         />
         <Tile
           title="Сторінка «Доведе»"

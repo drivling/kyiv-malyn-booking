@@ -6,7 +6,7 @@ exports.deviceOf = deviceOf;
 exports.adWallSnapshot = adWallSnapshot;
 const sticker_scans_1 = require("./sticker-scans");
 exports.AD_PLACEMENTS = ['sticker', 'dovede'];
-exports.AD_EVENTS = ['shown', 'started', 'completed', 'page'];
+exports.AD_EVENTS = ['shown', 'started', 'completed', 'page', 'punched'];
 const ID = /^[A-Za-z0-9-]{8,64}$/;
 const STOP = /^[A-Za-z0-9_-]{1,40}$/;
 const VIDEO = /^[a-z0-9-]{1,40}$/;
@@ -19,8 +19,8 @@ function parseAdEvent(body) {
     const event = exports.AD_EVENTS.find((e) => e === b.event);
     if (!placement || !event)
         return null;
-    // «відкрив сторінку з доступом» буває лише в «Доведе»
-    if (event === 'page' && placement !== 'dovede')
+    // «відкрив сторінку з доступом» і талон після ролика бувають лише в «Доведе»
+    if ((event === 'page' || event === 'punched') && placement !== 'dovede')
         return null;
     if (typeof b.viewId !== 'string' || !ID.test(b.viewId))
         return null;
@@ -66,7 +66,7 @@ async function adWallSnapshot(prisma, opts) {
     const zero = () => ({ shown: 0, started: 0, completed: 0 });
     const sticker = { today: zero(), total: zero(), people: 0 };
     const noAccess = () => ({ admin: 0, guest: 0, public: 0 });
-    const dovede = { today: { ...zero(), pages: 0 }, total: { ...zero(), pages: 0 }, access: noAccess(), todayAccess: noAccess(), people: 0 };
+    const dovede = { today: { ...zero(), pages: 0, punched: 0 }, total: { ...zero(), pages: 0, punched: 0 }, access: noAccess(), todayAccess: noAccess(), people: 0 };
     const people = { sticker: new Set(), dovede: new Set() };
     const views = new Map();
     const viewClient = new Map();
@@ -83,6 +83,11 @@ async function adWallSnapshot(prisma, opts) {
                 if (isToday)
                     dovede.todayAccess[r.access]++;
             }
+        }
+        else if (r.event === 'punched') {
+            dovede.total.punched++;
+            if (isToday)
+                dovede.today.punched++;
         }
         else if (r.event === 'shown' || r.event === 'started' || r.event === 'completed') {
             const bucket = placement === 'sticker' ? sticker : dovede;
@@ -114,6 +119,7 @@ async function adWallSnapshot(prisma, opts) {
                 at: r.createdAt.toISOString(),
                 started: false,
                 completed: false,
+                punched: false,
             };
             views.set(r.viewId, v);
             if (r.clientId)
@@ -124,6 +130,11 @@ async function adWallSnapshot(prisma, opts) {
         if (r.event === 'completed') {
             v.started = true;
             v.completed = true;
+        }
+        if (r.event === 'punched') {
+            v.punched = true;
+            // хто компостував (адмін, гість) — якщо перегляд сам цього не знав
+            v.access ?? (v.access = r.access);
         }
     }
     sticker.people = people.sticker.size;
