@@ -289,6 +289,21 @@ export const GONE_HTML = goneHtml();
  * (плакати схем), ніколи HTML і знімки Малина; далі — оболонка SPA.
  */
 
+/**
+ * Файли, що в кожного сайту свої (`public/sites/<key>/…` → dist/sites/<key>/…): на вторинному домені — лише з дерева
+ * сайту, нема там — 404 (ніколи не малинський з кореня dist)
+ */
+export const SITE_OWN_FILES = ['/llms.txt'];
+
+export function isSiteOwnFile(pathname) {
+  return SITE_OWN_FILES.includes(pathname);
+}
+
+/** Дерева сайтів (dist/sites/…) — лише внутрішнє джерело; прямий запит `/sites/…` — 404 на будь-якому домені */
+export function isSiteTreePath(pathname) {
+  return pathname === '/sites' || pathname.startsWith('/sites/');
+}
+
 /** Каталог дерева пререндера сайту відносно dist */
 export function siteTreeDir(siteKey) {
   return `sites/${siteKey}`;

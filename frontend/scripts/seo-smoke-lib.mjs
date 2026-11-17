@@ -9,7 +9,7 @@
  *  - JSON-LD present
  *  - og:image is the link card of the page's section (scripts/og-images.mjs): /transport* — transport, rest — site
  */
-import { ogImageForPath, ogImageUrl } from './og-images.mjs';
+import { ogImageForUrl, ogImageUrl } from './og-images.mjs';
 
 export const SITE_ORIGIN = 'https://malin.kiev.ua';
 
@@ -83,7 +83,7 @@ export function analyzeHtml(html, { url, shellTitle, origin = SITE_ORIGIN }) {
   const warnings = [];
   const { title, canonical, h1s, jsonLdCount, ogImage } = extractHead(html);
   const expectedCanonical = `${origin}${urlToPath(url)}`;
-  const expectedOgImage = ogImageUrl(ogImageForPath(urlToPath(url)));
+  const expectedOgImage = ogImageUrl(ogImageForUrl(`${new URL(url).origin}${urlToPath(url)}`));
 
   const text = visibleText(html);
   if (!title) errors.push('no <title>');

@@ -62,6 +62,10 @@ curl -sI "https://korosten.kiev.ua/transport/dataset" | grep -i -e '^HTTP' -e '^
 - [ ] Другий — canonical `https://korosten.kiev.ua/transport/route/2b` (раніше тут був 410).
 - [ ] Третій — `200` і `X-Robots-Tag: noindex, nofollow` (домен поки не індексуємо — окреме рішення, фаза 13+).
 - [ ] Четвертий — `302` на API з `city=Korosten` у `Location`.
+- [ ] `curl -s https://korosten.kiev.ua/llms.txt | head -1` — `# korosten.kiev.ua` (не малинський).
+- [ ] Посилання `https://korosten.kiev.ua/transport` у Telegram (собі в «Обране») — картка «Міські автобуси Коростеня»,
+      не малинська. Telegram кешує прев'ю: якщо посилання вже кидали до деплою — перевіряти на іншій сторінці або через
+      @WebpageBot.
 - [ ] `https://korosten.kiev.ua/transport/stop/st_0001` (id Малина) — не малинська статична сторінка: оболонка SPA з даними Коростеня.
 
 ## 3. Аналітика

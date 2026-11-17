@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { apiRedirectPath, apiSearchForCity, cacheHeadersFor, goneHtml, isCityBoundDistFile, isCityTransportPath, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, siteTreeDir, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
+import { apiRedirectPath, apiSearchForCity, cacheHeadersFor, goneHtml, isCityBoundDistFile, isCityTransportPath, isSiteOwnFile, isSiteTreePath, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, siteTreeDir, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 import { API_BASE } from './api-base.mjs';
 
@@ -178,6 +178,13 @@ const server = http.createServer((req, res) => {
   }
 
   const site = resolveSite(req.headers.host);
+
+  // Дерева сайтів (dist/sites/<key>/) віддаються лише під своїми адресами на своєму домені, не як /sites/…
+  if (isSiteTreePath(splitUrl(urlPath).pathname)) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', 'X-Robots-Tag': 'noindex' });
+    res.end(req.method === 'HEAD' ? undefined : 'Not found');
+    return;
+  }
   // «Доведе» до запуску не індексується ні на якому домені (сторінка, ролик, постер)
   const extraHeaders = { ...(site.isPrimary ? {} : NOINDEX_HEADERS), ...robotsHeadersFor(splitUrl(urlPath).pathname) };
 
@@ -205,6 +212,19 @@ const server = http.createServer((req, res) => {
         ...NOINDEX_HEADERS,
       });
       res.end(req.method === 'HEAD' ? undefined : NOINDEX_ROBOTS_TXT);
+      return;
+    }
+
+    // llms.txt тощо — свій файл сайту з його дерева (public/sites/<key>/), інакше 404, не малинський
+    if (isSiteOwnFile(pathname)) {
+      const root = path.join(dist, siteTreeDir(site.key));
+      const own = tryResolve(pathname, root);
+      if (own) {
+        sendFile(req, res, own, NOINDEX_HEADERS, root);
+      } else {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...NOINDEX_HEADERS });
+        res.end(req.method === 'HEAD' ? undefined : 'Not found');
+      }
       return;
     }
 

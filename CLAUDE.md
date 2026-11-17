@@ -552,6 +552,11 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   tree, and adds `city=` to the API 302s (pure rules in `serve-dist-rules.mjs`). Stop articles are per city: Korosten's
   `src/content/stops/korosten-articles.json` is generated from the council stop list by `scripts/city-stop-articles.mjs`
   (street only — no coordinates, routes come from the dataset; a test keeps it equal to the generator).
+  Files every site has its own copy of (`SITE_OWN_FILES`: `/llms.txt`) live in `public/sites/<key>/` and are served from
+  the site's tree on its domain, 404 when missing — never Malyn's. A direct request for `/sites/…` is 404 on every domain.
+  The link-preview card of `/transport*` is per site too: `ogImageForPath(path, siteKey)` / `ogImageForUrl(canonical)` in
+  `og-images.mjs` (`transportKorosten`, lines in the Korosten legend colours; draw one card with
+  `npm run pwa:icons -- --og <key>`).
 - Local transport is gated per city by `TripPoint.hasLocalTransport` (checkbox in the admin
   «Маршрути» tab) — `LocalTransportGate` renders a «скоро» stub where it is off. The transport
   dataset itself is still single-tenant Malyn.

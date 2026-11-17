@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { OG_IMAGES, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, ogImageForPath, ogImageUrl } from '../../scripts/og-images.mjs';
+import { OG_IMAGES, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH, ogImageForPath, ogImageForUrl, ogImageUrl } from '../../scripts/og-images.mjs';
 import { usePageSeo } from '@/hooks/usePageSeo';
 
 const frontend = path.resolve(__dirname, '../..');
@@ -27,6 +27,16 @@ describe('картки посилань (scripts/og-images.mjs)', () => {
       expect(ogImageForPath(p), String(p)).toBe(OG_IMAGES.site);
     }
     expect(ogImageUrl(OG_IMAGES.transport)).toBe('https://malin.kiev.ua/og/yak-doikhaty-transport.png');
+  });
+
+  it('транспорт Коростеня — своя картка (за сайтом / доменом canonical), решта сайту Коростеня — загальна', () => {
+    expect(ogImageForPath('/transport/stop/st_1001', 'korosten')).toBe(OG_IMAGES.transportKorosten);
+    expect(ogImageForPath('/mizhgorodski', 'korosten')).toBe(OG_IMAGES.site);
+    expect(ogImageForPath('/transport', 'zhytomyr')).toBe(OG_IMAGES.transport);
+    expect(ogImageForUrl('https://korosten.kiev.ua/transport/route/2b')).toBe(OG_IMAGES.transportKorosten);
+    expect(ogImageForUrl('https://malin.kiev.ua/transport/route/2')).toBe(OG_IMAGES.transport);
+    expect(ogImageUrl(OG_IMAGES.transportKorosten)).toBe('https://malin.kiev.ua/og/yak-doikhaty-transport-korosten.png');
+    expect(OG_IMAGES.transportKorosten.alt).not.toMatch(/Малин/);
   });
 
   it('index.html несе загальну картку, twitter:card і favicon (ICO + SVG)', () => {
