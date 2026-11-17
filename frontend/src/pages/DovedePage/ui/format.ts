@@ -29,6 +29,15 @@ export function storySummary(story: Story): { title: string; sub: string; time: 
     const sub = [`${clock(ride.depMins)} ${ride.boardLabel}`, bus.length ? `міський №${bus.map((b) => routeNo(b.routeId)).join(', №')}` : null, ride.ride.seats ? `місць: ${ride.ride.seats}` : null, story.priceUah ? `${story.priceUah} ₴` : null];
     return { title: who ? `Попутка · ${who}` : 'Попутка', sub: sub.filter(Boolean).join(' · '), time: clock(story.arriveMins, true) };
   }
+  if (story.mode === 'kyiv') {
+    // у межах Києва: рейс електрички з точним часом або метро
+    const ring = story.legs.find((l): l is Extract<StoryLeg, { kind: 'ring' }> => l.kind === 'ring');
+    const metro = story.legs.some((l) => l.kind === 'metro');
+    const price = story.priceUah ? `${story.priceUah} ₴` : null;
+    if (!ring) return { title: 'Метро', sub: [`≈ ${durationText(story.arriveMins - story.leaveMins)}`, price].filter(Boolean).join(' · '), time: clock(story.arriveMins, story.arriveApprox) };
+    const sub = [`${clock(ring.depMins)} з платформи «${ring.ride.from.name}»`, metro ? 'з метро' : 'без пересадок', price];
+    return { title: `Міська електричка ${ring.ride.train}`, sub: sub.filter(Boolean).join(' · '), time: clock(story.arriveMins, story.arriveApprox) };
+  }
   const title = story.mode === 'elektrichka' ? 'Електричка' : story.mode === 'marshrutka' ? 'Маршрутка' : `Автобус №${bus.map((b) => routeNo(b.routeId)).join(' → №') || ''}`;
   const parts: string[] = [];
   if (ic) parts.push(`${clock(ic.boardMins, ic.boardApprox)} ${ic.boardLabel}`);

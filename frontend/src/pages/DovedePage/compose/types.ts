@@ -2,6 +2,7 @@ import type { DayPlan, Endpoint } from '@/pages/LocalTransportPage/journey';
 import type { Schedule } from '@/types';
 import type { IntercityMode } from '../data/anchors';
 import type { TripSegment } from '../data/kyiv';
+import type { RingRide } from '../data/kyivRing';
 import type { MetroStation } from '../nlu/kyivMetroData';
 
 /** Міський планувальник Малина на один день (RAPTOR з LocalTransportPage/journey) */
@@ -108,6 +109,20 @@ export type StoryLeg =
       mapsUrl: string;
     }
   | {
+      /** Міська електричка Києва (Kyiv City Express): рейс із розкладу (data/kyivRing) — час точний */
+      kind: 'ring';
+      ride: RingRide;
+      depMins: number;
+      arrMins: number;
+      /** пішки від метро до платформи перед посадкою / від платформи до метро після виходу, хв (0 — не треба) */
+      walkBeforeMin: number;
+      walkAfterMin: number;
+      /** наступні рейси тієї ж пари станцій, хв */
+      later: number[];
+      priceUah: number;
+      mapsUrl: string;
+    }
+  | {
       /**
        * Містом (Київ, Житомир) до місця, названого словами: кроки віддає сервер (GET /dovede/city-route) —
        * зі своєї бази або щойно від Google. `route: null` — відповіді ще немає або її немає зовсім: тоді це
@@ -173,7 +188,8 @@ export interface CityRoute {
 
 export interface Story {
   id: string;
-  mode: IntercityMode | 'city_bus' | 'poputka';
+  /** kyiv — поїздка в межах Києва: метро й міська електричка */
+  mode: IntercityMode | 'city_bus' | 'poputka' | 'kyiv';
   /** 'YYYY-MM-DD' */
   date: string;
   /** коли вирушати з початкового місця (хв) */

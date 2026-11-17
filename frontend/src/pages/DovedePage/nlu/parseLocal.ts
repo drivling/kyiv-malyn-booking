@@ -5,6 +5,7 @@
 import { CITY_LABEL, findPlaceByToken, type GazetteerPlace, placeById } from './gazetteer';
 import { tokenize, type Token } from './normalize';
 import { matchMetro, type MetroMatch } from './kyivMetro';
+import { matchRing, type RingMatch } from './kyivRing';
 import { resolvePlace } from './places';
 import { findRouteMentions, type RouteLike } from './routes';
 import { matchSynonym } from './synonyms';
@@ -20,7 +21,7 @@ const FILLERS = new Set(['метро', 'м', 'ст', 'станції', 'стан
 const HOUR_PREPS = new Set(['о', 'об', 'в', 'на', 'до', 'к', 'після', 'после']);
 
 const MODE_STEMS: Array<[TripMode | 'bus', string[]]> = [
-  ['elektrichka', ['електрич', 'електріч', 'электрич', 'потяг', 'поїзд', 'поезд']],
+  ['elektrichka', ['електрич', 'електріч', 'электрич', 'потяг', 'поїзд', 'поезд', 'кільцев', 'кольцев', 'експрес', 'экспресс', 'express']],
   ['marshrutka', ['маршрутк', 'маршрутой', 'зубаст']],
   ['poputka', ['попутк', 'попутн', 'блаблакар', 'blablacar']],
   ['bus', ['автобус']],
@@ -88,7 +89,7 @@ const DETAIL_FROM_PREPS = new Set(['з', 'із', 'зі', 'від', 'с', 'со',
 const STREET_WORDS = new Set(['вул', 'вулиця', 'вулицю', 'вулиці', 'улица', 'улицу', 'улицы', 'проспект', 'просп', 'площа', 'площу', 'площі', 'провулок', 'бульвар']);
 /** Слова, які після міста означають час, транспорт чи саме питання, а не місце в місті */
 const NOT_DETAIL_RE =
-  /^(завтра|сьогодн|сегодн|післязавтр|послезавтр|зараз|сейчас|найближч|ближайш|понеділ|понедел|вівтор|вторн|серед|сред|четвер|п'ятниц|пятниц|субот|неділ|воскрес|ранок|ранку|зранку|вранц|утр|вечір|вечор|вечер|ввечер|обід|обед|вдень|днем|ноч|вихідн|выходн|годин|хвилин|минут|тижд|недел|маршрут|зубаст|електрич|електріч|электрич|потяг|поїзд|поезд|автобус|попутк|попутн|блаблакар|машин|таксі|такси|коли|когда|скільки|сколько|кошту|стоит|ціна|цена|можна|можно|треба|надо|потрібно|нужно|доїхати|доехать|добратися|добраться|їхати|ехать|роботу|работу|навчання|учебу|гості|гости|справах|делам)|^(ніч|ночі|час|день|дня|авто|як|как|чим|чем|малин[ауі]?|малине|київ|києв[аіу]|киев[ауе]?|житомир[ауі]?|житомире|коростен[ьяі])$/;
+  /^(завтра|сьогодн|сегодн|післязавтр|послезавтр|зараз|сейчас|найближч|ближайш|понеділ|понедел|вівтор|вторн|серед|сред|четвер|п'ятниц|пятниц|субот|неділ|воскрес|ранок|ранку|зранку|вранц|утр|вечір|вечор|вечер|ввечер|обід|обед|вдень|днем|ноч|вихідн|выходн|годин|хвилин|минут|тижд|недел|маршрут|зубаст|електрич|електріч|электрич|кільцев|кольцев|експрес|экспресс|потяг|поїзд|поезд|автобус|попутк|попутн|блаблакар|машин|таксі|такси|коли|когда|скільки|сколько|кошту|стоит|ціна|цена|можна|можно|треба|надо|потрібно|нужно|доїхати|доехать|добратися|добраться|їхати|ехать|роботу|работу|навчання|учебу|гості|гости|справах|делам)|^(ніч|ночі|час|день|дня|авто|як|как|чим|чем|city|express|сіті|сити|міською|городской|малин[ауі]?|малине|київ|києв[аіу]|киев[ауе]?|житомир[ауі]?|житомире|коростен[ьяі])$/;
 /** «на автовокзал» у Житомирі — туди рейс і так приходить: це не окреме місце */
 const STATION_WORD_RE = /^(автовокзал|автостанц|вокзал)/;
 
@@ -175,7 +176,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     if (cityId !== 'city.Kyiv') return false;
     const t = allToks[i];
     const place = findPlaceByToken(t.n);
-    return Boolean(place && (place.city === 'Kyiv' || place.id === 'malyn.vokzal')) || Boolean(matchMetro(allToks, i)) || Boolean(matchSynonym(allToks, i));
+    return Boolean(place && (place.city === 'Kyiv' || place.id === 'malyn.vokzal')) || Boolean(matchMetro(allToks, i)) || Boolean(matchRing(allToks, i)) || Boolean(matchSynonym(allToks, i));
   });
   const hidden = new Set<number>();
   for (const d of details) d.skip.forEach((k) => hidden.add(k));
@@ -211,8 +212,8 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     st.lastRole = role;
   };
 
-  /** Станція метро як місце: роль за прийменником, без нього — розставимо після циклу, як і міста */
-  const takeMetro = (m: MetroMatch, i: number): boolean => {
+  /** Станція метро чи міської електрички як місце: роль за прийменником, без нього — розставимо після циклу, як і міста */
+  const takeMetro = (m: MetroMatch | RingMatch, i: number): boolean => {
     const place = resolvePlace(m.station.id);
     if (!place) return false;
     const first = toks[i];
@@ -259,6 +260,13 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
       i = marked.end;
       continue;
     }
+    // Станція міської електрички з кількох слів («Караваєві Дачі», «Київ-Волинський», «вокзал Дарниця») — теж
+    // раніше за решту: інакше «Київ» стане містом, а «вокзал» — вокзалом Малина
+    const ringLong = matchRing(toks, i);
+    if (ringLong && ringLong.end > i && takeMetro(ringLong, i)) {
+      i = ringLong.end;
+      continue;
+    }
 
     // Назва зупинки з розкладу — кілька слів, тому раніше за час («до 14 ОМБ») і за прийменники («поворот на…»)
     const stop = stops.length ? matchStopPlace(stops, toks, i) : null;
@@ -278,7 +286,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     // «вулиця» чи з номером будинку: прикметник посеред речення («нова маршрутка») вулицею не вважаємо
     // «з Малина на Теремки», «з Малина до Олімпійської»: людина вже сказала, що їде з міста, тож схожа назва —
     // станція метро, а не садок «Теремок» чи вулиця в Малині. Дослівна назва малинського місця лишається за Малином
-    const leaving = st.from?.id === 'city.Malyn' && matchMetro(toks, i) != null;
+    const leaving = st.from?.id === 'city.Malyn' && (matchMetro(toks, i) != null || matchRing(toks, i) != null);
     if (stops.length) {
       const street = leaving ? null : matchStreet(toks, i);
       const prep = street ? prepBefore(toks, i) : null;
@@ -345,7 +353,8 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     if (/^(післязавтр|послезавтр)/.test(n)) { dayOffset = 2; spans.push({ start: t.start, end: t.end, kind: 'when' }); continue; }
     if (/^завтра/.test(n)) { dayOffset = 1; spans.push({ start: t.start, end: t.end, kind: 'when' }); continue; }
     if (/^(сьогодн|сегодн|зараз|сейчас|найближч|ближайш)/.test(n)) { dayOffset = 0; spans.push({ start: t.start, end: t.end, kind: 'when' }); continue; }
-    const wd = WEEKDAYS.find(([stem]) => n.startsWith(stem));
+    // «на Воскресенку» — станція електрички, а не «воскресенье»
+    const wd = matchRing(toks, i) && !n.startsWith('воскресень') ? undefined : WEEKDAYS.find(([stem]) => n.startsWith(stem));
     if (wd) {
       dayOffset = (wd[1] - isoWeekday(now.date) + 7) % 7;
       const withPrep = prev && TO_PREPS.has(prev.n);
@@ -371,7 +380,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     // слова лишається за словником: у нього старі id («Святошин», «Академмістечко»)
     // Так само місце з Малина: «Дружба народів» там — крамниця, а не стара назва станції
     const sameInMalyn = matchLandmark(toks, i);
-    const metro = !findPlaceByToken(n) && (!sameInMalyn || (leaving && !sameInMalyn.exact)) ? matchMetro(toks, i) : null;
+    const metro = !findPlaceByToken(n) && (!sameInMalyn || (leaving && !sameInMalyn.exact)) ? matchMetro(toks, i) ?? matchRing(toks, i) : null;
     if (metro && takeMetro(metro, i)) {
       i = metro.end;
       continue;

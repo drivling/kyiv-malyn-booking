@@ -217,6 +217,23 @@ of `dist` in a commit.
   (green line beyond «Видубичі», bus 318 — inferred from Google on 2026-11-17, owner to confirm; set to `null` when trains return). Golden sets: `eval/kyiv-metro.json`
   (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in
   `eval/golden.json` for the real-model run.
+  Kyiv city train (Kyiv City Express, the ring): `npm run dovede:ring [-- --fetch]` (frontend,
+  `scripts/kyiv-ring-snapshot.mjs` + pure `kyiv-ring-parser.mjs`) keeps `data/kyiv-city-express/source/trains.json` (the
+  carrier's timetable pages: 20 stations, trains «А» clockwise, «Б» counter-clockwise, «Д» extra half-ring Почайна —
+  Дарниця — Видубичі) and, with the manual `config.json` (`extra`: dates the «Д» trains run — 17–20 Nov 2026, they
+  disappear from answers by themselves after `to`; `arrivals`: arrival at Дарниця), writes
+  `DovedePage/data/kyivRingTimetable.json` — never edit it by hand, a test keeps it equal to the generator. Stations:
+  `nlu/kyivRingData.ts` (byte-identical copy in `backend/src/dovede/`, ids `kyiv.e.<slug>`, `kyiv.borshch` kept): the
+  seven next to a metro station (`metro`, `walkMin`) stay metro places in a question, the other 13 are places of their
+  own (`nlu/kyivRing.ts`; «Дарниця» alone is the metro, the railway station needs «вокзал Дарниця»). `data/kyivRing.ts`
+  finds a ride between two stations either way round the ring; `data/kyivTrip.ts` (`kyivWay`) picks metro, the train or
+  both by arrival time (the train must win by ≥ 5 min and gets extra slack after an approximate arrival), and the
+  composer's `kyivStep` turns it into story steps — `kind: 'ring'` has an exact time, card `ui/RingCard.tsx` (a station
+  clock whose dial is the ring; extra trains are navy). Both ends inside Kyiv on known stations is shape `kyiv`
+  (`Story.mode: 'kyiv'`): metro for comparison plus the next two trains. **Owner's rule (2026-11-17): the data is his —
+  no disclaimers and no source credit on the page.** Golden sets: `eval/kyiv-ring.json` (no AI,
+  `data/kyivRing.test.ts`) and `scope: ring` in `eval/golden.json`; new station or wording = edit both copies of the data
+  and bump `PROMPT_VERSION`.
   Second corridor, Zhytomyr ↔ Malyn (city to city only): `FarCity` in `data/anchors.ts`, `intercityTrips(…, far)` and the
   `to_malyn` / `from_malyn` shapes. Malyn anchors: the bus station (`st_0004`, confirmed), pl. Soborna by RBK (`st_0070`) and
   the southern entry over the Irsha on vul. Chornovola (`st_0092` in, `st_0091` out) — the last two are «зазвичай»; on equal

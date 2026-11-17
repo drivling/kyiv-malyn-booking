@@ -25,7 +25,7 @@ interface GoldenCase {
   id: string;
   text: string;
   expect: { intent?: string; from?: string | null; to?: string | null; fromDetail?: boolean; toDetail?: boolean; when?: Partial<TripIntent['when']>; modes?: string[]; routes?: string[]; avoidRoutes?: string[]; unknown?: string[]; confidence?: string };
-  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'zhytomyr' | 'city' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'ring' | 'zhytomyr' | 'city' | 'later';
 }
 
 /**

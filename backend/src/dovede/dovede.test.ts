@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import Anthropic from '@anthropic-ai/sdk';
 import { PLACES } from './gazetteer';
 import { INTENT_SCHEMA, IntentShapeError, validateIntent } from './intent';
+import { RING_STATIONS } from './kyivRingData';
 import { PROMPT_VERSION, buildSystemPrompt, buildUserText, weekdayUk } from './prompt';
 import { DEFAULT_DOVEDE_MODEL, createUnderstand, dovedeModelName, understandFromEnv, type DovedeMessagesClient } from './understand';
 import { dovedeDailyCap, isDovedeEnabled, kyivDayStart } from './guard';
@@ -85,6 +86,20 @@ test('validateIntent: detail — місце словами лише з id Киє
     assert.equal(validateIntent({ ...base, from: null, to: { id: 'city.Kyiv', text: 'Київ', detail } }).to?.detail, undefined);
   }
   assert.equal(validateIntent({ ...base, from: null, to: { id: 'city.Kyiv', text: 'Київ', detail: 'х'.repeat(300) } }).to?.detail?.length, 80);
+});
+
+test('міська електричка Києва: станції без метро — у промпті й дозволені як місця; станції біля метро в промпт не йдуть', () => {
+  const prompt = buildSystemPrompt();
+  const ringOnly = RING_STATIONS.filter((r) => !r.metro);
+  assert.equal(ringOnly.length, 13);
+  for (const r of ringOnly) assert.ok(prompt.includes(`- ${r.id} — `), r.id);
+  for (const r of RING_STATIONS.filter((x) => x.metro)) assert.ok(!prompt.includes(`- ${r.id} — `), r.id);
+  assert.ok(prompt.includes('- kyiv.e.darnytsia — вокзал Дарниця'));
+  const base = { intent: 'trip', when: { day: 'today', time: null, kind: 'depart', part: null }, modes: ['elektrichka'], routes: [], avoidRoutes: [], unknown: [], confidence: 'high' };
+  const i = validateIntent({ ...base, from: { id: 'kyiv.e.kurenivka', text: 'з Куренівки', detail: null }, to: { id: 'kyiv.e.darnytsia', text: 'на вокзал Дарниця', detail: 'вокзал' } });
+  assert.deepEqual([i.from, i.to, i.unknown], [{ id: 'kyiv.e.kurenivka', text: 'з Куренівки' }, { id: 'kyiv.e.darnytsia', text: 'на вокзал Дарниця' }, []]);
+  const bad = validateIntent({ ...base, from: null, to: { id: 'kyiv.e.troieshchyna', text: 'Троєщина', detail: null } });
+  assert.equal(bad.to, null);
 });
 
 test('validateIntent: не обʼєкт — IntentShapeError', () => {

@@ -27,6 +27,7 @@ function legPhrase(l: StoryLeg): string | null {
   }
   if (l.kind === 'bus') return `автобус №${routeNo(l.routeId)} о ${clock(l.depMins)}`;
   if (l.kind === 'metro') return l.closed ? null : `метро до «${l.segments[l.segments.length - 1].to.name}»`;
+  if (l.kind === 'ring') return `міська електричка ${l.ride.train} о ${clock(l.depMins)} з платформи «${l.ride.from.name}»`;
   if (l.kind === 'ride') return `попутка о ${clock(l.depMins)} ${l.boardLabel}`;
   if (l.kind === 'city' && l.route) {
     const rides = l.route.steps.filter((x) => x.kind === 'transit');
@@ -61,6 +62,9 @@ export function shareText(story: Story, stopName: (id: string) => string, header
       const last = l.segments[l.segments.length - 1];
       const change = l.transfers.map((t) => `, пересадка «${t.from.name}» → «${t.to.name}»`).join('');
       lines.push(l.closed ? `метро «${first.from.name}» → «${last.to.name}» — о цій порі не працює` : `${clock(l.depMins, true)} — метро «${first.from.name}» → «${last.to.name}»${change}, ≈ ${l.minutes} хв`);
+    } else if (l.kind === 'ring') {
+      lines.push(`${clock(l.depMins)} — міська електричка ${l.ride.train} з платформи «${l.ride.from.name}», ${l.priceUah} ₴`);
+      lines.push(`${clock(l.arrMins)} — вийти на «${l.ride.to.name}»`);
     } else if (l.kind === 'ride') {
       // телефону тут немає: номер людина відриває сама на сторінці
       lines.push(`${clock(l.depMins)} — попутка ${l.boardLabel}${l.ride.priceUah ? `, ${l.ride.priceUah} ₴` : ''} (місце уточніть у водія)`);

@@ -12,10 +12,11 @@ exports.buildUserText = buildUserText;
 const gazetteer_1 = require("./gazetteer");
 const stopPlaces_1 = require("./stopPlaces");
 const kyivMetroData_1 = require("./kyivMetroData");
+const kyivRingData_1 = require("./kyivRingData");
 const landmarks_1 = require("./landmarks");
 const streets_1 = require("./streets");
 /** Міняти разом зі змістом промпту: видно в журналі DovedeQuery, щоб порівнювати розбори між версіями */
-exports.PROMPT_VERSION = 'dovede-understand-v9';
+exports.PROMPT_VERSION = 'dovede-understand-v10';
 /** Що Claude має знати про місце понад назву — чого не видно з синонімів */
 const PLACE_NOTES = {
     'kyiv.akadem': 'метро Академмістечко; звідси їде більшість маршруток на Малин',
@@ -54,6 +55,10 @@ function buildSystemPrompt(stops = [], routes = []) {
     const landmarkLines = [...landmarks_1.MALYN_LANDMARKS].sort(byId).map((l) => `- ${l.id} — ${l.label}${l.said.length ? ` (кажуть: ${l.said.join(', ')})` : ''}`);
     const LINE_NAME = { M1: 'червона', M2: 'синя', M3: 'зелена' };
     const metroLines = [...kyivMetroData_1.METRO_STATIONS].sort(byId).map((m) => `- ${m.id} — метро ${m.name} (${LINE_NAME[m.line]} лінія${m.said.length ? `; кажуть: ${m.said.join(', ')}` : ''})${m.strict ? ' — лише зі словом «метро / м. / ст.»' : ''}`);
+    // станції міської електрички без метро поруч; ті, що біля метро, уже є серед станцій метро
+    const ringLines = kyivRingData_1.RING_STATIONS.filter((r) => !r.metro)
+        .sort(byId)
+        .map((r) => `- ${r.id} — ${r.strict ? 'вокзал' : 'платформа'} ${r.name}${r.said.length ? ` (кажуть: ${r.said.join(', ')})` : ''}${r.strict ? ' — лише зі словом «вокзал / платформа / електричка»' : ''}`);
     const routeLines = [...routes].sort(byId).map((r) => {
         const ends = [r.fromName, r.toName].filter(Boolean).join(' — ');
         return `- ${r.id} — автобус №${r.no}${ends ? `: ${ends}` : ''}`;
@@ -76,7 +81,7 @@ function buildSystemPrompt(stops = [], routes = []) {
         'тож ти їх не знаєш і не називаєш: ти лише кажеш, що людина спитала.',
         '',
         '## Словник місць',
-        'У полях from і to дозволені лише id з цього розділу та зі списків зупинок, вулиць, орієнтирів і станцій метро нижче. Скопіюй id точно.',
+        'У полях from і to дозволені лише id з цього розділу та зі списків зупинок, вулиць, орієнтирів, станцій метро й міської електрички нижче. Скопіюй id точно.',
         ...places,
         ...(stopLines.length
             ? [
@@ -116,6 +121,16 @@ function buildSystemPrompt(stops = [], routes = []) {
         'серед місць, зупинок чи орієнтирів Малина, а людина не сказала, що їде з Малина чи до Києва, — це Малин.',
         'kyiv.pas — це і станція «Вокзальна», і залізничний вокзал Києва.',
         ...metroLines,
+        '',
+        '## Станції міської електрички Києва',
+        'Kyiv City Express — кільцева міська електричка Києва (кажуть: «міська електричка», «кільцева», «сіті експрес»).',
+        'Тут її станції, біля яких немає метро; станції біля метро (Святошин, Берестейська, Сирець, Почайна, Лівобережна,',
+        'Видубичі, Вокзальна) — це вже станції метро зі списку вище, став їхні id. Назву кажуть у будь-якому відмінку,',
+        'російською, по-старому (у дужках). kyiv.e.darnytsia — залізнична станція Дарниця: лише коли сказано «вокзал',
+        'Дарниця», «Дарницький вокзал», «платформа Дарниця» чи «електричка на Дарницю»; саме «Дарниця» — це метро',
+        'kyiv.m.darnytsia. kyiv.borshch — платформа Борщагівка. Поїздка між двома станціями Києва («з Почайни на',
+        'Видубичі», «з Куренівки на вокзал Дарниця») — звичайний trip: from і to — ці станції, а не city.Kyiv.',
+        ...ringLines,
         ...(routeLines.length
             ? [
                 '',
@@ -167,7 +182,8 @@ function buildSystemPrompt(stops = [], routes = []) {
         '  depart — назвала час виїзду або нічого не сказала про час; any — прямо сказала, що час неважливий.',
         '- when.part: morning (05–11) для «зранку», day (11–17) для «вдень», «після обіду», evening (17–23) для',
         '  «ввечері», «після роботи»; інакше null. Якщо є точний time, part = null.',
-        '- modes: лише види транспорту, які людина назвала сама. Електричка, поїзд, потяг → elektrichka;',
+        '- modes: лише види транспорту, які людина назвала сама. Електричка, поїзд, потяг, міська чи кільцева',
+        '  електричка, Kyiv City Express → elektrichka;',
         '  маршрутка, «Зубастик», міжміський автобус → marshrutka; попутка, BlaBlaCar → poputka; автобус між',
         '  двома місцями в Малині → city_bus. Нічого не названо → порожній список.',
         '- confidence: high — from і to зрозумілі без сумнівів (або from свідомо null, а to зрозуміле; для route —',
