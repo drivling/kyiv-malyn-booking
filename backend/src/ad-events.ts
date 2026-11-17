@@ -56,6 +56,7 @@ export function deviceOf(userAgent: unknown): AdDevice {
 }
 
 type Counts = { shown: number; started: number; completed: number };
+type AccessCounts = { admin: number; guest: number; public: number };
 export interface AdWallView {
   viewId: string;
   placement: AdPlacement;
@@ -76,7 +77,14 @@ export interface AdWallSnapshot {
   now: string;
   day: string;
   sticker: { today: Counts; total: Counts; people: number };
-  dovede: { today: Counts & { pages: number }; total: Counts & { pages: number }; access: { admin: number; guest: number; public: number }; people: number };
+  dovede: {
+    today: Counts & { pages: number };
+    total: Counts & { pages: number };
+    /** Входи на /dovede за 91 день і сьогодні — хто: адмін, гість із паролем, усі (відкрито) */
+    access: AccessCounts;
+    todayAccess: AccessCounts;
+    people: number;
+  };
   views: AdWallView[];
 }
 
@@ -86,7 +94,7 @@ const LIMIT = 30;
 
 /**
  * Зведення для стіни: сьогодні (київська доба) і за 91 день — показали / почали / досмотріли, входи на /dovede (хто),
- * унікальні браузери, і 30 останніх переглядів із подробицями. Подій небагато — читаються сирими рядками.
+ * унікальні браузери (люди — за першою подією кожного перегляду, як «хто» у списку), і 30 останніх переглядів. Подій небагато — читаються сирими рядками.
  * Наклейки — лише міста стіни (`cityCode`), «Доведе» — завжди.
  */
 export async function adWallSnapshot(prisma: PrismaClient, opts: { cityCode: string; now?: Date }): Promise<AdWallSnapshot> {
@@ -102,7 +110,8 @@ export async function adWallSnapshot(prisma: PrismaClient, opts: { cityCode: str
 
   const zero = (): Counts => ({ shown: 0, started: 0, completed: 0 });
   const sticker = { today: zero(), total: zero(), people: 0 };
-  const dovede = { today: { ...zero(), pages: 0 }, total: { ...zero(), pages: 0 }, access: { admin: 0, guest: 0, public: 0 }, people: 0 };
+  const noAccess = (): AccessCounts => ({ admin: 0, guest: 0, public: 0 });
+  const dovede = { today: { ...zero(), pages: 0 }, total: { ...zero(), pages: 0 }, access: noAccess(), todayAccess: noAccess(), people: 0 };
   const people = { sticker: new Set<string>(), dovede: new Set<string>() };
   const views = new Map<string, AdWallView>();
   const seenByClient = new Map<string, Set<string>>();
@@ -113,16 +122,19 @@ export async function adWallSnapshot(prisma: PrismaClient, opts: { cityCode: str
     if (r.event === 'page') {
       dovede.total.pages++;
       if (isToday) dovede.today.pages++;
-      if (r.access === 'admin' || r.access === 'guest' || r.access === 'public') dovede.access[r.access]++;
+      if (r.access === 'admin' || r.access === 'guest' || r.access === 'public') {
+        dovede.access[r.access]++;
+        if (isToday) dovede.todayAccess[r.access]++;
+      }
     } else if (r.event === 'shown' || r.event === 'started' || r.event === 'completed') {
       const bucket = placement === 'sticker' ? sticker : dovede;
       bucket.total[r.event]++;
       if (isToday) bucket.today[r.event]++;
     }
-    if (r.clientId) (placement === 'sticker' ? people.sticker : people.dovede).add(r.clientId);
-
     let v = views.get(r.viewId);
     if (!v) {
+      // людина — браузер першої події перегляду: та сама, що «хто» у списку
+      if (r.clientId) (placement === 'sticker' ? people.sticker : people.dovede).add(r.clientId);
       const before = r.clientId ? (seenByClient.get(r.clientId)?.size ?? 0) : 0;
       if (r.clientId && r.event !== 'page') {
         const set = seenByClient.get(r.clientId) ?? new Set<string>();

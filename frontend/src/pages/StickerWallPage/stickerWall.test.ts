@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { StickerWallSnapshot } from '@/types';
+import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
 import {
+  adWhen,
   agoLabel,
   buildCelebrations,
+  buildNewcomerCelebrations,
+  freshNewcomers,
   growingStops,
   isNightHour,
   isQuietHour,
@@ -13,6 +16,9 @@ import {
   topStops,
   wallStops,
   wallUrl,
+  whoHue,
+  withNewcomers,
+  type Celebration,
   type StopInfo,
 } from './stickerWall';
 
@@ -128,5 +134,102 @@ describe('час і підписи', () => {
     expect(textOn('#F08A1C')).toBe('#000000'); // №7: білий дав би лише 2.5:1
     expect(textOn('#7E3FC2')).toBe('#ffffff'); // №8
     expect(wallUrl('https://malin.kiev.ua', 'ab cd')).toBe('https://malin.kiev.ua/admin/wall?key=ab%20cd');
+  });
+});
+
+describe('вкладка «Реклама»: час і «хто»', () => {
+  const now = new Date('2026-11-17T12:00:00Z'); // 14:00 за Києвом
+  it('сьогодні — хвилини й години, учора — з часом, раніше — дата', () => {
+    expect(adWhen('2026-11-17T11:59:40Z', now)).toBe('щойно');
+    expect(adWhen('2026-11-17T11:48:00Z', now)).toBe('12 хв');
+    expect(adWhen('2026-11-17T08:30:00Z', now)).toBe('3 год');
+    // межа доби — київська: 00:30 17-го ще «сьогодні», 23:30 16-го — уже «вчора»
+    expect(adWhen('2026-11-16T22:30:00Z', now)).toBe('13 год');
+    expect(adWhen('2026-11-16T21:30:00Z', now)).toBe('вчора 23:30');
+    expect(adWhen('2026-11-16T12:05:00Z', now)).toBe('вчора 14:05');
+    expect(adWhen('2026-11-15T10:00:00Z', now)).toBe('15 лист.');
+  });
+  it('той самий «хто» — той самий відтінок, різні — зазвичай різні', () => {
+    expect(whoHue('b576')).toBe(whoHue('b576'));
+    expect(whoHue('b576')).not.toBe(whoHue('ace8'));
+    expect(whoHue('ffff')).toBeGreaterThanOrEqual(0);
+    expect(whoHue('ffff')).toBeLessThan(360);
+  });
+});
+
+describe('новий пасажир — досмотрів тизер', () => {
+  const view = (viewId: string, over: Partial<AdWallSnapshot['views'][number]> = {}): AdWallSnapshot['views'][number] => ({
+    viewId,
+    placement: 'sticker',
+    kind: 'view',
+    stopId: 'st_0015',
+    device: 'ios',
+    who: 'ab12',
+    seenBefore: 0,
+    access: null,
+    at: '2026-11-17T10:00:00Z',
+    started: true,
+    completed: true,
+    ...over,
+  });
+  const ads = (views: AdWallSnapshot['views'], completedToday = views.length): AdWallSnapshot => ({
+    now: '2026-11-17T12:00:00Z',
+    day: '2026-11-17',
+    sticker: { today: { shown: 9, started: 9, completed: completedToday }, total: { shown: 9, started: 9, completed: 9 }, people: 9 },
+    dovede: { today: { shown: 0, started: 0, completed: 0, pages: 0 }, total: { shown: 0, started: 0, completed: 0, pages: 0 }, access: { admin: 0, guest: 0, public: 0 }, people: 0 },
+    views,
+  });
+
+  it('перший знімок — точка відліку; далі новенькі — лише досмотрені тизери з наклейок, яких ще не було', () => {
+    const first = freshNewcomers(null, ads([view('v1')]));
+    expect(first.fresh).toEqual([]);
+    const next = freshNewcomers(
+      first.seen,
+      ads([
+        view('v4', { at: '2026-11-17T11:50:00Z' }),
+        view('v3', { at: '2026-11-17T11:40:00Z', completed: false }), // почав, не досмотрів — ще ні
+        view('v2', { at: '2026-11-17T11:30:00Z' }),
+        view('d1', { placement: 'dovede', stopId: null }), // ролик /dovede — не пасажир
+        view('v1'),
+      ])
+    );
+    expect(next.fresh.map((v) => v.viewId)).toEqual(['v2', 'v4']);
+    // той самий знімок удруге — нікого нового; v3 досмотрів пізніше — новенький
+    expect(freshNewcomers(next.seen, ads([view('v4'), view('v2')])).fresh).toEqual([]);
+    expect(freshNewcomers(next.seen, ads([view('v3'), view('v4')])).fresh.map((v) => v.viewId)).toEqual(['v3']);
+  });
+
+  it('святкування: зупинка з довідника, нових за сьогодні; понад чотири — три + «Ще +N новеньких»', () => {
+    const fresh = [view('v1', { at: '2026-11-17T11:00:00Z' }), view('v2', { stopId: 'st_0019', at: '2026-11-17T11:10:00Z' })];
+    const out = buildNewcomerCelebrations(fresh, ads(fresh, 5), dir);
+    expect(out.map((c) => [c.kind, c.headline, c.name, c.newToday])).toEqual([
+      ['newcomer', 'Новий пасажир!', 'з-д «Прожектор»', 4],
+      ['newcomer', 'Новий пасажир!', 'Залізничний вокзал', 5],
+    ]);
+    const many = ['a', 'b', 'c', 'd', 'e'].map((id) => view(`v-${id}`));
+    const five = buildNewcomerCelebrations(many, ads(many), dir);
+    expect(five).toHaveLength(4);
+    expect(five[3]).toMatchObject({ headline: 'Нові пасажири!', name: 'Ще +2 новеньких', stopId: null });
+  });
+
+  it('скан новенького в тому ж опитуванні — лише особливе святкування; перше за день лишається', () => {
+    const scan = (stopId: string, kind: Celebration['kind'] = 'scan'): Celebration => ({
+      key: `${stopId}-${kind}`,
+      kind,
+      headline: '',
+      stopId,
+      name: stopId,
+      lines: [],
+      color: '#000',
+      added: 1,
+      stopToday: 1,
+      rank: 1,
+      totalAfter: 1,
+    });
+    const fresh = [view('v1')];
+    const newcomers = buildNewcomerCelebrations(fresh, ads(fresh), dir);
+    expect(withNewcomers([scan('st_0015'), scan('st_0019')], newcomers).map((c) => c.key)).toEqual(['st_0019-scan', 'new-v1']);
+    expect(withNewcomers([scan('st_0015', 'first')], newcomers).map((c) => c.kind)).toEqual(['first', 'newcomer']);
+    expect(withNewcomers([scan('st_0015')], [])).toHaveLength(1);
   });
 });

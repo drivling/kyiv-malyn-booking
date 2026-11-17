@@ -3,7 +3,8 @@
  * швидка атака, довге згасання) з легким відлунням. Браузер дозволяє звук лише після дотику,
  * тому `unlockWallSound()` викликається з кнопки «Почати».
  */
-export type WallSound = 'hello' | 'scan' | 'milestone' | 'record';
+/** `newcomer` — відлуння тизера «Крапка»: три «тук» (крапка підскакує) і «дзинь» */
+export type WallSound = 'hello' | 'scan' | 'milestone' | 'record' | 'newcomer';
 
 type Ctx = AudioContext;
 let ctx: Ctx | null = null;
@@ -77,9 +78,10 @@ function bell(freq: number, start: number, length = 1.4, level = 1) {
 }
 
 // Ноти пентатоніки соль-мажор — будь-яке поєднання звучить приємно
-const N = { G5: 783.99, B5: 987.77, D6: 1174.66, E6: 1318.51, G6: 1567.98, B6: 1975.53, D7: 2349.32 };
+const N = { D5: 587.33, G5: 783.99, B5: 987.77, D6: 1174.66, E6: 1318.51, G6: 1567.98, B6: 1975.53, D7: 2349.32 };
 
-const MELODIES: Record<WallSound, Array<[number, number, number?]>> = {
+/** [частота, коли (с), довжина (с), гучність відносно інших нот] */
+const MELODIES: Record<WallSound, Array<[number, number, number?, number?]>> = {
   hello: [
     [N.D6, 0],
     [N.G6, 0.16],
@@ -111,6 +113,15 @@ const MELODIES: Record<WallSound, Array<[number, number, number?]>> = {
     [N.D7, 0.92, 2.4],
     [N.G6, 0.92, 2.4],
   ],
+  // підскоки — у такт із крапкою на екрані (WallCelebration, .wall-cele-dot): 0,45 / 0,84 / 1,13 с, далі «дзинь»
+  newcomer: [
+    [N.D5, 0.45, 0.32, 0.7],
+    [N.D5, 0.84, 0.28, 0.55],
+    [N.D5, 1.13, 0.24, 0.4],
+    [N.G6, 1.4, 2.6],
+    [N.B6, 1.4, 2.6],
+    [N.D7, 1.4, 2.6],
+  ],
 };
 
 export function playWallSound(kind: WallSound): void {
@@ -119,5 +130,5 @@ export function playWallSound(kind: WallSound): void {
   const t0 = ctx.currentTime + 0.03;
   const notes = MELODIES[kind];
   const level = 1 / Math.max(1, Math.sqrt(notes.filter((n) => n[1] === notes[notes.length - 1][1]).length));
-  for (const [freq, at, len] of notes) bell(freq, t0 + at, len ?? 1.3, level);
+  for (const [freq, at, len, gain] of notes) bell(freq, t0 + at, len ?? 1.3, level * (gain ?? 1));
 }

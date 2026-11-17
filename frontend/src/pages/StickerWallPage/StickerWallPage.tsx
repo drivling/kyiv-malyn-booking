@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { DEFAULT_TRANSPORT_CITY, TRANSPORT_CITY_PARAM, canonicalTransportCity, isDefaultTransportCity } from '@/site/transportCity';
+import {
+  DEFAULT_TRANSPORT_CITY,
+  TRANSPORT_CITY_PARAM,
+  canonicalTransportCity,
+  isDefaultTransportCity,
+  transportProfile,
+} from '@/site/transportCity';
 import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import type { TransportDataset } from '@/api/transportDataset';
@@ -14,6 +20,8 @@ import {
   type WallTab,
   WALL_POLL_MS,
   buildCelebrations,
+  buildNewcomerCelebrations,
+  freshNewcomers,
   isNightHour,
   isQuietHour,
   loadWallSettings,
@@ -23,6 +31,7 @@ import {
   storedWallKey,
   topStops,
   wallStops,
+  withNewcomers,
   type Celebration,
   type WallSettings,
 } from './stickerWall';
@@ -36,6 +45,7 @@ const SOUND_BY_KIND: Record<Celebration['kind'], WallSound> = {
   milestone: 'milestone',
   record: 'record',
   summary: 'scan',
+  newcomer: 'newcomer',
 };
 const CONTROLS_MS = 8_000;
 const TAB_PAUSE_MS = 60_000;
@@ -56,6 +66,8 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   const urlKey = params.get('key');
   // Місто наклейок (?city=, як у адмінці); без нього — Малин
   const city = canonicalTransportCity(params.get(TRANSPORT_CITY_PARAM)) ?? DEFAULT_TRANSPORT_CITY;
+  // назва в шапці — місто наклейок, а не завжди «Малин»
+  const cityName = transportProfile(city).name.toLocaleUpperCase('uk-UA');
   const [key, setKey] = useState<string | null>(() => urlKey || storedWallKey());
   const [keyProblem, setKeyProblem] = useState('');
   const [dataset, setDataset] = useState<TransportDataset | null>(null);
@@ -74,6 +86,8 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   const [controls, setControls] = useState(false);
 
   const cursor = useRef<number | null>(null);
+  // досмотрені тизери, які стіна вже бачила (null — ще жодного знімка «Реклами»)
+  const seenNewcomers = useRef<Set<string> | null>(null);
   const day = useRef<string | null>(null);
   const startedRef = useRef(false);
   const tabPausedUntil = useRef(0);
@@ -124,20 +138,15 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
 
   const poll = useCallback(async () => {
     if (!key) return;
-    // реклама — окремим запитом: її збій не заважає стіні
-    void apiClient
-      .getAdWall(key, city)
-      .then(setAds)
-      .catch(() => {});
+    // реклама — окремим запитом паралельно: її збій не заважає стіні
+    const adsRequest = apiClient.getAdWall(key, city).catch(() => null);
+    let scans: Celebration[] = [];
     try {
       const snap = await apiClient.getStickerWall(key, cursor.current ?? 0, city);
       setOffline(false);
       setKeyProblem('');
       const fresh = cursor.current === null || day.current !== snap.day;
-      if (!fresh && snap.events.length && startedRef.current) {
-        const items = buildCelebrations(snap, wallStops(snap, dirRef.current));
-        setQueue((q) => [...q, ...items]);
-      }
+      if (!fresh && snap.events.length && startedRef.current) scans = buildCelebrations(snap, wallStops(snap, dirRef.current));
       cursor.current = snap.lastId;
       day.current = snap.day;
       setSnapshot(snap);
@@ -147,6 +156,17 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         setKeyProblem('Посилання застаріло — відкрийте нове в адмінці («Наклейки зупинок» → «Віджет на стіну»).');
       } else setOffline(true);
     }
+    // новенькі (досмотріли тизер) — особливе святкування; їхній скан у тому ж опитуванні звичайного не отримує
+    let newcomers: Celebration[] = [];
+    const ads = await adsRequest;
+    if (ads) {
+      setAds(ads);
+      const found = freshNewcomers(seenNewcomers.current, ads);
+      seenNewcomers.current = found.seen;
+      if (startedRef.current) newcomers = buildNewcomerCelebrations(found.fresh, ads, dirRef.current);
+    }
+    const items = withNewcomers(scans, newcomers);
+    if (items.length) setQueue((q) => [...q, ...items]);
   }, [key, city]);
 
   useEffect(() => {
@@ -233,15 +253,15 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
     saveWallSettings(next);
   };
 
-  const testCelebration = () => {
+  const testCelebration = (kind: 'scan' | 'newcomer') => {
     const top = topStops(stops, 1)[0];
     const total = snapshot?.total ?? 0;
     setQueue((q) => [
       ...q,
       {
         key: `test-${Date.now()}`,
-        kind: 'scan',
-        headline: 'Перевірка святкування',
+        kind,
+        headline: kind === 'newcomer' ? 'Новий пасажир! (перевірка)' : 'Перевірка святкування',
         stopId: top?.stopId ?? 'test',
         name: top?.name ?? 'Тестова зупинка',
         lines: top?.lines ?? [],
@@ -250,6 +270,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         stopToday: top?.today ?? 0,
         rank: top ? 1 : 0,
         totalAfter: total,
+        newToday: Math.max(1, ads?.sticker.today.completed ?? 0),
       },
     ]);
     setControls(false);
@@ -259,7 +280,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
     return (
       <div className="wall wall--message">
         <div className="wall-card">
-          <p className="wall-brand-name">МАЛИН</p>
+          <p className="wall-brand-name">{cityName}</p>
           <h1>Віджет «Відкриття з QR»</h1>
           <p>Відкрийте посилання з адмінки: «Наклейки зупинок» → «Віджет на стіну» (QR-код для телефона).</p>
         </div>
@@ -288,6 +309,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         soundOn={soundOn}
         ads={ads}
         stopName={(id) => dir.get(id)?.name ?? id}
+        cityName={cityName}
       />
       {keyProblem && <p className="wall-problem">{keyProblem}</p>}
       {current && <WallCelebration key={current.key} celebration={current} />}
@@ -299,8 +321,11 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
           <button type="button" aria-pressed={settings.quietNights} onClick={() => update({ quietNights: !settings.quietNights })}>
             🌙 Тихо вночі (22–08): {settings.quietNights ? 'так' : 'ні'}
           </button>
-          <button type="button" onClick={testCelebration}>
+          <button type="button" onClick={() => testCelebration('scan')}>
             ✨ Перевірити
+          </button>
+          <button type="button" onClick={() => testCelebration('newcomer')}>
+            🔵 Новий пасажир
           </button>
           <button type="button" onClick={() => void enterWallFullscreen()}>
             ⛶ На весь екран
@@ -310,7 +335,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
       {!started && (
         <div className="wall-start" onClick={(e) => e.stopPropagation()}>
           <div className="wall-card">
-            <p className="wall-brand-name">МАЛИН</p>
+            <p className="wall-brand-name">{cityName}</p>
             <h1>Віджет «Відкриття з QR»</h1>
             <p>
               Поверніть телефон горизонтально й торкніться «Почати»: екран не гаситиметься, а кожне нове відкриття

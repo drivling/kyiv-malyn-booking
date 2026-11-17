@@ -105,7 +105,7 @@ describe('StickerWallPage', () => {
     expect(screen.getByRole('region', { name: 'Зараз ростуть' })).toBeInTheDocument();
   });
 
-  it('вкладка «Реклама»: тизер на табло й ролик «Доведе» — сьогодні, за 90 днів і останні перегляди', async () => {
+  it('вкладка «Реклама»: три плитки «сьогодні», стрічка останніх переглядів і рядок «90 днів»', async () => {
     const user = userEvent.setup();
     const now = new Date().toISOString();
     const ads: AdWallSnapshot = {
@@ -116,6 +116,7 @@ describe('StickerWallPage', () => {
         today: { shown: 1, started: 1, completed: 1, pages: 2 },
         total: { shown: 3, started: 2, completed: 2, pages: 5 },
         access: { admin: 1, guest: 4, public: 0 },
+        todayAccess: { admin: 1, guest: 1, public: 0 },
         people: 3,
       },
       views: [
@@ -135,16 +136,59 @@ describe('StickerWallPage', () => {
     await user.click(screen.getByRole('tab', { name: 'Реклама' }));
     const region = screen.getByRole('region', { name: 'Реклама' });
     await waitFor(() => expect(within(region).getByText('Тизер на табло')).toBeInTheDocument());
-    expect(region).toHaveTextContent('2 досмотріли сьогодні');
-    expect(region).toHaveTextContent('показ 4 · дивились 3');
-    expect(region).toHaveTextContent('входи: гості 4, адмін 1');
-    const rows = within(region).getAllByRole('listitem');
+    // плитки: тизер — 2 до кінця з 4 показів; ролик — 1; сторінка — 2 входи, гість і адмін
+    expect(region).toHaveTextContent('2 до кінця');
+    expect(region).toHaveTextContent('з 4 показів · почали 3');
+    expect(region).toHaveTextContent('1 до кінця');
+    expect(region).toHaveTextContent('2 входи');
+    expect(region).toHaveTextContent('гості 1 · адмін 1');
+    // стрічка: що сталося (для читача екрана — словами), де, з чого, хто
+    const rows = within(within(region).getByRole('list', { name: 'Останні перегляди' })).getAllByRole('listitem');
+    expect(rows).toHaveLength(2);
     expect(rows[0]).toHaveTextContent('з-д «Прожектор»');
-    expect(rows[0]).toHaveTextContent('✓ досмотрів');
-    expect(rows[0]).toHaveTextContent('iPhone · #ab12 · повернувся');
-    expect(rows[1]).toHaveTextContent('/dovede — сторінка');
-    expect(rows[1]).toHaveTextContent('гість із паролем');
+    expect(rows[0]).toHaveTextContent('досмотрів');
+    expect(rows[0]).toHaveTextContent('iPhone');
+    expect(rows[0]).toHaveTextContent('#ab12');
+    expect(rows[0]).toHaveTextContent('↻ 2-й раз');
+    expect(rows[1]).toHaveTextContent('Сторінка «Доведе»');
+    expect(rows[1]).toHaveTextContent('відкрив сторінку (гість)');
+    expect(region).toHaveTextContent('90 днів тизер 5 з 9 · ролик 2 з 3 · сторінка 5 (гості 4) · 6 людей з наклейок');
     expect(asked[0]).toContain('key=k123');
+  });
+
+  it('новий пасажир: досмотрений тизер після старту — особливе святкування замість звичайного', async () => {
+    const user = userEvent.setup();
+    const views: AdWallSnapshot['views'] = [];
+    const adsNow = (): AdWallSnapshot => ({
+      now: new Date().toISOString(),
+      day: '2026-10-06',
+      sticker: { today: { shown: views.length, started: views.length, completed: views.length }, total: { shown: 1, started: 1, completed: 1 }, people: 1 },
+      dovede: { today: { shown: 0, started: 0, completed: 0, pages: 0 }, total: { shown: 0, started: 0, completed: 0, pages: 0 }, access: { admin: 0, guest: 0, public: 0 }, people: 0 },
+      views,
+    });
+    server.use(http.get(`${TEST_API_URL}/ads/wall`, () => HttpResponse.json(adsNow())));
+    renderWall('/admin/wall?key=k123');
+    await screen.findByTestId('wall-total');
+    await user.click(screen.getByRole('button', { name: 'Почати' }));
+    // скан і досмотрений тизер приходять в одному опитуванні
+    views.push({ viewId: 'view-new-1', placement: 'sticker', kind: 'view', stopId: 'st_0015', device: 'android', who: 'ab12', seenBefore: 0, access: null, at: new Date().toISOString(), started: true, completed: true });
+    withEvent = true;
+    const cele = await screen.findByRole('status', {}, { timeout: 3000 });
+    expect(cele).toHaveTextContent('Новий пасажир!');
+    expect(cele).toHaveTextContent('з-д «Прожектор»');
+    expect(cele).toHaveTextContent('уперше тут — досмотрів тизер «Доведе» · нових сьогодні 1');
+    expect(cele).not.toHaveTextContent('Нове відкриття з QR');
+  });
+
+  it('у шапці — місто наклейок: ?city=Korosten — «КОРОСТЕНЬ», без нього — «МАЛИН»', async () => {
+    const { unmount } = renderWall('/admin/wall?key=k123&city=Korosten');
+    await screen.findByTestId('wall-total');
+    expect(screen.getAllByText('КОРОСТЕНЬ').length).toBeGreaterThan(0);
+    expect(screen.queryByText('МАЛИН')).not.toBeInTheDocument();
+    unmount();
+    renderWall('/admin/wall?key=k123');
+    await screen.findByTestId('wall-total');
+    expect(screen.getAllByText('МАЛИН').length).toBeGreaterThan(0);
   });
 
   it('застарілий ключ — повідомлення, як отримати нове посилання', async () => {

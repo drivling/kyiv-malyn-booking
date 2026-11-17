@@ -145,15 +145,20 @@ test('зведення стіни: сьогодні й усього, хто ди
     row(8, { placement: 'dovede', viewId: 'view-0004', stopId: null, video: 'intro-55427b80', device: 'desktop' }),
     row(9, { placement: 'dovede', viewId: 'view-0004', stopId: null, event: 'completed', device: 'desktop' }),
     row(10, { placement: 'dovede', viewId: 'page-0005', stopId: null, event: 'page', access: 'guest', video: null }),
+    // пізніша подія того самого перегляду з іншим id браузера — не нова людина
+    row(11, { viewId: 'view-0002', event: 'started', clientId: 'third-client-0003', device: 'android' }),
+    row(12, { placement: 'dovede', viewId: 'page-0006', stopId: null, event: 'page', access: 'admin', video: null, createdAt: yesterday }),
   ]);
   const snap = await adWallSnapshot(prisma, { cityCode: 'Malyn', now: NOW });
   assert.equal(snap.day, '2026-11-17');
-  assert.deepEqual(snap.sticker.today, { shown: 2, started: 1, completed: 1 });
-  assert.deepEqual(snap.sticker.total, { shown: 3, started: 2, completed: 1 });
-  assert.equal(snap.sticker.people, 2);
+  assert.deepEqual(snap.sticker.today, { shown: 2, started: 2, completed: 1 });
+  assert.deepEqual(snap.sticker.total, { shown: 3, started: 3, completed: 1 });
+  assert.equal(snap.sticker.people, 2, 'люди — за першою подією перегляду, як «хто» у списку');
   assert.deepEqual(snap.dovede.today, { shown: 1, started: 0, completed: 1, pages: 1 });
-  assert.deepEqual(snap.dovede.access, { admin: 0, guest: 1, public: 0 });
-  assert.equal(snap.views.length, 5, 'перегляд із Коростеня не на стіні Малина');
+  assert.deepEqual(snap.dovede.access, { admin: 1, guest: 1, public: 0 });
+  assert.deepEqual(snap.dovede.todayAccess, { admin: 0, guest: 1, public: 0 }, 'адмін заходив учора');
+  assert.equal(snap.dovede.total.pages, 2);
+  assert.equal(snap.views.length, 6, 'перегляд із Коростеня не на стіні Малина');
   const mine = snap.views.find((v) => v.viewId === 'view-0001');
   assert.equal(mine?.completed, true);
   assert.equal(mine?.seenBefore, 1, 'той самий браузер бачив рекламу вчора');
