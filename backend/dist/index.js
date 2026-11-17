@@ -27,6 +27,7 @@ function main() {
     let archiveJob = null;
     let reminderJob = null;
     let sourceWatchJob = null;
+    let boardWatchJob = null;
     const app = (0, create_app_1.createApp)({ prisma });
     // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
     void (0, transport_revisions_1.ensureInitialTransportRevision)(prisma).then((row) => {
@@ -94,20 +95,24 @@ function main() {
                     console.log(`🔔 Нагадування: бот ${c.sent}, SMS ${c.smsSent}, помилок ${c.failed}, без каналу ${c.skipped}, дублів ${c.duplicate}`);
                 }
             }, { intervalMin: Number(process.env.BOOKING_REMINDERS_INTERVAL_MIN ?? 1), firstDelayMs: 45000 });
-            // Стеження за джерелами розкладу (сторінка ради Коростеня, data.gov.ua): зміна → повідомлення в адмін-чат;
-            // TRANSPORT_SOURCE_WATCH_INTERVAL_MIN (за замовч. 360, 0 = вимкнено)
-            sourceWatchJob = (0, interval_job_1.startIntervalJob)('transport-source-watch', async () => {
+            // Стеження за джерелами розкладу (сторінка ради Коростеня, data.gov.ua, malyn.media): зміна → повідомлення в
+            // адмін-чат; TRANSPORT_SOURCE_WATCH_INTERVAL_MIN (за замовч. 360, 0 = вимкнено). Табло автовокзалу Житомир-1
+            // (ціни Житомир → Малин) — окремим рідшим таймером TRANSPORT_BOARD_WATCH_INTERVAL_MIN (720, 0 = вимкнено).
+            const watchSources = async (sources) => {
                 const results = await (0, transport_source_watch_1.runSourceWatch)(prisma, {
                     fetchText: transport_source_watch_1.fetchSourceText,
                     notify: telegram_1.sendAdminAlertHtml,
                     now: () => new Date(),
-                    sources: transport_source_watch_1.WATCHED_SOURCES,
+                    sources,
+                    loadSchedules: (0, transport_source_watch_1.prismaScheduleLoader)(prisma),
                 });
-                const notable = results.filter((r) => r.status !== 'unchanged');
+                const notable = results.filter((r) => r.status !== 'unchanged' && r.status !== 'skipped');
                 if (notable.length) {
                     console.log(`🛰️ Джерела розкладу: ${notable.map((r) => `${r.key}=${r.status}`).join(', ')}`);
                 }
-            }, { intervalMin: Number(process.env.TRANSPORT_SOURCE_WATCH_INTERVAL_MIN ?? 360), firstDelayMs: 5 * 60000 });
+            };
+            sourceWatchJob = (0, interval_job_1.startIntervalJob)('transport-source-watch', () => watchSources(transport_source_watch_1.WATCHED_SOURCES.filter((s) => s.group !== 'board')), { intervalMin: Number(process.env.TRANSPORT_SOURCE_WATCH_INTERVAL_MIN ?? 360), firstDelayMs: 5 * 60000 });
+            boardWatchJob = (0, interval_job_1.startIntervalJob)('transport-board-watch', () => watchSources(transport_source_watch_1.WATCHED_SOURCES.filter((s) => s.group === 'board')), { intervalMin: Number(process.env.TRANSPORT_BOARD_WATCH_INTERVAL_MIN ?? 720), firstDelayMs: 7 * 60000 });
         }
     });
     const shutdown = async (signal) => {
@@ -118,6 +123,7 @@ function main() {
         archiveJob?.stop();
         reminderJob?.stop();
         sourceWatchJob?.stop();
+        boardWatchJob?.stop();
         // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
         await (0, lunch_listener_1.stopLunchListenerAndWait)(3000);
         await lease?.stop();

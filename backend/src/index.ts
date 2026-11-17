@@ -19,7 +19,7 @@ import { deactivateExpiredListings } from './viber-listing-expiry';
 import { archiveOldListings } from './viber-listing-archive';
 import { defaultReminderDeps, runDueBookingReminders } from './booking-reminders';
 import { startListingMatchWorker } from './listing-match-jobs';
-import { WATCHED_SOURCES, fetchSourceText, runSourceWatch } from './transport-source-watch';
+import { WATCHED_SOURCES, fetchSourceText, prismaScheduleLoader, runSourceWatch, type WatchedSourceDef } from './transport-source-watch';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
 
@@ -31,6 +31,7 @@ function main(): void {
   let archiveJob: IntervalJob | null = null;
   let reminderJob: IntervalJob | null = null;
   let sourceWatchJob: IntervalJob | null = null;
+  let boardWatchJob: IntervalJob | null = null;
   const app = createApp({ prisma });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {
@@ -111,23 +112,31 @@ function main(): void {
         },
         { intervalMin: Number(process.env.BOOKING_REMINDERS_INTERVAL_MIN ?? 1), firstDelayMs: 45_000 },
       );
-      // Стеження за джерелами розкладу (сторінка ради Коростеня, data.gov.ua): зміна → повідомлення в адмін-чат;
-      // TRANSPORT_SOURCE_WATCH_INTERVAL_MIN (за замовч. 360, 0 = вимкнено)
+      // Стеження за джерелами розкладу (сторінка ради Коростеня, data.gov.ua, malyn.media): зміна → повідомлення в
+      // адмін-чат; TRANSPORT_SOURCE_WATCH_INTERVAL_MIN (за замовч. 360, 0 = вимкнено). Табло автовокзалу Житомир-1
+      // (ціни Житомир → Малин) — окремим рідшим таймером TRANSPORT_BOARD_WATCH_INTERVAL_MIN (720, 0 = вимкнено).
+      const watchSources = async (sources: WatchedSourceDef[]) => {
+        const results = await runSourceWatch(prisma, {
+          fetchText: fetchSourceText,
+          notify: sendAdminAlertHtml,
+          now: () => new Date(),
+          sources,
+          loadSchedules: prismaScheduleLoader(prisma),
+        });
+        const notable = results.filter((r) => r.status !== 'unchanged' && r.status !== 'skipped');
+        if (notable.length) {
+          console.log(`🛰️ Джерела розкладу: ${notable.map((r) => `${r.key}=${r.status}`).join(', ')}`);
+        }
+      };
       sourceWatchJob = startIntervalJob(
         'transport-source-watch',
-        async () => {
-          const results = await runSourceWatch(prisma, {
-            fetchText: fetchSourceText,
-            notify: sendAdminAlertHtml,
-            now: () => new Date(),
-            sources: WATCHED_SOURCES,
-          });
-          const notable = results.filter((r) => r.status !== 'unchanged');
-          if (notable.length) {
-            console.log(`🛰️ Джерела розкладу: ${notable.map((r) => `${r.key}=${r.status}`).join(', ')}`);
-          }
-        },
+        () => watchSources(WATCHED_SOURCES.filter((s) => s.group !== 'board')),
         { intervalMin: Number(process.env.TRANSPORT_SOURCE_WATCH_INTERVAL_MIN ?? 360), firstDelayMs: 5 * 60_000 },
+      );
+      boardWatchJob = startIntervalJob(
+        'transport-board-watch',
+        () => watchSources(WATCHED_SOURCES.filter((s) => s.group === 'board')),
+        { intervalMin: Number(process.env.TRANSPORT_BOARD_WATCH_INTERVAL_MIN ?? 720), firstDelayMs: 7 * 60_000 },
       );
     }
   });
@@ -140,6 +149,7 @@ function main(): void {
     archiveJob?.stop();
     reminderJob?.stop();
     sourceWatchJob?.stop();
+    boardWatchJob?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);
     await lease?.stop();

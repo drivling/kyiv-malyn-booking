@@ -28,8 +28,10 @@ import { DEFAULT_TRANSPORT_CITY, parseTransportCity, resolveTransportCity, type 
 import {
   WATCHED_SOURCES,
   acknowledgeWatchedSource,
+  boardSourceView,
   fetchSourceText,
   listWatchedSources,
+  prismaScheduleLoader,
   runSourceWatch,
   type SourceWatchDeps,
 } from '../transport-source-watch';
@@ -46,6 +48,7 @@ export function createTransportRouter(deps: {
     notify: async () => false,
     now: () => new Date(),
     sources: WATCHED_SOURCES,
+    loadSchedules: prismaScheduleLoader(prisma),
     ...deps.sourceWatch,
   };
   const adminPassword = resolveAdminPassword(deps.adminPassword);
@@ -466,6 +469,22 @@ export function createTransportRouter(deps: {
     } catch (e) {
       console.error('[POST /admin/transport/sources/check]', e);
       res.status(500).json({ error: 'Failed to check watched sources' });
+    }
+  });
+
+  /** Адмін: останній знімок табло автовокзалу таблицею рейсів і звірка з `Schedule` (лише читання) */
+  r.get('/admin/transport/sources/:key/board', requireAdmin, async (req, res) => {
+    try {
+      const def = sourceWatchDeps.sources.find((s) => s.key === String(req.params.key));
+      const view = def ? await boardSourceView(prisma, def, sourceWatchDeps.loadSchedules) : null;
+      if (!view) {
+        res.status(404).json({ error: 'Unknown board source' });
+        return;
+      }
+      res.json(view);
+    } catch (e) {
+      console.error('[GET /admin/transport/sources/:key/board]', e);
+      res.status(500).json({ error: 'Failed to load board snapshot' });
     }
   });
 
