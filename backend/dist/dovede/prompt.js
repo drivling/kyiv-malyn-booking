@@ -16,14 +16,25 @@ const kyivRingData_1 = require("./kyivRingData");
 const landmarks_1 = require("./landmarks");
 const streets_1 = require("./streets");
 /** Міняти разом зі змістом промпту: видно в журналі DovedeQuery, щоб порівнювати розбори між версіями */
-exports.PROMPT_VERSION = 'dovede-understand-v10';
+exports.PROMPT_VERSION = 'dovede-understand-v11';
+/**
+ * «Житомирська» — і станція метро в Києві (там зупиняються маршрутки з Малина), і вулиця в Малині. Словник у браузері
+ * вважає саме слово станцією, а вулицею — лише зі словом «вулиця» чи номером будинку; Claude має читати так само,
+ * інакше журнал повниться «розбіжностями» (еталони zt-12 … zt-16).
+ */
+const METRO_NOTES = {
+    'kyiv.zhytomyrska': ' — і без слова «метро»: див. правило про «Житомирську» вище',
+};
+const STREET_NOTES = {
+    'street.zhytomyrska': ' — лише зі словом «вулиця» / «вул.» або з номером будинку; саме «Житомирська» — це метро kyiv.zhytomyrska',
+};
 /** Що Claude має знати про місце понад назву — чого не видно з синонімів */
 const PLACE_NOTES = {
     'kyiv.akadem': 'метро Академмістечко; звідси їде більшість маршруток на Малин',
     'kyiv.sviatoshyn': 'метро Святошин і платформа електрички Святошин',
     'kyiv.pas': 'залізничний вокзал Києва (Київ-Пасажирський, Приміський вокзал); звідси електрички',
     'kyiv.borshch': 'зупинний пункт електрички Борщагівка',
-    'kyiv.zhytomyrska': 'метро Житомирська',
+    'kyiv.zhytomyrska': 'метро Житомирська; біля неї зупиняються маршрутки з Малина. Саме слово «Житомирська» без «вулиця» й номера будинку — це вона',
     'malyn.vokzal': 'залізничний вокзал Малина',
     'malyn.avtostantsiya': 'автостанція Малина',
     'malyn.tsentr': 'центр Малина: Базарна площа, ТЦ «Промінь», площа Соборна',
@@ -51,10 +62,10 @@ const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
  * лише тоді, коли в адмінці міняють зупинки, тож між запитами лишається байт-у-байт однаковим.
  */
 function buildSystemPrompt(stops = [], routes = []) {
-    const streetLines = [...streets_1.MALYN_STREETS].sort(byId).map((s) => `- ${s.id} — ${s.kind} ${s.name}${s.old.length ? ` (кол. ${s.old.join(', ')})` : ''}`);
+    const streetLines = [...streets_1.MALYN_STREETS].sort(byId).map((s) => `- ${s.id} — ${s.kind} ${s.name}${s.old.length ? ` (кол. ${s.old.join(', ')})` : ''}${STREET_NOTES[s.id] ?? ''}`);
     const landmarkLines = [...landmarks_1.MALYN_LANDMARKS].sort(byId).map((l) => `- ${l.id} — ${l.label}${l.said.length ? ` (кажуть: ${l.said.join(', ')})` : ''}`);
     const LINE_NAME = { M1: 'червона', M2: 'синя', M3: 'зелена' };
-    const metroLines = [...kyivMetroData_1.METRO_STATIONS].sort(byId).map((m) => `- ${m.id} — метро ${m.name} (${LINE_NAME[m.line]} лінія${m.said.length ? `; кажуть: ${m.said.join(', ')}` : ''})${m.strict ? ' — лише зі словом «метро / м. / ст.»' : ''}`);
+    const metroLines = [...kyivMetroData_1.METRO_STATIONS].sort(byId).map((m) => `- ${m.id} — метро ${m.name} (${LINE_NAME[m.line]} лінія${m.said.length ? `; кажуть: ${m.said.join(', ')}` : ''})${m.id in METRO_NOTES ? METRO_NOTES[m.id] : m.strict ? ' — лише зі словом «метро / м. / ст.»' : ''}`);
     // станції міської електрички без метро поруч; ті, що біля метро, уже є серед станцій метро
     const ringLines = kyivRingData_1.RING_STATIONS.filter((r) => !r.metro)
         .sort(byId)
@@ -120,6 +131,11 @@ function buildSystemPrompt(stops = [], routes = []) {
         '(місто за межами словника — у unknown, а «вокзал» чи «Київ» розбирай як звичайно). Якщо така сама назва є',
         'серед місць, зупинок чи орієнтирів Малина, а людина не сказала, що їде з Малина чи до Києва, — це Малин.',
         'kyiv.pas — це і станція «Вокзальна», і залізничний вокзал Києва.',
+        '«Житомирська» — виняток із правила про слово «метро»: біля цієї станції зупиняються маршрутки з Малина, тож',
+        'саме слово в будь-якому відмінку — це станція kyiv.zhytomyrska: «з Малина до Житомирської», «на Житомирську',
+        'завтра», «от Житомирской в Малин», «від лікарні до Житомирської». Вулиця Житомирська в Малині',
+        '(street.zhytomyrska) — лише коли сказано «вулиця» / «вул.» або названо номер будинку: «до вулиці Житомирської»,',
+        '«на Житомирську 5». «Житомирська траса», «Житомирська область», «до Житомира» — не станція.',
         ...metroLines,
         '',
         '## Станції міської електрички Києва',
