@@ -1,0 +1,33 @@
+# korosten.kiev.ua
+
+> Міський транспорт Коростеня (Україна) і міжміські попутки та маршрутки з Коростеня. Домен міста сервісу malin.kiev.ua:
+> та сама база, той самий Telegram-бот; міські сторінки — про Коростень.
+
+Сайт: https://korosten.kiev.ua
+Головний сайт сервісу: https://malin.kiev.ua (довідка, бот, реквізити)
+Бот Telegram: https://t.me/malin_kiev_ua_bot (@malin_kiev_ua_bot)
+Розробник: ТОВ «Технології» (ЄДРПОУ 46288273) — https://technologies.llc/
+
+## Міський транспорт Коростеня
+
+9 автобусних маршрутів міської ради: №1, №2, №2-Б, №3, №4, №5, №6, №7, №8 (буквених 6А, 6Б, 7А, 12, 14 зі старих схем
+нема: їхні шляхи — рейси основних номерів «іншим шляхом»).
+
+- [Транспорт Коростеня](https://korosten.kiev.ua/transport): планер «Звідки → Куди» з пересадками, лінії, карта
+- [Табло зупинки](https://korosten.kiev.ua/transport/stop): найближчі відправлення з обраної зупинки (у будні й вихідні — свої рейси)
+- [Схема маршрутів](https://korosten.kiev.ua/transport/scheme): схема ліній у стилі метро, плакат для друку (PDF / SVG)
+- Сторінка маршруту: https://korosten.kiev.ua/transport/route/<номер> (напр. /transport/route/2b — №2-Б)
+
+Джерела даних: розклад — сторінка Коростенської міської ради «Розклад руху міського транспорту»; назви й вулиці зупинок —
+набір ради на data.gov.ua (CC BY); частина координат зупинок — OpenStreetMap (ODbL). Відкритого фіду GTFS для Коростеня
+поки нема.
+
+## Міжміські
+
+- [Міжміські (попутки та маршрутки)](https://korosten.kiev.ua/mizhgorodski): пошук поїздок з Коростеня
+- [Коростень — Київ](https://korosten.kiev.ua/mizhgorodski/korosten-kyiv) · [Київ — Коростень](https://korosten.kiev.ua/mizhgorodski/kyiv-korosten)
+- [Коростень — Малин](https://korosten.kiev.ua/mizhgorodski/korosten-malyn) · [Малин — Коростень](https://korosten.kiev.ua/mizhgorodski/malyn-korosten)
+
+## Довідка й контакти
+
+Див. https://malin.kiev.ua/support і https://malin.kiev.ua/about (спільні для обох доменів).

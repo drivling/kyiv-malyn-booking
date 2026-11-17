@@ -7,6 +7,7 @@
  * і ЗАКОМІТИТИ результат: Railway робить `npm ci` без браузера.
  *
  *   npm run pwa:icons          (PW_CHROMIUM=/шлях/до/chrome — якщо Playwright новіший за встановлені браузери)
+ *   npm run pwa:icons -- --og transportKorosten   — лише одна картка посилання (ключ OG_IMAGES), решту не чіпає
  *
  * Три форми одного малюнка:
  *   - squircle — прозорі кути: Android «any», Windows, Linux, і favicon (yak-doikhaty.svg, /favicon.ico 16/32/48);
@@ -28,7 +29,7 @@ import { OG_IMAGES, OG_IMAGE_HEIGHT, OG_IMAGE_WIDTH } from './og-images.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.resolve(here, '../public');
 const outDir = path.join(publicDir, 'icons');
-const legendFile = path.resolve(here, '../src/pages/LocalTransportPage/scheme/malyn-scheme-routes.ts');
+const legendPath = (city = 'malyn') => path.resolve(here, `../src/pages/LocalTransportPage/scheme/${city}-scheme-routes.ts`);
 
 /** Головна вулиця схеми між Лікарнею і Центром, згори вниз */
 const MAIN_STREET = ['10', '3', '12', '5', '7', '2'];
@@ -37,8 +38,9 @@ const INK = '#054752';
 const SHORE = '#9ccfe8';
 const WATER = '#d9ecf7';
 
-/** Легенда — згенерований JSON-масив у TS-файлі (build_scheme.py) */
-function routeColors(ids) {
+/** Легенда — згенерований JSON-масив у TS-файлі (build_scheme.py); `city` — префікс файлу легенди */
+function routeColors(ids, city = 'malyn') {
+  const legendFile = legendPath(city);
   const src = readFileSync(legendFile, 'utf8');
   const routes = JSON.parse(src.slice(src.indexOf('= [') + 2, src.lastIndexOf(']') + 1));
   return ids.map((id) => {
@@ -99,13 +101,13 @@ function bundle(axis, colors, { width, gap, radius }) {
  * Вода, шість ліній і пігулка в будь-якому масштабі: вісь пучка й берег — ламані, що виходять за поле, `bottom` —
  * нижня межа заливки води.
  */
-function schemeArt({ axis, shore, bottom, lines, shoreWidth, shoreRadius, pill }) {
-  const across = MAIN_STREET.length * lines.width + (MAIN_STREET.length - 1) * lines.gap + pill.margin;
+function schemeArt({ axis, shore, bottom, lines, shoreWidth, shoreRadius, pill, colors = routeColors(MAIN_STREET) }) {
+  const across = colors.length * lines.width + (colors.length - 1) * lines.gap + pill.margin;
   const [left, right] = [shore[0][0], shore[shore.length - 1][0]];
   return [
     `<path d="${bundleLine(shore, 0, shoreRadius)} L${right},${bottom} L${left},${bottom} Z" fill="${WATER}"/>`,
     bundle(shore, [SHORE], { width: shoreWidth, gap: 0, radius: shoreRadius }),
-    bundle(axis, routeColors(MAIN_STREET), lines),
+    bundle(axis, colors, lines),
     `<rect x="${fx(pill.x - pill.thick / 2)}" y="${fx(pill.y - across / 2)}" width="${pill.thick}" height="${fx(across)}" ` +
       `rx="${pill.thick / 2}" fill="#fff" stroke="${INK}" stroke-width="${pill.stroke}"/>`,
   ].join('');
@@ -146,8 +148,9 @@ const ICONS = [
 const FAVICON_SIZES = [16, 32, 48];
 
 /** Лінії на картці 1200×630: під текстом зліва, підйом праворуч до пігулки, вода в правому нижньому куті */
-function ogArt() {
+function ogArt(image) {
   const art = schemeArt({
+    ...(image.lines ? { colors: routeColors(image.lines, image.legend) } : {}),
     axis: [[-100, 515], [680, 515], [970, 225], [1300, 225]],
     shore: [[-100, 660], [740, 660], [920, 480], [1300, 480]],
     bottom: 800,
@@ -173,7 +176,7 @@ html,body{margin:0}
 .brand svg{width:60px;height:60px;filter:drop-shadow(0 1px 2px rgba(5,71,82,0.25))}
 h1{position:absolute;left:66px;top:148px;margin:0;font-size:116px;line-height:1;font-weight:800;letter-spacing:-3px}
 p{position:absolute;left:72px;top:300px;margin:0;font-size:32px;line-height:1.28;font-weight:500;color:#3f6268;white-space:nowrap}
-</style></head><body><div class="card">${ogArt()}
+</style></head><body><div class="card">${ogArt(image)}
 <div class="brand">${iconSvg()}<span>${esc(image.label)}</span></div>
 <h1>${esc(image.title)}</h1>
 <p>${image.lead.map(esc).join('<br>')}</p>
@@ -226,7 +229,29 @@ async function render(browser, html, width, height, { transparent = true, fonts 
 const iconPage = (drawing, size) =>
   `<!doctype html><html><body style="margin:0;background:transparent">${drawing.replace('<svg ', `<svg width="${size}" height="${size}" `)}</body></html>`;
 
+/** `--og <ключ>`: лише ця картка посилання (нова картка не перемальовує закомічені іконки й інші картки) */
+const onlyOg = process.argv.includes('--og') ? process.argv[process.argv.indexOf('--og') + 1] : null;
+
+async function renderOg(browser, image) {
+  const png = await render(browser, ogCardHtml(image), OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT, { transparent: false, fonts: true });
+  const file = path.join(publicDir, image.path);
+  mkdirSync(path.dirname(file), { recursive: true });
+  writeFileSync(file, png);
+  console.log(`[gen-pwa-icons] ${image.path.slice(1)} (${png.length} bytes)`);
+}
+
 async function main() {
+  if (onlyOg) {
+    const image = OG_IMAGES[onlyOg];
+    if (!image) throw new Error(`немає картки ${onlyOg} в OG_IMAGES`);
+    const browser = await chromium.launch(process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {});
+    try {
+      await renderOg(browser, image);
+    } finally {
+      await browser.close();
+    }
+    return;
+  }
   mkdirSync(outDir, { recursive: true });
   writeFileSync(path.join(outDir, 'yak-doikhaty.svg'), `${iconSvg()}\n`, 'utf8');
   console.log('[gen-pwa-icons] yak-doikhaty.svg');
@@ -245,13 +270,7 @@ async function main() {
     writeFileSync(path.join(publicDir, 'favicon.ico'), ico);
     console.log(`[gen-pwa-icons] favicon.ico ${FAVICON_SIZES.join('/')} (${ico.length} bytes)`);
 
-    for (const image of Object.values(OG_IMAGES)) {
-      const png = await render(browser, ogCardHtml(image), OG_IMAGE_WIDTH, OG_IMAGE_HEIGHT, { transparent: false, fonts: true });
-      const file = path.join(publicDir, image.path);
-      mkdirSync(path.dirname(file), { recursive: true });
-      writeFileSync(file, png);
-      console.log(`[gen-pwa-icons] ${image.path.slice(1)} (${png.length} bytes)`);
-    }
+    for (const image of Object.values(OG_IMAGES)) await renderOg(browser, image);
   } finally {
     await browser.close();
   }

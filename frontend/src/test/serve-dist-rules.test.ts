@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { apiRedirectPath, apiSearchForCity, goneHtml, GONE_HTML, isCityBoundDistFile, isCityTransportPath, siteTreeDir, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, DOVEDE_ROBOTS, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
+import { apiRedirectPath, apiSearchForCity, goneHtml, GONE_HTML, isCityBoundDistFile, isCityTransportPath, isSiteOwnFile, isSiteTreePath, siteTreeDir, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, DOVEDE_ROBOTS, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
 
 describe('serve-dist rules: 301 for retired public URLs', () => {
   it('/poputky lands on the intercity board with the «Попутки» filter chosen', () => {
@@ -227,5 +227,21 @@ describe('serve-dist rules: /transport* на сайті іншого міста 
     expect(GONE_HTML).toContain('Транспорт Малина');
     expect(goneHtml('Коростеня')).toContain('Транспорт Коростеня');
     expect(goneHtml('Коростеня')).not.toContain('Малина');
+  });
+});
+
+describe('serve-dist rules: свої файли сайту', () => {
+  it('llms.txt у кожного сайту свій', () => {
+    expect(isSiteOwnFile('/llms.txt')).toBe(true);
+    expect(isSiteOwnFile('/robots.txt')).toBe(false);
+    expect(isSiteOwnFile('/transport')).toBe(false);
+  });
+
+  it('дерево сайту не відкривається напряму як /sites/…', () => {
+    expect(isSiteTreePath('/sites/korosten/llms.txt')).toBe(true);
+    expect(isSiteTreePath('/sites/korosten/transport/stop/st_1001')).toBe(true);
+    expect(isSiteTreePath('/sites')).toBe(true);
+    expect(isSiteTreePath('/sitemap.xml')).toBe(false);
+    expect(isSiteTreePath('/sitesx')).toBe(false);
   });
 });

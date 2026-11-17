@@ -6,7 +6,7 @@
  * Plain ESM без залежностей: імпортують і Node (генератор, prerender-*.mjs, seo-smoke), і SPA (usePageSeo).
  * Дефолтна картка ще й прописана статично в index.html — тест src/test/og-images.test.ts стежить за збігом.
  */
-import { PRIMARY_ORIGIN } from './site-hosts.mjs';
+import { PRIMARY_ORIGIN, resolveSiteKey } from './site-hosts.mjs';
 
 export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
@@ -28,11 +28,37 @@ export const OG_IMAGES = {
     lead: ['Міські маршрутки Малина:', 'табло зупинок, розклад і схема'],
     alt: 'Як доїхати — міські маршрутки Малина: табло зупинок, розклад і схема',
   },
+  /**
+   * Міський транспорт Коростеня (korosten.kiev.ua/transport*): лінії — кольори легенди схеми Коростеня
+   * (`legend`, `lines` — для генератора)
+   */
+  transportKorosten: {
+    path: '/og/yak-doikhaty-transport-korosten.png',
+    label: 'korosten.kiev.ua/transport',
+    title: 'Як доїхати',
+    lead: ['Міські автобуси Коростеня:', 'табло зупинок, розклад і схема'],
+    alt: 'Як доїхати — міські автобуси Коростеня: табло зупинок, розклад і схема',
+    legend: 'korosten',
+    lines: ['1', '2', '4', '5', '6', '8'],
+  },
 };
 
-/** Картка для шляху сторінки: /transport і все під ним — транспортна, решта — загальна */
-export function ogImageForPath(pathname) {
-  return /^\/transport(\/|$)/.test(pathname || '/') ? OG_IMAGES.transport : OG_IMAGES.site;
+/** Транспортна картка сайту міста; сайт без своєї — малинська */
+const TRANSPORT_BY_SITE = { korosten: OG_IMAGES.transportKorosten };
+
+/**
+ * Картка для шляху сторінки: /transport і все під ним — транспортна (свого сайту: `siteKey` з site-hosts.mjs),
+ * решта — загальна
+ */
+export function ogImageForPath(pathname, siteKey = 'malyn') {
+  if (!/^\/transport(\/|$)/.test(pathname || '/')) return OG_IMAGES.site;
+  return TRANSPORT_BY_SITE[siteKey] ?? OG_IMAGES.transport;
+}
+
+/** Картка для абсолютної адреси сторінки (canonical): сайт — з домену */
+export function ogImageForUrl(url) {
+  const u = new URL(url);
+  return ogImageForPath(u.pathname, resolveSiteKey(u.host));
 }
 
 /** Абсолютна адреса (месенджери не приймають відносну) — завжди головний домен */

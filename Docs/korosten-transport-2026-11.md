@@ -296,7 +296,10 @@ GTFS/RSS/ICS Коростеня → 404 до фази відкритих дан�
   `transportSources`: розклад — сторінка ради («посилання обов'язкове»), назви й вулиці зупинок — data.gov.ua (CC BY),
   координати — OpenStreetMap (ODbL); у Малина без змін. GA4: події `transport_*` міста несуть `transport_city`
   (`withTransportCity`; у Малина параметра нема — «(not set)»), власник реєструє custom dimension. Ручний чекліст
-  запуску й відкату — [`korosten-transport-smoke.md`](korosten-transport-smoke.md)
+  запуску й відкату — [`korosten-transport-smoke.md`](korosten-transport-smoke.md). Доповнено 2026-11-17: своя картка
+  посилання `/transport*` Коростеня (`og/yak-doikhaty-transport-korosten.png`, кольори ліній схеми Коростеня; вибір — за
+  доменом canonical) і свій `llms.txt` на korosten.kiev.ua (`public/sites/korosten/llms.txt`; малинський там більше не
+  віддається); прямий доступ до дерева `/sites/…` — 404 на будь-якому домені
 - [ ] **11.2** Прапорець у «Маршрути» (власник), **потім redeploy фронтенда** — лише збірка після прапорця пише статичні
   сторінки Коростеня (`dist/sites/korosten/`)
 

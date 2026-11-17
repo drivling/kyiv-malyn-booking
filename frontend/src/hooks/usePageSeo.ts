@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { ogImageForPath, ogImageUrl } from '../../scripts/og-images.mjs';
+import { ogImageForUrl, ogImageUrl } from '../../scripts/og-images.mjs';
 
-/** Шлях canonical-адреси для вибору картки посилання (/transport* — транспортна) */
-function canonicalPath(canonical: string): string {
+/** Абсолютна canonical-адреса для вибору картки посилання (/transport* — транспортна, свого домену) */
+function canonicalAbsolute(canonical: string): string {
   try {
-    return new URL(canonical, 'https://malin.kiev.ua').pathname;
+    return new URL(canonical, 'https://malin.kiev.ua').href;
   } catch {
-    return '/';
+    return 'https://malin.kiev.ua/';
   }
 }
 
@@ -121,8 +121,9 @@ export function usePageSeo(titleOrOptions: string | PageSeoOptions, canonicalUrl
     restores.push(upsertMetaByProperty('og:url', canonical));
     restores.push(upsertMetaByProperty('og:type', 'website'));
     restores.push(upsertMetaByProperty('og:locale', 'uk_UA'));
-    // Картка для Telegram / LinkedIn (scripts/og-images.mjs); prerender-spa переносить усі og:* у статичний HTML
-    const ogImage = ogImageForPath(canonicalPath(canonical));
+    // Картка для Telegram / LinkedIn (scripts/og-images.mjs) — за шляхом і доменом canonical (транспорт Коростеня має
+    // свою); prerender-spa переносить усі og:* у статичний HTML
+    const ogImage = ogImageForUrl(canonicalAbsolute(canonical));
     restores.push(upsertMetaByProperty('og:image', ogImageUrl(ogImage)));
     restores.push(upsertMetaByProperty('og:image:alt', ogImage.alt));
 

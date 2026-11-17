@@ -12,7 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { API_BASE } from './api-base.mjs';
 import { PUBLISHER_ORG, setCanonical, setOg, stripRobots } from './html-head.mjs';
-import { OG_IMAGES, ogImageUrl } from './og-images.mjs';
+import { ogImageForPath, ogImageUrl } from './og-images.mjs';
 import { publishableRouteIds } from './prerender-spa.mjs';
 import { relatedPagesForStop } from './stop-related-pages.mjs';
 import { copyCityOfSite, MALYN_COPY_CITY, stopArticleDescription, stopFallbackDescription, stopHubFaq, stopPageTitle, stopRoutesFaq } from './stop-page-copy.mjs';
@@ -414,8 +414,9 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
   );
   html = setOg(html, 'og:url', canonical);
   // Картка посилання — транспортна, як у SPA (usePageSeo), а не загальна з index.html
-  html = setOg(html, 'og:image', ogImageUrl(OG_IMAGES.transport));
-  html = setOg(html, 'og:image:alt', escapeHtml(OG_IMAGES.transport.alt));
+  const ogImage = ogImageForPath('/transport', SITE_KEY);
+  html = setOg(html, 'og:image', ogImageUrl(ogImage));
+  html = setOg(html, 'og:image:alt', escapeHtml(ogImage.alt));
   html = html.replace(
     /<script type="application\/ld\+json">[\s\S]*?<\/script>/i,
     `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`
