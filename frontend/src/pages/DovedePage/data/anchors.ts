@@ -49,6 +49,12 @@ const VOKZAL: AnchorStop = { placeId: 'malyn.vokzal', stopId: 'st_0019', label: 
 const STATION_OUT: AnchorStop = { placeId: 'malyn.avtostantsiya', stopId: 'st_0004', label: 'на автостанції', name: 'Автостанція', from: 'з автостанції', offsetMin: 0, confirmed: true };
 const CENTRE_OUT: AnchorStop = { placeId: 'malyn.tsentr', stopId: 'st_0049', label: 'у центрі, біля «Промінь»', name: 'Центр, «Промінь»', from: 'з центру, від «Промінь»', offsetMin: 5, confirmed: false };
 
+// Житомирські рейси в Малині: вʼїзд з півдня через Іршу → вул. Чорновола → центр (РБК) → автостанція, і назад
+const ZT_ENTRY_IN: AnchorStop = { placeId: 'st_0092', stopId: 'st_0092', label: 'на вул. Чорновола, одразу за мостом через Іршу', name: 'вул. Чорновола', from: 'з вул. Чорновола', offsetMin: -8, confirmed: false };
+const ZT_RBK_IN: AnchorStop = { placeId: 'malyn.tsentr', stopId: 'st_0070', label: 'у центрі, біля РБК', name: 'Центр, пл. Соборна (РБК)', from: 'з центру, від РБК', offsetMin: -3, confirmed: false };
+const ZT_RBK_OUT: AnchorStop = { placeId: 'malyn.tsentr', stopId: 'st_0070', label: 'у центрі, біля РБК', name: 'Центр, пл. Соборна (РБК)', from: 'з центру, від РБК', offsetMin: 3, confirmed: false };
+const ZT_ENTRY_OUT: AnchorStop = { placeId: 'st_0091', stopId: 'st_0091', label: 'на вул. Чорновола, перед мостом через Іршу', name: 'вул. Чорновола', from: 'з вул. Чорновола, перед мостом через Іршу', offsetMin: 8, confirmed: false };
+
 export const ANCHORS: IntercityAnchor[] = [
   {
     corridor: 'to_malyn',
@@ -82,14 +88,17 @@ export const ANCHORS: IntercityAnchor[] = [
     bufferBeforeBoard: 10,
     bufferAfterAlight: 3,
   },
-  // Житомир ↔ Малин (2026-11-17): у розкладі сайту посадка в Малині — «Автостанція Малин», у Житомирі —
-  // «Автовокзал Житомир-1». Чи заїжджають рейси в центр Малина — невідомо, тому якір один. Тривалість — для
-  // рейсів з Малина, де в розкладі немає часу прибуття (уточнюється за шляхом у compose/intercity.ts)
+  // Житомир ↔ Малин (2026-11-17). У розкладі сайту посадка в Малині — «Автостанція Малин», у Житомирі —
+  // «Автовокзал Житомир-1». Слова власника: автобус заїжджає в місто через Іршу, тож вийти можна раніше й пересісти
+  // на №11/1 та інші; біля РБК він теж може зупинитись. Тому точок три: південний вʼїзд (вул. Чорновола — за даними
+  // датасету, власник ще підтвердить саму зупинку), пл. Соборна біля РБК і автостанція. Перші дві — «зазвичай».
+  // Хвилини — від прибуття на автостанцію (відправлення з неї). Тривалість — для рейсів з Малина без часу прибуття
+  // (уточнюється за шляхом у compose/intercity.ts)
   {
     far: 'Zhytomyr',
     corridor: 'to_malyn',
     mode: 'marshrutka',
-    stops: [STATION_OUT],
+    stops: [ZT_ENTRY_IN, ZT_RBK_IN, STATION_OUT],
     duration: { typical: 90, max: 170 },
     bufferBeforeBoard: 10,
     bufferAfterAlight: 3,
@@ -98,7 +107,7 @@ export const ANCHORS: IntercityAnchor[] = [
     far: 'Zhytomyr',
     corridor: 'from_malyn',
     mode: 'marshrutka',
-    stops: [STATION_OUT],
+    stops: [STATION_OUT, ZT_RBK_OUT, ZT_ENTRY_OUT],
     duration: { typical: 90, max: 170 },
     bufferBeforeBoard: 10,
     bufferAfterAlight: 3,

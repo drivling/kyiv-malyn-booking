@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getStopArticle } from '@/content/stops';
-import { ANCHORS, anchorFor, isPeak } from './anchors';
+import { ANCHORS, anchorFor, isPeak, findAnchor } from './anchors';
 import { kyivPointForPlace, metroHint, mapsTransitUrl } from './kyiv';
 import { PLACES, placeById } from '../nlu/gazetteer';
 
@@ -9,7 +9,9 @@ describe('якорі й словник указують на справжні з
     for (const a of ANCHORS) {
       for (const s of a.stops) {
         expect(getStopArticle(s.stopId), `${a.corridor}/${a.mode}: ${s.stopId}`).toBeTruthy();
-        expect(placeById(s.placeId)?.stopIds, s.placeId).toContain(s.stopId);
+        // місце — із кураторського словника або сама зупинка (`st_…`), якщо району для неї в словнику немає
+        if (s.placeId === s.stopId) expect(s.placeId).toMatch(/^st_\d{4}$/);
+        else expect(placeById(s.placeId)?.stopIds, s.placeId).toContain(s.stopId);
       }
     }
   });
@@ -49,5 +51,26 @@ describe('Київ', () => {
     expect(mapsTransitUrl('метро Святошин, Київ', null)).toBe(
       'https://www.google.com/maps/dir/?api=1&travelmode=transit&origin=%D0%BC%D0%B5%D1%82%D1%80%D0%BE+%D0%A1%D0%B2%D1%8F%D1%82%D0%BE%D1%88%D0%B8%D0%BD%2C+%D0%9A%D0%B8%D1%97%D0%B2',
     );
+  });
+});
+
+describe('якорі Житомир ↔ Малин', () => {
+  it('з Житомира: вийти можна за мостом через Іршу, біля РБК або на автостанції; підтверджена — лише автостанція', () => {
+    const a = anchorFor('to_malyn', 'marshrutka', 'Zhytomyr');
+    expect(a.stops.map((s) => [s.stopId, s.offsetMin, s.confirmed])).toEqual([
+      ['st_0092', -8, false],
+      ['st_0070', -3, false],
+      ['st_0004', 0, true],
+    ]);
+    expect(anchorFor('from_malyn', 'marshrutka', 'Zhytomyr').stops.map((s) => [s.stopId, s.offsetMin])).toEqual([
+      ['st_0004', 0],
+      ['st_0070', 3],
+      ['st_0091', 8],
+    ]);
+  });
+
+  it('електрички на Житомир немає; київські якорі не змінились', () => {
+    expect(findAnchor('to_malyn', 'elektrichka', 'Zhytomyr')).toBeNull();
+    expect(anchorFor('to_malyn', 'marshrutka').stops.map((s) => s.stopId)).toEqual(['st_0079', 'st_0070', 'st_0004']);
   });
 });

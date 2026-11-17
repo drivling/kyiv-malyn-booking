@@ -215,8 +215,10 @@ of `dist` in a commit.
   (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in
   `eval/golden.json` for the real-model run.
   Second corridor, Zhytomyr ↔ Malyn (city to city only): `FarCity` in `data/anchors.ts`, `intercityTrips(…, far)` and the
-  `to_malyn` / `from_malyn` shapes. The Malyn anchor is the bus station (`st_0004`), the Zhytomyr end is «Автовокзал
-  Житомир-1» plus a Google Maps link. Schedules from Malyn carry no arrival time or price, so the arrival is an
+  `to_malyn` / `from_malyn` shapes. Malyn anchors: the bus station (`st_0004`, confirmed), pl. Soborna by RBK (`st_0070`) and
+  the southern entry over the Irsha on vul. Chornovola (`st_0092` in, `st_0091` out) — the last two are «зазвичай»; on equal
+  arrival the composer prefers the anchor with fewer city-bus rides. The Zhytomyr end is «Автовокзал Житомир-1» plus a
+  Google Maps link. Schedules from Malyn carry no arrival time or price, so the arrival is an
   estimate by the path in the route slug (via Потіївка / Радомишль / through routes) and always «≈»; through routes to
   Базар read the Malyn time from the boarding text. No elektrichka there; rides use `defaultCarMinutes(far)`.
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver

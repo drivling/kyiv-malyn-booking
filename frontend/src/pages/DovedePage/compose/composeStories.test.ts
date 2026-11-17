@@ -563,6 +563,23 @@ describe('Житомир ↔ Малин — між містами', () => {
     expect([transit.transit, transit.alightMins - transit.boardMins]).toEqual(['транзит на Хмільник', 100]);
   });
 
+  it('вийти раніше: до місця на шляху автобуса — біля РБК чи за мостом, з поміткою «зазвичай»', () => {
+    const p2 = planner({
+      'st_0004>st_0019': [bus('10', 'st_0004', 'st_0019', hm(17, 50), hm(18, 5))],
+      // від РБК №11/1 їде раніше, ніж від автостанції
+      'st_0070>st_0019': [bus('11', 'st_0070', 'st_0019', hm(17, 20), hm(17, 34))],
+    });
+    const intent = parseLocal('з Житомира в Малин на вокзал сьогодні', NOW).intent;
+    const out = composeStories({ intent, now: NOW, date: NOW.date, schedules: toMalyn.slice(0, 1), planner: p2 });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    const s = out.stories[0];
+    const ic = intercity(s);
+    // на автостанцію 17:15 → біля РБК на 3 хв раніше
+    expect([ic.alightLabel, ic.alightMins, ic.usual]).toEqual(['у центрі, біля РБК', hm(17, 12), true]);
+    expect(busLeg(s)).toMatchObject({ routeId: '11', depMins: hm(17, 20) });
+    expect(s.arriveMins).toBe(hm(17, 34));
+  });
+
   it('з району Малина: міським автобусом до автостанції із запасом 10 хв', () => {
     const s = run('з Царського села до Житомира завтра зранку', [fromMalyn[0]]).stories[0];
     expect(kinds(s).slice(0, 3)).toEqual(['bus', 'wait', 'intercity']);

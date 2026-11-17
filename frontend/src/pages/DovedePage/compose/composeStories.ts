@@ -483,11 +483,16 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
         cand = { a, legs: [wait, ...pick.legs], arrive: pick.arriveMins, approx: pick.approx, worst: pick.worst };
       }
       if (!cand) continue;
+      // За однакового часу прибуття — де менше пересадок міськими автобусами (вийти раніше й сісти одразу на
+      // потрібний), далі — підтверджена зупинка, далі — менше кроків
+      const rides = (m: MalynPick) => m.legs.filter((l) => l.kind === 'bus').length;
+      const tie = best != null && Math.abs(cand.worst - best.worst) <= 2;
       const better =
         !best ||
         cand.worst < best.worst - 2 ||
-        (Math.abs(cand.worst - best.worst) <= 2 && cand.a.confirmed && !best.a.confirmed) ||
-        (Math.abs(cand.worst - best.worst) <= 2 && cand.a.confirmed === best.a.confirmed && cand.legs.length < best.legs.length);
+        (tie && rides(cand) < rides(best)) ||
+        (tie && rides(cand) === rides(best) && cand.a.confirmed && !best.a.confirmed) ||
+        (tie && rides(cand) === rides(best) && cand.a.confirmed === best.a.confirmed && cand.legs.length < best.legs.length);
       if (better) best = cand;
     }
     if (!best) continue;
