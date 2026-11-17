@@ -5,13 +5,15 @@
 import type { Schedule } from '@/types';
 import { isScheduleActiveOnDate } from '@/pages/MizhgorodskiPage/mizhUtils';
 import { isPhoneOnlySchedule } from '@/pages/MizhgorodskiPage/phoneOnlyBooking';
-import { anchorFor, isPeak, type Corridor, type IntercityMode } from '../data/anchors';
+import { findAnchor, isPeak, type Corridor, type FarCity, type IntercityMode } from '../data/anchors';
 import { kyivPointForPlace } from '../data/kyiv';
 
 export interface IntercityTrip {
   schedule: Schedule;
   mode: IntercityMode;
   corridor: Corridor;
+  /** місто на іншому кінці */
+  far: FarCity;
   /** відправлення з місця посадки в розкладі, хв */
   depMins: number;
   /** прибуття: у центр / на вокзал Малина (to_malyn) або в Київ (from_malyn), хв */
@@ -22,8 +24,10 @@ export interface IntercityTrip {
   exact: boolean;
   /** посадка (to_malyn) або висадка (from_malyn) у Києві */
   kyivPoint: string | null;
-  /** «через Ірпінь» / «через Бучу» */
+  /** «через Ірпінь» / «через Бучу» / «через Потіївку» */
   via: string | null;
+  /** рейс їде далі за місто призначення чи здалеку: «транзит на Хмільник», «транзит з Вінниці» */
+  transit: string | null;
   phoneOnly: boolean;
 }
 
@@ -43,7 +47,21 @@ function modeOf(s: Schedule): IntercityMode | null {
   return null;
 }
 
-export function intercityTrips(schedules: Schedule[], corridor: Corridor, isoDate: string): IntercityTrip[] {
+/** Як назвати шлях за кодом проміжного міста в маршруті (`Malyn-Zhytomyr-Potiivka`) */
+const VIA_LABEL: Record<string, string> = { Irpin: 'через Ірпінь', Bucha: 'через Бучу', Potiivka: 'через Потіївку', Radomyshl: 'через Радомишль' };
+const TRANSIT_TO: Record<string, string> = { Khmilnyk: 'Хмільник', Vinnytsia: 'Вінницю', Berdychiv: 'Бердичів', Stanyshivka: 'Станишівку', Bazar: 'Базар' };
+
+/**
+ * Скільки їде маршрутка Малин → Житомир, коли в розкладі немає часу прибуття: з розкиду зворотних рейсів
+ * (80–100 хв навпростець через Потіївку, 130–170 через Радомишль). Транзитні — невідомо яким шляхом.
+ */
+function zhytomyrDuration(vias: string[]): { typical: number; max: number } {
+  if (vias.includes('Radomyshl')) return { typical: 135, max: 170 };
+  if (vias.includes('Potiivka')) return { typical: 90, max: 100 };
+  return { typical: 100, max: 170 };
+}
+
+export function intercityTrips(schedules: Schedule[], corridor: Corridor, isoDate: string, far: FarCity = 'Kyiv'): IntercityTrip[] {
   const seen = new Set<string>();
   const out: IntercityTrip[] = [];
   for (const s of schedules) {
@@ -53,29 +71,48 @@ export function intercityTrips(schedules: Schedule[], corridor: Corridor, isoDat
     const key = mode === 'elektrichka' && s.tripNumber ? `t${s.tripNumber}` : `s${s.id}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const anchor = anchorFor(corridor, mode);
-    let arr = clockToMins(s.arrivalTime);
+    const anchor = findAnchor(corridor, mode, far);
+    if (!anchor) continue;
+    // маршрут: початок-кінець-проміжні; рейс «транзитний», коли наше місто чи Малин — не кінець
+    const [, endCode, ...vias] = (s.route ?? '').split('-');
+    const target = corridor === 'to_malyn' ? 'Malyn' : far;
+    const through = far !== 'Kyiv' && endCode !== target;
+    let arr = through ? null : clockToMins(s.arrivalTime);
+    // транзитний рейс через Малин: час у Малині записано в тексті посадки («через Малин ≈ 15:00»)
+    const passing = through && corridor === 'to_malyn' ? /через\s+Малин\s*≈?\s*(\d{1,2}:\d{2})/i.exec(s.boardingPlace ?? '') : null;
+    const passingAt = passing ? clockToMins(passing[1]) : null;
     if (arr != null && arr < dep) arr += 1440;
     let exact = arr != null;
     if (arr == null && s.durationMinutes) {
       arr = dep + s.durationMinutes;
       exact = mode === 'elektrichka';
     }
-    if (arr == null) arr = dep + anchor.duration.typical;
-    const worst = isPeak(corridor, isoDate, dep) ? (anchor.duration.peakMax ?? anchor.duration.max) : anchor.duration.max;
-    const arrMax = exact ? arr : Math.max(arr, dep + worst);
+    if (passingAt != null) {
+      arr = passingAt;
+      exact = false;
+    }
+    const span = far === 'Zhytomyr' ? zhytomyrDuration(vias) : anchor.duration;
+    if (arr == null) arr = dep + span.typical;
+    const worst = isPeak(corridor, isoDate, dep) ? (anchor.duration.peakMax ?? span.max) : span.max;
+    // «≈ 15:00» з тексту — запас 10 хв; без часу в розкладі — найдовший відомий шлях
+    const arrMax = exact ? arr : passingAt != null ? arr + 10 : Math.max(arr, dep + worst);
     const kyivPlace = corridor === 'to_malyn' ? s.boardingPlace : s.alightingPlace;
-    const via = /-Irpin$/.test(s.route) ? 'через Ірпінь' : /-Bucha$/.test(s.route) ? 'через Бучу' : null;
+    const viaCode = vias.find((v) => VIA_LABEL[v]);
+    const via = viaCode ? VIA_LABEL[viaCode] : null;
+    const cameFrom = /транзит\s+(з[іi]?\s+[^;,)]+)/i.exec(s.boardingPlace ?? '');
+    const transit = !through ? (cameFrom ? `транзит ${cameFrom[1].trim()}` : null) : corridor === 'from_malyn' ? `транзит на ${TRANSIT_TO[endCode] ?? endCode}` : `їде далі на ${TRANSIT_TO[endCode] ?? endCode}`;
     out.push({
       schedule: s,
       mode,
       corridor,
+      far,
       depMins: dep,
       arrMins: arr,
       arrMaxMins: arrMax,
       exact,
-      kyivPoint: kyivPointForPlace(kyivPlace, s.route),
+      kyivPoint: far === 'Kyiv' ? kyivPointForPlace(kyivPlace, s.route) : null,
       via,
+      transit,
       phoneOnly: isPhoneOnlySchedule(s),
     });
   }

@@ -12,7 +12,7 @@ import { haversineDistance } from '@/pages/LocalTransportPage/geo';
 import type { Journey, Place } from '@/pages/LocalTransportPage/journey';
 import type { Schedule, ViberListing } from '@/types';
 import { routeNo } from '@/utils/routeNames';
-import { anchorFor, type AnchorStop, type IntercityMode } from '../data/anchors';
+import { anchorFor, type AnchorStop, type FarCity, type IntercityMode } from '../data/anchors';
 import { KYIV_POINTS, TRAIN_POS, kyivStopText, mapsTransitUrl, metroTrip } from '../data/kyiv';
 import { CITY_LABEL, placeById, placeLabel, type GazetteerPlace, type PlaceCity } from '../nlu/gazetteer';
 import { resolvePlace } from '../nlu/places';
@@ -30,15 +30,15 @@ import type { ComposeOutcome, LocalPlanner, PoputkaRide, PriceLine, RouteBoard, 
 // ─── Форма поїздки ────────────────────────────────────────────────────────────────────────────
 
 export type TripShape =
-  | { kind: 'to_malyn'; kyivPoint: string | null; dest: GazetteerPlace }
-  | { kind: 'from_malyn'; origin: GazetteerPlace; kyivPoint: string | null }
+  | { kind: 'to_malyn'; far: FarCity; kyivPoint: string | null; dest: GazetteerPlace }
+  | { kind: 'from_malyn'; far: FarCity; origin: GazetteerPlace; kyivPoint: string | null }
   | { kind: 'intra'; origin: GazetteerPlace; dest: GazetteerPlace }
   | { kind: 'ask_from'; dest: GazetteerPlace }
   | { kind: 'ask_to' }
   | { kind: 'unknown_place'; words: string[] }
   | { kind: 'outside'; city: string | null }
   | { kind: 'poputky'; fromCity: PlaceCity; toCity: PlaceCity }
-  | { kind: 'price'; city: boolean; corridor: boolean }
+  | { kind: 'price'; city: boolean; corridor: boolean; far: FarCity }
   | { kind: 'contact' }
   | { kind: 'route_info'; routeIds: string[]; stop: GazetteerPlace | null }
   | { kind: 'not_trip'; intent: 'schedule' | 'other' };
@@ -66,7 +66,7 @@ export function classify(intent: TripIntent): TripShape {
     // у межах Малина — тариф міського автобуса; між містами — маршрутка й електричка; не сказано — усе
     const inCity = intent.modes.includes('city_bus') || (from?.city === 'Malyn' && to?.city === 'Malyn');
     const between = intent.modes.some((m) => m !== 'city_bus') || (from != null && to != null && from.city !== to.city) || [from, to].some((p) => p && p.city !== 'Malyn');
-    return { kind: 'price', city: inCity || !between, corridor: between || !inCity };
+    return { kind: 'price', city: inCity || !between, corridor: between || !inCity, far: [from, to].some((p) => p?.city === 'Zhytomyr') ? 'Zhytomyr' : 'Kyiv' };
   }
   if (intent.intent !== 'trip' && intent.intent !== 'schedule' && intent.intent !== 'route') return { kind: 'not_trip', intent: intent.intent };
   if (intent.unknown.length && (!from || !to)) return { kind: 'unknown_place', words: intent.unknown };
@@ -79,11 +79,17 @@ export function classify(intent: TripIntent): TripShape {
   }
   if (to.city === 'Kyiv') {
     // рідне місто сайту — Малин: «мені в Київ» = з Малина
-    if (!from || from.city === 'Malyn') return { kind: 'from_malyn', origin: from ?? MALYN, kyivPoint: to.isCity ? null : to.id };
+    if (!from || from.city === 'Malyn') return { kind: 'from_malyn', far: 'Kyiv', origin: from ?? MALYN, kyivPoint: to.isCity ? null : to.id };
+    return { kind: 'outside', city: from.city };
+  }
+  // Житомир ↔ Малин — поки лише між містами: до автовокзалу Житомира й з нього
+  if (to.city === 'Zhytomyr') {
+    if (!from || from.city === 'Malyn') return { kind: 'from_malyn', far: 'Zhytomyr', origin: from ?? MALYN, kyivPoint: null };
     return { kind: 'outside', city: from.city };
   }
   if (to.city === 'Malyn') {
-    if (from?.city === 'Kyiv') return { kind: 'to_malyn', kyivPoint: from.isCity ? null : from.id, dest: to };
+    if (from?.city === 'Kyiv') return { kind: 'to_malyn', far: 'Kyiv', kyivPoint: from.isCity ? null : from.id, dest: to };
+    if (from?.city === 'Zhytomyr') return { kind: 'to_malyn', far: 'Zhytomyr', kyivPoint: null, dest: to };
     if (from?.city === 'Malyn') return { kind: 'intra', origin: from.isCity ? CENTRE : from, dest: to.isCity ? CENTRE : to };
     if (from) return { kind: 'outside', city: from.city };
     return { kind: 'ask_from', dest: to };
@@ -93,11 +99,12 @@ export function classify(intent: TripIntent): TripShape {
 
 /** Яку пару міст питати в /poputky/search */
 export function corridorCities(shape: TripShape): { from: string; to: string } | null {
-  if (shape.kind === 'to_malyn') return { from: 'Kyiv', to: 'Malyn' };
-  if (shape.kind === 'from_malyn') return { from: 'Malyn', to: 'Kyiv' };
+  if (shape.kind === 'to_malyn') return { from: shape.far, to: 'Malyn' };
+  if (shape.kind === 'from_malyn') return { from: 'Malyn', to: shape.far };
   if (shape.kind === 'poputky') return { from: shape.fromCity, to: shape.toCity };
   // ціни однакові в обидва боки — досить одного напрямку
-  if (shape.kind === 'price' && shape.corridor) return { from: 'Malyn', to: 'Kyiv' };
+  // на Житомир ціни в розкладі є лише в рейсів з Житомира
+  if (shape.kind === 'price' && shape.corridor) return shape.far === 'Zhytomyr' ? { from: 'Zhytomyr', to: 'Malyn' } : { from: 'Malyn', to: 'Kyiv' };
   return null;
 }
 
@@ -358,6 +365,15 @@ function modeAllowed(mode: IntercityMode, modes: TripMode[]): boolean {
   return intercity.length === 0 || intercity.includes(mode);
 }
 
+/** Автовокзал Житомира: звідси й сюди їдуть усі рейси на Малин у розкладі сайту */
+const ZHYTOMYR_STATION = { name: 'автовокзал Житомир-1', from: 'від автовокзалу Житомир-1', at: 'на автовокзалі Житомир-1', maps: 'Автовокзал Житомир-1, вул. Київська 93, Житомир' };
+
+/** Як назвати місце посадки / висадки в іншому місті: київські точки — з `data/kyiv`, у Житомирі — автовокзал */
+function farStopText(trip: IntercityTrip, place: string | null | undefined): { name: string; from: string; at: string } {
+  if (trip.far === 'Zhytomyr') return ZHYTOMYR_STATION;
+  return kyivStopText(trip.kyivPoint, trip.mode, place ?? 'Київ');
+}
+
 function intercityLeg(
   trip: IntercityTrip,
   board: { mins: number; approx: boolean; label: string },
@@ -377,6 +393,8 @@ function intercityLeg(
     alightApprox: alight.approx,
     usual,
     via: trip.via,
+    transit: trip.transit,
+    routeLabel: trip.corridor === 'to_malyn' ? `${CITY_LABEL[trip.far]} — Малин` : `Малин — ${CITY_LABEL[trip.far]}`,
     priceUah: s.priceUah ?? null,
     phoneOnly: trip.phoneOnly,
     ticketUrl: trip.mode === 'elektrichka' ? s.ticketPurchaseUrl ?? null : null,
@@ -421,14 +439,14 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
   const out: Option[] = [];
   const dest = shape.dest;
   const destSpot = spotOf(planner, dest);
-  const fromLabel = shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : 'Київ';
-  for (const trip of intercityTrips(input.schedules, 'to_malyn', date)) {
+  const fromLabel = shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[shape.far];
+  for (const trip of intercityTrips(input.schedules, 'to_malyn', date, shape.far)) {
     if (!modeAllowed(trip.mode, input.intent.modes)) continue;
-    const anchor = anchorFor('to_malyn', trip.mode);
+    const anchor = anchorFor('to_malyn', trip.mode, shape.far);
     // Київ: де сідати людині
     const bp = trip.kyivPoint;
     const user = shape.kyivPoint;
-    const boardText = kyivStopText(bp, trip.mode, trip.schedule.boardingPlace ?? 'Київ');
+    const boardText = farStopText(trip, trip.schedule.boardingPlace);
     let board = { mins: trip.depMins, approx: false, label: boardText.from };
     let kyivLeg: StoryLeg | null = null;
     let kyivLead = 0;
@@ -465,11 +483,16 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
         cand = { a, legs: [wait, ...pick.legs], arrive: pick.arriveMins, approx: pick.approx, worst: pick.worst };
       }
       if (!cand) continue;
+      // За однакового часу прибуття — де менше пересадок міськими автобусами (вийти раніше й сісти одразу на
+      // потрібний), далі — підтверджена зупинка, далі — менше кроків
+      const rides = (m: MalynPick) => m.legs.filter((l) => l.kind === 'bus').length;
+      const tie = best != null && Math.abs(cand.worst - best.worst) <= 2;
       const better =
         !best ||
         cand.worst < best.worst - 2 ||
-        (Math.abs(cand.worst - best.worst) <= 2 && cand.a.confirmed && !best.a.confirmed) ||
-        (Math.abs(cand.worst - best.worst) <= 2 && cand.a.confirmed === best.a.confirmed && cand.legs.length < best.legs.length);
+        (tie && rides(cand) < rides(best)) ||
+        (tie && rides(cand) === rides(best) && cand.a.confirmed && !best.a.confirmed) ||
+        (tie && rides(cand) === rides(best) && cand.a.confirmed === best.a.confirmed && cand.legs.length < best.legs.length);
       if (better) best = cand;
     }
     if (!best) continue;
@@ -495,10 +518,10 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
   const out: Option[] = [];
   const origin = shape.origin;
   const originSpot = origin.isCity ? null : spotOf(planner, origin);
-  const toLabel = shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : 'Київ';
-  for (const trip of intercityTrips(input.schedules, 'from_malyn', date)) {
+  const toLabel = shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[shape.far];
+  for (const trip of intercityTrips(input.schedules, 'from_malyn', date, shape.far)) {
     if (!modeAllowed(trip.mode, input.intent.modes)) continue;
-    const anchor = anchorFor('from_malyn', trip.mode);
+    const anchor = anchorFor('from_malyn', trip.mode, shape.far);
     let best: BoardPick | null = null;
     for (const a of anchor.stops) {
       const boardAt = trip.depMins + a.offsetMin;
@@ -522,7 +545,7 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
     }
     if (!best) continue;
     // Київ: де виходити і як далі
-    const alightText = kyivStopText(trip.kyivPoint, trip.mode, trip.schedule.alightingPlace ?? 'Київ');
+    const alightText = farStopText(trip, trip.schedule.alightingPlace);
     let arrive = trip.arrMins;
     let approx = !trip.exact;
     let endLabel = alightText.name;
@@ -553,6 +576,9 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
       }
     } else if (!target && ap) {
       kyivLeg = { kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[ap]?.mapsQuery ?? null, null) };
+    } else if (shape.far === 'Zhytomyr') {
+      // місто Житомир ще не в наших даних — далі веде Google Maps
+      kyivLeg = { kind: 'kyiv', city: 'Житомир', text: 'Далі по Житомиру', mapsUrl: mapsTransitUrl(ZHYTOMYR_STATION.maps, null) };
     }
     const boardApprox = best.a.offsetMin !== 0;
     const ic = intercityLeg(
@@ -566,7 +592,7 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
       leave: best.leave,
       arrive,
       approx,
-      endLabel: `Київ, ${endLabel}`,
+      endLabel: `${CITY_LABEL[shape.far]}, ${endLabel}`,
       endNote,
       price: trip.schedule.priceUah ?? null,
     });
@@ -711,6 +737,10 @@ function routeInfoItem(input: ComposeInput, routeId: string, stopIds: string[]):
 
 /** Сталий час авто Київ ↔ Малин, коли сервер не сказав свого (TripRoute.carDurationMinutes) */
 export const DEFAULT_CAR_MINUTES = 95;
+/** Те саме за парою міст: Житомир ↔ Малин авто їде ≈ 1,5 год (Google Routes, 2026-11-17: 88 хв) */
+export function defaultCarMinutes(far: FarCity): number {
+  return far === 'Zhytomyr' ? 90 : DEFAULT_CAR_MINUTES;
+}
 /**
  * Водій київської точки не назвав: за архівом приміток (2026-11-16) серед названих 73 % — «Академмістечко».
  * Це підказка, а не факт: поруч завжди «уточніть у водія», підказку метро на ній не будуємо.
@@ -782,11 +812,14 @@ function malynRidePoint(note: NotePlaces | null, dir: 'to_malyn' | 'from_malyn')
 
 function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_malyn' | 'from_malyn' }>, l: ViberListing, dep: number): { story: Story; worst: number; traffic: boolean } {
   const { planner, date } = input;
-  const drive = input.driveMinutes?.(dep) ?? { minutes: DEFAULT_CAR_MINUTES, traffic: false };
+  const drive = input.driveMinutes?.(dep) ?? { minutes: defaultCarMinutes(shape.far), traffic: false };
   const arr = dep + drive.minutes;
   const note = l.notes ? input.notePlaces?.(l.notes, shape.kind) ?? null : null;
   const malyn = malynRidePoint(note, shape.kind);
-  const kyiv = note?.kyiv && KYIV_POINTS[note.kyiv] ? note.kyiv : null;
+  const far = shape.far;
+  // київські точки з примітки — лише для київського коридору
+  const kyiv = far === 'Kyiv' && note?.kyiv && KYIV_POINTS[note.kyiv] ? note.kyiv : null;
+  const farUsual = far === 'Kyiv' ? USUAL_KYIV : { from: 'з Житомира', at: 'у Житомирі' };
   const kyivText = kyiv ? kyivStopText(kyiv, 'marshrutka', KYIV_POINTS[kyiv].label) : null;
   const sameMalyn = (p: GazetteerPlace) => p.id === malyn.place?.id || Boolean(p.stopIds?.includes(malyn.stopId));
   const leg = (boardLabel: string, boardAssumed: boolean, alightLabel: string, alightAssumed: boolean): Extract<StoryLeg, { kind: 'ride' }> => ({
@@ -822,7 +855,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     const target = shape.kyivPoint;
     let kyivLeg: StoryLeg | null = null;
     let end = arr;
-    let endLabel = kyivText ? `Київ, ${kyivText.name}` : 'Київ';
+    let endLabel = kyivText ? `Київ, ${kyivText.name}` : CITY_LABEL[far];
     let endNote: string | null = null;
     if (kyiv && target && target !== kyiv) {
       const step = kyivStep(kyiv, target, 'from', arr, date, `Далі до: ${KYIV_POINTS[target]?.label ?? 'місця'}`);
@@ -833,8 +866,8 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     } else if (kyiv && !target) {
       kyivLeg = { kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[kyiv].mapsQuery, null) };
     }
-    const legs: StoryLeg[] = [...before, leg(from, malyn.assumed && !door, kyivText?.at ?? USUAL_KYIV.at, !kyiv), ...(kyivLeg ? [kyivLeg] : [])];
-    const story = makeStory(`ride-${l.id}`, 'poputka', date, placeLabel(origin), shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : 'Київ', legs, {
+    const legs: StoryLeg[] = [...before, leg(from, malyn.assumed && !door, kyivText?.at ?? farUsual.at, !kyiv), ...(kyivLeg ? [kyivLeg] : [])];
+    const story = makeStory(`ride-${l.id}`, 'poputka', date, placeLabel(origin), shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[far], legs, {
       leave,
       arrive: end,
       approx: true,
@@ -873,8 +906,8 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
       endNote = 'до самого місця домовтесь із водієм';
     }
   }
-  const legs: StoryLeg[] = [...(kyivLeg ? [kyivLeg] : []), leg(kyivText?.from ?? USUAL_KYIV.from, !kyiv, at, malyn.assumed), ...after];
-  const story = makeStory(`ride-${l.id}`, 'poputka', date, user ? placeLabel(resolvePlace(user)!) : 'Київ', placeLabel(dest), legs, {
+  const legs: StoryLeg[] = [...(kyivLeg ? [kyivLeg] : []), leg(kyivText?.from ?? farUsual.from, !kyiv, at, malyn.assumed), ...after];
+  const story = makeStory(`ride-${l.id}`, 'poputka', date, user ? placeLabel(resolvePlace(user)!) : CITY_LABEL[far], placeLabel(dest), legs, {
     leave: dep - (toRide?.minutes ?? 0),
     arrive,
     approx: true,
@@ -953,8 +986,11 @@ function priceOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'pr
   if (shape.corridor) {
     const of = (type: string) => input.schedules.filter((s) => s.vehicleType === type).map((s) => s.priceUah).filter((p): p is number => typeof p === 'number' && p > 0);
     const wants = (mode: TripMode) => !input.intent.modes.some((m) => m !== 'city_bus') || input.intent.modes.includes(mode);
-    if (wants('marshrutka')) lines.push({ label: 'Маршрутка Київ ↔ Малин', price: priceText(of('marshrutka')), note: 'за місце, в один бік' });
-    if (wants('elektrichka')) lines.push({ label: 'Електричка Київ ↔ Малин', price: priceText(of('elektrichka')), note: 'квиток в один бік' });
+    const pair = `${CITY_LABEL[shape.far]} ↔ Малин`;
+    const bus = priceText(of('marshrutka'));
+    if (wants('marshrutka')) lines.push({ label: `Маршрутка ${pair}`, price: bus, note: bus ? 'за місце, в один бік' : 'ціну уточнюйте на автостанції' });
+    // електрички між Малином і Житомиром немає
+    if (wants('elektrichka') && shape.far === 'Kyiv') lines.push({ label: `Електричка ${pair}`, price: priceText(of('elektrichka')), note: 'квиток в один бік' });
     if (wants('poputka')) lines.push({ label: 'Попутка', price: 'за домовленістю', note: 'ціну називає водій в оголошенні' });
   }
   if (shape.city) lines.push({ label: 'Міський автобус Малина', price: input.cityFare ? `${input.cityFare} грн` : null, note: 'одна поїздка' });

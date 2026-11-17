@@ -25,7 +25,7 @@ function stopsText(n: number): string {
 }
 
 function intercityTitle(l: IntercityLeg): string {
-  const dir = l.schedule.route.startsWith('Kyiv') ? 'Київ — Малин' : 'Малин — Київ';
+  const dir = l.routeLabel;
   return l.mode === 'elektrichka' ? `Електричка${l.tripNumber ? ` ${l.tripNumber}` : ''} · ${dir}` : `Маршрутка ${dir}`;
 }
 
@@ -41,6 +41,7 @@ function IntercityCard({ l }: { l: IntercityLeg }) {
         <div className="dv-card__top">
           <span className="dv-card__title">{intercityTitle(l)}</span>
           {l.via ? <span className="dv-tag">{l.via}</span> : null}
+          {l.transit ? <span className="dv-tag">{l.transit}</span> : null}
           {l.usual ? <span className="dv-tag dv-tag--usual">зазвичай</span> : null}
           {l.mode === 'elektrichka' && !l.alightApprox ? <span className="dv-tag">розклад УЗ</span> : null}
         </div>
@@ -181,7 +182,7 @@ function LegBody({ l, date, stopName }: { l: StoryLeg; date: string; stopName: (
     case 'kyiv':
       return (
         <div className="dv-kyiv">
-          <span className="dv-kyiv__head">Київ</span>
+          <span className="dv-kyiv__head">{l.city ?? 'Київ'}</span>
           <span>{l.text}</span>
           <a href={l.mapsUrl} target="_blank" rel="noopener noreferrer">
             Маршрут у Google Maps ↗

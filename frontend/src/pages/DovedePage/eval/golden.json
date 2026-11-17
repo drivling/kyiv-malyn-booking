@@ -153,6 +153,18 @@
     {"id": "kv-37", "text": "з лівобережної в малин", "expect": {"intent": "trip", "from": "kyiv.m.livoberezhna", "to": "city.Malyn"}, "tags": ["kyiv-metro", "from-station"], "scope": "kyiv"},
     {"id": "kv-38", "text": "от позняков до малина завтра утром", "expect": {"intent": "trip", "from": "kyiv.m.pozniaky", "to": "city.Malyn"}, "tags": ["kyiv-metro", "from-station", "ru"], "scope": "kyiv"},
     {"id": "kv-39", "text": "з києва (оболонь) до малина на вокзал", "expect": {"intent": "trip", "from": "kyiv.obolon", "to": "malyn.vokzal"}, "tags": ["kyiv-metro", "from-station"], "scope": "kyiv"},
-    {"id": "kv-40", "text": "я на майдані, як доїхати в малин до лікарні", "expect": {"intent": "trip", "from": "kyiv.m.maidan", "to": "malyn.likarnia"}, "tags": ["kyiv-metro", "from-station"], "scope": "kyiv"}
+    {"id": "kv-40", "text": "я на майдані, як доїхати в малин до лікарні", "expect": {"intent": "trip", "from": "kyiv.m.maidan", "to": "malyn.likarnia"}, "tags": ["kyiv-metro", "from-station"], "scope": "kyiv"},
+    {"id": "zt-01", "text": "з малина до житомира завтра зранку", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "when": {"day": "tomorrow", "part": "morning"}}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-02", "text": "як доїхати з Малина в Житомир", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr"}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-03", "text": "из житомира в малин сегодня вечером", "expect": {"intent": "trip", "from": "city.Zhytomyr", "to": "city.Malyn", "when": {"day": "today", "part": "evening"}}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-04", "text": "мені в житомир на 9 ранку", "expect": {"intent": "trip", "to": "city.Zhytomyr", "when": {"time": "09:00"}}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-05", "text": "з житомира до малина на вокзал", "expect": {"intent": "trip", "from": "city.Zhytomyr", "to": "malyn.vokzal"}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-06", "text": "з царського села до житомира завтра", "expect": {"intent": "trip", "from": "malyn.tsarske", "to": "city.Zhytomyr", "when": {"day": "tomorrow"}}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-07", "text": "коли маршрутка з житомира на малин", "expect": {"intent": "trip", "from": "city.Zhytomyr", "to": "city.Malyn"}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-08", "text": "з малина в житомир бути до 10:00", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "when": {"time": "10:00", "kind": "arrive"}}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-09", "text": "попутка з малина до житомира завтра", "expect": {"intent": "trip", "from": "city.Malyn", "to": "city.Zhytomyr", "when": {"day": "tomorrow"}, "modes": ["poputka"]}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-10", "text": "скільки коштує маршрутка до житомира", "expect": {"intent": "price", "to": "city.Zhytomyr"}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-11", "text": "з автовокзалу житомира в малин до лікарні", "expect": {"intent": "trip", "from": "city.Zhytomyr", "to": "malyn.likarnia"}, "tags": ["zhytomyr"], "scope": "zhytomyr"},
+    {"id": "zt-12", "text": "з малина до житомирської", "expect": {"intent": "trip", "from": "city.Malyn", "to": "kyiv.zhytomyrska"}, "tags": ["zhytomyr"], "scope": "zhytomyr"}
   ]
 }
