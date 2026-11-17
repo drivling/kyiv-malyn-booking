@@ -13,6 +13,7 @@ import { matchRing, ringPlace, ringStationOf } from '../nlu/kyivRing';
 import { RING_STATIONS } from '../nlu/kyivRingData';
 import { METRO_STATIONS } from '../nlu/kyivMetroData';
 import { tokenize } from '../nlu/normalize';
+import { storySummary } from '../ui/format';
 import { parseLocal } from '../nlu/parseLocal';
 import { resolvePlace } from '../nlu/places';
 import { KYIV_POINTS } from './kyiv';
@@ -254,6 +255,22 @@ describe('міська електричка: відповідь у межах К
     if (out.kind !== 'stories') throw new Error(out.kind);
     expect(ring(out.stories[0].legs).ride.train).toBe('Д10');
     expect(out.stories[0].arriveMins).toBeLessThanOrEqual(hm('18:00'));
+  });
+
+  it('зі Святошина на Позняки: поїзди за «Видубичами» не ходять — у кожному варіанті названо автобус №318, і в підписах «інших варіантів» теж', () => {
+    const { out } = answer('сейчас со святошина на позняки', { date: '2026-11-17', mins: hm('20:05') });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    expect(out.stories.map((s) => s.lead)).toEqual([
+      'Метро до «Видубичі», далі автобус №318 замість метро до «Позняки». Київ, метро «Позняки» — приблизно о 21:09.',
+      'Міська електричка Б24 о 20:38 з платформи «Святошин», далі автобус №318 замість метро до «Позняки». Київ, метро «Позняки» — приблизно о 21:39.',
+      'Міська електричка А24 о 20:44 з платформи «Святошин», далі метро до «Видубичі», далі автобус №318 замість метро до «Позняки». Київ, метро «Позняки» — приблизно о 21:48.',
+    ]);
+    expect(out.stories.map((s) => storySummary(s))).toEqual([
+      { title: 'Метро й автобус №318', sub: '≈ 1 год 4 хв · 30 ₴', time: '≈21:09' },
+      // електричка до «Видубичів» і лише автобус: жетон метро не рахуємо
+      { title: 'Міська електричка Б24', sub: '20:38 з платформи «Святошин» · далі автобус №318 · 30 ₴', time: '≈21:39' },
+      { title: 'Міська електричка А24', sub: '20:44 з платформи «Святошин» · з метро й автобусом №318 · 60 ₴', time: '≈21:48' },
+    ]);
   });
 
   it('пізно ввечері рейсів уже немає — порожньо (сторінка покаже завтрашні)', () => {

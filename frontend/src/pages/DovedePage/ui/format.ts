@@ -30,13 +30,19 @@ export function storySummary(story: Story): { title: string; sub: string; time: 
     return { title: who ? `Попутка · ${who}` : 'Попутка', sub: sub.filter(Boolean).join(' · '), time: clock(story.arriveMins, true) };
   }
   if (story.mode === 'kyiv') {
-    // у межах Києва: рейс електрички з точним часом або метро
+    // у межах Києва: рейс електрички з точним часом або метро; автобус замість метро називаємо автобусом
     const ring = story.legs.find((l): l is Extract<StoryLeg, { kind: 'ring' }> => l.kind === 'ring');
-    const metro = story.legs.some((l) => l.kind === 'metro');
+    const segments = story.legs.flatMap((l) => (l.kind === 'metro' ? l.segments : []));
+    const busNo = segments.find((sg) => sg.bus)?.bus ?? null;
+    const train = segments.some((sg) => !sg.bus);
     const price = story.priceUah ? `${story.priceUah} ₴` : null;
-    if (!ring) return { title: 'Метро', sub: [`≈ ${durationText(story.arriveMins - story.leaveMins)}`, price].filter(Boolean).join(' · '), time: clock(story.arriveMins, story.arriveApprox) };
-    const sub = [`${clock(ring.depMins)} з платформи «${ring.ride.from.name}»`, metro ? 'з метро' : 'без пересадок', price];
-    return { title: `Міська електричка ${ring.ride.train}`, sub: sub.filter(Boolean).join(' · '), time: clock(story.arriveMins, story.arriveApprox) };
+    const time = clock(story.arriveMins, story.arriveApprox);
+    if (!ring) {
+      const title = !busNo ? 'Метро' : train ? `Метро й автобус №${busNo}` : `Автобус №${busNo} замість метро`;
+      return { title, sub: [`≈ ${durationText(story.arriveMins - story.leaveMins)}`, price].filter(Boolean).join(' · '), time };
+    }
+    const rest = train && busNo ? `з метро й автобусом №${busNo}` : train ? 'з метро' : busNo ? `далі автобус №${busNo}` : 'без пересадок';
+    return { title: `Міська електричка ${ring.ride.train}`, sub: [`${clock(ring.depMins)} з платформи «${ring.ride.from.name}»`, rest, price].filter(Boolean).join(' · '), time };
   }
   const title = story.mode === 'elektrichka' ? 'Електричка' : story.mode === 'marshrutka' ? 'Маршрутка' : `Автобус №${bus.map((b) => routeNo(b.routeId)).join(' → №') || ''}`;
   const parts: string[] = [];
