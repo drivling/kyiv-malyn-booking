@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import golden from '../eval/golden.json';
 import { METRO_STATIONS } from './kyivMetroData';
+import { RING_STATIONS } from './kyivRingData';
 import malynRoutes from '../eval/malyn-routes.json';
 import malynStops from '../eval/malyn-stops.json';
 import { buildStopPlaces } from './stopPlaces';
@@ -23,7 +24,7 @@ interface GoldenCase {
     toDetail?: boolean;
     when?: Partial<TripIntent['when']>;
   };
-  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'zhytomyr' | 'city' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'ring' | 'zhytomyr' | 'city' | 'later';
 }
 
 /** Порівнюємо лише поля з expect; повертаємо [збіглося, усього, що не так] */
@@ -129,6 +130,20 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
     expect(misses).toEqual(['kv-40 «я на майдані, як доїхати в малин до лікарні» from: null ≠ kyiv.m.maidan']);
   });
 
+  it('міська електричка Києва (scope ring): словник у браузері розуміє всі ці питання, як і Claude', () => {
+    const misses: string[] = [];
+    const ring = cases.filter((x) => x.scope === 'ring');
+    expect(ring.length).toBeGreaterThanOrEqual(15);
+    for (const c of ring) {
+      const intent = parseLocal(c.text, NOW, STOP_INDEX).intent;
+      for (const role of ['from', 'to'] as const) {
+        if (c.expect[role] !== undefined && (intent[role]?.id ?? null) !== c.expect[role]) misses.push(`${c.id} «${c.text}» ${role}: ${intent[role]?.id ?? null} ≠ ${c.expect[role]}`);
+      }
+      if (c.expect.modes && intent.modes.join() !== c.expect.modes.join()) misses.push(`${c.id} «${c.text}» modes: ${intent.modes.join()}`);
+    }
+    expect(misses).toEqual([]);
+  });
+
   it('Житомир ↔ Малин (scope zhytomyr): словник у браузері розуміє міста й місця цих питань', () => {
     const misses: string[] = [];
     for (const c of cases.filter((x) => x.scope === 'zhytomyr')) {
@@ -175,7 +190,7 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
   });
 
   it('усі id у еталонах є в словнику', () => {
-    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id), ...STREETS.map((x) => x.id), ...LANDMARKS.map((x) => x.id), ...METRO_STATIONS.map((x) => x.id)]);
+    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id), ...STREETS.map((x) => x.id), ...LANDMARKS.map((x) => x.id), ...METRO_STATIONS.map((x) => x.id), ...RING_STATIONS.map((x) => x.id)]);
     for (const c of cases) {
       for (const id of [c.expect.from, c.expect.to]) {
         if (typeof id === 'string') expect(ids.has(id), `${c.id}: ${id}`).toBe(true);

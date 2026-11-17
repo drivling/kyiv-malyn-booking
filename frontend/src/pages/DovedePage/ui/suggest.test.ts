@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { PLACES } from '../nlu/gazetteer';
+import { RING_STATIONS } from '../nlu/kyivRingData';
 import { parseLocal } from '../nlu/parseLocal';
-import { applySuggestion, placeForm, suggestPlaces } from './suggest';
+import { applySuggestion, placeForm, ringInsert, suggestPlaces } from './suggest';
 
 const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
 const at = (text: string) => suggestPlaces(text, text.length);
@@ -13,6 +14,17 @@ describe('«Доведе» — підказки при наборі', () => {
       expect(parseLocal(`в ${placeForm(p, 'acc')}`, NOW).intent.to?.id, `в ${placeForm(p, 'acc')}`).toBe(p.id);
       expect(parseLocal(placeForm(p, 'nom'), NOW).intent.to?.id, placeForm(p, 'nom')).toBe(p.id);
     }
+  });
+
+  it('станції міської електрички: підказка вставляє «платформа …» (Дарниця — «вокзал Дарниця»), і це розбирається назад', () => {
+    for (const st of RING_STATIONS.filter((x) => !x.metro && x.id.startsWith('kyiv.e.'))) {
+      // людина набирає найдовше слово назви: «Деміїв…», «Караваєв…»
+      const word = [...st.name.split(/[\s-]+/)].sort((a, b) => b.length - a.length)[0].slice(0, 6);
+      const got = at(`з Малина до ${word}`).find((x) => x.place.id === st.id);
+      expect(got?.insert, st.name).toBe(ringInsert(st));
+      expect(parseLocal(`з Малина до ${got!.insert}`, NOW).intent.to?.id, got!.insert).toBe(st.id);
+    }
+    expect(suggestPlaces('на Курен', 8).map((x) => [x.label, x.insert])).toContainEqual(['Київ · ст. Куренівка', 'платформа Куренівка']);
   });
 
   it('доповнює слово під курсором і ставить відмінок за прийменником', () => {

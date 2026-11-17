@@ -10,10 +10,12 @@ exports.validateIntent = validateIntent;
  */
 const gazetteer_1 = require("./gazetteer");
 const kyivMetroData_1 = require("./kyivMetroData");
+const kyivRingData_1 = require("./kyivRingData");
 const landmarks_1 = require("./landmarks");
 const streets_1 = require("./streets");
 const LANDMARK_IDS = new Set(landmarks_1.MALYN_LANDMARKS.map((l) => l.id));
 const METRO_IDS = new Set(kyivMetroData_1.METRO_STATIONS.map((s) => s.id));
+const RING_IDS = new Set(kyivRingData_1.RING_STATIONS.map((s) => s.id));
 const STREET_IDS = new Set(streets_1.MALYN_STREETS.map((s) => s.id));
 /** `street.x` або `street.x:20` — номер будинку браузер дописує до id сам (frontend nlu/streets.ts) */
 const STREET_ID_RE = /^(street\.[a-z0-9-]+)(?::[0-9]{1,3}[а-яіїєa-z]?)?$/;
@@ -21,9 +23,9 @@ function isStreetId(id) {
     const m = STREET_ID_RE.exec(id);
     return m != null && STREET_IDS.has(m[1]);
 }
-/** Чи це місце, яке знає «Доведе»: кураторський словник, зупинка міста, вулиця (з будинком чи без), орієнтир, станція метро Києва */
+/** Чи це місце, яке знає «Доведе»: кураторський словник, зупинка міста, вулиця (з будинком чи без), орієнтир, станція метро чи міської електрички Києва */
 function isKnownPlaceId(id, stopIds) {
-    return (0, gazetteer_1.placeById)(id) != null || stopIds?.has(id) === true || isStreetId(id) || LANDMARK_IDS.has(id) || METRO_IDS.has(id);
+    return (0, gazetteer_1.placeById)(id) != null || stopIds?.has(id) === true || isStreetId(id) || LANDMARK_IDS.has(id) || METRO_IDS.has(id) || RING_IDS.has(id);
 }
 /** Міста, всередині яких «Доведе» шукає дорогу до місця, названого словами (dovede/city-route.ts) */
 exports.DETAIL_CITY_IDS = new Set(['city.Kyiv', 'city.Zhytomyr']);

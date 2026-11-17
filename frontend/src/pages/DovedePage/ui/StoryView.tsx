@@ -9,8 +9,10 @@ import type { Story, StoryLeg } from '../compose/types';
 import { FlapTime } from './FlapTime';
 import { durationText, metersText, stopsText } from './format';
 import { METRO_LINE } from '../data/kyivMetroService';
+import { RING_COLOR } from '../data/kyivRing';
 import { CityLegCard } from './CityLegCard';
 import { MetroCard } from './MetroCard';
+import { RingCard } from './RingCard';
 import { RideNote } from './RideBoard';
 
 type IntercityLeg = Extract<StoryLeg, { kind: 'intercity' }>;
@@ -140,7 +142,7 @@ function BusCard({ l, date, stopName }: { l: BusLeg; date: string; stopName: (id
 
 function legTime(l: StoryLeg): string {
   if (l.kind === 'intercity') return clock(l.boardMins, l.boardApprox);
-  if (l.kind === 'bus' || l.kind === 'ride') return clock(l.depMins);
+  if (l.kind === 'bus' || l.kind === 'ride' || l.kind === 'ring') return clock(l.depMins);
   if (l.kind === 'metro') return l.closed ? '' : clock(l.depMins, true);
   if (l.kind === 'city') return l.depMins != null ? clock(l.depMins, true) : '';
   return '';
@@ -151,6 +153,7 @@ function legStyle(l: StoryLeg): CSSProperties | undefined {
   if (l.kind === 'ride') return { '--dv-c': 'var(--dv-ride)' } as CSSProperties;
   if (l.kind === 'city' && l.route) return { '--dv-c': 'var(--dv-city)' } as CSSProperties;
   if (l.kind === 'metro') return { '--dv-c': METRO_LINE[l.segments[0].line].color } as CSSProperties;
+  if (l.kind === 'ring') return { '--dv-c': l.ride.extra ? RING_COLOR.extra : RING_COLOR.main } as CSSProperties;
   if (l.kind === 'bus') return { ...routeColorStyle(l.routeId), '--dv-c': 'var(--lt-route-color, var(--dv-ink))' } as CSSProperties;
   return undefined;
 }
@@ -161,6 +164,8 @@ function LegBody({ l, date, stopName }: { l: StoryLeg; date: string; stopName: (
       return <IntercityCard l={l} />;
     case 'metro':
       return <MetroCard l={l} />;
+    case 'ring':
+      return <RingCard l={l} />;
     case 'ride':
       return <RideCard l={l} />;
     case 'city':

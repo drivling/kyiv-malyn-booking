@@ -6,6 +6,8 @@
 import { PLACES, placeById, placeLabel, type GazetteerPlace } from '../nlu/gazetteer';
 import { metroPlace } from '../nlu/kyivMetro';
 import { METRO_STATIONS } from '../nlu/kyivMetroData';
+import { ringPlace } from '../nlu/kyivRing';
+import { RING_STATIONS } from '../nlu/kyivRingData';
 import { normalizeWord } from '../nlu/normalize';
 import { getStopPlaces } from '../nlu/places';
 import { LANDMARKS, landmarkPlace } from '../nlu/landmarks';
@@ -77,6 +79,11 @@ function prevWord(text: string, start: number): string {
   return m ? normalizeWord(m[1]) : '';
 }
 
+/** Що вставити для станції міської електрички: форма, яку словник розбирає назад у цю станцію */
+export function ringInsert(st: { name: string; said: string[]; strict?: boolean }): string {
+  return st.strict ? st.said[0] : `платформа ${st.name}`;
+}
+
 /** Місця, якими можна доповнити слово під курсором (≥ 2 літер); порожньо — підказувати нічого */
 export function suggestPlaces(text: string, caret: number): PlaceSuggestion[] {
   const w = wordAt(text, caret);
@@ -109,6 +116,14 @@ export function suggestPlaces(text: string, caret: number): PlaceSuggestion[] {
     if (typed.length < 3 || placeById(st.id)) continue;
     if (![st.name, ...st.said].some((n) => n.split(' ').some((x) => normalizeWord(x).replace(/[«»]/g, '').startsWith(typed)))) continue;
     out.push({ place: metroPlace(st.id)!, label: `Київ · м. ${st.name}`, insert: `метро ${st.name}`, start: w.start, end: w.end });
+  }
+  // станції міської електрички без метро: зі словом «платформа» (для Дарниці — «вокзал Дарниця»: сама назва — метро)
+  for (const st of RING_STATIONS) {
+    if (out.length >= MAX_SUGGESTIONS) break;
+    if (typed.length < 3 || st.metro || placeById(st.id)) continue;
+    // «вокзал Дарниця»: за самим словом «вокзал» станцію не пропонуємо
+    if (![st.name, ...st.said].some((n) => n.split(/[\s-]+/).some((x) => !/^(вокзал|платформа|київ|киев)$/i.test(x) && normalizeWord(x).startsWith(typed)))) continue;
+    out.push({ place: ringPlace(st.id)!, label: `Київ · ст. ${st.name}`, insert: ringInsert(st), start: w.start, end: w.end });
   }
   // вулиці — останніми (їх багато): теперішня назва в називному відмінку
   for (const street of STREETS) {

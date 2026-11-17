@@ -14,6 +14,8 @@ import type { Schedule, ViberListing } from '@/types';
 import { routeNo } from '@/utils/routeNames';
 import { anchorFor, type AnchorStop, type FarCity, type IntercityMode } from '../data/anchors';
 import { KYIV_POINTS, TRAIN_POS, kyivStopText, mapsTransitUrl, metroTrip } from '../data/kyiv';
+import { RING_SERVICE } from '../data/kyivRing';
+import { kyivWay, type KyivWay, type KyivWayMode } from '../data/kyivTrip';
 import { CITY_LABEL, placeById, placeLabel, type GazetteerPlace, type PlaceCity } from '../nlu/gazetteer';
 import { resolvePlace } from '../nlu/places';
 import { landmarkById } from '../nlu/landmarks';
@@ -33,6 +35,8 @@ export type TripShape =
   | { kind: 'to_malyn'; far: FarCity; kyivPoint: string | null; dest: GazetteerPlace; detail?: string | null }
   | { kind: 'from_malyn'; far: FarCity; origin: GazetteerPlace; kyivPoint: string | null; detail?: string | null }
   | { kind: 'intra'; origin: GazetteerPlace; dest: GazetteerPlace }
+  /** У межах Києва між двома точками, які ми знаємо: метро й міська електричка */
+  | { kind: 'kyiv'; from: GazetteerPlace; to: GazetteerPlace }
   | { kind: 'ask_from'; dest: GazetteerPlace }
   | { kind: 'ask_to' }
   | { kind: 'unknown_place'; words: string[] }
@@ -80,6 +84,8 @@ export function classify(intent: TripIntent): TripShape {
   if (to.city === 'Kyiv') {
     // рідне місто сайту — Малин: «мені в Київ» = з Малина
     if (!from || from.city === 'Malyn') return { kind: 'from_malyn', far: 'Kyiv', origin: from ?? MALYN, kyivPoint: to.isCity ? null : to.id, detail: to.isCity ? intent.to?.detail ?? null : null };
+    // «з Почайни на Видубичі»: обидві точки — станції метро чи міської електрички
+    if (from.city === 'Kyiv' && !from.isCity && !to.isCity && from.id !== to.id && KYIV_POINTS[from.id] && KYIV_POINTS[to.id]) return { kind: 'kyiv', from, to };
     return { kind: 'outside', city: from.city };
   }
   // Житомир ↔ Малин: між містами — до автовокзалу Житомира й з нього; далі містом — крок `city`
@@ -307,25 +313,47 @@ function beforeBoard(planner: LocalPlanner, origin: Spot, stopId: string, deadli
   };
 }
 
+/** Частини дороги Києвом (`kyivWay`) → кроки історії: картка метро й картка електрички */
+function wayLegs(way: KyivWay, mapsUrl: string): StoryLeg[] {
+  return way.parts.map((p): StoryLeg =>
+    p.kind === 'metro'
+      ? { kind: 'metro', segments: p.trip.segments, transfers: p.trip.transfers, minutes: p.trip.minutes, depMins: p.depMins, arrMins: p.arrMins, headwayMin: p.trip.headwayMin, priceUah: p.trip.priceUah, closed: false, mapsUrl }
+      : { kind: 'ring', ride: p.ride, depMins: p.ride.depMins, arrMins: p.ride.arrMins, walkBeforeMin: p.walkBeforeMin, walkAfterMin: p.walkAfterMin, later: p.later, priceUah: RING_SERVICE.fareUah, mapsUrl },
+  );
+}
+
+/** Після приблизного прибуття (маршрутка, попутка) на електричку сідаємо із запасом, хв */
+const RING_AFTER_APPROX = 6;
+
 /**
- * Крок Києвом між двома точками: метро зі своїх даних, а коли точка не на метро — стара підказка з Google Maps.
- * `anchor` — час, до якого привʼязаний крок: 'from' — людина заходить у метро о `mins` (після висадки),
- * 'until' — має вийти з метро до `mins` (перед посадкою). `minutes` — на стільки зсувається час історії
- * (0, коли метро о цій порі не працює чи його там немає).
+ * Крок Києвом між двома точками: метро, міська електричка або обидва (`data/kyivTrip.ts`), а коли точка не на
+ * них — стара підказка з Google Maps.
+ * `anchor` — час, до якого привʼязаний крок: 'from' — людина в першій точці о `mins` (після висадки),
+ * 'until' — має бути в другій до `mins` (перед посадкою). `minutes` — на стільки зсувається час історії
+ * (0, коли о цій порі нічого не їздить). `approx` — час `mins` приблизний: на електричку потрібен запас.
  */
-function kyivStep(fromId: string, toId: string, anchor: 'from' | 'until', mins: number, date: string, fallback: string): { leg: StoryLeg; minutes: number; closed: boolean; metro: boolean } {
+function kyivStep(
+  fromId: string,
+  toId: string,
+  anchor: 'from' | 'until',
+  mins: number,
+  date: string,
+  fallback: string,
+  o: { approx?: boolean; mode?: KyivWayMode } = {},
+): { legs: StoryLeg[]; minutes: number; closed: boolean; metro: boolean } {
   const mapsUrl = mapsTransitUrl(KYIV_POINTS[fromId]?.mapsQuery ?? null, KYIV_POINTS[toId]?.mapsQuery ?? null);
+  const way = kyivWay(fromId, toId, anchor, mins, date, o.mode ?? 'best', o.approx ? RING_AFTER_APPROX : 0);
+  if (way) return { legs: wayLegs(way, mapsUrl), minutes: anchor === 'from' ? way.arrMins - mins : mins - way.depMins, closed: false, metro: true };
   const rough = metroTrip(fromId, toId);
-  if (!rough) return { leg: { kind: 'kyiv', text: fallback, mapsUrl }, minutes: 0, closed: false, metro: false };
-  // інтервал поїздів залежить від години входу: для «until» спершу прикидаємо, коли людина зайде
+  if (!rough) return { legs: [{ kind: 'kyiv', text: fallback, mapsUrl }], minutes: 0, closed: false, metro: false };
+  // метро між точками є, але о цій порі не працює: показуємо шлях без часу
   const enter = anchor === 'from' ? mins : mins - rough.minutes;
   const trip = metroTrip(fromId, toId, { mins: enter, date })!;
   const dep = anchor === 'from' ? mins : mins - trip.minutes;
-  const minutes = trip.closed ? 0 : trip.minutes;
   return {
-    leg: { kind: 'metro', segments: trip.segments, transfers: trip.transfers, minutes: trip.minutes, depMins: dep, arrMins: dep + trip.minutes, headwayMin: trip.headwayMin, priceUah: trip.priceUah, closed: trip.closed, mapsUrl },
-    minutes,
-    closed: trip.closed,
+    legs: [{ kind: 'metro', segments: trip.segments, transfers: trip.transfers, minutes: trip.minutes, depMins: dep, arrMins: dep + trip.minutes, headwayMin: trip.headwayMin, priceUah: trip.priceUah, closed: true, mapsUrl }],
+    minutes: 0,
+    closed: true,
     metro: true,
   };
 }
@@ -452,7 +480,7 @@ function intercityLeg(
 }
 
 function busTransfers(legs: StoryLeg[]): number {
-  return legs.filter((l) => l.kind === 'bus' || l.kind === 'intercity' || l.kind === 'ride' || l.kind === 'metro').length + legs.reduce((n, l) => n + (l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit').length : 0), 0) - 1;
+  return legs.filter((l) => l.kind === 'bus' || l.kind === 'intercity' || l.kind === 'ride' || l.kind === 'metro' || l.kind === 'ring').length + legs.reduce((n, l) => n + (l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit').length : 0), 0) - 1;
 }
 
 function makeStory(id: string, mode: Story['mode'], date: string, fromLabel: string, toLabel: string, legs: StoryLeg[], o: {
@@ -496,7 +524,7 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
     const user = shape.kyivPoint;
     const boardText = farStopText(trip, trip.schedule.boardingPlace);
     let board = { mins: trip.depMins, approx: false, label: boardText.from };
-    let kyivLeg: StoryLeg | null = null;
+    let kyivLegs: StoryLeg[] = [];
     let kyivLead = 0;
     if (user && bp && user !== bp) {
       const passes = trip.mode === 'elektrichka' && TRAIN_POS[user] != null && TRAIN_POS[bp] != null && TRAIN_POS[user] > TRAIN_POS[bp];
@@ -506,14 +534,14 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
         // людина стартує з іншої точки Києва: історія починається з метро, а не з посадки
         const step = kyivStep(user, bp, 'until', trip.depMins, date, `Доїдьте: ${boardText.name}`);
         kyivLead = step.minutes;
-        kyivLeg = step.leg;
+        kyivLegs = step.legs;
       }
     }
     // місце в далекому місті словами: спершу містом до посадки
     const boardPoint = shape.detail ? farPoint(shape.far, bp) : null;
     if (shape.detail && boardPoint) {
       const step = cityStep(input, shape.far, boardPoint, shape.detail, 'until', trip.depMins - CITY_BOARD_BUFFER);
-      kyivLeg = step.leg;
+      kyivLegs = [step.leg];
       kyivLead = step.minutes ? step.minutes + CITY_BOARD_BUFFER : 0;
     }
     // Малин: найкраща точка виходу
@@ -552,7 +580,7 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
     }
     if (!best) continue;
     const ic = intercityLeg(trip, board, { mins: trip.arrMins + best.a.offsetMin, approx: !trip.exact, label: best.a.label }, !best.a.confirmed);
-    const legs: StoryLeg[] = [...(kyivLeg ? [kyivLeg] : []), ic, ...best.legs];
+    const legs: StoryLeg[] = [...kyivLegs, ic, ...best.legs];
     const late = best.legs.some((l) => l.kind === 'walk' && l.late);
     const endLabel = dest.isCity ? `Малин, ${best.a.name}` : placeLabel(dest);
     const story = makeStory(`to-${trip.schedule.id}`, trip.mode, date, fromLabel, placeLabel(dest), legs, {
@@ -607,14 +635,14 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
     let endNote: string | null = null;
     // де й коли людина виходить із маршрутки / електрички — рядок рейсу; кінець історії може бути далі, після метро
     let alight = { mins: arrive, approx };
-    let kyivLeg: StoryLeg | null = null;
+    let kyivLegs: StoryLeg[] = [];
     const target = shape.kyivPoint;
     const ap = trip.kyivPoint;
     const alightPoint = shape.detail ? farPoint(shape.far, ap) : null;
     if (shape.detail && alightPoint) {
       // місце в далекому місті словами: кінець історії — воно; без відповіді сервера час лишається до висадки
       const step = cityStep(input, shape.far, alightPoint, shape.detail, 'from', arrive);
-      kyivLeg = step.leg;
+      kyivLegs = [step.leg];
       endLabel = shape.detail;
       if (step.minutes) {
         arrive += step.minutes;
@@ -631,21 +659,22 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
         endLabel = kyivStopText(target, 'elektrichka', '').name;
       } else {
         // просили іншу точку Києва: кінець історії — вона, з часом на метро; без метро час лишається до висадки
-        const step = kyivStep(ap, target, 'from', arrive, date, `Далі до: ${KYIV_POINTS[target]?.label ?? 'місця'}`);
-        kyivLeg = step.leg;
+        const step = kyivStep(ap, target, 'from', arrive, date, `Далі до: ${KYIV_POINTS[target]?.label ?? 'місця'}`, { approx });
+        kyivLegs = step.legs;
         endLabel = KYIV_POINTS[target]?.label ?? endLabel;
         if (step.minutes) {
           arrive += step.minutes;
-          approx = true;
+          // після електрички без метро час точний — за розкладом рейсу
+          approx = step.legs[step.legs.length - 1].kind !== 'ring' || step.legs.some((x) => x.kind === 'ring' && x.walkAfterMin > 0);
         } else {
           endNote = step.closed ? `${METRO_CLOSED_NOTE}; час — до висадки ${alightText.at}` : `час — до висадки ${alightText.at}`;
         }
       }
     } else if (!target && ap) {
-      kyivLeg = { kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[ap]?.mapsQuery ?? null, null) };
+      kyivLegs = [{ kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[ap]?.mapsQuery ?? null, null) }];
     } else if (shape.far === 'Zhytomyr') {
       // місто Житомир ще не в наших даних — далі веде Google Maps
-      kyivLeg = { kind: 'kyiv', city: 'Житомир', text: 'Далі по Житомиру', mapsUrl: mapsTransitUrl(ZHYTOMYR_STATION.maps, null) };
+      kyivLegs = [{ kind: 'kyiv', city: 'Житомир', text: 'Далі по Житомиру', mapsUrl: mapsTransitUrl(ZHYTOMYR_STATION.maps, null) }];
     }
     const boardApprox = best.a.offsetMin !== 0;
     const ic = intercityLeg(
@@ -654,7 +683,7 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
       { mins: alight.mins, approx: alight.approx, label: alightText.at },
       !best.a.confirmed,
     );
-    const legs: StoryLeg[] = [...best.legs, ic, ...(kyivLeg ? [kyivLeg] : [])];
+    const legs: StoryLeg[] = [...best.legs, ic, ...kyivLegs];
     const story = makeStory(`from-${trip.schedule.id}`, trip.mode, date, placeLabel(origin), toLabel, legs, {
       leave: best.leave,
       arrive,
@@ -764,6 +793,76 @@ function intraOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'in
       ? `Автобусом №${wanted.map(no).join(', №')} ${byRoute.length ? 'у цей час уже не доїхати' : 'туди не доїхати'} — ось інші варіанти.`
       : null;
   return { kind: 'stories', stories, askMode: false, notice };
+}
+
+/** Рейси електрички в дорозі: за ними відрізняємо варіанти («А18 о 17:10» і «Д10 о 16:59») */
+const ringKey = (w: KyivWay) => w.parts.map((p) => (p.kind === 'ring' ? `${p.ride.train}@${p.ride.depMins}` : 'm')).join('+');
+
+/**
+ * Метро перед електричкою не поспішає: людина виходить так, щоб прийти на платформу до рейсу, а не чекати там.
+ * Повертає час виходу з першої точки.
+ */
+function tightenWay(w: KyivWay): number {
+  const first = w.parts[0];
+  const next = w.parts[1];
+  if (first.kind === 'ring') return first.ride.depMins - first.walkBeforeMin - RING_SERVICE.boardBufferMin;
+  if (next?.kind === 'ring') {
+    const delta = next.ride.depMins - next.walkBeforeMin - RING_SERVICE.boardBufferMin - first.arrMins;
+    if (delta > 0) {
+      first.depMins += delta;
+      first.arrMins += delta;
+    }
+  }
+  return first.depMins;
+}
+
+/**
+ * У межах Києва між двома відомими точками: метро (якщо обидві на метро) і до двох рейсів міської електрички —
+ * найближчий і наступний; для «бути до» — останній, що встигає, і попередній. «Електричкою» в питанні — лише вона.
+ */
+function kyivOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'kyiv' }>, win: SearchWindow): ComposeOutcome {
+  const { date } = input;
+  const a = shape.from.id;
+  const b = shape.to.id;
+  const modes = input.intent.modes;
+  const ringOnly = modes.length > 0 && modes.every((m) => m === 'elektrichka');
+  const arriveBy = win.kind === 'arrive' && win.deadline != null;
+  const anchor = arriveBy ? 'until' : 'from';
+  const at = arriveBy ? win.deadline! : win.start;
+  const ways: KyivWay[] = [];
+  const metro = ringOnly ? null : kyivWay(a, b, anchor, at, date, 'metro');
+  if (metro) ways.push(metro);
+  // між двома станціями кільця — прямі рейси; поєднання з метро лише тоді, коли прямого немає
+  const ringMode: KyivWayMode = kyivWay(a, b, anchor, at, date, 'direct') ? 'direct' : 'ring';
+  const seen = new Set<string>();
+  for (let t = at, tries = 0; tries < 48 && seen.size < 2; tries++, t += arriveBy ? -5 : 5) {
+    const w = kyivWay(a, b, anchor, t, date, ringMode);
+    if (!w) break;
+    if (seen.has(ringKey(w))) continue;
+    seen.add(ringKey(w));
+    ways.push(w);
+  }
+  const mapsUrl = mapsTransitUrl(KYIV_POINTS[a].mapsQuery, KYIV_POINTS[b].mapsQuery);
+  const fromLabel = placeLabel(shape.from);
+  const toLabel = placeLabel(shape.to);
+  const stories = ways
+    .map((w) => {
+      const leave = arriveBy ? w.depMins : tightenWay(w);
+      const last = w.parts[w.parts.length - 1];
+      const exact = last.kind === 'ring' && last.walkAfterMin === 0;
+      return makeStory(`kyiv-${ringKey(w)}`, 'kyiv', date, fromLabel, toLabel, wayLegs(w, mapsUrl), {
+        leave,
+        arrive: w.arrMins,
+        approx: !exact,
+        endLabel: `Київ, ${KYIV_POINTS[b].label}`,
+        endNote: null,
+        price: w.parts.reduce((n, p) => n + (p.kind === 'metro' ? p.trip.priceUah : RING_SERVICE.fareUah), 0),
+      });
+    })
+    .filter((st) => st.leaveMins >= win.start)
+    .sort((x, y) => (arriveBy ? y.leaveMins - x.leaveMins : x.arriveMins - y.arriveMins));
+  if (!stories.length) return { kind: 'empty', reason: date === input.now.date ? 'too_late' : 'no_trips' };
+  return { kind: 'stories', stories, askMode: false, notice: null };
 }
 
 /** Картка маршруту: кінцеві й найближчі відправлення — з названої зупинки або з обох кінцевих */
@@ -920,27 +1019,27 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
       }
     }
     const target = shape.kyivPoint;
-    let kyivLeg: StoryLeg | null = null;
+    let kyivLegs: StoryLeg[] = [];
     let end = arr;
     let endLabel = kyivText ? `Київ, ${kyivText.name}` : CITY_LABEL[far];
     let endNote: string | null = null;
     const dropPoint = shape.detail ? farPoint(far, kyiv ?? null) : null;
     if (shape.detail && dropPoint) {
       const step = cityStep(input, far, dropPoint, shape.detail, 'from', arr);
-      kyivLeg = step.leg;
+      kyivLegs = [step.leg];
       endLabel = `${CITY_LABEL[far]}, ${shape.detail}`;
       if (step.minutes) end = arr + step.minutes;
       else endNote = `час — до висадки ${kyivText?.at ?? farUsual.at}`;
     } else if (kyiv && target && target !== kyiv) {
-      const step = kyivStep(kyiv, target, 'from', arr, date, `Далі до: ${KYIV_POINTS[target]?.label ?? 'місця'}`);
-      kyivLeg = step.leg;
+      const step = kyivStep(kyiv, target, 'from', arr, date, `Далі до: ${KYIV_POINTS[target]?.label ?? 'місця'}`, { approx: true });
+      kyivLegs = step.legs;
       endLabel = `Київ, ${KYIV_POINTS[target]?.label ?? kyivText!.name}`;
       if (step.minutes) end = arr + step.minutes;
       else endNote = step.closed ? `${METRO_CLOSED_NOTE}; час — до висадки ${kyivText!.at}` : `час — до висадки ${kyivText!.at}`;
     } else if (kyiv && !target) {
-      kyivLeg = { kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[kyiv].mapsQuery, null) };
+      kyivLegs = [{ kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[kyiv].mapsQuery, null) }];
     }
-    const legs: StoryLeg[] = [...before, leg(from, malyn.assumed && !door, kyivText?.at ?? farUsual.at, !kyiv), ...(kyivLeg ? [kyivLeg] : [])];
+    const legs: StoryLeg[] = [...before, leg(from, malyn.assumed && !door, kyivText?.at ?? farUsual.at, !kyiv), ...kyivLegs];
     const story = makeStory(`ride-${l.id}`, 'poputka', date, placeLabel(origin), shape.detail ? `${CITY_LABEL[far]}, ${shape.detail}` : shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[far], legs, {
       leave,
       arrive: end,
@@ -958,7 +1057,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
   const destSpot = spotOf(planner, dest);
   const user = shape.kyivPoint;
   const toRide = kyiv && user && user !== kyiv ? kyivStep(user, kyiv, 'until', dep, date, `Доїдьте: ${kyivText!.name}`) : null;
-  const kyivLeg: StoryLeg | null = toRide?.leg ?? null;
+  const kyivLegs: StoryLeg[] = toRide?.legs ?? [];
   const at = malyn.assumed ? RIDE_DROP.label : `біля «${placeLabel(malyn.place!)}»`;
   let after: StoryLeg[] = [];
   let arrive = arr;
@@ -980,7 +1079,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
       endNote = 'до самого місця домовтесь із водієм';
     }
   }
-  const legs: StoryLeg[] = [...(kyivLeg ? [kyivLeg] : []), leg(kyivText?.from ?? farUsual.from, !kyiv, at, malyn.assumed), ...after];
+  const legs: StoryLeg[] = [...kyivLegs, leg(kyivText?.from ?? farUsual.from, !kyiv, at, malyn.assumed), ...after];
   const story = makeStory(`ride-${l.id}`, 'poputka', date, user ? placeLabel(resolvePlace(user)!) : CITY_LABEL[far], placeLabel(dest), legs, {
     leave: dep - (toRide?.minutes ?? 0),
     arrive,
@@ -1132,6 +1231,7 @@ export function composeStories(input: ComposeInput, shape: TripShape = classify(
   }
   const win = searchWindow(input.intent, input.date, input.now);
   if (shape.kind === 'intra') return intraOutcome(input, shape, win);
+  if (shape.kind === 'kyiv') return kyivOutcome(input, shape, win);
   const options = shape.kind === 'to_malyn' ? toMalynOptions(input, shape) : fromMalynOptions(input, shape);
   const picked = pickPerMode(options, win);
   const rides = ridesWanted(input.intent.modes) ? rideStories(input, shape, win) : null;

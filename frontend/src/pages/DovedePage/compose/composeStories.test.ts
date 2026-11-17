@@ -451,10 +451,15 @@ describe('кінцева точка в Києві — та, яку просил�
     expect(s.arriveMins).toBeGreaterThan(hm(9, 30));
   });
 
-  it('точка не на метро: назва — та, що просили, а час чесно «до висадки»', () => {
+  it('точка не на метро, але на кільці міської електрички: далі — рейс за розкладом, час точний', () => {
     const s = story('з малина до борщагівки завтра маршруткою');
     expect(s.endLabel).toBe('Київ, платформа «Борщагівка»');
-    expect([s.arriveMins, s.endNote]).toEqual([hm(9, 0), 'час — до висадки біля метро «Святошин»']);
+    // маршрутка ≈ 09:00 біля метро «Святошин»; запас на приблизне прибуття, 4 хв до платформи, 4 хв на посадку → Б10 о 09:38
+    const r = s.legs[s.legs.length - 1] as Extract<StoryLeg, { kind: 'ring' }>;
+    expect(r).toMatchObject({ kind: 'ring', depMins: hm(9, 38), arrMins: hm(9, 45), walkBeforeMin: 4, walkAfterMin: 0, priceUah: 30 });
+    expect([r.ride.train, r.ride.dir]).toEqual(['Б10', 'ccw']);
+    expect([s.arriveMins, s.arriveApprox, s.endNote]).toEqual([hm(9, 45), false, null]);
+    expect(s.lead).toBe('Маршрутка о 07:30 з автостанції, далі міська електричка Б10 о 09:38 з платформи «Святошин». Київ, платформа «Борщагівка» — о 09:45.');
   });
 
   it('у зворотний бік історія починається з метро: вийти раніше на час дороги до посадки', () => {

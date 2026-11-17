@@ -164,6 +164,30 @@ test.describe('«Доведе» (/dovede, за паролем запрошени
     // номер маршруту словник розуміє сам — Claude лише перевіряє у фоні
     expect(calls.length).toBeLessThanOrEqual(1);
   });
+
+  test('міська електричка Києва: «з Почайни на Видубичі електричкою» — додатковий рейс Д10 за розкладом на картці-годиннику', async ({ page }) => {
+    const { calls } = await openWithAccess(page);
+    // середа 18.11.2026, 16:40 за Києвом — діють додаткові рейси між берегами
+    await page.clock.setFixedTime(new Date('2026-11-18T14:40:00Z'));
+    await page.goto('/dovede');
+    await page.getByLabel('Куди вам потрібно доїхати?').fill('з Почайни на Видубичі електричкою');
+    await page.getByRole('button', { name: 'Знайти' }).click();
+
+    await expect(page.locator('.dv-lead')).toHaveText('Міська електричка Д10 о 16:59 з платформи «Почайна». Київ, метро «Видубичі» — приблизно о 17:48.');
+    const card = page.locator('.dv-ring').first();
+    await expect(card.getByText('Додатковий рейс між берегами — курсує до 20 листопада')).toBeVisible();
+    await expect(card.getByRole('img', { name: 'Схема кільця: від «Почайна» до «Видубичі» за годинниковою стрілкою' })).toBeVisible();
+    await expect(card.locator('.dv-ring__plate')).toHaveText(['посадкаПочайна16:59', 'вийтиВидубичі17:45']);
+    await expect(card.getByText('Наступні: 17:10 · 17:40 · 17:59')).toBeVisible();
+    // другий варіант — наступний прямий рейс; розклад коридору Малина для Києва не потрібен
+    await expect(page.getByRole('button', { name: /Міська електричка А18/ })).toBeVisible();
+    await expect(page).toHaveURL(/f=kyiv\.m\.pochaina&t=kyiv\.m\.vydubychi/);
+    // картка не ширша за свою колонку на телефоні
+    await page.setViewportSize({ width: 360, height: 800 });
+    const box = await card.boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(360);
+    expect(calls.length).toBeLessThanOrEqual(1);
+  });
 });
 
 test.describe('«Доведе»: ролик-вступ перед сторінкою', () => {

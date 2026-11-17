@@ -6,6 +6,7 @@
 import { findMetroIn, metroPath, type MetroPath, type MetroSegment } from '../nlu/kyivMetro';
 import { METRO_LINE, METRO_SERVICE, METRO_SHUTTLE, metroOpenAt, metroPeriod } from './kyivMetroService';
 import { METRO_STATIONS } from '../nlu/kyivMetroData';
+import { RING_STATIONS } from '../nlu/kyivRingData';
 import { normalizeWord } from '../nlu/normalize';
 
 export interface KyivPoint {
@@ -19,10 +20,12 @@ export interface KyivPoint {
 }
 
 /**
- * Точки Києва: усі станції метро (`nlu/kyivMetroData.ts`) і кілька місць без станції. Вокзал — це і станція
+ * Точки Києва: усі станції метро (`nlu/kyivMetroData.ts`), станції міської електрички і кілька місць без станції. Вокзал — це і станція
  * «Вокзальна», і приміський вокзал, тому в нього власний підпис.
  */
 export const KYIV_POINTS: Record<string, KyivPoint> = {
+  // станції міської електрички (`nlu/kyivRingData.ts`); платформа біля метро — окрема точка лише для підпису
+  ...Object.fromEntries(RING_STATIONS.map((st) => [st.id, { id: st.id, label: `платформа «${st.name}»`, mapsQuery: `залізнична станція ${st.name}, Київ` }])),
   ...Object.fromEntries(METRO_STATIONS.map((st) => [st.id, { id: st.id, label: `метро «${st.name}»`, metro: st.name, mapsQuery: `метро ${st.name}, Київ` }])),
   'kyiv.pas': { id: 'kyiv.pas', label: 'вокзал Київ-Пасажирський', metro: 'Вокзальна', mapsQuery: 'Приміський вокзал, Київ' },
   'kyiv.borshch': { id: 'kyiv.borshch', label: 'платформа «Борщагівка»', mapsQuery: 'зупинний пункт Борщагівка, Київ' },

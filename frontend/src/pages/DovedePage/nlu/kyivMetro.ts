@@ -38,7 +38,7 @@ const VARIANTS: NameVariant[] = METRO_STATIONS.flatMap((station) => [station.nam
 );
 
 /** Коротке слово назви (до 4 літер) у назві з кількох слів теж відмінюється: «Палацу спорту» */
-function wordFits(word: string, token: string, multi: boolean): boolean {
+export function wordFits(word: string, token: string, multi: boolean): boolean {
   if (multi && word.length === 4) return token.startsWith(word.slice(0, 3)) && token.length <= 6;
   return wordMatchesName(word, token);
 }

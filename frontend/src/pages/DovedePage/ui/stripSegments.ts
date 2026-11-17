@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { routeColorStyle } from '@/pages/LocalTransportPage/routeColors';
 import type { Story } from '../compose/types';
 import { METRO_LINE } from '../data/kyivMetroService';
+import { RING_COLOR } from '../data/kyivRing';
 
 export interface Segment {
   start: number;
@@ -21,6 +22,9 @@ export function stripSegments(story: Story): Segment[] {
     } else if (leg.kind === 'metro') {
       if (!leg.closed) out.push({ start: leg.depMins, end: leg.arrMins, cls: 'metro', style: { background: METRO_LINE[leg.segments[0].line].color } });
       cursor = Math.max(cursor, leg.arrMins);
+    } else if (leg.kind === 'ring') {
+      out.push({ start: leg.depMins, end: leg.arrMins, cls: 'ring', style: { background: leg.ride.extra ? RING_COLOR.extra : RING_COLOR.main } });
+      cursor = leg.arrMins;
     } else if (leg.kind === 'city') {
       if (leg.route && leg.depMins != null && leg.arrMins != null) {
         out.push({ start: leg.depMins, end: leg.arrMins, cls: leg.route.steps.some((x) => x.kind === 'transit') ? 'city' : 'walk' });
