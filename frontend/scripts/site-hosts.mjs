@@ -34,11 +34,20 @@ export const SITES = {
     cityNameUk: 'Коростень',
     cityNameUkGenitive: 'Коростеня',
     cityNameUkLocative: 'Коростені',
-    /** Звідки розклад міського транспорту (підвал сторінок /transport*, статичні сторінки зупинок) */
-    transportSource: {
-      href: 'https://korosten-rada.gov.ua/miska-rada/upravlinnya-ta-viddily/upravlinnya-ekonomiky/viddil-misczevogo-ekonomichnogo-rozvytku/transport/miskyj-transport/rozklad-ruhu-miskogo-transportu-rozklad-ruhu-avtobusiv-na-period-vijskovogo-stanu/',
-      label: 'Розклад: Коростенська міська рада',
-    },
+    /**
+     * Джерела даних міського транспорту (підвал сторінок /transport*, статичні сторінки зупинок; фаза 11.1): розклад —
+     * сторінка міської ради («посилання обов'язкове»); назви й вулиці зупинок — набір ради на data.gov.ua (CC BY);
+     * частина координат зупинок — з OpenStreetMap (ODbL)
+     */
+    transportSources: [
+      {
+        href: 'https://korosten-rada.gov.ua/miska-rada/upravlinnya-ta-viddily/upravlinnya-ekonomiky/viddil-misczevogo-ekonomichnogo-rozvytku/transport/miskyj-transport/rozklad-ruhu-miskogo-transportu-rozklad-ruhu-avtobusiv-na-period-vijskovogo-stanu/',
+        label: 'Розклад: Коростенська міська рада',
+      },
+      // назви й вулиці зупинок (статті зупинок) — набір ради на data.gov.ua, CC BY
+      { href: 'https://data.gov.ua/dataset/c8bfaca6-97d6-451a-9dbc-68d2b745ddd3', label: 'Зупинки: data.gov.ua (CC BY)' },
+      { href: 'https://www.openstreetmap.org/copyright', label: 'Координати зупинок: © учасники OpenStreetMap' },
+    ],
     isPrimary: false,
     active: true,
   },

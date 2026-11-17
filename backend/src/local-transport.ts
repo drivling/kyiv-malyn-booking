@@ -544,6 +544,7 @@ const LEGACY_SERVICE_MAP: Record<string, string> = {
   'пн-вт-ср-чт-пт-сб-нд': 'everyday',
   everyday: 'everyday',
   weekdays: 'weekdays',
+  weekends: 'weekends',
 };
 
 /**

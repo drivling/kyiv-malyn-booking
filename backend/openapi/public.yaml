@@ -870,7 +870,7 @@ components:
       properties:
         id: { type: string, example: '11-03', description: Стабільний лише в межах однієї revision }
         routeId: { $ref: '#/components/schemas/RouteId' }
-        serviceId: { type: string, enum: [everyday, weekdays] }
+        serviceId: { type: string, enum: [everyday, weekdays, weekends] }
         headsign: { type: string }
         directionId: { type: string, enum: ['0', '1'], description: '1 — туди, 0 — назад' }
         departureTime:

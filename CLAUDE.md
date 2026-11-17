@@ -416,7 +416,8 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   `recordTiming`, passenger stops only, `serviceId` filter — call it **after** `configureSegmentDurations`), `planDay` (whole-day
   profile + Pareto over departure/arrival/transfers), `journeyWindow` (depart-at / arrive-by slice), `legAlternatives` (next trips
   of a leg). Walking between stops closer than 400 m is straight-line × `detourFactor` (all numbers in `journey/options.ts`,
-  calibrated against Transitous). «Звідки/Куди» may be a point — `me:lat,lng` (geolocation) / `pt:lat,lng` (map click), kept in
+  calibrated against Transitous). Service calendars are `everyday` / `weekdays` / `weekends` (`tripRunsOn`); the planner, the
+  route page and the stop board show a trip only on its type of day. «Звідки/Куди» may be a point — `me:lat,lng` (geolocation) / `pt:lat,lng` (map click), kept in
   the same `/transport/:from/:to` URL, never sent to GA4 (`endpointGaValue`); `?a=1` is arrive-by. A walk from the start never
   prunes vehicle arrivals (regression test in `engine.test.ts`). `transitous.oracle.test.ts` (manual, `TRANSITOUS_ORACLE=1`, not in
   CI) compares earliest arrival/transfers with api.transitous.org on the committed GTFS.

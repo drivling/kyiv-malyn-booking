@@ -461,6 +461,7 @@ const LEGACY_SERVICE_MAP = {
     'пн-вт-ср-чт-пт-сб-нд': 'everyday',
     everyday: 'everyday',
     weekdays: 'weekdays',
+    weekends: 'weekends',
 };
 /**
  * Конвертація легасі runtime JSON (malyn_transport / stops_coords / segmentDurations / agency)

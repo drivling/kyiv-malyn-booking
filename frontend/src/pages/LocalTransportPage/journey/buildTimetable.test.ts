@@ -55,6 +55,12 @@ describe('serviceDayForDate / tripRunsOn', () => {
       expect(tripRunsOn(id, 'weekend')).toBe(true);
     }
   });
+
+  it('weekends їздить лише в суботу й неділю', () => {
+    expect(tripRunsOn('weekends', 'weekend')).toBe(true);
+    expect(tripRunsOn('weekends', 'weekday')).toBe(false);
+    expect(tripRunsOn(' Weekends ', 'weekday')).toBe(false);
+  });
 });
 
 describe('buildTimetable', () => {
@@ -71,6 +77,12 @@ describe('buildTimetable', () => {
     const trips = [trip('t1', '08:00'), trip('t2', '09:00', { service_id: 'weekdays' })];
     expect(build(trips, 'weekday').patterns[0].trips.map((t) => t.tripId)).toEqual(['t1', 't2']);
     expect(build(trips, 'weekend').patterns[0].trips.map((t) => t.tripId)).toEqual(['t1']);
+  });
+
+  it('фільтр дня: рейс weekends є у вихідний і немає в будень', () => {
+    const trips = [trip('t1', '08:00'), trip('t2', '09:00', { service_id: 'weekends' })];
+    expect(build(trips, 'weekday').patterns[0].trips.map((t) => t.tripId)).toEqual(['t1']);
+    expect(build(trips, 'weekend').patterns[0].trips.map((t) => t.tripId)).toEqual(['t1', 't2']);
   });
 
   it('скорочений рейс (start_stop_id) — окремий патерн зі своїми зупинками', () => {

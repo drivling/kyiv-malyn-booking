@@ -14,7 +14,7 @@ import type { JourneyOptions } from './options';
 import { assembleTimetable } from './timetable';
 import type { Pattern, PatternTrip, Timetable, TimetableStop } from './types';
 
-/** Тип дня руху: calendar.txt сайту знає лише `everyday` і `weekdays` */
+/** Тип дня руху: calendar.txt сайту знає `everyday`, `weekdays` і `weekends` */
 export type ServiceDay = 'weekday' | 'weekend';
 
 /** Субота й неділя — вихідний тип дня; свят у даних немає */
@@ -23,9 +23,15 @@ export function serviceDayForDate(date: Date): ServiceDay {
   return dow === 0 || dow === 6 ? 'weekend' : 'weekday';
 }
 
-/** `weekdays` їздить лише по буднях; `everyday`, порожній і застарілі рядки — щодня (так само, як GTFS-експорт) */
+/**
+ * `weekdays` їздить лише по буднях, `weekends` — лише в суботу й неділю; `everyday`, порожній і застарілі рядки —
+ * щодня (так само, як GTFS-експорт)
+ */
 export function tripRunsOn(serviceId: string | undefined, day: ServiceDay): boolean {
-  return (serviceId ?? '').trim().toLowerCase() === 'weekdays' ? day === 'weekday' : true;
+  const id = (serviceId ?? '').trim().toLowerCase();
+  if (id === 'weekdays') return day === 'weekday';
+  if (id === 'weekends') return day === 'weekend';
+  return true;
 }
 
 export interface BuildTimetableInput {

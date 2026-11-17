@@ -129,8 +129,8 @@ export interface TransportProfile {
    * схеми — лише «Поруч зі мною»
    */
   quickNodes: readonly TransportQuickNode[];
-  /** Джерело розкладу в підвалі сторінок міста без відкритих даних; null — нема */
-  sourceLink: { href: string; label: string } | null;
+  /** Джерела даних у підвалі сторінок міста без відкритих даних (розклад, координати); [] — нема */
+  sourceLinks: readonly { href: string; label: string }[];
   /** Центр карти, поки датасет не дав свого (meta.center) */
   center: [number, number] | null;
   /**
@@ -161,7 +161,7 @@ const MALYN_PROFILE: TransportProfile = {
   ...names(DEFAULT_TRANSPORT_CITY),
   hasOpenData: true,
   quickNodes: [],
-  sourceLink: null,
+  sourceLinks: [],
   center: [50.768, 29.242],
   hasScheme: true,
   hasStopArticles: true,
@@ -179,10 +179,10 @@ const CITIES_WITH_SCHEME = new Set(['Korosten']);
 /** Міста, крім Малина, зі статтями зупинок (src/content/stops: Коростень — з переліку зупинок ради) */
 const CITIES_WITH_STOP_ARTICLES = new Set(['Korosten']);
 
-/** Звідки розклад міста (підвал сторінок транспорту) — з мапи сайтів, її ж читає статичний пререндер */
-function citySource(city: string): { href: string; label: string } | null {
-  const site = Object.values(SITES).find((s) => s.cityCode === city) as { transportSource?: { href: string; label: string } } | undefined;
-  return site?.transportSource ?? null;
+/** Звідки дані міста (підвал сторінок транспорту) — з мапи сайтів, її ж читає статичний пререндер */
+function citySources(city: string): readonly { href: string; label: string }[] {
+  const site = Object.values(SITES).find((s) => s.cityCode === city);
+  return site?.transportSources ?? [];
 }
 
 /** Чіпи «Куди їдете?»: головні точки міста (id зупинок датасету міста) */
@@ -205,7 +205,7 @@ export function transportProfile(city: string = siteTransportCity()): TransportP
     ...names(city),
     hasOpenData: false,
     quickNodes: CITY_QUICK_NODES[city] ?? [],
-    sourceLink: citySource(city),
+    sourceLinks: citySources(city),
     center: CITY_CENTERS[city] ?? null,
     hasScheme: CITIES_WITH_SCHEME.has(city),
     hasStopArticles: CITIES_WITH_STOP_ARTICLES.has(city),

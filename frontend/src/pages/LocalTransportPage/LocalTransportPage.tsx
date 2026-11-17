@@ -1,3 +1,4 @@
+import { TransportFooter } from './TransportFooter';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
@@ -48,7 +49,7 @@ import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { haversineDistance } from './geo';
 import { formatDistance, useNearestStops } from './useNearestStops';
 import { DateTimeControls } from './DateTimeControls';
-import { buildTimetable, journeyWindow, planDay, serviceDayForDate, type Place, type TransitLeg } from './journey';
+import { buildTimetable, journeyWindow, planDay, serviceDayForDate, tripRunsOn, type Place, type TransitLeg } from './journey';
 import { JourneyResults } from './journey/JourneyResults';
 import { endpointFromKey, endpointGaValue, isPointKey, parsePointKey, pointKey, pointLabel } from './journey/endpointKey';
 import { journeyKey } from './journey/journeyKey';
@@ -119,25 +120,6 @@ function transportHubFaq(p: TransportProfile): Array<{ q: string; a: string }> {
       a: `Тут — місцевий транспорт ${p.nameGenitive} (зупинки в місті). Міжміські попутки й маршрутки ${others} — на /mizhgorodski.`,
     },
   ];
-}
-
-/** Підвал сторінок транспорту: у Малина — набір data.gov.ua і телефон, в іншого міста — джерело розкладу */
-function TransportFooter({ profile }: { profile: TransportProfile }) {
-  return (
-    <footer className="lt-footer">
-      {profile.hasOpenData ? (
-        <>
-          <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
-          {' · '}
-          <a href="tel:+380687771590">(068) 77-71-590</a>
-        </>
-      ) : profile.sourceLink ? (
-        <a href={profile.sourceLink.href} target="_blank" rel="noopener noreferrer">
-          {profile.sourceLink.label}
-        </a>
-      ) : null}
-    </footer>
-  );
 }
 
 /** Зі списку зупинок повертає id найближчої до targetKey за координатами (або першу з списку) */
@@ -546,7 +528,7 @@ export const LocalTransportPage: React.FC = () => {
     [committedPair, endpointName]
   );
 
-  /** Тип дня руху за датою пошуку (будні / вихідні): calendar сайту знає лише everyday і weekdays */
+  /** Тип дня руху за датою пошуку (будні / вихідні): calendar сайту знає everyday, weekdays і weekends */
   const serviceDay = useMemo(() => {
     const d = parseDateUrl(searchDate);
     return d ? serviceDayForDate(d) : 'weekday';
@@ -1370,11 +1352,15 @@ export const LocalTransportPage: React.FC = () => {
                 /** Варіант шляху рейсу (немає — основний ланцюжок) */
                 variant: RouteVariantVm | null;
               };
+              /** Тип дня обраної дати: рейси лише по буднях / лише у вихідні в інший день не показуються */
+              const routeDate = parseDateUrl(dateFromUrl || todayDateUrl());
+              const routeServiceDay = routeDate ? serviceDayForDate(routeDate) : null;
               const buildTableTrips = (): TableRow[] | null => {
                 const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
                 const rows: TableRow[] = [];
                 const pushRows = (list: TransportRecord[], direction: 'there' | 'back') => {
                   list.forEach((t) => {
+                    if (routeServiceDay && !tripRunsOn(t.service_id, routeServiceDay)) return;
                     const chain = chainOfTrip(t);
                     if (chain.length < 2) return;
                     const timing = recordTiming(routeId, chain, t);

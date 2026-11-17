@@ -1,3 +1,4 @@
+import { TransportFooter } from './TransportFooter';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { stopRedirectTarget } from './stopRedirects';
@@ -17,6 +18,7 @@ import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './sc
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { buildSchemeUrl } from './schemeMini';
 import { formatDateUrl, parseDateUrl } from './dateUrl';
+import { serviceDayForDate } from './journey/buildTimetable';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { useTransportDataset } from './dataset/useTransportDataset';
 import { TransportStatusBar } from './TransportStatusBar';
@@ -256,10 +258,16 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   }, [travelDayOffsetDays, showFullDay, kyivNowMins, referenceMins]);
 
 
+  /** Тип дня обраної дати: рейси лише по буднях / лише у вихідні в інший день на табло не потрапляють */
+  const serviceDay = useMemo(() => {
+    const d = parseDateUrl(searchDate);
+    return d ? serviceDayForDate(d) : undefined;
+  }, [searchDate]);
+
   const departures = useMemo(() => {
     if (!selectedStop || !stopsByRoute) return [];
-    return buildStopDepartures(selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute);
-  }, [selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute]);
+    return buildStopDepartures(selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute, serviceDay);
+  }, [selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute, serviceDay]);
 
   /** Усі маршрути з відправленнями на зупинці за день — чіпи-фільтри під заголовком */
   const lineIdsAtStop = useMemo(
@@ -865,25 +873,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
             </p>
           </section>
 
-          <footer className="lt-footer">
-            {profile.hasOpenData ? (
-              <>
-                <a
-                  href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  data.gov.ua
-                </a>
-                {' · '}
-                <a href="tel:+380687771590">(068) 77-71-590</a>
-              </>
-            ) : profile.sourceLink ? (
-              <a href={profile.sourceLink.href} target="_blank" rel="noopener noreferrer">
-                {profile.sourceLink.label}
-              </a>
-            ) : null}
-          </footer>
+          <TransportFooter profile={profile} />
         </div>
         <div className="lt-map-column">
           {/* Усі зупинки міста, обрана — підсвічена; тап по маркеру відкриває табло цієї зупинки */}

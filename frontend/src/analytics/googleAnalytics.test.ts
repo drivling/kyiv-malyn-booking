@@ -39,3 +39,23 @@ describe('gaTrackEvent', () => {
     expect(gaShouldTrackPath('/dovedeX')).toBe(true);
   });
 });
+
+describe('transport_city (фаза 11.1)', () => {
+  it('на сайті Коростеня події транспорту несуть transport_city, інші події — ні', () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    window.history.pushState({}, '', '/transport?site=korosten');
+    gaTrackEvent('transport_search', { from: 'st_1001' });
+    expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_1001', transport_city: 'Korosten' });
+    gaTrackEvent('poputky_search', { from: 'Korosten' });
+    expect(gtag).toHaveBeenLastCalledWith('event', 'poputky_search', { from: 'Korosten' });
+  });
+
+  it('у Малина параметра нема — події ті самі, що були', () => {
+    const gtag = vi.fn();
+    window.gtag = gtag;
+    window.history.pushState({}, '', '/transport');
+    gaTrackEvent('transport_search', { from: 'st_0001' });
+    expect(gtag).toHaveBeenCalledWith('event', 'transport_search', { from: 'st_0001' });
+  });
+});

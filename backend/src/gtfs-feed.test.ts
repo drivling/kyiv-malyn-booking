@@ -195,3 +195,13 @@ test('createGtfsFeedProvider: builds once per revision, null without a dataset',
   assert.ok(!c.zip.equals(a.zip));
   assert.equal(loads, 2);
 });
+
+test('buildGtfsFeed: календар weekends — лише коли є такі рейси (Малин без них — calendar.txt той самий)', () => {
+  const plain = buildGtfsFeed(dataset());
+  assert.ok(!plain.files['calendar.txt'].includes('weekends'));
+  const d = dataset();
+  d.trips.push({ id: '2-04', routeId: '2', serviceId: 'weekends', headsign: 'Лікарня', directionId: '1', departureTime: '17:10:00' });
+  const feed = buildGtfsFeed(d);
+  assert.ok(lines(feed.files['calendar.txt']).includes('weekends,0,0,0,0,0,1,1,20240101,20271231'));
+  assert.ok(lines(feed.files['trips.txt']).includes('2,weekends,2-04,Лікарня,1,,shp_2_1'));
+});
