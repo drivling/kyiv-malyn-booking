@@ -253,16 +253,13 @@ export function createCrawl({ records = [], seeds = [], slots, maxDepth = 3, fre
   const freshFrom = now().getTime() - freshDays * 24 * 3600_000;
   /** ключ → { ok, steps } — на що вже є свіжа відповідь */
   const memo = new Map();
-  const errors = new Map();
   for (const r of records) {
     if (!r.at || new Date(r.at).getTime() < freshFrom) continue;
     const key = taskKey(recNode(r), r.dayType, r.hour);
     if (r.ok) memo.set(key, { ok: true, steps: r.steps ?? [] });
     else if (r.reason === 'no_route' || r.reason === 'bad_request') memo.set(key, { ok: false, steps: [] });
-    else if (r.reason === 'error') errors.set(key, (errors.get(key) ?? 0) + 1);
+    // збій (`error`) — не відповідь: Google міг відмовити всім одразу (квота, ключ), тож питання лишається в черзі
   }
-  // двічі не відповів — більше не мучимо, поки запис не застаріє
-  for (const [key, n] of errors) if (n >= 2 && !memo.has(key)) memo.set(key, { ok: false, steps: [] });
 
   const seen = new Set();
   const main = [];

@@ -31,7 +31,10 @@ exports.refreshLeadDays = refreshLeadDays;
  * саме. Лише «дороги немає»: збій Google чи вичерпана квота — не вина пари, позначок не ставимо, крок навчання спиняємо.
  */
 exports.REFRESH_RETRY_DAYS = 7;
-/** Google відповів 429 (квоту проєкту в Google Cloud вичерпано): стільки часу не питаємо зовсім, відповідаємо «ліміт» */
+/**
+ * Google відмовив усім одразу — 429 (квоту проєкту в Google Cloud вичерпано) або 401 / 403 (ключ, вимкнений API,
+ * білінг): стільки часу не питаємо зовсім і відповідаємо «ліміт» / «відмовлено».
+ */
 exports.QUOTA_BACKOFF_MS = 10 * 60000;
 const isValidFreshDays = (v) => typeof v === 'number' && Number.isInteger(v) && v >= exports.CITY_FRESH_DAYS_MIN && v <= exports.CITY_FRESH_DAYS_MAX;
 exports.isValidFreshDays = isValidFreshDays;
@@ -212,11 +215,14 @@ function createCityRoutes(deps) {
     // лічильник у памʼяті — на випадок, коли запис у базу вимкнено й рахувати рядки нема з чого
     let memoDay = '';
     let memoCalls = 0;
-    // квота самого Google (429): до цього моменту не питаємо; `quotaHitAt` — коли це сталося востаннє (для адмінки)
-    let quotaUntil = 0;
-    let quotaHitAt = null;
-    /** що саме сказав Google у відмові: у тексті названо квоту («…requests per day») — за ним видно, яку піднімати */
-    let quotaMessage = '';
+    // Google відмовив усім одразу (429 — квота, 401 / 403 — доступ): до цього моменту не питаємо зовсім
+    let blockedUntil = 0;
+    let blockedReason = 'cap';
+    /**
+     * Остання відмова Google з її текстом (для адмінки й журналу): у ньому названо квоту («…requests per day») або
+     * причину відмови в доступі — за ним видно, що лагодити в Google Cloud. Ключа в тексті Google не повторює.
+     */
+    let googleError = null;
     let freshMemo = null;
     const refresh = deps.refresh ?? (() => cityRefreshEnabled());
     // стартові пари, які Google не знайшов: рядка в базі для позначки в них немає, тож памʼятаємо тут (до перезапуску)
@@ -317,8 +323,8 @@ function createCityRoutes(deps) {
             return 'no_key';
         if ((await callsToday()) >= dailyCap())
             return 'cap';
-        if (now().getTime() < quotaUntil)
-            return 'cap';
+        if (now().getTime() < blockedUntil)
+            return blockedReason;
         memoCalls++;
         try {
             // Google приймає лише майбутній час; для «вже зараз» — без нього
@@ -329,22 +335,25 @@ function createCityRoutes(deps) {
                 body: JSON.stringify({ origin: { address: from.address }, destination: { address: to.address }, travelMode: 'TRANSIT', languageCode: 'uk', ...(future ? { departureTime: q.departAt.toISOString() } : {}) }),
                 signal: AbortSignal.timeout(TIMEOUT_MS),
             });
-            if (res.status === 429) {
-                // квота в Google Cloud менша за наш денний ліміт або її вже вибрали інші скрипти з тим самим ключем
+            if (res.ok)
+                return parseGoogleRoute(await res.json()) ?? 'no_route';
+            const said = (await res.json().catch(() => null));
+            const message = typeof said?.error?.message === 'string' ? said.error.message.replace(/\s+/g, ' ').trim().slice(0, 400) : '';
+            googleError = { at: now(), status: res.status, message };
+            const tail = message ? `: ${message}` : '';
+            if (res.status === 429 || res.status === 401 || res.status === 403) {
+                // 429 — квота в Google Cloud менша за наш денний ліміт або її вибрали інші скрипти з тим самим ключем;
+                // 401 / 403 — ключ, вимкнений API або білінг. Не вина пари й не наш ліміт: спроба не рахується
                 memoCalls--;
-                quotaHitAt = now();
-                quotaUntil = quotaHitAt.getTime() + exports.QUOTA_BACKOFF_MS;
-                const said = (await res.json().catch(() => null));
-                quotaMessage = typeof said?.error?.message === 'string' ? said.error.message.replace(/\s+/g, ' ').trim().slice(0, 300) : '';
-                console.error(`⛔ city-route: Google Routes 429 — квоту вичерпано, 10 хв не питаємо${quotaMessage ? `: ${quotaMessage}` : ''}`);
-                return 'cap';
+                blockedUntil = now().getTime() + exports.QUOTA_BACKOFF_MS;
+                blockedReason = res.status === 429 ? 'cap' : 'denied';
+                console.error(`⛔ city-route: Google Routes ${res.status} — ${res.status === 429 ? 'квоту вичерпано' : 'відмовлено в доступі'}, 10 хв не питаємо${tail}`);
+                return blockedReason;
             }
             // 400 / 404 — Google не прийняв саме цю пару (адресу): для неї дороги немає
             if (res.status === 400 || res.status === 404)
                 return 'no_route';
-            if (!res.ok)
-                throw new Error(`Routes API ${res.status}`);
-            return parseGoogleRoute(await res.json()) ?? 'no_route';
+            throw new Error(`Routes API ${res.status}${tail}`);
         }
         catch (e) {
             console.error('❌ city-route: Google Routes не відповів:', e instanceof Error ? e.message : e);
@@ -532,9 +541,8 @@ function createCityRoutes(deps) {
             enabled: enabled(),
             store: store(),
             hasKey: Boolean(deps.key()),
-            // коли Google востаннє відмовив через власну квоту (429) — з моменту запуску сервера; null — не відмовляв
-            googleQuotaHitAt: quotaHitAt ? quotaHitAt.toISOString() : null,
-            googleQuotaMessage: quotaMessage,
+            // остання відмова Google з моменту запуску сервера (статус і його власний текст); null — не відмовляв
+            googleError: googleError ? { at: googleError.at.toISOString(), status: googleError.status, message: googleError.message } : null,
             callsToday: today,
             dailyCap: dailyCap(),
             freshDays: fresh,

@@ -424,12 +424,11 @@ test('квота Google (429) і збій — не вина пари: «лімі
   const db = fakeDb();
   let at = NOW;
   const svc = createCityRoutes({ prisma: db.prisma, key: () => 'k', fetchImpl: quota.fetchImpl, now: () => at, enabled: () => true, store: () => true, dailyCap: () => 100, ownRoute: () => null });
-  assert.equal((await svc.stats()).googleQuotaHitAt, null);
+  assert.equal((await svc.stats()).googleError, null);
   // людині — «ліміт», як і при нашому денному: сторінка покаже кнопку Google Maps
   assert.deepEqual(await svc.find(Q), { ok: false, fallback: 'maps', reason: 'cap' });
   assert.equal(quota.calls.length, 1);
-  assert.equal((await svc.stats()).googleQuotaHitAt, NOW.toISOString());
-  assert.equal((await svc.stats()).googleQuotaMessage, "Quota exceeded for quota metric 'ComputeRoutes requests' and limit 'ComputeRoutes requests per day'");
+  assert.deepEqual((await svc.stats()).googleError, { at: NOW.toISOString(), status: 429, message: "Quota exceeded for quota metric 'ComputeRoutes requests' and limit 'ComputeRoutes requests per day'" });
   // десять хвилин не питаємо взагалі — ні для людей, ні в навчанні; наш лічильник ці спроби не їдять
   assert.deepEqual(await svc.find({ ...Q, to: 'Богунія' }), { ok: false, fallback: 'maps', reason: 'cap' });
   assert.deepEqual(await svc.learnTick(3), { asked: 0, learned: 0 });
@@ -462,6 +461,19 @@ test('квота Google (429) і збій — не вина пари: «лімі
   const limited = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: fakeFetch({}, false, 429).fetchImpl, now: () => later, ownRoute: () => null, dailyCap: () => 1000 });
   assert.deepEqual(await limited.learnTick(3), { asked: 0, learned: 0 });
   assert.equal(stale.refreshFailedAt ?? null, null);
+
+  // 403 — Google відмовив у доступі (ключ, вимкнений API, білінг): «відмовлено», текст Google — в адмінку, 10 хв тиші
+  const denied = fakeFetch({ error: { code: 403, status: 'PERMISSION_DENIED', message: 'Requests to this API routes.googleapis.com method google.maps.routing.v2.Routes.ComputeRoutes are blocked.' } }, false, 403);
+  const dn = make({ dailyCap: () => 100 });
+  await dn.svc.find(Q);
+  dn.dovedeCityRoute.rows.length = 0;
+  const closed = createCityRoutes({ prisma: dn.prisma, key: () => 'k', fetchImpl: denied.fetchImpl, now: () => NOW, ownRoute: () => null, dailyCap: () => 100 });
+  assert.deepEqual(await closed.find({ ...Q, to: 'Крошня' }), { ok: false, fallback: 'maps', reason: 'denied' });
+  assert.deepEqual(await closed.find({ ...Q, to: 'Малеванка' }), { ok: false, fallback: 'maps', reason: 'denied' });
+  assert.deepEqual(await closed.learnTick(3), { asked: 0, learned: 0 });
+  assert.equal(denied.calls.length, 1);
+  assert.deepEqual([(await closed.stats()).googleError?.status, (await closed.stats()).googleError?.message, (await closed.stats()).callsToday], [403, 'Requests to this API routes.googleapis.com method google.maps.routing.v2.Routes.ComputeRoutes are blocked.', 0]);
+  assert.equal(dn.dovedeCityDemand.rows.every((r) => (r.learnFailedAt ?? null) === null), true);
 
   // 400 — Google не прийняв саме цю адресу: «дороги немає», і це вже вина пари
   const bad = make({}, {}, false);

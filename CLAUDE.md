@@ -265,9 +265,11 @@ of `dist` in a commit.
   `REFRESH_RETRY_DAYS` (7); archived rows are never refreshed. The same pause applies to a demand pair the learning
   asked Google about without success (`DovedeCityDemand.learnFailedAt`) and to a failed seed pair (in memory) — a few
   dead pairs must not eat every tick. A person's own question is never held back by these marks. Only «no route» is
-  the pair's fault (also Google's 400 / 404). Google's own quota (HTTP 429) answers `reason: 'cap'`, is not counted in
-  our cap, blocks further calls for `QUOTA_BACKOFF_MS` (10 min) and shows in the admin block (`googleQuotaHitAt`); a
-  429, our cap or a Google failure stops the learning tick and marks nothing. Admin block «Місто: що вже знаємо»
+  the pair's fault (also Google's 400 / 404). Google's own quota (HTTP 429) answers `reason: 'cap'` and a refused key / disabled API / billing (401, 403)
+  `reason: 'denied'`: neither is counted in our cap, both block further calls for `QUOTA_BACKOFF_MS` (10 min), and
+  Google's own error text is kept in memory and shown in the admin block and at the end of a crawl run
+  (`googleError: { at, status, message }`). A 429, a 403, our cap or a Google failure stops the learning tick and marks
+  nothing; the crawl never journals such failures, so the question stays in its queue. Admin block «Місто: що вже знаємо»
   (`AdminPage/DovedeCityPanel.tsx`, `GET /admin/dovede/city`). Golden `scope: city`.
   The same block has «Скинути лічильник попиту» (`POST /admin/dovede/city/demand/reset`): it sets `asked = 0` and
   deletes nothing; a row with `asked = 0` is in neither the list nor the learning queue until a person asks again.
