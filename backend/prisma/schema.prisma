@@ -1061,6 +1061,33 @@ model StickerPrint {
   @@index([cityCode])
 }
 
+/// Реклама «Доведе» (Docs/dovede-roadmap.md, «Облік реклами»): міні-тизер перед табло зупинки після скану наклейки
+/// (placement sticker) і ролик-вступ /dovede (placement dovede); подія на рядок. viewId — один перегляд у браузері
+/// (shown — показали, started — почав грати, completed — досмотрів); page — відкрив /dovede з доступом (access:
+/// admin | guest | public, визначає сервер). Повтор тієї ж пари viewId + event не записується. Без персональних даних:
+/// clientId — той самий анонімний id браузера, що в StickerScan; device — лише ios | android | desktop | other.
+model AdEvent {
+  id        Int      @id @default(autoincrement())
+  /// Місто сайту, з якого прийшла подія (TripPoint.code); для dovede — Малин
+  cityCode  String   @default("Malyn")
+  placement String
+  event     String
+  viewId    String
+  clientId  String?
+  /// Файл ролика без розширення (hint-<хеш>, intro-<хеш>) — щоб розрізняти версії
+  video     String?
+  /// sticker: зупинка, з наклейки якої прийшла людина
+  stopId    String?
+  access    String?
+  device    String?
+  createdAt DateTime @default(now())
+
+  @@unique([viewId, event])
+  @@index([createdAt])
+  @@index([placement, createdAt])
+  @@index([clientId])
+}
+
 /// Факт прибуття міського автобуса від пасажира: довге натискання на час рейсу на сторінці маршруту
 /// або на картку табло зупинки (backend/src/arrival-reports.ts). Поки лише статистика для точних
 /// графіків. Пов'язаний із TransportTrip/TransportStop за id, але без FK: датасет замінюється цілком,

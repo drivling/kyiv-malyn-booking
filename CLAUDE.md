@@ -143,7 +143,10 @@ of `dist` in a commit.
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
   opens the page — `DovedePage/intro/`, flag `dovede-intro:v1`, file `public/dovede/intro-<hash>.mp4` from
   `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends
-  `X-Robots-Tag: noindex…` on `/dovede` and everything under it — `robotsHeadersFor`; never list it in `robots.txt`): a person asks in plain words and gets a story of cards built in the browser
+  `X-Robots-Tag: noindex…` on `/dovede` and everything under it — `robotsHeadersFor`; never list it in `robots.txt`; the same full-screen ad
+  mechanics in `frontend/src/ads/` play an 8-second teaser once before the stop board for sticker scans — `stickerAd.ts`,
+  flag `dovede-hint:v1`; views and `/dovede` visits with access go to `AdEvent` via `POST /ads/events`, the wall
+  widget's «Реклама» tab reads `GET /ads/wall`): a person asks in plain words and gets a story of cards built in the browser
   (`frontend/src/pages/DovedePage/`: `nlu/parseLocal` dictionary parse → `compose/` with `/poputky/search`, anchors
   and the Malyn RAPTOR planner → template text). **AI only understands the text, it never names a time, route or
   price.** Access is decided by the server (`src/dovede/access.ts`, page side `DovedePage/access.ts`): until

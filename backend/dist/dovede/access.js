@@ -6,6 +6,7 @@ exports.dovedePassword = dovedePassword;
 exports.dovedeAccessFromEnv = dovedeAccessFromEnv;
 exports.dovedeAccessToken = dovedeAccessToken;
 exports.hasDovedeAccess = hasDovedeAccess;
+exports.dovedeAccessKind = dovedeAccessKind;
 exports.requireDovedeAccess = requireDovedeAccess;
 exports.createLoginFailures = createLoginFailures;
 /**
@@ -46,6 +47,15 @@ function hasDovedeAccess(req, cfg) {
         return true;
     const password = cfg.password();
     return password !== null && (0, require_admin_1.safeEqual)(req.headers[exports.DOVEDE_TOKEN_HEADER], dovedeAccessToken(password));
+}
+/** Хто відкрив «Доведе» (облік реклами, ad-events.ts): адмін, гість із паролем, усі (DOVEDE_PUBLIC) чи ніхто */
+function dovedeAccessKind(req, cfg) {
+    if ((0, require_admin_1.isAdminRequest)(req))
+        return 'admin';
+    const password = cfg.password();
+    if (password !== null && (0, require_admin_1.safeEqual)(req.headers[exports.DOVEDE_TOKEN_HEADER], dovedeAccessToken(password)))
+        return 'guest';
+    return cfg.isPublic() ? 'public' : null;
 }
 function requireDovedeAccess(cfg) {
     return (req, res, next) => {

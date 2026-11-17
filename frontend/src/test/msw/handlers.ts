@@ -14,6 +14,8 @@ const emptyDataset = {
 
 /** Minimal API stubs for unit/integration tests. */
 export const handlers = [
+  // облік реклами «Доведе» (ads/adEvents.ts) — тести, що його перевіряють, ставлять свій обробник
+  http.post(`${TEST_API_URL}/ads/events`, () => HttpResponse.json({ ok: true, counted: true }, { status: 201 })),
   http.post(`${TEST_API_URL}/admin/login`, async ({ request }) => {
     const body = (await request.json()) as { password?: string };
     if (body.password) {

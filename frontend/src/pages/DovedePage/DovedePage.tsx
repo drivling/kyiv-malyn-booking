@@ -16,7 +16,9 @@ import { getKyivDateString, getKyivMinutesNow } from '@/pages/LocalTransportPage
 import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerModel';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
-import { DovedeIntro } from './intro/DovedeIntro';
+import { DovedeIntro, type IntroEvent } from './intro/DovedeIntro';
+import { INTRO_NAME } from './intro/introMedia';
+import { newViewId, trackAd } from '@/ads/adEvents';
 import { introSeen } from './intro/introState';
 import { classify, defaultCarMinutes, composeStories, corridorCities, resolveDate, rideDepartures, type DriveEstimate } from './compose/composeStories';
 import { placesInNote, type NoteDir } from './nlu/notePlaces';
@@ -68,6 +70,10 @@ export default function DovedePage() {
   // video — ролик, сторінки ще немає; ticket — ролик скінчився, сторінка під ним (недоступна); done — лише сторінка
   const [intro, setIntro] = useState<'video' | 'ticket' | 'done'>(() => (introSeen() ? 'done' : 'video'));
   const covered = intro !== 'done';
+  // облік реклами: перегляд ролика-вступу й «відкрив сторінку з доступом» (хто — визначає сервер)
+  const [viewId] = useState(newViewId);
+  const onIntroEvent = (event: IntroEvent) => trackAd({ placement: 'dovede', event, viewId, video: INTRO_NAME });
+  usePageSeenOnce(access.state === 'open' && !covered);
   // Розклад міста й пошук вантажаться лише після входу
   const page =
     access.state === 'open' ? (
@@ -78,9 +84,24 @@ export default function DovedePage() {
   return (
     <>
       {intro === 'video' ? null : <PageUnder covered={covered}>{page}</PageUnder>}
-      {covered ? <DovedeIntro onTicket={() => setIntro((s) => (s === 'video' ? 'ticket' : s))} onDone={() => setIntro('done')} /> : null}
+      {covered ? <DovedeIntro onTicket={() => setIntro((s) => (s === 'video' ? 'ticket' : s))} onDone={() => setIntro('done')} onEvent={onIntroEvent} /> : null}
     </>
   );
+}
+
+/** Раз за сесію вкладки: людина з доступом (пароль запрошених, адмін, публічна сторінка) бачить саму сторінку */
+const PAGE_SEEN_KEY = 'dovede-page-seen:v1';
+function usePageSeenOnce(visible: boolean) {
+  useEffect(() => {
+    if (!visible) return;
+    try {
+      if (sessionStorage.getItem(PAGE_SEEN_KEY)) return;
+      sessionStorage.setItem(PAGE_SEEN_KEY, '1');
+    } catch {
+      /* без sessionStorage — рахуємо кожне відкриття */
+    }
+    trackAd({ placement: 'dovede', event: 'page', viewId: newViewId() });
+  }, [visible]);
 }
 
 /** Сторінка під вступом: поки її накриває ролик чи талон, вона недоступна — ні фокусу, ні читача екрана */

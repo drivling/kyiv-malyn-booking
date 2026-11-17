@@ -32,6 +32,7 @@ const PUBLIC_ENDPOINTS = [
   'POST /transport/sticker-scans',
   'POST /transport/sticker-returns',
   'POST /transport/arrival-reports',
+  'POST /ads/events',
   'GET /trip-points',
   'GET /viber-listings',
   'GET /viber-listings/search',

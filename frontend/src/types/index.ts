@@ -1088,6 +1088,45 @@ export interface StickerWallSnapshot {
   bestDay: { day: string; count: number } | null;
 }
 
+/** POST /ads/events — подія перегляду реклами «Доведе» (ads/adEvents.ts) */
+export interface AdEventBody {
+  placement: 'sticker' | 'dovede';
+  event: 'shown' | 'started' | 'completed' | 'page';
+  viewId: string;
+  clientId?: string;
+  video?: string;
+  stopId?: string;
+  city?: string;
+}
+
+type AdCounts = { shown: number; started: number; completed: number };
+
+/** GET /ads/wall?key= — вкладка «Реклама» на стіні наклейок */
+export interface AdWallSnapshot {
+  now: string;
+  day: string;
+  sticker: { today: AdCounts; total: AdCounts; people: number };
+  dovede: {
+    today: AdCounts & { pages: number };
+    total: AdCounts & { pages: number };
+    access: { admin: number; guest: number; public: number };
+    people: number;
+  };
+  views: {
+    viewId: string;
+    placement: 'sticker' | 'dovede';
+    kind: 'view' | 'page';
+    stopId: string | null;
+    device: string | null;
+    who: string | null;
+    seenBefore: number;
+    access: string | null;
+    at: string;
+    started: boolean;
+    completed: boolean;
+  }[];
+}
+
 /** Вікно графіків статистики наклейок, днів; 1 — сьогодні (київська доба від півночі) */
 export type StickerStatsDays = 1 | 7 | 30 | 90;
 

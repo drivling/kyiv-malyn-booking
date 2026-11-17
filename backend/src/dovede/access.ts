@@ -51,6 +51,14 @@ export function hasDovedeAccess(req: Request, cfg: DovedeAccessConfig): boolean 
   return password !== null && safeEqual(req.headers[DOVEDE_TOKEN_HEADER], dovedeAccessToken(password));
 }
 
+/** Хто відкрив «Доведе» (облік реклами, ad-events.ts): адмін, гість із паролем, усі (DOVEDE_PUBLIC) чи ніхто */
+export function dovedeAccessKind(req: Request, cfg: DovedeAccessConfig): 'admin' | 'guest' | 'public' | null {
+  if (isAdminRequest(req)) return 'admin';
+  const password = cfg.password();
+  if (password !== null && safeEqual(req.headers[DOVEDE_TOKEN_HEADER], dovedeAccessToken(password))) return 'guest';
+  return cfg.isPublic() ? 'public' : null;
+}
+
 export function requireDovedeAccess(cfg: DovedeAccessConfig): RequestHandler {
   return (req, res, next) => {
     if (hasDovedeAccess(req, cfg)) next();

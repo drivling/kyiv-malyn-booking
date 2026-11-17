@@ -12,6 +12,7 @@ import { TEST_API_URL } from '@/test/msw/handlers';
 import { invalidateTransportDatasetCache } from './dataset/useTransportDataset';
 import { tomorrowDateUrl } from './dateUrl';
 import { LocalTransportStopBoardPage } from './LocalTransportStopBoardPage';
+import { HINT_SEEN_KEY } from '@/ads/stickerAd';
 
 // Карта: замість Leaflet — кнопка, що імітує тап по маркеру зупинки st_c
 vi.mock('./RouteMap', () => ({
@@ -365,6 +366,8 @@ describe('LocalTransportStopBoardPage: analytics events', () => {
       })
     );
     const url = '/transport/stop/st_a?utm_source=sticker&utm_medium=qr&utm_campaign=st_a-b';
+    // міні-тизер «Доведе» перед табло цей браузер уже бачив — тут лише облік скану (тизер — окремий тест нижче)
+    localStorage.setItem(HINT_SEEN_KEY, '2026-11-17T00:00:00.000Z');
     try {
       const first = renderBoard(url);
       await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
@@ -386,6 +389,51 @@ describe('LocalTransportStopBoardPage: analytics events', () => {
       Reflect.deleteProperty(window, 'gtag');
       sessionStorage.clear();
       localStorage.removeItem('sticker-origin');
+      localStorage.removeItem(HINT_SEEN_KEY);
+    }
+  });
+
+  it('скан наклейки вперше — міні-тизер «Доведе» перед табло, облік показу й досмотру; удруге — одразу табло', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    // без анімацій: після ролика табло відкривається затуханням, без кола
+    vi.stubGlobal('matchMedia', vi.fn((q: string) => ({ matches: q.includes('reduce'), media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    const ads: { placement: string; event: string; stopId?: string; video?: string }[] = [];
+    server.use(
+      http.post(`${TEST_API_URL}/transport/sticker-scans`, () => HttpResponse.json({ ok: true, counted: true }, { status: 201 })),
+      http.post(`${TEST_API_URL}/ads/events`, async ({ request }) => {
+        ads.push((await request.json()) as (typeof ads)[number]);
+        return HttpResponse.json({ ok: true, counted: true }, { status: 201 });
+      })
+    );
+    const url = '/transport/stop/st_a?utm_source=sticker&utm_medium=qr&utm_campaign=st_a-b';
+    try {
+      const first = renderBoard(url);
+      const dialog = await screen.findByRole('dialog', { name: 'Ролик «Доведе.» перед розкладом зупинки' });
+      const video = dialog.querySelector('video') as HTMLVideoElement;
+      expect(video.getAttribute('src')).toMatch(/^\/ads\/hint-[0-9a-f]{8}\.mp4$/);
+      expect(video).not.toHaveAttribute('controls');
+      await waitFor(() => expect(play).toHaveBeenCalled());
+      // табло під тизером уже вантажиться
+      await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
+      video.dispatchEvent(new Event('playing'));
+      video.dispatchEvent(new Event('ended'));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(localStorage.getItem(HINT_SEEN_KEY)).not.toBeNull();
+      await waitFor(() => expect(ads.map((a) => a.event)).toEqual(['shown', 'started', 'completed']));
+      expect(ads.every((a) => a.placement === 'sticker' && a.stopId === 'st_a' && /^hint-[0-9a-f]{8}$/.test(a.video ?? ''))).toBe(true);
+      first.unmount();
+      sessionStorage.clear();
+      renderBoard(url);
+      await waitFor(() => expect(h1()).toHaveTextContent('Зупинка «Базар»'), { timeout: 5000 });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+      sessionStorage.clear();
+      localStorage.removeItem('sticker-origin');
+      localStorage.removeItem(HINT_SEEN_KEY);
     }
   });
 

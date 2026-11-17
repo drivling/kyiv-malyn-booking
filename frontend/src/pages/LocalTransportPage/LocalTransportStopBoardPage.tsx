@@ -1,6 +1,6 @@
 import { TransportFooter } from './TransportFooter';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { stopRedirectTarget } from './stopRedirects';
 import { Combobox } from '@/components/Combobox';
 import { usePageSeo } from '@/hooks';
@@ -33,6 +33,7 @@ import { RouteMap } from './RouteMap';
 import { DateTimeControls } from './DateTimeControls';
 import { formatDistance, useNearestStops } from './useNearestStops';
 import { useStickerScan } from './stickerScan';
+import { stickerAdFor } from '@/ads/stickerAd';
 import { ArrivalReportSheet } from './ArrivalReportSheet';
 import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
 import { useLongPress } from './useLongPress';
@@ -111,7 +112,34 @@ function formatWaitMins(mins: number): string {
   return m > 0 ? `${h} год ${m} хв` : `${h} год`;
 }
 
+/** Міні-тизер «Доведе» після скану наклейки (ads/stickerAd.ts) — окремим чанком, лише коли його показуємо */
+const StickerAdIntro = lazy(() => import('@/ads/StickerAdIntro'));
+
+/** Поки чанк тизера вантажиться — білий екран замість табло, щоб воно не блимнуло перед роликом */
+const AD_COVER: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 2147483000, background: '#fff' };
+
+/**
+ * Табло зупинки. Хто прийшов скануванням наклейки й ще не бачив міні-тизер «Доведе», спершу дивиться його (8 с) —
+ * табло під ним уже вантажиться й відкривається колом, коли ролик закінчиться. Рішення — з першої адреси: скан
+ * одразу переписує `utm_source=sticker` на `reload` (stickerScan.ts).
+ */
 export const LocalTransportStopBoardPage: React.FC = () => {
+  const { search } = useLocation();
+  const [ad] = useState(() => stickerAdFor(search));
+  const [showAd, setShowAd] = useState(ad != null);
+  return (
+    <>
+      <StopBoard />
+      {showAd && ad ? (
+        <Suspense fallback={<div style={AD_COVER} aria-hidden="true" />}>
+          <StickerAdIntro stopId={ad.stopId} onDone={() => setShowAd(false)} />
+        </Suspense>
+      ) : null}
+    </>
+  );
+};
+
+const StopBoard: React.FC = () => {
   const { stopSlug } = useParams<{ stopSlug?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
