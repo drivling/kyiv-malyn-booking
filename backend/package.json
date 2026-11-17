@@ -16,6 +16,7 @@
     "export:gtfs": "ts-node src/scripts/export-gtfs.ts",
     "korosten:snapshot": "node dist/scripts/korosten-source-snapshot.js",
     "korosten:dataset": "node dist/scripts/korosten-dataset.js",
+    "zhytomyr:snapshot": "node dist/scripts/zhytomyr-snapshot.js",
     "calculate:segments": "ts-node src/scripts/calculate-segment-durations.ts",
     "test": "vitest run",
     "test:watch": "vitest",

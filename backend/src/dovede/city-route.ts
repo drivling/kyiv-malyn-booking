@@ -16,6 +16,8 @@ import { kyivDayStart } from './guard';
 export const CITY_FRESH_DAYS = 30;
 export const DEFAULT_CITY_DAILY_CAP = 150;
 const TIMEOUT_MS = 4000;
+import { ownZhytomyrRoute } from './zhytomyr-own';
+
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 const FIELD_MASK = [
   'routes.duration',
@@ -57,6 +59,8 @@ export interface CityStep {
   stops?: number;
   /** поїзди / автобуси кожні стільки хвилин, якщо відомо */
   headwayMin?: number;
+  /** 'HH:MM' — відправлення з розкладу (лише власні дані) */
+  departs?: string;
 }
 
 export type CityRouteAnswer =
@@ -205,6 +209,9 @@ export interface CityRoutesDeps {
   /** писати знайдене в базу */
   store?: () => boolean;
   dailyCap?: () => number;
+  /** пряма поїздка Житомиром за власними даними; у тестах — заглушка */
+  ownRoute?: typeof ownZhytomyrRoute;
+  ownEnabled?: () => boolean;
 }
 
 export function cityRoutesEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
@@ -239,6 +246,8 @@ export function createCityRoutes(deps: CityRoutesDeps) {
   const enabled = deps.enabled ?? (() => cityRoutesEnabled());
   const store = deps.store ?? (() => cityStoreEnabled());
   const dailyCap = deps.dailyCap ?? (() => cityDailyCap());
+  const ownRoute = deps.ownRoute ?? ownZhytomyrRoute;
+  const ownEnabled = deps.ownEnabled ?? (() => (process.env.DOVEDE_CITY_OWN ?? '1').trim() !== '0');
   // лічильник у памʼяті — на випадок, коли запис у базу вимкнено й рахувати рядки нема з чого
   let memoDay = '';
   let memoCalls = 0;
@@ -334,6 +343,15 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     const to = resolveCityPoint(q.city, q.to);
     const hour = Number(q.time.slice(0, 2));
     if (!from || !to || from.key === to.key || !Number.isInteger(hour)) return { ok: false, fallback: 'maps', reason: 'no_route' };
+
+    // Житомир: спершу пряма поїздка за власним розкладом (zt.rozklad.in.ua), звіреним з Google, — без запитів назовні
+    if (q.city === 'Zhytomyr' && ownEnabled()) {
+      const own = ownRoute({ from: q.from.trim(), to: q.to.trim(), date: q.date, time: q.time }, { from: from.label, to: to.label });
+      if (own) {
+        if (!background) await noteDemand(q.city, from, to, true);
+        return own;
+      }
+    }
 
     const stored = await findStored(q, from, to, hour).catch((e) => {
       console.error('❌ city-route: читання з бази:', e);

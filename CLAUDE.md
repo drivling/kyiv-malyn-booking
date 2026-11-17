@@ -241,6 +241,16 @@ of `dist` in a commit.
   Background learning: `startIntervalJob('dovede-city-learn')` (`DOVEDE_CITY_LEARN_INTERVAL_MIN`, default 60) refreshes
   the most asked pairs and `SEED_PAIRS` within half of the daily cap. Admin block «Місто: що вже знаємо»
   (`AdminPage/DovedeCityPanel.tsx`, `GET /admin/dovede/city`). Golden `scope: city`.
+  Zhytomyr from the owner's own site (stage 3б): `npm run zhytomyr:snapshot` (backend; flags in the script header) keeps
+  `data/zhytomyr-transport/` — pages of `zt.rozklad.in.ua` (the site refuses requests without a browser `User-Agent`)
+  parsed by `zhytomyr-site-parser.ts` into `routes.json`, stop coordinates from an OSM snapshot plus Google for names
+  OSM lacks (`zhytomyr-stops.ts`, `stops.json`; manual `stops.hints.json`), and the check of every direction against
+  Google Routes (`zhytomyr-google-check.ts` → `google/checks.json`, `REPORT.md`: three large spans decide `checked`, then
+  every hop; resumable, Google's quota stops it early). The server has no `data/` directory, so the script also writes
+  `backend/src/dovede/zhytomyr-own-data.ts`; tests keep all generated files equal to the generators — never edit them
+  by hand, rerun the script. `dovede/zhytomyr-own.ts` answers a **direct** trip from it (`source: 'own'`, before the DB
+  and Google, `DOVEDE_CITY_OWN=0` switches it off): only `checked` directions, only when both ends are the bus station
+  or a place named like one of our stops; everything else still goes to the DB and Google.
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
   listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
   `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:

@@ -156,6 +156,8 @@ export interface CityStep {
   toStop?: string;
   stops?: number;
   headwayMin?: number;
+  /** 'HH:MM' — відправлення з розкладу (лише власні дані: Житомир із zt.rozklad.in.ua) */
+  departs?: string;
 }
 
 export interface CityRoute {
