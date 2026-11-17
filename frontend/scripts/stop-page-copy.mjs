@@ -20,15 +20,20 @@ export function stopPageTitle(name, city = MALYN_COPY_CITY) {
  * пререндер відкидає приховані перед викликом). Тут і нижче в масивах — номери для показу («11/1»),
  * не id: викликач перетворює id → номер (SPA — routeNo(), пререндер — shortName з датасету).
  */
-export function stopArticleDescription(article) {
+export function stopArticleDescription(article, city = MALYN_COPY_CITY) {
   if (article.place) {
     const routes =
       article.routeIds && article.routeIds.length
         ? ` Маршрути: ${article.routeIds.map((r) => `№${r}`).join(', ')}.`
         : '';
-    return `Зупинка «${article.name}» у Малині — ${article.place}.${routes}`;
+    return `Зупинка «${article.name}» у ${city.locative} — ${article.place}.${routes}`;
   }
-  return (article.lead && article.lead.trim()) || `Зупинка «${article.name}» у Малині.`;
+  return (article.lead && article.lead.trim()) || `Зупинка «${article.name}» у ${city.locative}.`;
+}
+
+/** Місто для текстів сторінок зупинок з запису мапи сайтів (site-hosts.mjs) */
+export function copyCityOfSite(site) {
+  return { genitive: site.cityNameUkGenitive, locative: site.cityNameUkLocative, domain: site.domain };
 }
 
 /** Опис, коли статті про зупинку немає (`routeIds` — номери для показу) */

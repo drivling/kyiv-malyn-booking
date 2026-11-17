@@ -30,5 +30,10 @@ describe('stop-page-copy (SPA board + static prerender share it)', () => {
     expect(stopArticlePlainText(article)).toBe(stopArticleDescription(article));
     expect(stopArticleDescription({ name: 'Базар', lead: ' Опис. ' })).toBe('Опис.');
     expect(stopArticleDescription({ name: 'Базар' })).toBe('Зупинка «Базар» у Малині.');
+    const korosten = { genitive: 'Коростеня', locative: 'Коростені', domain: 'korosten.kiev.ua' };
+    expect(stopArticleDescription({ ...article, name: 'Школа №8', place: 'вул. Залізнична' }, korosten)).toBe(
+      'Зупинка «Школа №8» у Коростені — вул. Залізнична. Маршрути: №2, №3.'
+    );
+    expect(stopArticleDescription({ name: 'Церква' }, korosten)).toBe('Зупинка «Церква» у Коростені.');
   });
 });

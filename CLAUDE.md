@@ -510,6 +510,14 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   hit, `DomainGuard` for SPA navigation (the Telegram Login widget is bound to one bot domain).
 - korosten.kiev.ua is `noindex` for now (`X-Robots-Tag`, synthetic `robots.txt`, 404 sitemap in
   `serve-dist.mjs`); all canonicals keep pointing at malin.kiev.ua.
+- `/transport*` of a secondary domain is its own static tree `dist/sites/<key>/` (`PRERENDER_SITE=<key>` for
+  `prerender-transport-stops` + `prerender-spa`, `SEO_SMOKE_SITE=<key>` for `seo-smoke`; canonicals there are the city's
+  domain, as in the SPA). The tree is built only when the city's public dataset answers (`hasLocalTransport` on) — flip
+  the flag, then redeploy the frontend. `serve-dist` never serves Malyn's HTML or data snapshots from the root
+  `dist/transport` on another host (shell instead; poster files are fine), takes 410 / stop-301 data from the site's
+  tree, and adds `city=` to the API 302s (pure rules in `serve-dist-rules.mjs`). Stop articles are per city: Korosten's
+  `src/content/stops/korosten-articles.json` is generated from the council stop list by `scripts/city-stop-articles.mjs`
+  (street only — no coordinates, routes come from the dataset; a test keeps it equal to the generator).
 - Local transport is gated per city by `TripPoint.hasLocalTransport` (checkbox in the admin
   «Маршрути» tab) — `LocalTransportGate` renders a «скоро» stub where it is off. The transport
   dataset itself is still single-tenant Malyn.

@@ -5,8 +5,9 @@ export type StopArticleLike = { name: string; place?: string; lead?: string; rou
 export type StopCopyCity = { genitive: string; locative: string; domain: string };
 export declare const MALYN_COPY_CITY: StopCopyCity;
 export declare function stopPageTitle(name: string, city?: StopCopyCity): string;
-export declare function stopArticleDescription(article: StopArticleLike): string;
+export declare function stopArticleDescription(article: StopArticleLike, city?: StopCopyCity): string;
 export declare function stopFallbackDescription(name: string, routeIds: string[], city?: StopCopyCity): string;
 export declare function stopHubFaq(city?: StopCopyCity): StopFaqItem[];
 export declare const STOP_HUB_FAQ: StopFaqItem[];
 export declare function stopRoutesFaq(name: string, routeIds: string[], stopId: string, city?: StopCopyCity): StopFaqItem;
+export declare function copyCityOfSite(site: { cityNameUkGenitive: string; cityNameUkLocative: string; domain: string }): StopCopyCity;

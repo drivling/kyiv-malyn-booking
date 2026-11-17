@@ -34,6 +34,11 @@ export const SITES = {
     cityNameUk: 'Коростень',
     cityNameUkGenitive: 'Коростеня',
     cityNameUkLocative: 'Коростені',
+    /** Звідки розклад міського транспорту (підвал сторінок /transport*, статичні сторінки зупинок) */
+    transportSource: {
+      href: 'https://korosten-rada.gov.ua/miska-rada/upravlinnya-ta-viddily/upravlinnya-ekonomiky/viddil-misczevogo-ekonomichnogo-rozvytku/transport/miskyj-transport/rozklad-ruhu-miskogo-transportu-rozklad-ruhu-avtobusiv-na-period-vijskovogo-stanu/',
+      label: 'Розклад: Коростенська міська рада',
+    },
     isPrimary: false,
     active: true,
   },

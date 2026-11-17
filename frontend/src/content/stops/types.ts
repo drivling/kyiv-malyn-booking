@@ -1,4 +1,4 @@
-import { stopArticleDescription } from '../../../scripts/stop-page-copy.mjs';
+import { stopArticleDescription, type StopCopyCity } from '../../../scripts/stop-page-copy.mjs';
 
 export type StopArticle = {
   /** Stable stop id, e.g. st_0019 */
@@ -21,6 +21,6 @@ export type StopArticle = {
 };
 
 /** Text for meta description — the same helper the static prerender uses (scripts/stop-page-copy.mjs) */
-export function stopArticlePlainText(article: StopArticle): string {
-  return stopArticleDescription(article);
+export function stopArticlePlainText(article: StopArticle, city?: StopCopyCity): string {
+  return stopArticleDescription(article, city);
 }

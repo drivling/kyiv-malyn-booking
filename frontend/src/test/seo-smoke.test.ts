@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { analyzeHtml, parseSitemap, urlToPath, visibleText } from '../../scripts/seo-smoke-lib.mjs';
+import { analyzeHtml, foreignCityLeaks, parseSitemap, urlToPath, visibleText } from '../../scripts/seo-smoke-lib.mjs';
 // @ts-expect-error — same
 import { resolveCorridorSchedules } from '../../scripts/prerender-corridors.mjs';
 
@@ -115,5 +115,29 @@ describe('prerender-corridors resolveCorridorSchedules (D10)', () => {
 
   it('PRERENDER_ALLOW_EMPTY-style override yields an explicit empty result', () => {
     expect(resolveCorridorSchedules('malyn-kyiv', {}, empty, { allowEmpty: true, today: '2026-09-10' })).toMatchObject({ rows: [], source: 'empty' });
+  });
+});
+
+describe('seo-smoke: дерево сайту іншого міста (фаза 10б)', () => {
+  const korosten = (body: string, canonical = 'https://korosten.kiev.ua/transport/stop/st_1001') =>
+    `<html><head><title>Зупинка — Коростень</title><link rel="canonical" href="${canonical}" /></head><body>${body}</body></html>`;
+
+  it('canonical очікується на домені свого сайту', () => {
+    const html = korosten('<h1>Зупинка</h1>');
+    const errors = (o?: string) => analyzeHtml(html, { url: 'https://korosten.kiev.ua/transport/stop/st_1001', shellTitle: null, origin: o }).errors;
+    expect(errors('https://korosten.kiev.ua').some((e: string) => e.startsWith('canonical'))).toBe(false);
+    expect(errors().some((e: string) => e.startsWith('canonical'))).toBe(true);
+  });
+
+  it('ловить Малин у тексті й посилання на транспорт malin.kiev.ua', () => {
+    expect(foreignCityLeaks(korosten('<h1>Транспорт Коростеня</h1><p>Зупинка «Вокзал» у Коростені.</p>'))).toEqual([]);
+    expect(foreignCityLeaks(korosten('<p><a href="/transport">Транспорт Малина</a></p>'))[0]).toMatch(/Малин у тексті/);
+    expect(foreignCityLeaks(korosten('<p>у Малині</p>'))).toHaveLength(1);
+    expect(foreignCityLeaks(korosten('<p>Малин</p>'))).toHaveLength(1);
+    // Малин як міжміський напрямок у FAQ хаба — доречно
+    expect(foreignCityLeaks(korosten('<p>Міжміські попутки й маршрутки Київ / Житомир / Малин — на /mizhgorodski.</p>'))).toEqual([]);
+    // інше слово з тим самим початком — не Малин
+    expect(foreignCityLeaks(korosten('<p>вул. Малинівська</p>'))).toEqual([]);
+    expect(foreignCityLeaks(korosten('<p>ok</p>', 'https://malin.kiev.ua/transport/stop/st_0001'))[0]).toMatch(/malin\.kiev\.ua/);
   });
 });

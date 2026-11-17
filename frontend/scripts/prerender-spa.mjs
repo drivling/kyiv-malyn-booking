@@ -11,6 +11,9 @@
  * sitemap and prerender can never disagree. Corridors and stops keep their dedicated prerenders.
  *
  * Env: PRERENDER_SPA_ONLY=/support/prices,/transport  → render a subset (debugging)
+ *      PRERENDER_SITE=korosten → сайт іншого міста (фаза 10б): jsdom на його домені, лише сторінки /transport* зі sitemap.xml
+ *      його дерева dist/sites/<key>/ (пише prerender-transport-stops з тією ж змінною), вихід — у те саме дерево. Нема
+ *      дерева (транспорт міста ще не опубліковано) — нічого не робимо. Окремий процес: кеші SPA тримають місто.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -19,12 +22,19 @@ import { JSDOM } from 'jsdom';
 import { createServer } from 'vite';
 import { API_BASE } from './api-base.mjs';
 import { setCanonical, setOg, stripRobots, upsertHeadTag } from './html-head.mjs';
+import { siteTreeDir } from './serve-dist-rules.mjs';
+import { SITES } from './site-hosts.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const frontendDir = path.resolve(__dirname, '..');
 const distDir = path.join(frontendDir, 'dist');
 const shellPath = path.join(distDir, 'index.html');
-const SITE = 'https://malin.kiev.ua';
+const SITE_KEY = process.env.PRERENDER_SITE || 'malyn';
+const SITE_CONF = SITES[SITE_KEY];
+const IS_PRIMARY = Boolean(SITE_CONF?.isPrimary);
+const SITE = `https://${SITE_CONF?.domain ?? 'malin.kiev.ua'}`;
+/** Куди пишемо й звідки беремо sitemap: Малин — корінь dist, інше місто — його дерево */
+const outRoot = IS_PRIMARY ? distDir : path.join(distDir, siteTreeDir(SITE_KEY));
 
 const STATIC_ROUTES = [
   '/mizhgorodski',
@@ -55,11 +65,23 @@ export function publishableRouteIds(dataset) {
     .sort((a, b) => (Number(a) || 0) - (Number(b) || 0) || a.localeCompare(b));
 }
 
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Шляхи зі sitemap.xml (свого дерева), що відповідають `pathRe` — частина шляху після домену */
+export function sitemapPaths(xml, origin, pathRe) {
+  const re = new RegExp(`<loc>\\s*${escapeRegExp(origin)}(/[^<\\s]*?)/?\\s*</loc>`, 'g');
+  return [...xml.matchAll(re)].map((m) => decodeURIComponent(m[1])).filter((p) => pathRe.test(p));
+}
+
 function routePathsFromSitemap() {
-  const sitemapPath = path.join(distDir, 'sitemap.xml');
+  const sitemapPath = path.join(outRoot, 'sitemap.xml');
   if (!fs.existsSync(sitemapPath)) return [];
   const xml = fs.readFileSync(sitemapPath, 'utf8');
-  return [...xml.matchAll(/<loc>\s*https:\/\/malin\.kiev\.ua(\/transport\/route\/[^<\s]+?)\/?\s*<\/loc>/g)].map((m) => decodeURIComponent(m[1]));
+  // Сайт іншого міста: хаб, схема й маршрути з його sitemap (зупинки — статичні з prerender-transport-stops)
+  const pathRe = IS_PRIMARY ? /^\/transport\/route\/[^/]+$/ : /^\/transport(\/scheme|\/route\/[^/]+)?$/;
+  return sitemapPaths(xml, SITE, pathRe);
 }
 
 function installJsdomGlobals() {
@@ -142,10 +164,18 @@ async function main() {
     console.error('prerender-spa: dist/index.html missing — run vite build first');
     process.exit(1);
   }
+  if (!SITE_CONF) {
+    console.error(`prerender-spa: невідомий PRERENDER_SITE=${SITE_KEY}`);
+    process.exit(1);
+  }
+  if (!IS_PRIMARY && !fs.existsSync(path.join(outRoot, 'sitemap.xml'))) {
+    console.log(`prerender-spa[${SITE_KEY}]: дерева сайту нема (транспорт міста не опубліковано) — пропускаю`);
+    return;
+  }
   const shell = fs.readFileSync(shellPath, 'utf8');
   process.env.VITE_API_URL = API_BASE;
 
-  let paths = [...STATIC_ROUTES, ...routePathsFromSitemap()];
+  let paths = IS_PRIMARY ? [...STATIC_ROUTES, ...routePathsFromSitemap()] : routePathsFromSitemap();
   if (process.env.PRERENDER_SPA_ONLY) {
     const only = new Set(process.env.PRERENDER_SPA_ONLY.split(',').map((s) => s.trim()));
     paths = paths.filter((p) => only.has(p));
@@ -178,7 +208,7 @@ async function main() {
           console.error(`  FAIL ${urlPath}: ${problems.join('; ')}`);
           continue;
         }
-        const outDir = path.join(distDir, urlPath);
+        const outDir = path.join(outRoot, urlPath);
         fs.mkdirSync(outDir, { recursive: true });
         fs.writeFileSync(path.join(outDir, 'index.html'), buildHtml(shell, urlPath, r), 'utf8');
         console.log(`  wrote ${urlPath}/ (${r.rootHtml.length} chars, ${r.jsonLd.length} ld+json) — ${r.title}`);

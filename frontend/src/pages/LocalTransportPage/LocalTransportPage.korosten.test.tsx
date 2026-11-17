@@ -118,6 +118,21 @@ describe('сторінки транспорту Коростеня', () => {
     await waitFor(() => expect(document.title).toBe('Зупинка «Залізничний вокзал» — розклад маршруток Коростеня | korosten.kiev.ua'));
   });
 
+  it('табло: стаття Коростеня — вулиця з переліку ради, маршрути з датасету, опис з «у Коростені»', async () => {
+    renderAt('/transport/stop/st_1001');
+    const article = await screen.findByRole('region', { name: 'Про зупинку' }, { timeout: 5000 });
+    expect(article.textContent).toContain('Зупинка «Залізничний вокзал» у Коростені — вул. Героїв небесної сотні.');
+    expect(article.textContent).toContain('Адреса — з переліку зупинок Коростенської міської ради.');
+    expect(article.textContent?.replace(/\s+/g, '')).toContain('№1№2-Б№8');
+    // стаття без координат: точки частини зупинок Коростеня тимчасові
+    expect(article.querySelector('.lt-stop-article-coords')).toBeNull();
+    await waitFor(() =>
+      expect(document.querySelector('meta[name="description"]')?.getAttribute('content')).toBe(
+        'Зупинка «Залізничний вокзал» у Коростені — вул. Героїв небесної сотні. Маршрути: №1, №2-Б, №8.'
+      )
+    );
+  });
+
   it('/transport/scheme: схема Коростеня, свій плакат, SEO з домену Коростеня, без блоку відкритих даних', async () => {
     renderAt('/transport/scheme');
     expect(await screen.findByText('Коростень · 9 міських маршрутів · не в масштабі', {}, { timeout: 5000 })).toBeInTheDocument();
