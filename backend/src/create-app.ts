@@ -24,6 +24,7 @@ import { createAdminReferralsRouter } from './routes/admin-referrals';
 import { createAdminLunchRouter } from './routes/admin-lunch';
 import { createAdminDzhuraRouter } from './routes/admin-dzhura';
 import { createAdminDovedeRouter } from './routes/admin-dovede';
+import { createAdsRouter } from './routes/ads';
 import type { UnderstandFn } from './dovede/understand';
 import type { DovedeAccessConfig } from './dovede/access';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
@@ -143,6 +144,7 @@ app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
 app.use(createAdminDzhuraRouter({ prisma }));
 app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess }));
+app.use(createAdsRouter({ prisma, adminPassword: ADMIN_PASSWORD, access: deps.dovedeAccess }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
 app.use(
   createTransportRouter({

@@ -1,5 +1,6 @@
 import type { CSSProperties } from 'react';
-import type { StickerWallSnapshot } from '@/types';
+import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
+import { WallAds } from './WallAds';
 import { WallBadges } from './WallBadges';
 import {
   TAB_ROTATE_MS,
@@ -14,11 +15,12 @@ import {
   type WallStop,
 } from './stickerWall';
 
-export type WallTab = 'top' | 'growing';
+export type { WallTab } from './stickerWall';
+import type { WallTab } from './stickerWall';
 
 const opens = (n: number) => plural(n, ['відкриття', 'відкриття', 'відкриттів']);
 
-/** Головний екран віджета: ліворуч — сьогодні разом і по годинах, праворуч — «Топ дня» / «Зараз ростуть» */
+/** Головний екран віджета: ліворуч — сьогодні разом і по годинах, праворуч — «Топ дня» / «Зараз ростуть» / «Реклама» */
 export function WallBoard({
   snapshot,
   stops,
@@ -29,6 +31,8 @@ export function WallBoard({
   awake,
   offline,
   soundOn,
+  ads = null,
+  stopName = (id: string) => id,
 }: {
   snapshot: StickerWallSnapshot | null;
   stops: WallStop[];
@@ -40,6 +44,9 @@ export function WallBoard({
   awake: boolean;
   offline: boolean;
   soundOn: boolean;
+  /** Вкладка «Реклама»: GET /ads/wall */
+  ads?: AdWallSnapshot | null;
+  stopName?: (id: string) => string;
 }) {
   const clock = kyivClock(now);
   const hour = kyivHour(now);
@@ -48,7 +55,7 @@ export function WallBoard({
   const hourly = snapshot?.hourly ?? Array.from({ length: 24 }, () => 0);
   const peak = Math.max(1, ...hourly);
   const last = [...stops].sort((a, b) => (b.lastAt ?? '').localeCompare(a.lastAt ?? ''))[0] ?? null;
-  const list = tab === 'top' ? topStops(stops) : growingStops(stops);
+  const list = tab === 'top' ? topStops(stops) : tab === 'growing' ? growingStops(stops) : [];
   const listMax = Math.max(1, ...list.map((s) => (tab === 'top' ? s.today : s.last3h)));
   const accent = topStops(stops, 1)[0]?.color ?? schemePalette()[0] ?? '#2a78d6';
   const best = snapshot?.bestDay ?? null;
@@ -119,7 +126,7 @@ export function WallBoard({
         )}
       </section>
 
-      <section className="wall-list" aria-label={tab === 'top' ? 'Топ дня' : 'Зараз ростуть'}>
+      <section className="wall-list" aria-label={tab === 'top' ? 'Топ дня' : tab === 'growing' ? 'Зараз ростуть' : 'Реклама'}>
         <div className="wall-tabs" role="tablist">
           <button
             type="button"
@@ -145,6 +152,18 @@ export function WallBoard({
           >
             Зараз ростуть
           </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === 'ads'}
+            className="wall-tab"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTab('ads');
+            }}
+          >
+            Реклама
+          </button>
           <span
             key={`${tab}-${tabCycle}`}
             className="wall-tabs-timer"
@@ -152,7 +171,9 @@ export function WallBoard({
             aria-hidden="true"
           />
         </div>
-        {list.length === 0 ? (
+        {tab === 'ads' ? (
+          <WallAds ads={ads} stopName={stopName} now={now} />
+        ) : list.length === 0 ? (
           <div className="wall-empty">
             <span className="wall-empty-qr" aria-hidden="true" />
             {tab === 'top' ? (

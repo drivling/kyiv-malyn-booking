@@ -47,6 +47,8 @@ import type {
   NotificationSettingsUsage,
   StickerScanStats,
   StickerWallSnapshot,
+  AdEventBody,
+  AdWallSnapshot,
   StickerSide,
   StickerStatsDays,
   StickerReturnBody,
@@ -1299,6 +1301,23 @@ class ApiClient {
   /** Віджет на стіну: сьогоднішні відкриття з QR + нові скани з id > after (доступ за ключем посилання) */
   async getStickerWall(key: string, after = 0, city?: string): Promise<StickerWallSnapshot> {
     return this.request(`/transport/sticker-wall?key=${encodeURIComponent(key)}&after=${after}${cityQuery(city, '&')}`);
+  }
+
+  /**
+   * Облік реклами «Доведе» (ads/adEvents.ts через чергу outbox): «Доведе»-події йдуть із X-Dovede-Token — сервер
+   * за ним (чи за токеном адміна) визначає, хто відкрив сторінку
+   */
+  async trackAdEvent(body: AdEventBody): Promise<{ ok: boolean; counted: boolean }> {
+    return this.request('/ads/events', {
+      method: 'POST',
+      headers: body.placement === 'dovede' ? this.dovedeHeaders() : {},
+      body: JSON.stringify(body),
+    });
+  }
+
+  /** Вкладка «Реклама» на стіні наклейок: перегляди тизера й ролика «Доведе» (ключ стіни) */
+  async getAdWall(key: string, city?: string): Promise<AdWallSnapshot> {
+    return this.request(`/ads/wall?key=${encodeURIComponent(key)}${cityQuery(city, '&')}`);
   }
 
   /** Адмін: ключ посилання на віджет «Відкриття з QR» для телефона на стіні */

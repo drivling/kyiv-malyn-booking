@@ -3,6 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { fireEvent } from '@testing-library/react';
 import { useLocation } from 'react-router-dom';
 import { renderWithProviders, screen, waitFor, within } from '@/test/utils';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/msw/server';
+import { TEST_API_URL } from '@/test/msw/handlers';
 import { apiClient } from '@/api/client';
 import type { PoputkySearchResponse, Schedule } from '@/types';
 import DovedePage from './DovedePage';
@@ -372,6 +375,27 @@ describe('«Доведе» — ролик-вступ перед сторінко
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(field.closest('[aria-hidden="true"]')).toBeNull();
     expect(field).toHaveFocus();
+  });
+
+  it('облік реклами: ролик (показ, досмотр) і вхід на сторінку з доступом — раз за сесію, з токеном гостя', async () => {
+    const events: { body: { placement: string; event: string; video?: string }; token: string | null }[] = [];
+    server.use(
+      http.post(`${TEST_API_URL}/ads/events`, async ({ request }) => {
+        events.push({ body: (await request.json()) as (typeof events)[number]['body'], token: request.headers.get('x-dovede-token') });
+        return HttpResponse.json({ ok: true, counted: true }, { status: 201 });
+      }),
+    );
+    localStorage.setItem(DOVEDE_TOKEN_KEY, 'guest-token');
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: true });
+    vi.spyOn(apiClient, 'dovedeSynonyms').mockResolvedValue([]);
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede'] });
+    fireEvent(document.querySelector('video') as HTMLVideoElement, new Event('ended'));
+    await userEvent.click(await screen.findByRole('button', { name: 'Прокомпостувати квиток і увійти' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(events.map((e) => e.body.event)).toEqual(['shown', 'completed', 'page']));
+    expect(events.every((e) => e.body.placement === 'dovede')).toBe(true);
+    expect(events[0].body.video).toMatch(/^intro-[0-9a-f]{8}$/);
+    expect(events[2].token).toBe('guest-token');
   });
 
   it('хто вже бачив ролик — одразу сторінка, навіть з посиланням на відповідь', async () => {

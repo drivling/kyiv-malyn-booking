@@ -13,7 +13,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { apiClient } from '@/api/client';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
-import type { ArrivalReportBody, ArrivalReportResult, StickerReturnBody, StickerSide } from '@/types';
+import type { AdEventBody, ArrivalReportBody, ArrivalReportResult, StickerReturnBody, StickerSide } from '@/types';
 import { isPrerendering } from '@/utils/prerender';
 import { isOnline } from './useOnline';
 import { cityField, isDefaultTransportCity, siteTransportCity } from '@/site/transportCity';
@@ -28,14 +28,16 @@ export type OutboxBodies = {
   'sticker-scan': { stopId: string; side: StickerSide; clientId?: string; city?: string };
   'sticker-return': StickerReturnBody & { city?: string };
   'arrival-report': ArrivalReportBody & { city?: string };
+  'ad-event': AdEventBody;
 };
 export type OutboxKind = keyof OutboxBodies;
 export type OutboxResults = {
   'sticker-scan': { ok: boolean; counted: boolean };
   'sticker-return': { ok: boolean; counted: boolean };
   'arrival-report': ArrivalReportResult;
+  'ad-event': { ok: boolean; counted: boolean };
 };
-const KINDS: readonly OutboxKind[] = ['sticker-scan', 'sticker-return', 'arrival-report'];
+const KINDS: readonly OutboxKind[] = ['sticker-scan', 'sticker-return', 'arrival-report', 'ad-event'];
 
 export type OutboxItem<K extends OutboxKind = OutboxKind> = {
   id: string;
@@ -155,6 +157,8 @@ function send<K extends OutboxKind>(kind: K, body: OutboxBodies[K]): Promise<Out
       return apiClient.trackStickerReturn(body as OutboxBodies['sticker-return']) as Promise<OutboxResults[K]>;
     case 'arrival-report':
       return apiClient.reportArrival(body as OutboxBodies['arrival-report']) as Promise<OutboxResults[K]>;
+    case 'ad-event':
+      return apiClient.trackAdEvent(body as OutboxBodies['ad-event']) as Promise<OutboxResults[K]>;
     default:
       return Promise.reject(Object.assign(new Error(`Unknown outbox kind ${String(kind)}`), { status: 400 }));
   }

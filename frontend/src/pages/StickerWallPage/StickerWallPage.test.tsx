@@ -9,7 +9,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import type { StickerWallSnapshot } from '@/types';
+import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
 import { STICKER_DATASET } from '@/pages/AdminPage/stopSticker/stickerTestDataset';
 import { StickerWallPage } from './StickerWallPage';
 
@@ -103,6 +103,48 @@ describe('StickerWallPage', () => {
     // вкладку можна перемкнути рукою — без відкриття налаштувань
     await user.click(screen.getByRole('tab', { name: 'Зараз ростуть' }));
     expect(screen.getByRole('region', { name: 'Зараз ростуть' })).toBeInTheDocument();
+  });
+
+  it('вкладка «Реклама»: тизер на табло й ролик «Доведе» — сьогодні, за 90 днів і останні перегляди', async () => {
+    const user = userEvent.setup();
+    const now = new Date().toISOString();
+    const ads: AdWallSnapshot = {
+      now,
+      day: '2026-11-17',
+      sticker: { today: { shown: 4, started: 3, completed: 2 }, total: { shown: 9, started: 7, completed: 5 }, people: 6 },
+      dovede: {
+        today: { shown: 1, started: 1, completed: 1, pages: 2 },
+        total: { shown: 3, started: 2, completed: 2, pages: 5 },
+        access: { admin: 1, guest: 4, public: 0 },
+        people: 3,
+      },
+      views: [
+        { viewId: 'v1', placement: 'sticker', kind: 'view', stopId: 'st_0015', device: 'ios', who: 'ab12', seenBefore: 1, access: null, at: now, started: true, completed: true },
+        { viewId: 'v2', placement: 'dovede', kind: 'page', stopId: null, device: 'desktop', who: 'cd34', seenBefore: 0, access: 'guest', at: now, started: false, completed: false },
+      ],
+    };
+    const asked: string[] = [];
+    server.use(
+      http.get(`${TEST_API_URL}/ads/wall`, ({ request }) => {
+        asked.push(new URL(request.url).search);
+        return HttpResponse.json(ads);
+      })
+    );
+    renderWall('/admin/wall?key=k123');
+    await screen.findByTestId('wall-total');
+    await user.click(screen.getByRole('tab', { name: 'Реклама' }));
+    const region = screen.getByRole('region', { name: 'Реклама' });
+    await waitFor(() => expect(within(region).getByText('Тизер на табло')).toBeInTheDocument());
+    expect(region).toHaveTextContent('2 досмотріли сьогодні');
+    expect(region).toHaveTextContent('показ 4 · дивились 3');
+    expect(region).toHaveTextContent('входи: гості 4, адмін 1');
+    const rows = within(region).getAllByRole('listitem');
+    expect(rows[0]).toHaveTextContent('з-д «Прожектор»');
+    expect(rows[0]).toHaveTextContent('✓ досмотрів');
+    expect(rows[0]).toHaveTextContent('iPhone · #ab12 · повернувся');
+    expect(rows[1]).toHaveTextContent('/dovede — сторінка');
+    expect(rows[1]).toHaveTextContent('гість із паролем');
+    expect(asked[0]).toContain('key=k123');
   });
 
   it('застарілий ключ — повідомлення, як отримати нове посилання', async () => {

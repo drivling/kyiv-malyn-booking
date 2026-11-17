@@ -1,5 +1,7 @@
 /**
- * Ролик-вступ «Доведе» для сайту: `npm run dovede:intro -- <тизер.mp4> [--width 1080] [--crf 28] [--dry <тека>]`.
+ * Ролики «Доведе» для сайту: `npm run dovede:intro -- <ролик.mp4> [--slot intro|hint] [--width 1080] [--crf 28] [--dry <тека>]`.
+ * - `intro` (типово) — ролик-вступ /dovede: `public/dovede/intro-<хеш>.*`, `src/pages/DovedePage/intro/introMedia.ts`;
+ * - `hint` — міні-тизер перед табло зупинки після скану наклейки: `public/ads/hint-<хеш>.*`, `src/ads/hintMedia.ts`.
  *
  * Локальний скрипт (потрібен ffmpeg; не для CI й не для Railway). Кодує тизер для вебу — H.264 High, `+faststart`
  * (грає, ще не докачавшись), колір bt709, AAC 128 кбіт/с — і знімає постер з першого кадру. Назва файлів — хеш
@@ -24,6 +26,15 @@ const opt = (name, fallback) => {
 const src = args.find((a, i) => !a.startsWith('--') && !args[i - 1]?.startsWith('--'));
 if (!src || !fs.existsSync(src)) {
   console.error('Usage: npm run dovede:intro -- <тизер.mp4> [--width 1080] [--crf 28] [--dry <тека>]');
+  process.exit(1);
+}
+const SLOTS = {
+  intro: { dir: 'dovede', prefix: 'intro', media: ['src', 'pages', 'DovedePage', 'intro', 'introMedia.ts'], name: 'INTRO', title: 'Ролик-вступ /dovede' },
+  hint: { dir: 'ads', prefix: 'hint', media: ['src', 'ads', 'hintMedia.ts'], name: 'HINT', title: 'Міні-тизер перед табло зупинки' },
+};
+const slot = SLOTS[opt('slot', 'intro')];
+if (!slot) {
+  console.error('--slot: intro | hint');
   process.exit(1);
 }
 const width = Number(opt('width', '1080'));
@@ -65,24 +76,28 @@ if (dry) {
   process.exit(0);
 }
 
-const outDir = path.join(root, 'public', 'dovede');
+const { dir, prefix, name } = slot;
+const outDir = path.join(root, 'public', dir);
 fs.mkdirSync(outDir, { recursive: true });
+const own = new RegExp(`^${prefix}-[0-9a-f]{8}\\.(mp4|jpg)$`);
 for (const f of fs.readdirSync(outDir)) {
-  if (/^intro-[0-9a-f]{8}\.(mp4|jpg)$/.test(f) && !f.startsWith(`intro-${hash}.`)) fs.rmSync(path.join(outDir, f));
+  if (own.test(f) && !f.startsWith(`${prefix}-${hash}.`)) fs.rmSync(path.join(outDir, f));
 }
-fs.copyFileSync(video, path.join(outDir, `intro-${hash}.mp4`));
-fs.copyFileSync(poster, path.join(outDir, `intro-${hash}.jpg`));
+fs.copyFileSync(video, path.join(outDir, `${prefix}-${hash}.mp4`));
+fs.copyFileSync(poster, path.join(outDir, `${prefix}-${hash}.jpg`));
 fs.rmSync(tmp, { recursive: true, force: true });
 
-const media = `// Згенеровано \`npm run dovede:intro\` (scripts/dovede-intro.mjs) — не редагувати руками.
-/** Ролик-вступ: \`public/dovede/intro-<хеш>.mp4\`, ${width} px завширшки, CRF ${crf} */
-export const INTRO_VIDEO = '/dovede/intro-${hash}.mp4';
+const media = `// Згенеровано \`npm run dovede:intro -- … --slot ${opt('slot', 'intro')}\` (scripts/dovede-intro.mjs) — не редагувати руками.
+/** ${slot.title}: \`public/${dir}/${prefix}-<хеш>.mp4\`, ${width} px завширшки, CRF ${crf} */
+export const ${name}_VIDEO = '/${dir}/${prefix}-${hash}.mp4';
 /** Постер — перший кадр ролика */
-export const INTRO_POSTER = '/dovede/intro-${hash}.jpg';
+export const ${name}_POSTER = '/${dir}/${prefix}-${hash}.jpg';
 /** Тривалість, с — для підпису на кнопці старту */
-export const INTRO_SECONDS = ${seconds};
+export const ${name}_SECONDS = ${seconds};
 /** Розмір файлу, байти */
-export const INTRO_BYTES = ${bytes};
+export const ${name}_BYTES = ${bytes};
+/** Назва файлу без розширення — для обліку реклами (POST /ads/events) */
+export const ${name}_NAME = '${prefix}-${hash}';
 `;
-fs.writeFileSync(path.join(root, 'src', 'pages', 'DovedePage', 'intro', 'introMedia.ts'), media);
-console.log(`✓ public/dovede/intro-${hash}.mp4: ${mb} МБ, ${seconds} с; intro/introMedia.ts оновлено`);
+fs.writeFileSync(path.join(root, ...slot.media), media);
+console.log(`✓ public/${dir}/${prefix}-${hash}.mp4: ${mb} МБ, ${seconds} с; ${slot.media.join('/')} оновлено`);

@@ -4,12 +4,14 @@ import { DEFAULT_TRANSPORT_CITY, TRANSPORT_CITY_PARAM, canonicalTransportCity, i
 import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import type { TransportDataset } from '@/api/transportDataset';
-import type { StickerWallSnapshot } from '@/types';
-import { WallBoard, type WallTab } from './WallBoard';
+import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
+import { WallBoard } from './WallBoard';
 import { WallCelebration } from './WallCelebration';
 import {
   CELEBRATION_MS,
   TAB_ROTATE_MS,
+  WALL_TABS,
+  type WallTab,
   WALL_POLL_MS,
   buildCelebrations,
   isNightHour,
@@ -58,6 +60,8 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   const [keyProblem, setKeyProblem] = useState('');
   const [dataset, setDataset] = useState<TransportDataset | null>(null);
   const [snapshot, setSnapshot] = useState<StickerWallSnapshot | null>(null);
+  // вкладка «Реклама»: перегляди тизера перед табло й ролика «Доведе»
+  const [ads, setAds] = useState<AdWallSnapshot | null>(null);
   const [offline, setOffline] = useState(false);
   const [now, setNow] = useState(() => new Date());
   const [started, setStarted] = useState(false);
@@ -120,6 +124,11 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
 
   const poll = useCallback(async () => {
     if (!key) return;
+    // реклама — окремим запитом: її збій не заважає стіні
+    void apiClient
+      .getAdWall(key, city)
+      .then(setAds)
+      .catch(() => {});
     try {
       const snap = await apiClient.getStickerWall(key, cursor.current ?? 0, city);
       setOffline(false);
@@ -167,7 +176,7 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
   useEffect(() => {
     const t = window.setInterval(() => {
       if (Date.now() < tabPausedUntil.current) return;
-      setTab((x) => (x === 'top' ? 'growing' : 'top'));
+      setTab((x) => WALL_TABS[(WALL_TABS.indexOf(x) + 1) % WALL_TABS.length]);
       setTabCycle((n) => n + 1);
     }, TAB_ROTATE_MS);
     return () => window.clearInterval(t);
@@ -277,6 +286,8 @@ export function StickerWallPage({ pollMs = WALL_POLL_MS }: { pollMs?: number }) 
         awake={awake}
         offline={offline}
         soundOn={soundOn}
+        ads={ads}
+        stopName={(id) => dir.get(id)?.name ?? id}
       />
       {keyProblem && <p className="wall-problem">{keyProblem}</p>}
       {current && <WallCelebration key={current.key} celebration={current} />}
