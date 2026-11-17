@@ -77,6 +77,29 @@ exports.WATCHED_SOURCES = [
         scheduleRoute: 'Zhytomyr-Malyn',
         attribution: exports.ZHYTOMYR_BOARD_ATTRIBUTION,
     },
+    ckanSource('ukrtransbezpeka-interregional-routes', '6ca93112-18a1-48a5-b85c-1e112163faba', 'Укртрансбезпека: реєстр міжобласних маршрутів (data.gov.ua)', 'Malyn'),
+    ckanSource('ukrtransbezpeka-interregional-network', '1b428b3e-d613-43a2-9781-94c26959db06', 'Укртрансбезпека: мережа міжобласних маршрутів (data.gov.ua)', 'Malyn'),
+    ckanSource('malyn-rada-timetable', 'e8cc5430-6833-4f8c-9a9d-693be847f79f', 'Малин: розклад міського транспорту (data.gov.ua)', 'Malyn'),
+    ckanSource('malyn-rada-stops', '8fdbb2c4-156c-496d-91e9-0510b1641685', 'Малин: зупинки міського транспорту (data.gov.ua)', 'Malyn'),
+    ckanSource('malyn-rada-carriers', 'f61d2487-11eb-43bf-8f81-43db0130d657', 'Малин: перевізники (data.gov.ua)', 'Malyn'),
+    {
+        key: 'malyn-media-station',
+        kind: 'html-tables',
+        cityCode: 'Malyn',
+        label: 'malyn.media: стаття «Автостанція Малин» (розклад відправлень)',
+        url: MALYN_MEDIA_STATION_URL,
+        fetchUrl: MALYN_MEDIA_STATION_URL,
+        parser: 'station-table',
+    },
+    {
+        key: 'malyn-media-feed',
+        kind: 'rss',
+        cityCode: 'Malyn',
+        label: 'malyn.media: новини про маршрутки й тарифи (стрічка)',
+        url: 'https://malyn.media/',
+        fetchUrl: 'https://malyn.media/feed/',
+        keywords: exports.MALYN_MEDIA_KEYWORDS,
+    },
 ];
 /** Скільки невдалих перевірок поспіль до одного сповіщення «джерело не відповідає» */
 exports.SOURCE_FAIL_ALERT_AFTER = 4;

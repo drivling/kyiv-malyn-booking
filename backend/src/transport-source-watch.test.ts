@@ -370,7 +370,7 @@ const schedules = [
   { id: 79, departureTime: '08:25', priceUah: 299 },
 ];
 
-test('WATCHED_SOURCES: табло в групі board із запобіжником; Коростень — як був', () => {
+test('WATCHED_SOURCES: табло в групі board із запобіжником, п\'ять наборів Малина, стаття й стрічка malyn.media', () => {
   const keys = WATCHED_SOURCES.map((s) => s.key);
   assert.equal(new Set(keys).size, keys.length);
   const board = WATCHED_SOURCES.find((s) => s.kind === 'bus-board');
@@ -378,6 +378,9 @@ test('WATCHED_SOURCES: табло в групі board із запобіжник�
   assert.ok((board?.minGapMin ?? 0) >= 60);
   assert.equal(board?.scheduleRoute, 'Zhytomyr-Malyn');
   assert.match(board?.fetchUrl ?? '', /^http:\/\/tablo\.bus-ua\.info\/zhytomyr$/);
+  assert.equal(WATCHED_SOURCES.filter((s) => s.kind === 'ckan' && s.cityCode === 'Malyn').length, 5);
+  assert.equal(WATCHED_SOURCES.filter((s) => s.kind === 'rss').length, 1);
+  assert.ok(WATCHED_SOURCES.some((s) => s.parser === 'station-table'));
   // Коростень — як був
   assert.equal(WATCHED_SOURCES.filter((s) => s.cityCode === 'Korosten').length, 5);
 });
