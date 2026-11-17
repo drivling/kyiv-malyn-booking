@@ -75,14 +75,14 @@ export function extractHead(html) {
 
 /**
  * @param {string} html            page HTML
- * @param {{url: string, shellTitle: string|null}} ctx
+ * @param {{url: string, shellTitle: string|null, origin?: string}} ctx  origin — домен сайту дерева (за замовчуванням Малин)
  * @returns {{errors: string[], warnings: string[]}}
  */
-export function analyzeHtml(html, { url, shellTitle }) {
+export function analyzeHtml(html, { url, shellTitle, origin = SITE_ORIGIN }) {
   const errors = [];
   const warnings = [];
   const { title, canonical, h1s, jsonLdCount, ogImage } = extractHead(html);
-  const expectedCanonical = `${SITE_ORIGIN}${urlToPath(url)}`;
+  const expectedCanonical = `${origin}${urlToPath(url)}`;
   const expectedOgImage = ogImageUrl(ogImageForPath(urlToPath(url)));
 
   const text = visibleText(html);
@@ -120,4 +120,28 @@ export function analyzeHtml(html, { url, shellTitle }) {
   if (text.length < 300) warnings.push(`thin page: ${text.length} chars of visible text`);
 
   return { errors, warnings };
+}
+
+/** «Малин», «Малина», «Малині»… окремим словом (не «Малинівка»): \b у JS не знає кирилиці */
+const MALYN_WORD_RE = /(^|[^А-Яа-яІіЇїЄєҐґ'’])(Малин[аіуоеи]?|Малином)(?![А-Яа-яІіЇїЄєҐґ'’])/;
+
+/** Доречні згадки Малина як міжміського напрямку (FAQ хаба транспорту: «Київ / Житомир / Малин — на /mizhgorodski») */
+const MALYN_AS_DESTINATION = ['Київ / Житомир / Малин'];
+
+/**
+ * Сторінка /transport* сайту іншого міста (фаза 10б) не має нести нічого малинського: слова «Малин» у видимому тексті й
+ * посилань на транспорт malin.kiev.ua (canonical, breadcrumbs, JSON-LD).
+ * @returns {string[]} помилки
+ */
+export function foreignCityLeaks(html) {
+  const errors = [];
+  let text = visibleText(html);
+  for (const phrase of MALYN_AS_DESTINATION) text = text.split(phrase).join('');
+  const m = text.match(MALYN_WORD_RE);
+  if (m) {
+    const at = text.indexOf(m[2]);
+    errors.push(`Малин у тексті сторінки іншого міста: "…${text.slice(Math.max(0, at - 30), at + 30)}…"`);
+  }
+  if (/https:\/\/malin\.kiev\.ua\/transport/.test(html)) errors.push('посилання на транспорт malin.kiev.ua на сторінці іншого міста');
+  return errors;
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error — plain ESM script without types; excluded from tsc via tsconfig "exclude"
-import { apiRedirectPath, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, DOVEDE_ROBOTS, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
+import { apiRedirectPath, apiSearchForCity, goneHtml, GONE_HTML, isCityBoundDistFile, isCityTransportPath, siteTreeDir, stopRedirectLocation, cacheControlFor, cacheHeadersFor, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, legacyRedirectLocation, LEGACY_LANDING, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, DOVEDE_ROBOTS, splitUrl, withSearch } from '../../scripts/serve-dist-rules.mjs';
 
 describe('serve-dist rules: 301 for retired public URLs', () => {
   it('/poputky lands on the intercity board with the «Попутки» filter chosen', () => {
@@ -191,5 +191,41 @@ describe('serve-dist rules: merged stops (meta.stopRedirects → dist/transport/
     expect(stopRedirectLocation('/transport/route/st_0042', map)).toBeNull();
     expect(stopRedirectLocation('/transport/stop/st_0042', null)).toBeNull();
     expect(stopRedirectLocation('/transport/stop/constructor', map)).toBeNull();
+  });
+});
+
+describe('serve-dist rules: /transport* на сайті іншого міста (фаза 10б)', () => {
+  it('сторінки транспорту залежать від міста, решта сайту — ні', () => {
+    expect(isCityTransportPath('/transport')).toBe(true);
+    expect(isCityTransportPath('/transport/stop/st_1001')).toBe(true);
+    expect(isCityTransportPath('/transport-sw.js')).toBe(false);
+    expect(isCityTransportPath('/transportx')).toBe(false);
+    expect(isCityTransportPath('/mizhgorodski')).toBe(false);
+    expect(siteTreeDir('korosten')).toBe('sites/korosten');
+  });
+
+  it('з кореня dist сайт іншого міста не бере HTML і знімки Малина, але бере плакати схем', () => {
+    expect(isCityBoundDistFile('/transport/index.html')).toBe(true);
+    expect(isCityBoundDistFile('/transport/stop/st_0001/index.html')).toBe(true);
+    expect(isCityBoundDistFile('/transport/dataset.json')).toBe(true);
+    expect(isCityBoundDistFile('/transport/routes.json')).toBe(true);
+    expect(isCityBoundDistFile('/transport/stop-redirects.json')).toBe(true);
+    expect(isCityBoundDistFile('/transport/scheme/korosten-transit-scheme-poster.pdf')).toBe(false);
+    expect(isCityBoundDistFile('/transport/scheme/korosten-transit-scheme-poster.svg')).toBe(false);
+  });
+
+  it('302 на API з сайту іншого міста питає про своє місто', () => {
+    expect(apiSearchForCity('', 'Korosten')).toBe('?city=Korosten');
+    expect(apiSearchForCity('?limit=5', 'Korosten')).toBe('?limit=5&city=Korosten');
+    expect(apiSearchForCity('?city=Malyn', 'Korosten')).toBe('?city=Malyn');
+    expect(apiSearchForCity('?limit=5', null)).toBe('?limit=5');
+    expect(apiSearchForCity('', '')).toBe('');
+  });
+
+  it('сторінка 410 веде на транспорт свого міста; для Малина — та сама, що була', () => {
+    expect(goneHtml()).toBe(GONE_HTML);
+    expect(GONE_HTML).toContain('Транспорт Малина');
+    expect(goneHtml('Коростеня')).toContain('Транспорт Коростеня');
+    expect(goneHtml('Коростеня')).not.toContain('Малина');
   });
 });

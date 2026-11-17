@@ -1,5 +1,6 @@
 import { siteTransportCity, transportProfile } from '@/site/transportCity';
 import type { StopArticle } from './types';
+import korostenArticles from './korosten-articles.json';
 import { article as st_0001 } from './st_0001';
 import { article as st_0002 } from './st_0002';
 import { article as st_0003 } from './st_0003';
@@ -242,10 +243,19 @@ const STOP_ARTICLES: Record<string, StopArticle> = {
   [st_0120.id]: st_0120,
 };
 
-/** Статті написано для зупинок Малина; в іншому місті зупинка з тим самим id — інша зупинка */
+/**
+ * Статті іншого міста — згенеровані з джерел (scripts/city-stop-articles.mjs: вулиця з переліку ради, без координат і
+ * маршрутів — маршрути сторінка бере з датасету)
+ */
+const CITY_ARTICLES: Record<string, Record<string, StopArticle>> = {
+  Malyn: STOP_ARTICLES,
+  Korosten: Object.fromEntries((korostenArticles as StopArticle[]).map((a) => [a.id, a])),
+};
+
+/** Статті прив'язані до міста: в іншому місті зупинка з тим самим id — інша зупинка */
 export function getStopArticle(stopId: string | undefined | null, city: string = siteTransportCity()): StopArticle | undefined {
   if (!stopId || !transportProfile(city).hasStopArticles) return undefined;
-  return STOP_ARTICLES[stopId];
+  return CITY_ARTICLES[city]?.[stopId];
 }
 
 export function listStopArticles(): StopArticle[] {

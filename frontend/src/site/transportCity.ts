@@ -176,13 +176,14 @@ const CITY_CENTERS: Record<string, [number, number]> = {
 /** Міста, крім Малина, зі схемою маршрутів (LocalTransportPage/scheme/registry.ts; Docs/korosten-scheme-2026-11.md) */
 const CITIES_WITH_SCHEME = new Set(['Korosten']);
 
-/** Звідки розклад міста (підвал сторінок транспорту) */
-const CITY_SOURCES: Record<string, { href: string; label: string }> = {
-  Korosten: {
-    href: 'https://korosten-rada.gov.ua/miska-rada/upravlinnya-ta-viddily/upravlinnya-ekonomiky/viddil-misczevogo-ekonomichnogo-rozvytku/transport/miskyj-transport/rozklad-ruhu-miskogo-transportu-rozklad-ruhu-avtobusiv-na-period-vijskovogo-stanu/',
-    label: 'Розклад: Коростенська міська рада',
-  },
-};
+/** Міста, крім Малина, зі статтями зупинок (src/content/stops: Коростень — з переліку зупинок ради) */
+const CITIES_WITH_STOP_ARTICLES = new Set(['Korosten']);
+
+/** Звідки розклад міста (підвал сторінок транспорту) — з мапи сайтів, її ж читає статичний пререндер */
+function citySource(city: string): { href: string; label: string } | null {
+  const site = Object.values(SITES).find((s) => s.cityCode === city) as { transportSource?: { href: string; label: string } } | undefined;
+  return site?.transportSource ?? null;
+}
 
 /** Чіпи «Куди їдете?»: головні точки міста (id зупинок датасету міста) */
 const CITY_QUICK_NODES: Record<string, readonly TransportQuickNode[]> = {
@@ -204,10 +205,10 @@ export function transportProfile(city: string = siteTransportCity()): TransportP
     ...names(city),
     hasOpenData: false,
     quickNodes: CITY_QUICK_NODES[city] ?? [],
-    sourceLink: CITY_SOURCES[city] ?? null,
+    sourceLink: citySource(city),
     center: CITY_CENTERS[city] ?? null,
     hasScheme: CITIES_WITH_SCHEME.has(city),
-    hasStopArticles: false,
+    hasStopArticles: CITIES_WITH_STOP_ARTICLES.has(city),
     legacyStopNames: [],
   };
 }

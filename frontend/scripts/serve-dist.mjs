@@ -11,7 +11,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { apiRedirectPath, cacheHeadersFor, GONE_HTML, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
+import { apiRedirectPath, apiSearchForCity, cacheHeadersFor, goneHtml, isCityBoundDistFile, isCityTransportPath, isLegacyGonePath, isPrimaryOnlyFile, isRetiredRoutePath, NO_CACHE_HEADERS, parseByteRange, permanentRedirectLocation, robotsHeadersFor, siteTreeDir, splitUrl, stopRedirectLocation } from './serve-dist-rules.mjs';
 import { isPrimaryOnlyPath, primaryUrl, resolveSite } from './site-hosts.mjs';
 import { API_BASE } from './api-base.mjs';
 
@@ -49,22 +49,22 @@ function safeJoin(root, urlPath) {
   return full;
 }
 
-/** dist-relative URL path of a resolved file (`/transport/index.html`) — the key for cacheHeadersFor */
-function distPath(filePath) {
-  return `/${path.relative(dist, filePath).split(path.sep).join('/')}`;
+/** URL path of a resolved file relative to its tree (`/transport/index.html`) — the key for cacheHeadersFor */
+function distPath(filePath, root = dist) {
+  return `/${path.relative(root, filePath).split(path.sep).join('/')}`;
 }
 
 /**
  * File with its length; `Range` → 206 with one byte range (Safari on iPhone plays MP4 only this way — the
  * «Доведе» intro video), a range past the end → 416. HEAD gets the same headers without a body.
  */
-function sendFile(req, res, filePath, extraHeaders = {}) {
+function sendFile(req, res, filePath, extraHeaders = {}, root = dist) {
   const ext = path.extname(filePath).toLowerCase();
   const size = fs.statSync(filePath).size;
   const headers = {
     'Content-Type': MIME[ext] || 'application/octet-stream',
     'Accept-Ranges': 'bytes',
-    ...cacheHeadersFor(distPath(filePath)),
+    ...cacheHeadersFor(distPath(filePath, root)),
     ...extraHeaders,
   };
   const range = parseByteRange(req.headers.range, size);
@@ -85,8 +85,8 @@ function sendFile(req, res, filePath, extraHeaders = {}) {
   fs.createReadStream(filePath, range ?? undefined).pipe(res);
 }
 
-function tryResolve(urlPath) {
-  const base = safeJoin(dist, urlPath);
+function tryResolve(urlPath, root = dist) {
+  const base = safeJoin(root, urlPath);
   if (!base) return null;
 
   if (fs.existsSync(base) && fs.statSync(base).isFile()) return base;
@@ -100,8 +100,8 @@ function tryResolve(urlPath) {
 }
 
 /** All route ids of the current dataset (written by prerender-transport-stops); null → 410 rule disabled */
-function loadKnownRouteIds() {
-  const p = path.join(dist, 'transport', 'routes.json');
+function loadKnownRouteIds(root) {
+  const p = path.join(root, 'transport', 'routes.json');
   if (!fs.existsSync(p)) return null;
   try {
     const ids = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -111,11 +111,9 @@ function loadKnownRouteIds() {
     return null;
   }
 }
-const KNOWN_ROUTE_IDS = loadKnownRouteIds();
-
 /** old stop id → live stop id (written by prerender-transport-stops from meta.stopRedirects); null → rule off */
-function loadStopRedirects() {
-  const p = path.join(dist, 'transport', 'stop-redirects.json');
+function loadStopRedirects(root) {
+  const p = path.join(root, 'transport', 'stop-redirects.json');
   if (!fs.existsSync(p)) return null;
   try {
     const map = JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -124,11 +122,47 @@ function loadStopRedirects() {
     return null;
   }
 }
-const STOP_REDIRECTS = loadStopRedirects();
+/**
+ * Транспорт кожного сайту: корінь dist — Малин; сайт іншого міста — його дерево dist/sites/<key>/ (фаза 10б), якого
+ * нема, поки транспорт міста вимкнено. Тоді правила 410 і 301 зупинок вимкнені, а /transport* — оболонка SPA.
+ */
+const siteTransport = new Map();
+function transportOf(site) {
+  let entry = siteTransport.get(site.key);
+  if (!entry) {
+    const root = site.isPrimary ? dist : path.join(dist, siteTreeDir(site.key));
+    const exists = fs.existsSync(root);
+    entry = {
+      root: exists ? root : null,
+      knownRouteIds: exists ? loadKnownRouteIds(root) : null,
+      stopRedirects: exists ? loadStopRedirects(root) : null,
+    };
+    siteTransport.set(site.key, entry);
+  }
+  return entry;
+}
 
-function sendGone(res, extraHeaders = {}) {
+/**
+ * Файл для запиту. Сайт іншого міста на /transport* бере сторінки й знімки зі свого дерева, а з кореня dist — лише
+ * статичні файли (плакати схем), не HTML і не знімки Малина.
+ * @returns {{ file: string, root: string } | null}
+ */
+function resolveForSite(site, urlPath) {
+  const { pathname } = splitUrl(urlPath);
+  if (!site.isPrimary && isCityTransportPath(pathname)) {
+    const { root } = transportOf(site);
+    const own = root ? tryResolve(urlPath, root) : null;
+    if (own) return { file: own, root };
+    const shared = tryResolve(urlPath);
+    return shared && !isCityBoundDistFile(distPath(shared)) ? { file: shared, root: dist } : null;
+  }
+  const file = tryResolve(urlPath === '/' ? '/index.html' : urlPath);
+  return file ? { file, root: dist } : null;
+}
+
+function sendGone(res, extraHeaders = {}, site) {
   res.writeHead(410, { 'Content-Type': MIME['.html'], 'Cache-Control': 'public, max-age=86400', 'X-Robots-Tag': 'noindex', ...extraHeaders });
-  res.end(GONE_HTML);
+  res.end(goneHtml(site.cityNameUkGenitive));
 }
 
 /** Вторинний домен (korosten.kiev.ua) поки не індексуємо: канонічний контент — на malin.kiev.ua */
@@ -204,7 +238,7 @@ const server = http.createServer((req, res) => {
   // Merged/removed stops: /transport/stop/<old> → the live stop, for crawlers and bookmarks (the SPA does the same)
   {
     const { pathname, search } = splitUrl(urlPath);
-    const target = stopRedirectLocation(pathname, STOP_REDIRECTS);
+    const target = stopRedirectLocation(pathname, transportOf(site).stopRedirects);
     if (target) {
       res.writeHead(301, { Location: `${target}${search}`, 'Cache-Control': 'public, max-age=86400', ...extraHeaders });
       res.end();
@@ -219,23 +253,25 @@ const server = http.createServer((req, res) => {
     const { pathname, search } = splitUrl(urlPath);
     const apiPath = apiRedirectPath(pathname);
     if (apiPath) {
-      res.writeHead(302, { Location: `${API_BASE}${apiPath}${search}`, ...NO_CACHE_HEADERS, ...extraHeaders });
+      // Сайт іншого міста питає API про своє місто (без `city` API відповідає за Малин)
+      const citySearch = site.isPrimary ? search : apiSearchForCity(search, site.cityCode);
+      res.writeHead(302, { Location: `${API_BASE}${apiPath}${citySearch}`, ...NO_CACHE_HEADERS, ...extraHeaders });
       res.end();
       return;
     }
   }
 
-  const resolved = tryResolve(urlPath === '/' ? '/index.html' : urlPath);
+  const resolved = resolveForSite(site, urlPath);
   if (resolved) {
-    sendFile(req, res, resolved, extraHeaders);
+    sendFile(req, res, resolved.file, extraHeaders, resolved.root);
     return;
   }
 
   // 410 before the SPA fallback: retired city routes (plan 1.5) and old-site leftovers (plan 1.10)
   {
     const { pathname } = splitUrl(urlPath);
-    if (isRetiredRoutePath(pathname, KNOWN_ROUTE_IDS) || isLegacyGonePath(pathname)) {
-      sendGone(res, extraHeaders);
+    if (isRetiredRoutePath(pathname, transportOf(site).knownRouteIds) || isLegacyGonePath(pathname)) {
+      sendGone(res, extraHeaders, site);
       return;
     }
   }

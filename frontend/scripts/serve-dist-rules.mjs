@@ -269,7 +269,55 @@ export function stopRedirectLocation(pathname, redirects) {
   return typeof target === 'string' && target && target !== id ? `/transport/stop/${encodeURIComponent(target)}` : null;
 }
 
-export const GONE_HTML =
-  '<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>410 — сторінки більше немає</title>' +
-  '<meta name="robots" content="noindex"></head><body><p>Цієї сторінки більше немає. ' +
-  '<a href="/transport">Транспорт Малина</a> · <a href="/mizhgorodski">Маршрутки та попутки</a></p></body></html>';
+/** Сторінка 410 з посиланням на транспорт свого міста (`cityGenitive` — «Малина», «Коростеня») */
+export function goneHtml(cityGenitive = 'Малина') {
+  return (
+    '<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>410 — сторінки більше немає</title>' +
+    '<meta name="robots" content="noindex"></head><body><p>Цієї сторінки більше немає. ' +
+    `<a href="/transport">Транспорт ${cityGenitive}</a> · <a href="/mizhgorodski">Маршрутки та попутки</a></p></body></html>`
+  );
+}
+
+export const GONE_HTML = goneHtml();
+
+/*
+ * Сторінки /transport* на сайті іншого міста (Docs/korosten-transport-2026-11.md, фаза 10б). Пререндер Малина пише
+ * свої сторінки й знімки даних у корінь dist/transport; пререндер міста з PRERENDER_SITE=<key> — у dist/sites/<key>/
+ * (лише коли транспорт міста ввімкнено: поки прапорець вимкнено, публічний API датасету відповідає 404 і дерева нема).
+ * На вторинному домені /transport* шукаємо спершу в дереві свого сайту; з кореня dist беремо лише статичні файли
+ * (плакати схем), ніколи HTML і знімки Малина; далі — оболонка SPA.
+ */
+
+/** Каталог дерева пререндера сайту відносно dist */
+export function siteTreeDir(siteKey) {
+  return `sites/${siteKey}`;
+}
+
+/** Сторінки, вміст яких залежить від міста транспорту */
+export function isCityTransportPath(pathname) {
+  return pathname === '/transport' || pathname.startsWith('/transport/');
+}
+
+const CITY_DATA_FILES = new Set(['/transport/dataset.json', '/transport/routes.json', '/transport/stop-redirects.json']);
+
+/**
+ * Файл кореня dist (`distRelPath` — `/transport/index.html`), який пререндер Малина написав для свого міста: HTML і
+ * знімки даних. На сайті іншого міста його не віддаємо.
+ */
+export function isCityBoundDistFile(distRelPath) {
+  return /\.html$/i.test(distRelPath) || CITY_DATA_FILES.has(distRelPath);
+}
+
+/**
+ * Пошуковий рядок 302 на API для сайту іншого міста: додає `city=<cityCode>`, якщо його нема (API без `city` —
+ * Малин). Для Малина (`cityCode` порожній) — без змін.
+ * @param {string} search '' або '?a=1'
+ * @param {string|null|undefined} cityCode
+ */
+export function apiSearchForCity(search, cityCode) {
+  if (!cityCode) return search;
+  const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  if (params.has('city')) return search;
+  params.append('city', cityCode);
+  return `?${params.toString()}`;
+}

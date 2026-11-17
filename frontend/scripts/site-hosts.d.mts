@@ -6,6 +6,9 @@ export interface SiteHostConfig {
   cityCode: string;
   cityNameUk: string;
   cityNameUkGenitive: string;
+  cityNameUkLocative: string;
+  /** Звідки розклад міського транспорту (лише міста без відкритих даних) */
+  transportSource?: { href: string; label: string };
   isPrimary: boolean;
   /** Домен підключено і він обслуговує трафік */
   active: boolean;

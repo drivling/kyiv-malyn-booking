@@ -60,7 +60,7 @@ describe('місто сайту', () => {
   it('профіль: у Малина схема, статті й старі назви зупинок; у Коростеня — лише схема (фаза 12); у міста без схеми — нічого', () => {
     expect(transportProfile('Malyn')).toMatchObject({ hasScheme: true, hasStopArticles: true, center: [50.768, 29.242] });
     expect(transportProfile('Malyn').legacyStopNames).toContain('Малинівка');
-    expect(transportProfile('Korosten')).toMatchObject({ cityCode: 'Korosten', center: [50.9506, 28.6384], hasScheme: true, hasStopArticles: false, legacyStopNames: [] });
+    expect(transportProfile('Korosten')).toMatchObject({ cityCode: 'Korosten', center: [50.9506, 28.6384], hasScheme: true, hasStopArticles: true, legacyStopNames: [] });
     expect(transportProfile('Zhytomyr')).toMatchObject({ hasScheme: false, hasStopArticles: false });
   });
 
@@ -170,11 +170,18 @@ describe('номери, кольори й статті по містах', () =>
     expect(routeColor('4')).toBeNull();
   });
 
-  it('статті зупинок — лише для Малина', () => {
+  it('статті зупинок — кожного міста свої: малинська не потрапляє в Коростень і навпаки', () => {
     expect(getStopArticle('st_0001')?.id).toBe('st_0001');
     expect(getStopArticle('st_0001', 'Korosten')).toBeUndefined();
+    expect(getStopArticle('st_1001')).toBeUndefined();
+    expect(getStopArticle('st_1001', 'Zhytomyr')).toBeUndefined();
     useSite('korosten');
     expect(getStopArticle('st_0001')).toBeUndefined();
+    const vokzal = getStopArticle('st_1001');
+    expect(vokzal).toMatchObject({ name: 'Залізничний вокзал', place: 'вул. Героїв небесної сотні' });
+    // лише факти з джерел: ні координат (точки частини зупинок тимчасові), ні власного списку маршрутів
+    expect(vokzal?.coords).toBeUndefined();
+    expect(vokzal?.routeIds).toBeUndefined();
   });
 });
 

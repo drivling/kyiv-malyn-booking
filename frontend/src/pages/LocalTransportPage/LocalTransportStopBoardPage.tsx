@@ -274,14 +274,18 @@ export const LocalTransportStopBoardPage: React.FC = () => {
     [selectedStop, stopsCatalog]
   );
 
-  /** Статична стаття про зупинку без ненадійних (прихованих) маршрутів у чипах/описі */
+  /**
+   * Статична стаття про зупинку без ненадійних (прихованих) маршрутів у чипах/описі. Стаття без власного списку
+   * маршрутів (згенерована з джерел — Коростень) показує маршрути з відправленнями за день.
+   */
   const stopArticle = useMemo(() => {
-    const article = getStopArticle(selectedStop);
+    const found = getStopArticle(selectedStop);
+    const article = found && !found.routeIds && lineIdsAtStop.length ? { ...found, routeIds: lineIdsAtStop } : found;
     if (!article?.routeIds?.length || !dataset) return article;
     const hidden = hiddenTransportRouteIds(dataset);
     if (hidden.size === 0) return article;
     return { ...article, routeIds: article.routeIds.filter((r) => !hidden.has(r)) };
-  }, [selectedStop, dataset]);
+  }, [selectedStop, dataset, lineIdsAtStop]);
 
   const stopSeo = useMemo(() => {
     if (selectedStop && selectedStopTitle) {
@@ -305,7 +309,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
       ];
       // Тексти — з номерами для показу («11/1»), а не з id
       const description = stopArticle
-        ? stopArticlePlainText({ ...stopArticle, routeIds: stopArticle.routeIds?.map(routeNo) })
+        ? stopArticlePlainText({ ...stopArticle, routeIds: stopArticle.routeIds?.map(routeNo) }, copyCity)
         : stopFallbackDescription(selectedStopTitle, routeIds.map(routeNo), copyCity);
       return {
         title: stopPageTitle(selectedStopTitle, copyCity),
@@ -759,7 +763,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
               {stopArticle.place ? (
                 <div className="lt-stop-article-body">
                   <p className="lt-stop-article-p">
-                    Зупинка <strong className="lt-stop-article-name">«{stopArticle.name}»</strong> у Малині —{' '}
+                    Зупинка <strong className="lt-stop-article-name">«{stopArticle.name}»</strong> у {profile.nameLocative} —{' '}
                     {stopArticle.place}.
                   </p>
                   {stopArticle.routeIds && stopArticle.routeIds.length > 0 ? (
