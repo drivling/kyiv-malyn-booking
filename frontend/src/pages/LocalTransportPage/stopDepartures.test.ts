@@ -44,6 +44,16 @@ beforeEach(() => {
 });
 
 describe('buildStopDepartures', () => {
+  it('тип дня: рейси лише по буднях / лише у вихідні — тільки у свій день; без типу дня — усі', () => {
+    const weekday: TransportRecord = { ...full, trip_id: '2-wd', departure_time: '07:00:00', service_id: 'weekdays' };
+    const weekend: TransportRecord = { ...full, trip_id: '2-we', departure_time: '08:00:00', service_id: 'weekends' };
+    const routes = buildRoutesFromData(data([full, weekday, weekend]));
+    const ids = (day?: 'weekday' | 'weekend') => buildStopDepartures('st_b', routes, stopsByRoute, catalog, undefined, day).map((r) => r.tripId);
+    expect(ids()).toEqual(['2-01', '2-wd', '2-we']);
+    expect(ids('weekday')).toEqual(['2-01', '2-wd']);
+    expect(ids('weekend')).toEqual(['2-01', '2-we']);
+  });
+
   it('full trip: intermediate stop gets departure + segment sum, end stop gets nothing', () => {
     const routes = buildRoutesFromData(data([full]));
     const atB = buildStopDepartures('st_b', routes, stopsByRoute, catalog);

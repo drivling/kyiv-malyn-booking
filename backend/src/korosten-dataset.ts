@@ -919,8 +919,9 @@ function buildReport(r: ReportInput): string {
 
   lines.push('## Вихідні (фаза 7)');
   lines.push('');
-  lines.push('Календар `weekends` ще не існує: рейси ради без зірочки йдуть щодня, із зірочкою — у будні. Рейси проєкту 2025, що є');
-  lines.push('лише у вихідні:');
+  lines.push('Чернетка: рейси ради без зірочки йдуть щодня, із зірочкою — у будні. Календар `weekends` є з фази 7, але чернетка');
+  lines.push('його не пише: «зірочка» №2 означає «у вихідні — скороченим маршрутом вокзал – Пашини», і чотири такі рейси');
+  lines.push('записано в базу руками (2026-11-17, `Docs/korosten-transport-data-2026-11.md`). Рейси проєкту 2025, що є лише у вихідні:');
   lines.push('');
   let anyWeekend = false;
   for (const d of input.directions) {

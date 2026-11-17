@@ -58,6 +58,7 @@ const SERVICE_MAP: Record<string, string> = {
   'пн-вт-ср-чт-пт-сб-нд': 'everyday',
   everyday: 'everyday',
   weekdays: 'weekdays',
+  weekends: 'weekends',
 };
 
 /**
@@ -174,6 +175,10 @@ export function buildGtfsFeed(dataset: TransportDataset, options: { revision?: s
     [
       { service_id: 'everyday', monday: 1, tuesday: 1, wednesday: 1, thursday: 1, friday: 1, saturday: 1, sunday: 1, start_date: SERVICE_START_DATE, end_date: SERVICE_END_DATE },
       { service_id: 'weekdays', monday: 1, tuesday: 1, wednesday: 1, thursday: 1, friday: 1, saturday: 0, sunday: 0, start_date: SERVICE_START_DATE, end_date: SERVICE_END_DATE },
+      // Лише коли є такі рейси: фід міста без рейсів вихідного дня (Малин) лишається побайтно тим самим
+      ...(dataset.trips.some((t) => SERVICE_MAP[t.serviceId || ''] === 'weekends')
+        ? [{ service_id: 'weekends', monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0, saturday: 1, sunday: 1, start_date: SERVICE_START_DATE, end_date: SERVICE_END_DATE }]
+        : []),
     ]
   );
 

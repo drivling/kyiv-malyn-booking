@@ -40,6 +40,8 @@ const dataset = {
   ],
   trips: [
     { id: '1-101', routeId: '1', serviceId: 'everyday', headsign: 'Поліське водосховище', directionId: '1', departureTime: '06:20:00', blockId: '1-g1' },
+    { id: '1-102', routeId: '1', serviceId: 'weekdays', headsign: 'Поліське водосховище', directionId: '1', departureTime: '16:55:00', blockId: '1-g1' },
+    { id: '1-103', routeId: '1', serviceId: 'weekends', headsign: 'Поліське водосховище', directionId: '1', departureTime: '17:10:00', blockId: '1-g1' },
     { id: '8-101', routeId: '8', serviceId: 'everyday', headsign: 'Міський центральний ринок', directionId: '1', departureTime: '07:00:00', blockId: '8-g1' },
     { id: '2b-101', routeId: '2b', serviceId: 'everyday', headsign: 'Міський центральний ринок', directionId: '1', departureTime: '07:30:00', blockId: '2b-g1' },
   ],
@@ -116,6 +118,23 @@ describe('сторінки транспорту Коростеня', () => {
     expect(document.querySelector('.lts-mini [data-route="2b"]')).not.toBeNull();
     expect(pageText()).not.toMatch(/Малин|malin\.kiev/);
     await waitFor(() => expect(document.title).toBe('Зупинка «Залізничний вокзал» — розклад маршруток Коростеня | korosten.kiev.ua'));
+  });
+
+  it('сторінка маршруту: рейси лише по буднях / лише у вихідні — тільки у свій день', async () => {
+    const chipsOn = async (d: string) => {
+      const view = renderAt(`/transport/route/1?d=${d}&h=06:00`);
+      const group = await screen.findByRole('group', { name: 'Відправлення за день' }, { timeout: 5000 });
+      const text = group.textContent ?? '';
+      view.unmount();
+      return text;
+    };
+    const wednesday = await chipsOn('18.11.26');
+    expect(wednesday).toContain('16:55');
+    expect(wednesday).not.toContain('17:10');
+    const saturday = await chipsOn('21.11.26');
+    expect(saturday).not.toContain('16:55');
+    expect(saturday).toContain('17:10');
+    expect(saturday).toContain('06:20');
   });
 
   it('табло: стаття Коростеня — вулиця з переліку ради, маршрути з датасету, опис з «у Коростені»', async () => {

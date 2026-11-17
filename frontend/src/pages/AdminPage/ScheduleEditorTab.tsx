@@ -52,6 +52,7 @@ interface AddTripForm {
 const SERVICE_OPTIONS = [
   { value: 'everyday', label: 'Щодня' },
   { value: 'weekdays', label: 'Будні' },
+  { value: 'weekends', label: 'Вихідні' },
 ];
 
 const EMPTY_ADD_FORM: AddTripForm = { time: '', headsign: '', serviceId: 'everyday' };

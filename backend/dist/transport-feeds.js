@@ -128,7 +128,9 @@ const VTIMEZONE_KYIV = [
 const RRULE_BY_SERVICE = {
     everyday: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR,SA,SU',
     weekdays: 'FREQ=WEEKLY;BYDAY=MO,TU,WE,TH,FR',
+    weekends: 'FREQ=WEEKLY;BYDAY=SA,SU',
 };
+const SERVICE_LABEL = { everyday: 'щодня', weekdays: 'пн–пт', weekends: 'сб–нд' };
 /** Екранування тексту iCal (RFC 5545 3.3.11) */
 function icsText(v) {
     return v.replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
@@ -175,7 +177,7 @@ function tripEvent(trip, routeShortName, base, dtstamp) {
     const first = trip.stops[0];
     const last = trip.stops[trip.stops.length - 1];
     const summary = `№${routeShortName} → ${trip.headsign || last.name}`;
-    const description = [`Маршрут №${routeShortName}, рейс ${trip.id} (${trip.serviceId === 'weekdays' ? 'пн–пт' : 'щодня'}).`, ...trip.stops.map((s) => `${s.departure.slice(0, 5)} ${s.name}`), `Дані: ${exports.SITE_URL}/transport/route/${encodeURIComponent(trip.routeId)}`].join('\n');
+    const description = [`Маршрут №${routeShortName}, рейс ${trip.id} (${SERVICE_LABEL[trip.serviceId] ?? SERVICE_LABEL.everyday}).`, ...trip.stops.map((s) => `${s.departure.slice(0, 5)} ${s.name}`), `Дані: ${exports.SITE_URL}/transport/route/${encodeURIComponent(trip.routeId)}`].join('\n');
     return [
         'BEGIN:VEVENT',
         `UID:${trip.id}@malin.kiev.ua`,

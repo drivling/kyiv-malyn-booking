@@ -1,6 +1,7 @@
 /**
  * Розклад відправлень з однієї зупинки по всіх маршрутах і напрямках (хронологічно).
  */
+import { tripRunsOn, type ServiceDay } from './journey/buildTimetable';
 import type { RouteStopWithOrder, RouteVariantVm, TransportRecord, TransportData, SupplementRoute } from './types';
 import { recordTiming } from './routeTiming';
 import { routeStopChain } from './routeGeometry';
@@ -134,7 +135,9 @@ export function buildStopDepartures(
   routes: RouteBundle[],
   stopsByRoute: Record<string, string[] | RouteStopWithOrder[]> | undefined,
   catalog?: StopsCatalog,
-  variantsByRoute?: VariantsByRoute
+  variantsByRoute?: VariantsByRoute,
+  /** Тип дня: рейси лише по буднях / лише у вихідні в інший день не показуються; без нього — усі рейси */
+  serviceDay?: ServiceDay
 ): StopDepartureRow[] {
   if (!stopKey || !stopsByRoute) return [];
 
@@ -151,6 +154,7 @@ export function buildStopDepartures(
     const { dir0, dir1 } = groupTripsByDirection(route.trips);
 
     const emit = (t: TransportRecord, direction: 'there' | 'back') => {
+      if (serviceDay && !tripRunsOn(t.service_id, serviceDay)) return;
       const variant = recordVariant(variantsByRoute, t);
       const timing = recordTiming(route.id, variant ? variantChain(variant) : main[direction], t);
       if (!timing) return;

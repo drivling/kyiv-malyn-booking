@@ -17,6 +17,7 @@ import { routesAtNode, routesAtStop, schemeNodeForStop, stopsOfNode } from './sc
 import { LocalTransportSchemeMini } from './LocalTransportSchemeMini';
 import { buildSchemeUrl } from './schemeMini';
 import { formatDateUrl, parseDateUrl } from './dateUrl';
+import { serviceDayForDate } from './journey/buildTimetable';
 import { getKyivMinutesNow, searchDateKyivOffsetDays } from './kyivTime';
 import { useTransportDataset } from './dataset/useTransportDataset';
 import { TransportStatusBar } from './TransportStatusBar';
@@ -256,10 +257,16 @@ export const LocalTransportStopBoardPage: React.FC = () => {
   }, [travelDayOffsetDays, showFullDay, kyivNowMins, referenceMins]);
 
 
+  /** Тип дня обраної дати: рейси лише по буднях / лише у вихідні в інший день на табло не потрапляють */
+  const serviceDay = useMemo(() => {
+    const d = parseDateUrl(searchDate);
+    return d ? serviceDayForDate(d) : undefined;
+  }, [searchDate]);
+
   const departures = useMemo(() => {
     if (!selectedStop || !stopsByRoute) return [];
-    return buildStopDepartures(selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute);
-  }, [selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute]);
+    return buildStopDepartures(selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute, serviceDay);
+  }, [selectedStop, routes, stopsByRoute, stopsCatalog, variantsByRoute, serviceDay]);
 
   /** Усі маршрути з відправленнями на зупинці за день — чіпи-фільтри під заголовком */
   const lineIdsAtStop = useMemo(

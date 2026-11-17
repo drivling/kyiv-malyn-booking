@@ -48,7 +48,7 @@ import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { haversineDistance } from './geo';
 import { formatDistance, useNearestStops } from './useNearestStops';
 import { DateTimeControls } from './DateTimeControls';
-import { buildTimetable, journeyWindow, planDay, serviceDayForDate, type Place, type TransitLeg } from './journey';
+import { buildTimetable, journeyWindow, planDay, serviceDayForDate, tripRunsOn, type Place, type TransitLeg } from './journey';
 import { JourneyResults } from './journey/JourneyResults';
 import { endpointFromKey, endpointGaValue, isPointKey, parsePointKey, pointKey, pointLabel } from './journey/endpointKey';
 import { journeyKey } from './journey/journeyKey';
@@ -546,7 +546,7 @@ export const LocalTransportPage: React.FC = () => {
     [committedPair, endpointName]
   );
 
-  /** Тип дня руху за датою пошуку (будні / вихідні): calendar сайту знає лише everyday і weekdays */
+  /** Тип дня руху за датою пошуку (будні / вихідні): calendar сайту знає everyday, weekdays і weekends */
   const serviceDay = useMemo(() => {
     const d = parseDateUrl(searchDate);
     return d ? serviceDayForDate(d) : 'weekday';
@@ -1370,11 +1370,15 @@ export const LocalTransportPage: React.FC = () => {
                 /** Варіант шляху рейсу (немає — основний ланцюжок) */
                 variant: RouteVariantVm | null;
               };
+              /** Тип дня обраної дати: рейси лише по буднях / лише у вихідні в інший день не показуються */
+              const routeDate = parseDateUrl(dateFromUrl || todayDateUrl());
+              const routeServiceDay = routeDate ? serviceDayForDate(routeDate) : null;
               const buildTableTrips = (): TableRow[] | null => {
                 const { dir0, dir1 } = groupTripsByDirection(detailRoute.trips);
                 const rows: TableRow[] = [];
                 const pushRows = (list: TransportRecord[], direction: 'there' | 'back') => {
                   list.forEach((t) => {
+                    if (routeServiceDay && !tripRunsOn(t.service_id, routeServiceDay)) return;
                     const chain = chainOfTrip(t);
                     if (chain.length < 2) return;
                     const timing = recordTiming(routeId, chain, t);
