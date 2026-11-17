@@ -214,6 +214,11 @@ of `dist` in a commit.
   (green line beyond «Видубичі», bus 318 — inferred from Google on 2026-11-17, owner to confirm; set to `null` when trains return). Golden sets: `eval/kyiv-metro.json`
   (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in
   `eval/golden.json` for the real-model run.
+  Second corridor, Zhytomyr ↔ Malyn (city to city only): `FarCity` in `data/anchors.ts`, `intercityTrips(…, far)` and the
+  `to_malyn` / `from_malyn` shapes. The Malyn anchor is the bus station (`st_0004`), the Zhytomyr end is «Автовокзал
+  Житомир-1» plus a Google Maps link. Schedules from Malyn carry no arrival time or price, so the arrival is an
+  estimate by the path in the route slug (via Потіївка / Радомишль / through routes) and always «≈»; through routes to
+  Базар read the Malyn time from the boarding text. No elektrichka there; rides use `defaultCarMinutes(far)`.
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
   listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
   `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:

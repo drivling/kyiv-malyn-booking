@@ -26,6 +26,8 @@ export interface RouteBoard {
 export type StoryLeg =
   | {
       kind: 'kyiv';
+      /** місто підказки для заголовка; немає — Київ */
+      city?: string;
       /** «метро М1 «Святошин» → «Академмістечко», 2 станції, ≈ 5 хв» */
       text: string;
       mapsUrl: string;
@@ -43,6 +45,10 @@ export type StoryLeg =
       /** зупинка-якір не підтверджена власником — «зазвичай» */
       usual: boolean;
       via: string | null;
+      /** «транзит на Хмільник», «транзит з Вінниці» */
+      transit: string | null;
+      /** «Малин — Житомир» */
+      routeLabel: string;
       priceUah: number | null;
       phoneOnly: boolean;
       ticketUrl: string | null;

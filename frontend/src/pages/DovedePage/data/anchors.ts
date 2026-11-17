@@ -9,6 +9,8 @@ export const ANCHORS_VERSION = 2;
 
 export type Corridor = 'to_malyn' | 'from_malyn';
 export type IntercityMode = 'marshrutka' | 'elektrichka';
+/** Місто на іншому кінці коридору: рідне місто сайту — Малин */
+export type FarCity = 'Kyiv' | 'Zhytomyr';
 
 export interface AnchorStop {
   /** id словника місць */
@@ -27,6 +29,8 @@ export interface AnchorStop {
 }
 
 export interface IntercityAnchor {
+  /** інше місто коридору; немає — Київ */
+  far?: FarCity;
   corridor: Corridor;
   mode: IntercityMode;
   stops: AnchorStop[];
@@ -78,11 +82,37 @@ export const ANCHORS: IntercityAnchor[] = [
     bufferBeforeBoard: 10,
     bufferAfterAlight: 3,
   },
+  // Житомир ↔ Малин (2026-11-17): у розкладі сайту посадка в Малині — «Автостанція Малин», у Житомирі —
+  // «Автовокзал Житомир-1». Чи заїжджають рейси в центр Малина — невідомо, тому якір один. Тривалість — для
+  // рейсів з Малина, де в розкладі немає часу прибуття (уточнюється за шляхом у compose/intercity.ts)
+  {
+    far: 'Zhytomyr',
+    corridor: 'to_malyn',
+    mode: 'marshrutka',
+    stops: [STATION_OUT],
+    duration: { typical: 90, max: 170 },
+    bufferBeforeBoard: 10,
+    bufferAfterAlight: 3,
+  },
+  {
+    far: 'Zhytomyr',
+    corridor: 'from_malyn',
+    mode: 'marshrutka',
+    stops: [STATION_OUT],
+    duration: { typical: 90, max: 170 },
+    bufferBeforeBoard: 10,
+    bufferAfterAlight: 3,
+  },
 ];
 
-export function anchorFor(corridor: Corridor, mode: IntercityMode): IntercityAnchor {
-  const a = ANCHORS.find((x) => x.corridor === corridor && x.mode === mode);
-  if (!a) throw new Error(`no anchor for ${corridor}/${mode}`);
+/** Якір коридору; null — такого виду транспорту на цьому коридорі немає (електричка на Житомир) */
+export function findAnchor(corridor: Corridor, mode: IntercityMode, far: FarCity = 'Kyiv'): IntercityAnchor | null {
+  return ANCHORS.find((x) => x.corridor === corridor && x.mode === mode && (x.far ?? 'Kyiv') === far) ?? null;
+}
+
+export function anchorFor(corridor: Corridor, mode: IntercityMode, far: FarCity = 'Kyiv'): IntercityAnchor {
+  const a = findAnchor(corridor, mode, far);
+  if (!a) throw new Error(`no anchor for ${far}/${corridor}/${mode}`);
   return a;
 }
 

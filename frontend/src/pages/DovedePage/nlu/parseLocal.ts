@@ -284,6 +284,10 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
       if (place.id === 'malyn.vokzal' && toks.slice(i + 1, i + 3).some((x) => /^(києві|киеве|київськ|киевск|києва|киева)/.test(x.n))) {
         place = placeById('kyiv.pas') ?? place;
       }
+      // «з автовокзалу Житомира», «вокзал у Житомирі» — це Житомир, а місць усередині нього словник не має
+      if ((place.id === 'malyn.avtostantsiya' || place.id === 'malyn.vokzal') && toks.slice(i + 1, i + 3).some((x) => /^(житомир[аіу]?|житомире)$/.test(x.n))) {
+        place = placeById('city.Zhytomyr') ?? place;
+      }
       const hit: PlaceHit = { place, token: t, spanStart: t.start, role: null };
       hits.push(hit);
       const isLocative = place.locative?.some((l) => n.startsWith(l)) ?? false;

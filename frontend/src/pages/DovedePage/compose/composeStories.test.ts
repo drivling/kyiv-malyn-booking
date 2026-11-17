@@ -203,7 +203,10 @@ describe('форма поїздки', () => {
   it('рідне місто — Малин; невідоме — питаємо; поза зоною — кажемо чесно', () => {
     expect(shape('мені в Київ на Святошин')).toMatchObject({ kind: 'from_malyn', kyivPoint: 'kyiv.sviatoshyn' });
     expect(shape('до Малина').kind).toBe('ask_from');
-    expect(shape('з Житомира в Малин')).toEqual({ kind: 'outside', city: 'Zhytomyr' });
+    expect(shape('з Житомира в Малин')).toMatchObject({ kind: 'to_malyn', far: 'Zhytomyr', kyivPoint: null });
+    expect(shape('мені в Житомир завтра')).toMatchObject({ kind: 'from_malyn', far: 'Zhytomyr' });
+    expect(shape('з Києва до Житомира')).toEqual({ kind: 'outside', city: 'Kyiv' });
+    expect(shape('з Коростеня в Малин')).toEqual({ kind: 'outside', city: 'Korosten' });
     expect(shape('чи є попутка з Києва в Малин сьогодні')).toEqual({ kind: 'poputky', fromCity: 'Kyiv', toCity: 'Malyn' });
     expect(shape('попутка до Києва ввечері')).toEqual({ kind: 'poputky', fromCity: 'Malyn', toCity: 'Kyiv' });
     expect(shape('автобусом з Царського села на вокзал').kind).toBe('intra');
@@ -494,5 +497,96 @@ describe('метро поза годинами роботи', () => {
     // висадка 22:50 — до закриття о 23:00 доїхати не встигнути
     expect([s.arriveMins, s.endLabel]).toEqual([hm(22, 50), 'Київ, вокзал Київ-Пасажирський']);
     expect(s.endNote).toBe('метро о цій порі не працює (05:30–23:00); час — до висадки біля метро «Святошин»');
+  });
+});
+
+describe('Житомир ↔ Малин — між містами', () => {
+  const ZT = 'Автовокзал Житомир-1 (вул. Київська, 93)';
+  const toMalyn = [
+    sched({ id: 51, route: 'Zhytomyr-Malyn', departureTime: '15:50', arrivalTime: '17:15', boardingPlace: ZT, priceUah: 287 }),
+    sched({ id: 52, route: 'Zhytomyr-Malyn', departureTime: '16:30', arrivalTime: '18:40', boardingPlace: `${ZT}; транзит з Вінниці`, priceUah: 299 }),
+    sched({ id: 53, route: 'Zhytomyr-Bazar-Potiivka-Malyn', departureTime: '14:30', arrivalTime: '16:59', boardingPlace: `${ZT}; через Малин ≈ 16:15`, priceUah: null }),
+  ];
+  const fromMalyn = [
+    sched({ id: 61, route: 'Malyn-Zhytomyr-Potiivka', departureTime: '06:50', boardingPlace: 'Автостанція Малин', priceUah: null }),
+    sched({ id: 62, route: 'Malyn-Zhytomyr-Radomyshl', departureTime: '06:30', boardingPlace: 'Автостанція Малин', priceUah: null }),
+    sched({ id: 63, route: 'Malyn-Khmilnyk-Zhytomyr', departureTime: '05:20', boardingPlace: 'Автостанція Малин', priceUah: null }),
+  ];
+  const p = planner({
+    'st_0004>st_0019': [bus('8', 'st_0004', 'st_0019', hm(17, 30), hm(17, 42))],
+    'st_0090>st_0004': [bus('9', 'st_0090', 'st_0004', hm(6, 20), hm(6, 32))],
+  });
+  const run = (text: string, schedules: Schedule[], extra: Partial<Parameters<typeof composeStories>[0]> = {}) => {
+    const intent = parseLocal(text, NOW).intent;
+    const out = composeStories({ intent, now: NOW, date: resolveDate(intent.when.day, NOW), schedules, planner: p, ...extra });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    return out;
+  };
+
+  it('з Житомира в Малин: посадка на автовокзалі, прибуття з розкладу, далі містом від автостанції', () => {
+    const out = run('з Житомира в Малин на вокзал сьогодні', toMalyn.slice(0, 2));
+    const s = out.stories[0];
+    expect(out.askMode).toBe(false);
+    const ic = intercity(s);
+    expect([ic.routeLabel, ic.boardLabel, ic.boardMins, ic.alightLabel, ic.alightMins, ic.alightApprox]).toEqual(['Житомир — Малин', 'від автовокзалу Житомир-1', hm(15, 50), 'на автостанції', hm(17, 15), false]);
+    expect(ic.phoneOnly).toBe(false);
+    expect(kinds(s)).toEqual(['intercity', 'wait', 'bus']);
+    expect(busLeg(s)).toMatchObject({ routeId: '8', depMins: hm(17, 30) });
+    expect([s.fromLabel, s.arriveMins, s.priceUah]).toEqual(['Житомир', hm(17, 42), 287]);
+    // наступний рейс — у «Інші рейси»
+    expect(ic.later).toEqual(['16:30 від автовокзалу Житомир-1']);
+  });
+
+  it('транзитний рейс на Базар: час у Малині — з тексту «через Малин ≈ …», завжди приблизний', () => {
+    const out = run('з Житомира в Малин сьогодні', [toMalyn[2]]);
+    const ic = intercity(out.stories[0]);
+    expect([ic.alightMins, ic.alightApprox, ic.via, ic.transit]).toEqual([hm(16, 15), true, 'через Потіївку', 'їде далі на Базар']);
+    expect(out.stories[0].endLabel).toBe('Малин, Автостанція');
+  });
+
+  it('з Малина до Житомира: часу прибуття в розкладі немає — оцінка за шляхом, «≈»; кінець — автовокзал', () => {
+    const out = run('з Малина до Житомира завтра зранку', [fromMalyn[0]]);
+    const s = out.stories[0];
+    const ic = intercity(s);
+    expect([ic.routeLabel, ic.boardLabel, ic.via, ic.alightLabel, ic.alightApprox]).toEqual(['Малин — Житомир', 'з автостанції', 'через Потіївку', 'на автовокзалі Житомир-1', true]);
+    // через Потіївку ≈ 1 год 30 хв
+    expect([ic.boardMins, ic.alightMins]).toEqual([hm(6, 50), hm(8, 20)]);
+    expect([s.endLabel, s.arriveApprox, s.priceUah]).toEqual(['Житомир, автовокзал Житомир-1', true, null]);
+    const last = s.legs[s.legs.length - 1];
+    expect(last).toMatchObject({ kind: 'kyiv', city: 'Житомир', text: 'Далі по Житомиру' });
+  });
+
+  it('шлях міняє оцінку: через Радомишль довше; транзитний на Хмільник — «транзит на Хмільник»', () => {
+    const radomyshl = intercity(run('з Малина до Житомира завтра зранку', [fromMalyn[1]]).stories[0]);
+    expect([radomyshl.via, radomyshl.alightMins - radomyshl.boardMins]).toEqual(['через Радомишль', 135]);
+    const transit = intercity(run('з Малина до Житомира завтра зранку', [fromMalyn[2]]).stories[0]);
+    expect([transit.transit, transit.alightMins - transit.boardMins]).toEqual(['транзит на Хмільник', 100]);
+  });
+
+  it('з району Малина: міським автобусом до автостанції із запасом 10 хв', () => {
+    const s = run('з Царського села до Житомира завтра зранку', [fromMalyn[0]]).stories[0];
+    expect(kinds(s).slice(0, 3)).toEqual(['bus', 'wait', 'intercity']);
+    expect([busLeg(s).depMins, s.leaveMins]).toEqual([hm(6, 20), hm(6, 20)]);
+  });
+
+  it('попутка на Житомир: сталий час авто 1 год 30 хв, місце в Житомирі — «уточніть»; київських підказок немає', () => {
+    const listing = { id: 9, senderName: 'Ігор', listingType: 'driver', route: 'Malyn-Zhytomyr', date: '2026-11-14', departureTime: '07:00', seats: 2, notes: 'до Академмістечка не їду', priceUah: 200, isActive: true, createdAt: '', updatedAt: '' } as ViberListing;
+    const out = run('з Малина до Житомира завтра зранку', [fromMalyn[0]], { listings: [listing], notePlaces: (note, dir) => placesInNote(note, [], dir) });
+    const s = out.stories.find((x) => x.mode === 'poputka')!;
+    const r = s.legs.find((l): l is Extract<StoryLeg, { kind: 'ride' }> => l.kind === 'ride')!;
+    expect([r.depMins, r.arrMins, r.alightLabel, r.alightAssumed]).toEqual([hm(7, 0), hm(8, 30), 'у Житомирі', true]);
+    expect(s.endLabel).toBe('Житомир');
+    expect(out.rides?.boardUrl).toBe('/mizhgorodski?type=carpool&from=Malyn&to=Zhytomyr&date=2026-11-14');
+  });
+
+  it('ціна на Житомир — з розкладу рейсів з Житомира; електрички немає', () => {
+    const intent = parseLocal('скільки коштує до Житомира', NOW).intent;
+    const shapeOf = classify(intent);
+    expect(shapeOf).toMatchObject({ kind: 'price', far: 'Zhytomyr' });
+    expect(corridorCities(shapeOf)).toEqual({ from: 'Zhytomyr', to: 'Malyn' });
+    const out = composeStories({ intent, now: NOW, date: NOW.date, schedules: toMalyn, planner: null });
+    if (out.kind !== 'price') throw new Error(out.kind);
+    expect(out.lines.map((l) => [l.label, l.price])).toContainEqual(['Маршрутка Житомир ↔ Малин', '287–299 грн']);
+    expect(out.lines.some((l) => l.label.startsWith('Електричка'))).toBe(false);
   });
 });

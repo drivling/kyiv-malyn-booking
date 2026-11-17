@@ -21,7 +21,7 @@ interface GoldenCase {
     to?: string | null;
     when?: Partial<TripIntent['when']>;
   };
-  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'zhytomyr' | 'later';
 }
 
 /** Порівнюємо лише поля з expect; повертаємо [збіглося, усього, що не так] */
@@ -123,6 +123,17 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
     }
     // «я на Майдані, як доїхати…» — «звідки» без прийменника руху: це розуміє лише Claude
     expect(misses).toEqual(['kv-40 «я на майдані, як доїхати в малин до лікарні» from: null ≠ kyiv.m.maidan']);
+  });
+
+  it('Житомир ↔ Малин (scope zhytomyr): словник у браузері розуміє міста й місця цих питань', () => {
+    const misses: string[] = [];
+    for (const c of cases.filter((x) => x.scope === 'zhytomyr')) {
+      const intent = parseLocal(c.text, NOW, STOP_INDEX).intent;
+      for (const role of ['from', 'to'] as const) {
+        if (c.expect[role] !== undefined && (intent[role]?.id ?? null) !== c.expect[role]) misses.push(`${c.id} «${c.text}» ${role}: ${intent[role]?.id ?? null} ≠ ${c.expect[role]}`);
+      }
+    }
+    expect(misses).toEqual([]);
   });
 
   it('усі id у еталонах є в словнику', () => {

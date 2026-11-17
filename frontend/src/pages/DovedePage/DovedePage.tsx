@@ -18,7 +18,7 @@ import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
 import { DovedeIntro } from './intro/DovedeIntro';
 import { introSeen } from './intro/introState';
-import { DEFAULT_CAR_MINUTES, classify, composeStories, corridorCities, resolveDate, rideDepartures, type DriveEstimate } from './compose/composeStories';
+import { classify, defaultCarMinutes, composeStories, corridorCities, resolveDate, rideDepartures, type DriveEstimate } from './compose/composeStories';
 import { placesInNote, type NoteDir } from './nlu/notePlaces';
 import { clock, shareText } from './compose/narrate';
 import type { ComposeOutcome, Story } from './compose/types';
@@ -253,7 +253,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
         const got = times.length && cities ? await apiClient.dovedeDriveTime({ from: cities.from, to: cities.to, date: d, times }) : null;
         return (depMins: number): DriveEstimate => {
           const exact = got?.minutes[clock(depMins)];
-          return exact ? { minutes: exact, traffic: got!.source === 'traffic' } : { minutes: got?.fixedMinutes ?? DEFAULT_CAR_MINUTES, traffic: false };
+          return exact ? { minutes: exact, traffic: got!.source === 'traffic' } : { minutes: got?.fixedMinutes ?? defaultCarMinutes(shape.kind === 'to_malyn' || shape.kind === 'from_malyn' ? shape.far : 'Kyiv'), traffic: false };
         };
       };
       const driveFor = (d: string, listings: ViberListing[]) => driveFor0(d, listings, intent);
@@ -631,7 +631,7 @@ function Result({
     case 'outside':
       return (
         <Panel title="Цю дорогу я ще вчу">
-          У першій версії «Доведе» знає дорогу Київ — Малин і міські автобуси Малина. Житомир, Коростень і попутки — далі.
+          «Доведе» знає дорогу Київ — Малин, Житомир — Малин і міські автобуси Малина. Коростень та інші напрямки — далі.
         </Panel>
       );
     case 'poputky':
