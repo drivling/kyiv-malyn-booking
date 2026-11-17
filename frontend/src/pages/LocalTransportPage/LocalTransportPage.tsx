@@ -1,3 +1,4 @@
+import { TransportFooter } from './TransportFooter';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Combobox } from '@/components/Combobox';
@@ -119,25 +120,6 @@ function transportHubFaq(p: TransportProfile): Array<{ q: string; a: string }> {
       a: `Тут — місцевий транспорт ${p.nameGenitive} (зупинки в місті). Міжміські попутки й маршрутки ${others} — на /mizhgorodski.`,
     },
   ];
-}
-
-/** Підвал сторінок транспорту: у Малина — набір data.gov.ua і телефон, в іншого міста — джерело розкладу */
-function TransportFooter({ profile }: { profile: TransportProfile }) {
-  return (
-    <footer className="lt-footer">
-      {profile.hasOpenData ? (
-        <>
-          <a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36" target="_blank" rel="noopener noreferrer">data.gov.ua</a>
-          {' · '}
-          <a href="tel:+380687771590">(068) 77-71-590</a>
-        </>
-      ) : profile.sourceLink ? (
-        <a href={profile.sourceLink.href} target="_blank" rel="noopener noreferrer">
-          {profile.sourceLink.label}
-        </a>
-      ) : null}
-    </footer>
-  );
 }
 
 /** Зі списку зупинок повертає id найближчої до targetKey за координатами (або першу з списку) */

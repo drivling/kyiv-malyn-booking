@@ -1,3 +1,4 @@
+import { TransportFooter } from './TransportFooter';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { transportProfile, type TransportProfile } from '@/site/transportCity';
@@ -404,6 +405,9 @@ function CitySchemePage({ profile, scheme }: { profile: TransportProfile; scheme
           <p className="lts-poster">
             Плакат для друку з QR-кодом: <a href={scheme.poster.pdf}>PDF</a> · <a href={scheme.poster.svg}>SVG</a>
           </p>
+
+          {/* Місто без відкритих даних: звідки розклад і координати (фаза 11.1) */}
+          {!profile.hasOpenData && <TransportFooter profile={profile} />}
 
           {/* Дані належать людині (Docs/transport-open-data-2026-10.md): стабільні посилання, без стану браузера */}
           {profile.hasOpenData && (

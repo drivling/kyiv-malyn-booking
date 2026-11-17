@@ -95,6 +95,9 @@ describe('сторінки транспорту Коростеня', () => {
     // міні-схема — коростенська (лінія 2-Б є лише там)
     expect(document.querySelector('.lts-mini [data-route="2b"]')).not.toBeNull();
     expect(screen.getByRole('link', { name: 'Розклад: Коростенська міська рада' })).toHaveAttribute('href', expect.stringContaining('korosten-rada.gov.ua'));
+    expect(screen.getByRole('link', { name: 'Зупинки: data.gov.ua (CC BY)' })).toHaveAttribute('href', expect.stringContaining('data.gov.ua/dataset/'));
+    // ODbL: частина координат зупинок — з OpenStreetMap
+    expect(screen.getByRole('link', { name: 'Координати зупинок: © учасники OpenStreetMap' })).toHaveAttribute('href', 'https://www.openstreetmap.org/copyright');
     expect(screen.getByText('Як доїхати міським транспортом у Коростені?')).toBeInTheDocument();
     expect(document.body.textContent).toContain('Міжміські попутки й маршрутки Київ / Житомир / Малин — на /mizhgorodski.');
     expect(pageText()).not.toMatch(/Малин|malin\.kiev/);
@@ -161,6 +164,8 @@ describe('сторінки транспорту Коростеня', () => {
     expect(screen.getAllByRole('button', { name: /^Маршрут №2-Б:/ }).length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole('link', { name: 'PDF' })).toHaveAttribute('href', '/transport/scheme/korosten-transit-scheme-poster.pdf');
     expect(document.getElementById('open-data')).toBeNull();
+    // замість блоку відкритих даних — джерела даних міста
+    expect(screen.getByRole('link', { name: 'Розклад: Коростенська міська рада' })).toBeInTheDocument();
     expect(pageText()).not.toMatch(/Малин|malin\.kiev/);
     await waitFor(() => expect(document.title).toBe('Схема маршрутів Коростеня — міські автобуси | korosten.kiev.ua'));
     expect(document.querySelector('link[rel="canonical"]')?.getAttribute('href')).toBe('https://korosten.kiev.ua/transport/scheme');

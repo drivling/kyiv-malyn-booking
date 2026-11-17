@@ -424,13 +424,12 @@ function buildStopHtml(shell, stopId, name, routeIds, article, hiddenRouteIds = 
   return html;
 }
 
-/** Підвал статичної сторінки: Малин — data.gov.ua і телефон, інше місто — джерело розкладу з мапи сайтів */
+/** Підвал статичної сторінки: Малин — data.gov.ua і телефон, інше місто — джерела даних з мапи сайтів */
 function footerHtml() {
   if (IS_PRIMARY) {
     return '<a href="https://data.gov.ua/dataset/f28ed264-8576-457d-a518-2b637a3c8d36">data.gov.ua</a> · <a href="tel:+380687771590">(068) 77-71-590</a>';
   }
-  const src = SITE.transportSource;
-  return src ? `<a href="${escapeHtml(src.href)}">${escapeHtml(src.label)}</a>` : '';
+  return (SITE.transportSources || []).map((src) => `<a href="${escapeHtml(src.href)}">${escapeHtml(src.label)}</a>`).join(' · ');
 }
 
 /** Sitemap дерева сайту іншого міста: хаб, схема (якщо намальована), маршрути й зупинки — для prerender-spa і seo-smoke */

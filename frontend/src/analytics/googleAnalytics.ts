@@ -1,3 +1,4 @@
+import { isDefaultTransportCity, siteTransportCity } from '@/site/transportCity';
 /** ID вимірювання GA4 (той самий, що в index.html) */
 export const GA_MEASUREMENT_ID = 'G-F0Q1HQJMZ8' as const;
 
@@ -49,5 +50,16 @@ export type GaEventParams = Record<string, string | number | boolean>;
 export function gaTrackEvent(name: string, params: GaEventParams = {}): void {
   if (typeof window === 'undefined' || typeof window.gtag !== 'function') return;
   if (!gaShouldTrackPath(window.location.pathname)) return;
-  window.gtag('event', name, params);
+  window.gtag('event', name, withTransportCity(name, params));
+}
+
+/**
+ * Події транспорту (`transport_*`) іншого міста несуть `transport_city` (код міста: «Korosten»; фаза 11.1,
+ * Docs/transport-analytics.md). У Малина параметра нема — його події лишаються такими, як були, і в звітах GA4
+ * «(not set)» = Малин.
+ */
+export function withTransportCity(name: string, params: GaEventParams): GaEventParams {
+  if (!name.startsWith('transport_')) return params;
+  const city = siteTransportCity();
+  return isDefaultTransportCity(city) ? params : { ...params, transport_city: city };
 }

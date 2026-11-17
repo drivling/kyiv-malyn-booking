@@ -29,6 +29,8 @@ export interface SiteConfig {
   cityNameUkGenitive: string;
   /** Місцевий відмінок: «у Малині» */
   cityNameUkLocative: string;
+  /** Джерела даних міського транспорту для підвалу (лише міста без відкритих даних; site-hosts.mjs) */
+  transportSources?: { href: string; label: string }[];
   isPrimary: boolean;
   /** Домен підключено і він обслуговує трафік (неактивні міста живуть на головному сайті) */
   active: boolean;
