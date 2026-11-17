@@ -7,7 +7,7 @@
  */
 import express, { type Router } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
-import { requireAdmin, safeEqual } from '../middleware/require-admin';
+import { isAdminRequest, requireAdmin, safeEqual } from '../middleware/require-admin';
 import {
   createLoginFailures,
   dovedeAccessFromEnv,
@@ -26,7 +26,7 @@ import type { RouteLike } from '../dovede/prompt';
 import { buildStopPlaces, type StopLike } from '../dovede/stopPlaces';
 import { DEFAULT_TRANSPORT_CITY } from '../transport-city';
 import { DEFAULT_CAR_MINUTES, driveTimeFromEnv, type DriveTimeFn } from '../drive-time';
-import { cityRoutesFromEnv, type CityCode, type CityRoutes } from '../dovede/city-route';
+import { CITY_FRESH_DAYS_MAX, CITY_FRESH_DAYS_MIN, cityRoutesFromEnv, isValidFreshDays, type CityCode, type CityRoutes } from '../dovede/city-route';
 import { kyivWallToUtc } from '../viber-listing-expiry';
 
 export const DOVEDE_MAX_TEXT = 300;
@@ -264,6 +264,8 @@ export function createAdminDovedeRouter(deps: {
    * Дорога містом між двома точками (Київ, Житомир): з нашої бази, а коли там немає — від Google, і тоді відповідь
    * лягає в базу. `from` / `to` — id відомої точки («zhytomyr.avtovokzal», «kyiv.akadem») або слова людини.
    * Будь-яка невдача — 200 з `{ ok: false, fallback: 'maps' }`: сторінка показує посилання Google Maps.
+   * `learn=1` з токеном адміна — навчання (`npm run dovede:crawl`): відповідь та сама й так само лягає в базу, але
+   * попит людей не рахується. Без токена адміна прапорець нічого не міняє.
    */
   r.get('/dovede/city-route', requireDovedeAccess(access), async (req, res) => {
     const city = String(req.query.city ?? '').trim();
@@ -279,7 +281,8 @@ export function createAdminDovedeRouter(deps: {
     const [hh, mm] = time.split(':').map(Number);
     res.set('Cache-Control', 'private, no-store');
     try {
-      res.json(await cityRoutes.find({ city: city as CityCode, from, to, date, time, departAt: kyivWallToUtc(y, m - 1, d, hh, mm) }));
+      const learn = String(req.query.learn ?? '') === '1' && isAdminRequest(req);
+      res.json(await cityRoutes.find({ city: city as CityCode, from, to, date, time, departAt: kyivWallToUtc(y, m - 1, d, hh, mm) }, learn));
     } catch (e) {
       console.error('❌ GET /dovede/city-route:', e);
       res.json({ ok: false, fallback: 'maps', reason: 'error' });
@@ -304,6 +307,31 @@ export function createAdminDovedeRouter(deps: {
     } catch (e) {
       console.error('❌ POST /admin/dovede/city/learn:', e);
       res.status(500).json({ error: 'Не вдалося оновити' });
+    }
+  });
+
+  /** Обнуляє лічильник попиту «Що питають найчастіше» (після прогону самонавчання). Рядки й збережені дороги лишаються */
+  r.post('/admin/dovede/city/demand/reset', requireAdmin, async (_req, res) => {
+    try {
+      res.json(await cityRoutes.resetDemand());
+    } catch (e) {
+      console.error('❌ POST /admin/dovede/city/demand/reset:', e);
+      res.status(500).json({ error: 'Не вдалося скинути лічильник' });
+    }
+  });
+
+  /** Скільки днів збережена відповідь вважається свіжою (далі сервер питає Google знову) */
+  r.put('/admin/dovede/city/settings', requireAdmin, async (req, res) => {
+    const freshDays = req.body?.freshDays;
+    if (!isValidFreshDays(freshDays)) {
+      res.status(400).json({ error: `freshDays: ціле число від ${CITY_FRESH_DAYS_MIN} до ${CITY_FRESH_DAYS_MAX}` });
+      return;
+    }
+    try {
+      res.json({ freshDays: await cityRoutes.setFreshDays(freshDays) });
+    } catch (e) {
+      console.error('❌ PUT /admin/dovede/city/settings:', e);
+      res.status(500).json({ error: 'Не вдалося зберегти' });
     }
   });
 

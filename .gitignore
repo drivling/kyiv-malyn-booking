@@ -68,6 +68,9 @@ data/korosten-transport/google/*.local.json
 data/korosten-transport/dataset/*.local.json
 data/korosten-transport/dataset/*.local.md
 
+# Журнал обходу «Доведе» (npm run dovede:crawl): що вже питали в сервера — лише локально
+data/dovede-crawl/
+
 # Скомпільований Python (тести lunch / dzhura лишають його поруч із кодом)
 __pycache__/
 *.pyc

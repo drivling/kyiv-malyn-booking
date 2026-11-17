@@ -1342,6 +1342,8 @@ model DovedeCityRoute {
   hits        Int       @default(0)
   lastAskedAt DateTime?
   archivedAt  DateTime?
+  /// Коли фонове оновлення застарілого рядка не вдалося (Google дороги не знайшов, збій): тиждень його не чіпаємо
+  refreshFailedAt DateTime?
 
   @@unique([cityCode, fromKey, toKey, dayType, hour, source], map: "DovedeCityRoute_key")
   @@index([source, fetchedAt])
@@ -1381,7 +1383,16 @@ model DovedeCityStop {
   @@unique([cityCode, name], map: "DovedeCityStop_key")
 }
 
-/// Журнал попиту: які пари точок у місті питають і чи є на них відповідь — з нього фонове навчання бере роботу
+/// Налаштування дороги містом (singleton id=1): редагуються в адмінці «Місто: що вже знаємо», без редеплою
+model DovedeCitySettings {
+  id        Int      @id
+  /// Скільки днів збережена відповідь вважається свіжою; далі сервер питає Google знову
+  freshDays Int      @default(30)
+  updatedAt DateTime @updatedAt
+}
+
+/// Журнал попиту: які пари точок у місті питають і чи є на них відповідь — з нього фонове навчання бере роботу.
+/// `asked = 0` — лічильник скинуто з адмінки: такої пари немає ні в списку, ні в навчанні, поки її знову не спитають
 model DovedeCityDemand {
   id          Int      @id @default(autoincrement())
   createdAt   DateTime @default(now())
@@ -1393,6 +1404,8 @@ model DovedeCityDemand {
   asked       Int      @default(1)
   answered    Boolean  @default(false)
   lastAskedAt DateTime
+  /// Коли фонове навчання питало Google про цю пару без успіху: тиждень її не чіпаємо (людина питає — як завжди)
+  learnFailedAt DateTime?
 
   @@unique([cityCode, fromKey, toKey], map: "DovedeCityDemand_key")
 }

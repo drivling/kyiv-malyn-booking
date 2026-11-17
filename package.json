@@ -14,6 +14,7 @@
     "setup:local": "npm run db:up && npm --prefix backend run prisma:migrate:deploy && npm --prefix backend run build && npm --prefix backend run seed:transport",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
+    "dovede:crawl": "npm --prefix frontend run dovede:crawl --",
     "lint": "npm run lint --prefix frontend",
     "typecheck": "cd backend && npx tsc --noEmit && cd ../frontend && npx tsc --noEmit",
     "prepare": "husky"
