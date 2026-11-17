@@ -4,7 +4,7 @@
  * і чесний приблизний час (2 хв на перегін, 5 хв на пересадку, 5 хв на вхід і вихід).
  */
 import type { GazetteerPlace } from './gazetteer';
-import { METRO_STATIONS, METRO_TRANSFERS, type MetroStation } from './kyivMetroData';
+import { METRO_STATIONS, METRO_TRANSFERS, type MetroLine, type MetroStation } from './kyivMetroData';
 import { tokenize, type Token } from './normalize';
 import { wordMatchesName } from './stopPlaces';
 
@@ -90,12 +90,26 @@ export function findMetroIn(text: string): MetroStation | null {
 
 // ─── Шлях ─────────────────────────────────────────────────────────────────────────────────────
 
-export interface MetroPath {
+/** Відрізок однією лінією без пересадок */
+export interface MetroSegment {
+  line: MetroLine;
+  from: MetroStation;
+  to: MetroStation;
+  /** кінцева, у бік якої їхати: так написано на табличках платформи */
+  towards: MetroStation;
   /** скільки перегонів проїхати */
+  hops: number;
+  /** усі станції відрізка від посадки до виходу включно */
+  stations: MetroStation[];
+}
+
+export interface MetroPath {
+  /** скільки перегонів проїхати разом */
   hops: number;
   /** пересадки: з якої станції на яку */
   transfers: Array<{ from: MetroStation; to: MetroStation }>;
-  /** хвилини разом із входом і виходом */
+  segments: MetroSegment[];
+  /** груба оцінка без розкладу: 2 хв на перегін, 5 на пересадку, 5 на вхід і вихід (точніше — `metroTrip`) */
   minutes: number;
 }
 
@@ -109,6 +123,22 @@ METRO_STATIONS.forEach((st, i) => {
   if (next && next.line === st.line) link(st.id, next.id, true);
 });
 METRO_TRANSFERS.forEach(([a, b]) => link(a, b, false));
+
+const INDEX = new Map(METRO_STATIONS.map((st, i) => [st.id, i]));
+/** перша й остання станція кожної лінії — у порядку файла даних */
+const TERMINI = new Map<MetroLine, [MetroStation, MetroStation]>();
+for (const st of METRO_STATIONS) {
+  const cur = TERMINI.get(st.line);
+  TERMINI.set(st.line, cur ? [cur[0], st] : [st, st]);
+}
+
+function segmentOf(ids: string[]): MetroSegment {
+  const stations = ids.map((id) => BY_ID.get(id)!);
+  const from = stations[0];
+  const to = stations[stations.length - 1];
+  const [first, last] = TERMINI.get(from.line)!;
+  return { line: from.line, from, to, towards: INDEX.get(to.id)! > INDEX.get(from.id)! ? last : first, hops: stations.length - 1, stations };
+}
 
 /** Найшвидший шлях між двома станціями (52 вершини — простий перебір за часом) */
 export function metroPath(fromId: string, toId: string): MetroPath | null {
@@ -131,13 +161,26 @@ export function metroPath(fromId: string, toId: string): MetroPath | null {
     }
   }
   if (!prev.has(toId)) return null;
-  let hops = 0;
-  const transfers: MetroPath['transfers'] = [];
+  // шлях від кінця до початку, потім — відрізки між пересадками
+  const chain: Array<{ id: string; rideIn: boolean }> = [];
   for (let at = toId; at !== fromId; ) {
     const p = prev.get(at)!;
-    if (p.ride) hops++;
-    else transfers.unshift({ from: BY_ID.get(p.id)!, to: BY_ID.get(at)! });
+    chain.unshift({ id: at, rideIn: p.ride });
     at = p.id;
   }
-  return { hops, transfers, minutes: hops * METRO_HOP_MIN + transfers.length * METRO_TRANSFER_MIN + METRO_ACCESS_MIN };
+  const transfers: MetroPath['transfers'] = [];
+  const segments: MetroSegment[] = [];
+  let run = [fromId];
+  for (const step of chain) {
+    if (step.rideIn) {
+      run.push(step.id);
+      continue;
+    }
+    transfers.push({ from: BY_ID.get(run[run.length - 1])!, to: BY_ID.get(step.id)! });
+    if (run.length > 1) segments.push(segmentOf(run));
+    run = [step.id];
+  }
+  if (run.length > 1) segments.push(segmentOf(run));
+  const hops = segments.reduce((n, sg) => n + sg.hops, 0);
+  return { hops, transfers, segments, minutes: hops * METRO_HOP_MIN + transfers.length * METRO_TRANSFER_MIN + METRO_ACCESS_MIN };
 }

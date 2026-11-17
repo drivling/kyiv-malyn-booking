@@ -3,7 +3,8 @@
  * короткі «таблички як у Google» з кураторських підказок і посилання на Google Maps у режимі громадського
  * транспорту (Maps URLs, без ключа API).
  */
-import { findMetroIn, metroPath, metroStation } from '../nlu/kyivMetro';
+import { findMetroIn, metroPath, type MetroPath, type MetroSegment } from '../nlu/kyivMetro';
+import { METRO_LINE, METRO_SERVICE, METRO_SHUTTLE, metroOpenAt, metroPeriod } from './kyivMetroService';
 import { METRO_STATIONS } from '../nlu/kyivMetroData';
 import { normalizeWord } from '../nlu/normalize';
 
@@ -92,11 +93,37 @@ export function kyivNotePoint(note: string | null | undefined): string | null {
   return null;
 }
 
+/** Відрізок поїздки: метро або автобус, що зараз ходить замість нього (`bus` — номер) */
+export type TripSegment = MetroSegment & { bus: string | null };
+
 export interface MetroTrip {
-  /** «метро М1 «Святошин» → «Вокзальна», 5 станцій, ≈ 15 хв» */
+  /** «метро М1 «Святошин» → «Вокзальна», 5 станцій, ≈ 20 хв» */
   text: string;
-  /** хвилини разом із входом і виходом — на стільки зсувається час історії */
+  /** хвилини від входу до виходу: перегони, пересадки, очікування поїзда, вхід і вихід */
   minutes: number;
+  segments: TripSegment[];
+  transfers: MetroPath['transfers'];
+  /** поїзди о цій порі — кожні стільки хвилин */
+  headwayMin: number;
+  priceUah: number;
+  /** о цій порі метро не працює: час не рахуємо, картка каже про це */
+  closed: boolean;
+}
+
+/** Ділить відрізок там, де поїзди зараз не ходять і працює автобус (`METRO_SHUTTLE`): перегін автобусний, якщо хоч один його кінець — на закритій дільниці */
+function splitShuttle(sg: MetroSegment): TripSegment[] {
+  const sh = METRO_SHUTTLE;
+  if (!sh || sg.line !== sh.line) return [{ ...sg, bus: null }];
+  const byBus = (i: number) => sh.stations.includes(sg.stations[i].id) || sh.stations.includes(sg.stations[i + 1].id);
+  const out: TripSegment[] = [];
+  let start = 0;
+  for (let i = 0; i < sg.hops; i++) {
+    if (i + 1 < sg.hops && byBus(i + 1) === byBus(i)) continue;
+    const stations = sg.stations.slice(start, i + 2);
+    out.push({ ...sg, from: stations[0], to: stations[stations.length - 1], hops: stations.length - 1, stations, bus: byBus(i) ? sh.bus : null });
+    start = i + 1;
+  }
+  return out;
 }
 
 function stationsWord(n: number): string {
@@ -107,15 +134,38 @@ function stationsWord(n: number): string {
   return 'станцій';
 }
 
-/** Дорога метро між двома точками Києва: текст підказки й хвилини; null — одна з точок не на метро */
-export function metroTrip(fromId: string, toId: string): MetroTrip | null {
+/**
+ * Дорога метро між двома точками Києва; null — одна з точок не на метро. `at` — коли людина заходить у метро
+ * (хв від півночі й дата): від цього залежать інтервал поїздів і чи метро взагалі працює. Без `at` — денний час.
+ */
+export function metroTrip(fromId: string, toId: string, at?: { mins: number; date: string }): MetroTrip | null {
   const path = metroPath(fromId, toId);
   const a = KYIV_POINTS[fromId]?.metro;
   const b = KYIV_POINTS[toId]?.metro;
   if (!path || !a || !b) return null;
-  const line = path.transfers.length ? '' : ` ${metroStation(fromId)!.line.replace('M', 'М')}`;
+  const S = METRO_SERVICE;
+  const headway = S.headwaySeconds[at ? metroPeriod(at.mins, at.date) : 'day'];
+  const segments = path.segments.flatMap(splitShuttle);
+  // на кожній посадці в поїзд чекаємо в середньому пів інтервалу; автобус-замінник — свій час і своє очікування
+  const seconds =
+    segments.reduce((n, sg) => n + (sg.bus ? sg.hops * METRO_SHUTTLE!.hopSeconds + METRO_SHUTTLE!.waitSeconds : sg.hops * S.hopSeconds[sg.line] + headway / 2), 0) +
+    path.transfers.length * S.transferSeconds +
+    S.accessSeconds;
+  const minutes = Math.round(seconds / 60);
+  const closed = at ? !metroOpenAt(at.mins) || !metroOpenAt(at.mins + minutes) : false;
+  const bus = segments.find((sg) => sg.bus);
+  const line = path.transfers.length || bus ? '' : ` ${METRO_LINE[path.segments[0].line].no}`;
   const change = path.transfers.map((t) => `, пересадка «${t.from.name}» → «${t.to.name}»`).join('');
-  return { text: `метро${line} «${a}» → «${b}», ${path.hops} ${stationsWord(path.hops)}${change}, ≈ ${path.minutes} хв`, minutes: path.minutes };
+  const shuttle = bus ? `, від «${bus.from.name}» до «${bus.to.name}» — автобус №${bus.bus} замість метро` : '';
+  return {
+    text: `метро${line} «${a}» → «${b}», ${path.hops} ${stationsWord(path.hops)}${change}${shuttle}, ≈ ${minutes} хв`,
+    minutes,
+    segments,
+    transfers: path.transfers,
+    headwayMin: Math.round(headway / 60),
+    priceUah: S.fareUah,
+    closed,
+  };
 }
 
 /** Лише текст підказки (див. `metroTrip`) */

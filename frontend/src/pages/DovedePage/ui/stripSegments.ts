@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { routeColorStyle } from '@/pages/LocalTransportPage/routeColors';
 import type { Story } from '../compose/types';
+import { METRO_LINE } from '../data/kyivMetroService';
 
 export interface Segment {
   start: number;
@@ -17,6 +18,9 @@ export function stripSegments(story: Story): Segment[] {
     if (leg.kind === 'intercity') {
       out.push({ start: leg.boardMins, end: leg.alightMins, cls: leg.mode });
       cursor = leg.alightMins;
+    } else if (leg.kind === 'metro') {
+      if (!leg.closed) out.push({ start: leg.depMins, end: leg.arrMins, cls: 'metro', style: { background: METRO_LINE[leg.segments[0].line].color } });
+      cursor = Math.max(cursor, leg.arrMins);
     } else if (leg.kind === 'ride') {
       out.push({ start: leg.depMins, end: leg.arrMins, cls: 'poputka' });
       cursor = leg.arrMins;
