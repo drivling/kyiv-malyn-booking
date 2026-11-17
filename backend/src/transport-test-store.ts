@@ -25,12 +25,13 @@ export const TRANSPORT_MODELS = [
   'stickerReturn',
   'stickerPrint',
   'transportArrivalReport',
+  'transportVehiclePosition',
 ] as const;
 export type TransportModel = (typeof TRANSPORT_MODELS)[number];
 
 const OTHER_MODELS = ['tripPoint', 'watchedSource'] as const;
 /** Моделі з автоінкрементним числовим id */
-const AUTO_ID = new Set<string>(['transportRouteStop', 'transportSegment', 'stickerScan', 'stickerReturn', 'stickerPrint', 'transportArrivalReport', 'tripPoint']);
+const AUTO_ID = new Set<string>(['transportRouteStop', 'transportSegment', 'stickerScan', 'stickerReturn', 'stickerPrint', 'transportArrivalReport', 'transportVehiclePosition', 'tripPoint']);
 /** Значення за замовчуванням із схеми (колонки з DEFAULT) */
 const DEFAULTS: Record<string, StoreRow> = Object.fromEntries(TRANSPORT_MODELS.map((m) => [m, { cityCode: 'Malyn' }]));
 
@@ -43,6 +44,7 @@ const UNIQUE_KEYS: Record<string, string[][]> = {
   transportSegment: [['cityCode', 'routeId', 'fromStopId', 'toStopId']],
   transportMeta: [['cityCode'], ['id']],
   transportRevision: [['cityCode', 'revision']],
+  transportVehiclePosition: [['cityCode', 'vehicleId', 'at']],
 };
 
 const cmp = (a: unknown, b: unknown): number => {
@@ -116,7 +118,7 @@ export function createTransportTestStore(initial: Partial<Record<string, StoreRo
       if (AUTO_ID.has(name) && row.id === undefined) row.id = nextId[name]++;
       if (name === 'transportMeta' && row.id === undefined) row.id = 1 + Math.max(0, ...tables[name].map((r) => Number(r.id) || 0));
       for (const key of UNIQUE_KEYS[name] ?? []) {
-        if (tables[name].some((other) => key.every((field) => other[field] === row[field]))) {
+        if (tables[name].some((other) => key.every((field) => cmp(other[field], row[field]) === 0))) {
           throw Object.assign(new Error(`Unique constraint failed on ${name} (${key.join(', ')})`), { code: 'P2002' });
         }
       }
@@ -151,10 +153,19 @@ export function createTransportTestStore(initial: Partial<Record<string, StoreRo
         log('create', args);
         return { ...insert(args.data) };
       },
-      createMany: async (args: { data: StoreRow[] }) => {
+      createMany: async (args: { data: StoreRow[]; skipDuplicates?: boolean }) => {
         log('createMany', args);
-        args.data.forEach((d) => insert(d));
-        return { count: args.data.length };
+        let count = 0;
+        for (const d of args.data) {
+          try {
+            insert(d);
+            count += 1;
+          } catch (e) {
+            // як Postgres з ON CONFLICT DO NOTHING: повтор за унікальним ключем мовчки пропускається
+            if (!(args.skipDuplicates && (e as { code?: string }).code === 'P2002')) throw e;
+          }
+        }
+        return { count };
       },
       update: async (args: { where: unknown; data: StoreRow }) => {
         log('update', args);

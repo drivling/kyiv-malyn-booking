@@ -15,6 +15,7 @@ const sticker_scans_1 = require("../sticker-scans");
 const sticker_wall_1 = require("../sticker-wall");
 const arrival_reports_1 = require("../arrival-reports");
 const gtfs_feed_1 = require("../gtfs-feed");
+const transport_gps_1 = require("../transport-gps");
 const transport_city_1 = require("../transport-city");
 const transport_source_watch_1 = require("../transport-source-watch");
 function createTransportRouter(deps) {
@@ -436,6 +437,27 @@ function createTransportRouter(deps) {
         catch (e) {
             console.error('[GET /admin/transport/sticker-scans]', e);
             res.status(500).json({ error: 'Failed to load sticker scans' });
+        }
+    });
+    /**
+     * Адмін: GPS-точки міського транспорту за проміжок (?from=&to= ISO, за замовч. останні 24 год, до 7 діб; ?route= —
+     * номер маршруту, як у фіді) і зведена по автобусах — для звірки шляхів і зупинок (src/transport-gps.ts)
+     */
+    r.get('/admin/transport/gps', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const cityCode = adminCity(res, req.query.city);
+            if (!cityCode)
+                return;
+            const range = (0, transport_gps_1.parseGpsRange)(req.query.from, req.query.to, new Date());
+            if (!range)
+                return res.status(400).json({ error: 'from / to: ISO, from < to, не більше 7 діб' });
+            const routeNo = typeof req.query.route === 'string' && req.query.route.trim() ? req.query.route.trim() : undefined;
+            res.set('Cache-Control', 'private, no-store');
+            res.json({ cityCode, from: range.from.toISOString(), to: range.to.toISOString(), ...(await (0, transport_gps_1.listGpsPositions)(prisma, { cityCode, ...range, routeNo })) });
+        }
+        catch (e) {
+            console.error('[GET /admin/transport/gps]', e);
+            res.status(500).json({ error: 'Failed to load GPS positions' });
         }
     });
     /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */

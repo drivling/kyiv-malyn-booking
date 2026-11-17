@@ -21,6 +21,7 @@ import { archiveOldListings } from './viber-listing-archive';
 import { defaultReminderDeps, runDueBookingReminders } from './booking-reminders';
 import { startListingMatchWorker } from './listing-match-jobs';
 import { WATCHED_SOURCES, fetchSourceText, runSourceWatch } from './transport-source-watch';
+import { fetchGpsFeedText, recordGpsPositions } from './transport-gps';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
 
@@ -32,6 +33,7 @@ function main(): void {
   let archiveJob: IntervalJob | null = null;
   let reminderJob: IntervalJob | null = null;
   let sourceWatchJob: IntervalJob | null = null;
+  let gpsJob: IntervalJob | null = null;
   let cityLearnJob: IntervalJob | null = null;
   const app = createApp({ prisma });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
@@ -131,6 +133,20 @@ function main(): void {
         },
         { intervalMin: Number(process.env.TRANSPORT_SOURCE_WATCH_INTERVAL_MIN ?? 360), firstDelayMs: 5 * 60_000 },
       );
+      // GPS-треки міського транспорту з публічного фіду (Коростень) — для звірки шляхів і зупинок;
+      // TRANSPORT_GPS_INTERVAL_MIN (за замовч. 1, 0 = вимкнено), точки старші за TRANSPORT_GPS_RETENTION_DAYS (30) — геть
+      gpsJob = startIntervalJob(
+        'transport-gps',
+        async () => {
+          const results = await recordGpsPositions(prisma, {
+            fetchText: fetchGpsFeedText,
+            now: () => new Date(),
+            retentionDays: Number(process.env.TRANSPORT_GPS_RETENTION_DAYS ?? 30),
+          });
+          for (const r of results) if (r.error) console.log(`🛰️ GPS ${r.cityCode}: ${r.error}`);
+        },
+        { intervalMin: Number(process.env.TRANSPORT_GPS_INTERVAL_MIN ?? 1), firstDelayMs: 90_000 },
+      );
       // «Доведе»: поступове навчання дороги містом (Київ, Житомир) — найзапитуваніші пари без свіжої відповіді,
       // у межах половини денного ліміту Google; DOVEDE_CITY_LEARN_INTERVAL_MIN (за замовч. 60, 0 = вимкнено)
       const cityRoutes = cityRoutesFromEnv(prisma);
@@ -153,6 +169,7 @@ function main(): void {
     archiveJob?.stop();
     reminderJob?.stop();
     sourceWatchJob?.stop();
+    gpsJob?.stop();
     cityLearnJob?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);

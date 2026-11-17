@@ -276,6 +276,7 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
 | Archive old listings (`ViberRideEvent` import, delete inactive > 90 d) | `VIBER_ARCHIVE_INTERVAL_MIN` (1440) | `viber-listing-archive.ts` |
 | Trip reminders: 20:00 day before, 08:00, one pre-departure (2 h / 30 min) | `BOOKING_REMINDERS_INTERVAL_MIN` (1) | `booking-reminders.ts` |
 | Watch external timetable sources (Korosten council page, data.gov.ua sets) → admin-chat alert on change | `TRANSPORT_SOURCE_WATCH_INTERVAL_MIN` (360) | `transport-source-watch.ts` |
+| Record city-transport GPS tracks from the Korosten council feed into `TransportVehiclePosition` (30-day retention; admin-only `GET /admin/transport/gps`) | `TRANSPORT_GPS_INTERVAL_MIN` (1), `TRANSPORT_GPS_RETENTION_DAYS` (30) | `transport-gps.ts` |
 
 - A listing is visible until `endsAt + 1 h`. `endsAt` = trip day + end of `departureTime` **in Kyiv time** stored as
   UTC (`getListingEndsAt`; Railway runs TZ=UTC). Public reads (`/viber-listings`, `/search`, `/:id/contact`,

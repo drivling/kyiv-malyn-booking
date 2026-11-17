@@ -54,6 +54,7 @@ function korostenRows(): Record<string, StoreRow[]> {
     stickerReturn: [{ cityCode, id: 9001, stopId: 'st_1001', side: 'a', clientId: 'kkkk-1111-kkkk', via: 'tab', page: 'transport', createdAt: new Date() }],
     stickerPrint: [{ cityCode, id: 9001, stopId: 'st_1001', side: 'a', size: 'A5', createdAt: new Date() }],
     transportArrivalReport: [{ cityCode, id: 9001, kind: 'arrived', routeId: 'k1', tripId: 'k1-01', direction: 'there', stopId: 'st_1001', serviceDate: kyivClock(new Date()).date, scheduledTime: '06:30', actualTime: '06:31', delayMin: 1, waitedMin: null, source: 'route', clientId: null, clientEventId: null, createdAt: new Date() }],
+    transportVehiclePosition: [{ cityCode, id: 9001, vehicleId: '863071012345678', plate: 'АМ 2298 ЕК', routeNo: '2Б', at: new Date('2026-11-17T07:59:45Z'), lat: 50.96, lng: 28.65, speed: 0, satellites: 9, createdAt: new Date() }],
   };
 }
 
@@ -108,6 +109,7 @@ test('кожен запит до транспортних таблиць нес�
   await request(app).post('/transport/sticker-returns').send({ stopId: 'st_0001', side: 'a', clientId: 'abcd-1234-efgh', via: 'reload', page: 'transport' }).expect(201);
   await request(app).post('/admin/transport/sticker-prints').set(auth).send({ stopId: 'st_0001', sides: ['a'], size: 'A5' }).expect(201);
   await request(app).get('/admin/transport/sticker-scans').set(auth).expect(200);
+  await request(app).get('/admin/transport/gps').set(auth).expect(200);
   const key = (await request(app).get('/admin/transport/sticker-wall-key').set(auth).expect(200)).body.key;
   await request(app).get(`/transport/sticker-wall?key=${key}`).expect(200);
   await request(app)
