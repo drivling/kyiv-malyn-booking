@@ -5,6 +5,7 @@
  */
 import { placeById, type GazetteerPlace } from './gazetteer';
 import type { StopPlace } from './stopPlaces';
+import { metroPlace } from './kyivMetro';
 import { landmarkPlace } from './landmarks';
 import { streetPlace } from './streets';
 
@@ -20,7 +21,7 @@ export function getStopPlaces(): StopPlace[] {
   return stopIndex;
 }
 
-/** Місце за id: `city.Kyiv`, `malyn.vokzal`, зупинка `st_0071`, адреса `street.horodyshchanska:20` або орієнтир `lm.atb-market` */
+/** Місце за id: `city.Kyiv`, `malyn.vokzal`, зупинка `st_0071`, адреса `street.horodyshchanska:20`, орієнтир `lm.atb-market` або станція метро `kyiv.m.pozniaky` */
 export function resolvePlace(id: string): GazetteerPlace | undefined {
-  return placeById(id) ?? byId.get(id) ?? (id.startsWith('street.') ? streetPlace(id) : id.startsWith('lm.') ? landmarkPlace(id) : undefined);
+  return placeById(id) ?? byId.get(id) ?? metroPlace(id) ?? (id.startsWith('street.') ? streetPlace(id) : id.startsWith('lm.') ? landmarkPlace(id) : undefined);
 }

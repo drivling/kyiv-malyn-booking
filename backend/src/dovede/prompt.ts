@@ -5,12 +5,13 @@
  */
 import { CITY_LABEL, PLACES, type GazetteerPlace } from './gazetteer';
 import { buildStopPlaces, type StopLike } from './stopPlaces';
+import { METRO_STATIONS } from './kyivMetroData';
 import { MALYN_LANDMARKS } from './landmarks';
 import { MALYN_STREETS } from './streets';
 import type { DovedeSynonymEntry } from './synonyms';
 
 /** Міняти разом зі змістом промпту: видно в журналі DovedeQuery, щоб порівнювати розбори між версіями */
-export const PROMPT_VERSION = 'dovede-understand-v6';
+export const PROMPT_VERSION = 'dovede-understand-v7';
 
 /** Маршрут міського автобуса: id — ключ у базі, no — номер, який бачить людина («11/1») */
 export interface RouteLike {
@@ -59,6 +60,8 @@ const byId = <T extends { id: string }>(a: T, b: T) => (a.id < b.id ? -1 : a.id 
 export function buildSystemPrompt(stops: StopLike[] = [], routes: RouteLike[] = []): string {
   const streetLines = [...MALYN_STREETS].sort(byId).map((s) => `- ${s.id} — ${s.kind} ${s.name}${s.old.length ? ` (кол. ${s.old.join(', ')})` : ''}`);
   const landmarkLines = [...MALYN_LANDMARKS].sort(byId).map((l) => `- ${l.id} — ${l.label}${l.said.length ? ` (кажуть: ${l.said.join(', ')})` : ''}`);
+  const LINE_NAME = { M1: 'червона', M2: 'синя', M3: 'зелена' } as const;
+  const metroLines = [...METRO_STATIONS].sort(byId).map((m) => `- ${m.id} — метро ${m.name} (${LINE_NAME[m.line]} лінія${m.said.length ? `; кажуть: ${m.said.join(', ')}` : ''})${m.strict ? ' — лише зі словом «метро / м. / ст.»' : ''}`);
   const routeLines = [...routes].sort(byId).map((r) => {
     const ends = [r.fromName, r.toName].filter(Boolean).join(' — ');
     return `- ${r.id} — автобус №${r.no}${ends ? `: ${ends}` : ''}`;
@@ -78,7 +81,7 @@ export function buildSystemPrompt(stops: StopLike[] = [], routes: RouteLike[] = 
     'тож ти їх не знаєш і не називаєш: ти лише кажеш, що людина спитала.',
     '',
     '## Словник місць',
-    'У полях from і to дозволені лише id з цього розділу та зі списків зупинок, вулиць і орієнтирів нижче. Скопіюй id точно.',
+    'У полях from і to дозволені лише id з цього розділу та зі списків зупинок, вулиць, орієнтирів і станцій метро нижче. Скопіюй id точно.',
     ...places,
     ...(stopLines.length
       ? [
@@ -108,6 +111,16 @@ export function buildSystemPrompt(stops: StopLike[] = [], routes: RouteLike[] = 
     'орієнтирів з однаковою назвою (…, …-2, …-3) — візьми перший, без суфікса. Імʼя людини («до Марії») чи звичайне',
     'слово орієнтиром не вважай. Закладу, якого тут немає, — у unknown.',
     ...landmarkLines,
+    '',
+    '## Станції метро Києва',
+    'Усі станції київського метро. Якщо людина назвала станцію як місце в Києві («з Малина на Позняки», «от',
+    'Левобережной в Малин», «до м. Лісова») — постав її id замість city.Kyiv. Назву кажуть у будь-якому відмінку,',
+    'російською, по-старому чи розмовно (у дужках). Станції з позначкою «лише зі словом метро» без такого слова',
+    'означають інше — місто Дніпро, університет, Харківську трасу, Чернігівську область: тоді це не станція',
+    '(місто за межами словника — у unknown, а «вокзал» чи «Київ» розбирай як звичайно). Якщо така сама назва є',
+    'серед місць, зупинок чи орієнтирів Малина, а людина не сказала, що їде з Малина чи до Києва, — це Малин.',
+    'kyiv.pas — це і станція «Вокзальна», і залізничний вокзал Києва.',
+    ...metroLines,
     ...(routeLines.length
       ? [
           '',

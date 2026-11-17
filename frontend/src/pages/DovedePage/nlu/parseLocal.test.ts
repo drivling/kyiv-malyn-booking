@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import golden from '../eval/golden.json';
+import { METRO_STATIONS } from './kyivMetroData';
 import malynRoutes from '../eval/malyn-routes.json';
 import malynStops from '../eval/malyn-stops.json';
 import { buildStopPlaces } from './stopPlaces';
@@ -20,7 +21,7 @@ interface GoldenCase {
     to?: string | null;
     when?: Partial<TripIntent['when']>;
   };
-  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'later';
 }
 
 /** Порівнюємо лише поля з expect; повертаємо [збіглося, усього, що не так] */
@@ -112,8 +113,20 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
     expect(ok / total, misses.join(' | ')).toBeGreaterThanOrEqual(0.8);
   });
 
+  it('метро Києва (scope kyiv): словник у браузері розуміє ті самі 40 питань, що й Claude', () => {
+    const misses: string[] = [];
+    for (const c of cases.filter((x) => x.scope === 'kyiv')) {
+      const intent = parseLocal(c.text, NOW, STOP_INDEX).intent;
+      for (const role of ['from', 'to'] as const) {
+        if (c.expect[role] !== undefined && (intent[role]?.id ?? null) !== c.expect[role]) misses.push(`${c.id} «${c.text}» ${role}: ${intent[role]?.id ?? null} ≠ ${c.expect[role]}`);
+      }
+    }
+    // «я на Майдані, як доїхати…» — «звідки» без прийменника руху: це розуміє лише Claude
+    expect(misses).toEqual(['kv-40 «я на майдані, як доїхати в малин до лікарні» from: null ≠ kyiv.m.maidan']);
+  });
+
   it('усі id у еталонах є в словнику', () => {
-    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id), ...STREETS.map((x) => x.id), ...LANDMARKS.map((x) => x.id)]);
+    const ids = new Set([...PLACES.map((p) => p.id), ...STOP_INDEX.map((e) => e.place.id), ...STREETS.map((x) => x.id), ...LANDMARKS.map((x) => x.id), ...METRO_STATIONS.map((x) => x.id)]);
     for (const c of cases) {
       for (const id of [c.expect.from, c.expect.to]) {
         if (typeof id === 'string') expect(ids.has(id), `${c.id}: ${id}`).toBe(true);

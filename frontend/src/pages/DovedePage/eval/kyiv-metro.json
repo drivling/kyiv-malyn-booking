@@ -1,0 +1,653 @@
+{
+ "about": "Еталони метро Києва для «Доведе»: питання людини, примітки водіїв і шляхи між станціями. Проганяє nlu/kyivMetro.test.ts без ШІ.",
+ "questions": [
+  {
+   "text": "з Малина на Позняки завтра зранку",
+   "from": "city.Malyn",
+   "to": "kyiv.m.pozniaky"
+  },
+  {
+   "text": "як доїхати з Малина до Лівобережної",
+   "from": "city.Malyn",
+   "to": "kyiv.m.livoberezhna"
+  },
+  {
+   "text": "з Лівобережної в Малин",
+   "from": "kyiv.m.livoberezhna",
+   "to": "city.Malyn"
+  },
+  {
+   "text": "з Малина до метро Дніпро",
+   "from": "city.Malyn",
+   "to": "kyiv.m.dnipro"
+  },
+  {
+   "text": "з Малина до м. Лісова",
+   "from": "city.Malyn",
+   "to": "kyiv.m.lisova"
+  },
+  {
+   "text": "мені з Малина до метро Університет на 9:00",
+   "from": "city.Malyn",
+   "to": "kyiv.m.universytet"
+  },
+  {
+   "text": "з Малина до Хрещатика",
+   "from": "city.Malyn",
+   "to": "kyiv.m.khreshchatyk"
+  },
+  {
+   "text": "з Малина на Майдан",
+   "from": "city.Malyn",
+   "to": "kyiv.m.maidan"
+  },
+  {
+   "text": "з Малина до Майдану Незалежності",
+   "from": "city.Malyn",
+   "to": "kyiv.m.maidan"
+  },
+  {
+   "text": "з Малина на Оболонь",
+   "from": "city.Malyn",
+   "to": "kyiv.obolon"
+  },
+  {
+   "text": "з Малина на Теремки",
+   "from": "city.Malyn",
+   "to": "kyiv.m.teremky"
+  },
+  {
+   "text": "з Малина до Либідської",
+   "from": "city.Malyn",
+   "to": "kyiv.m.lybidska"
+  },
+  {
+   "text": "з Малина на Лук'янівку",
+   "from": "city.Malyn",
+   "to": "kyiv.m.lukianivska"
+  },
+  {
+   "text": "з Малина до Лук'янівської",
+   "from": "city.Malyn",
+   "to": "kyiv.m.lukianivska"
+  },
+  {
+   "text": "з Малина до Золотих воріт",
+   "from": "city.Malyn",
+   "to": "kyiv.m.zoloti-vorota"
+  },
+  {
+   "text": "з Малина до Палацу спорту",
+   "from": "city.Malyn",
+   "to": "kyiv.m.palats-sportu"
+  },
+  {
+   "text": "з Малина до Палацу Україна",
+   "from": "city.Malyn",
+   "to": "kyiv.m.palats-ukraina"
+  },
+  {
+   "text": "з Малина до Льва Толстого",
+   "from": "city.Malyn",
+   "to": "kyiv.m.heroiv-ukrainy"
+  },
+  {
+   "text": "з Малина до площі Українських Героїв",
+   "from": "city.Malyn",
+   "to": "kyiv.m.heroiv-ukrainy"
+  },
+  {
+   "text": "з Малина на Петрівку",
+   "from": "city.Malyn",
+   "to": "kyiv.m.pochaina"
+  },
+  {
+   "text": "з Малина до Почайної",
+   "from": "city.Malyn",
+   "to": "kyiv.m.pochaina"
+  },
+  {
+   "text": "з Малина на Шулявку",
+   "from": "city.Malyn",
+   "to": "kyiv.shuliavka"
+  },
+  {
+   "text": "з Малина до КПІ",
+   "from": "city.Malyn",
+   "to": "kyiv.m.politekh"
+  },
+  {
+   "text": "з Малина до Політехнічного інституту",
+   "from": "city.Malyn",
+   "to": "kyiv.m.politekh"
+  },
+  {
+   "text": "з Малина на Нивки",
+   "from": "city.Malyn",
+   "to": "kyiv.m.nyvky"
+  },
+  {
+   "text": "з Малина до Берестейської",
+   "from": "city.Malyn",
+   "to": "kyiv.beresteiska"
+  },
+  {
+   "text": "з Малина до Героїв Дніпра",
+   "from": "city.Malyn",
+   "to": "kyiv.heroiv"
+  },
+  {
+   "text": "з Малина до Контрактової площі",
+   "from": "city.Malyn",
+   "to": "kyiv.m.kontraktova"
+  },
+  {
+   "text": "з Малина на Контрактову",
+   "from": "city.Malyn",
+   "to": "kyiv.m.kontraktova"
+  },
+  {
+   "text": "з Малина до Поштової площі",
+   "from": "city.Malyn",
+   "to": "kyiv.m.poshtova"
+  },
+  {
+   "text": "з Малина до Олімпійської",
+   "from": "city.Malyn",
+   "to": "kyiv.m.olimpiiska"
+  },
+  {
+   "text": "з Малина до Деміївської",
+   "from": "city.Malyn",
+   "to": "kyiv.m.demiivska"
+  },
+  {
+   "text": "з Малина до Голосіївської",
+   "from": "city.Malyn",
+   "to": "kyiv.m.holosiivska"
+  },
+  {
+   "text": "з Малина до ВДНГ",
+   "from": "city.Malyn",
+   "to": "kyiv.m.vystavkovyi"
+  },
+  {
+   "text": "з Малина до Виставкового центру",
+   "from": "city.Malyn",
+   "to": "kyiv.m.vystavkovyi"
+  },
+  {
+   "text": "з Малина до Іподрому",
+   "from": "city.Malyn",
+   "to": "kyiv.m.ipodrom"
+  },
+  {
+   "text": "з Малина до Сирця",
+   "from": "city.Malyn",
+   "to": "kyiv.m.syrets"
+  },
+  {
+   "text": "з Малина до Дорогожичів",
+   "from": "city.Malyn",
+   "to": "kyiv.m.dorohozhychi"
+  },
+  {
+   "text": "з Малина до Кловської",
+   "from": "city.Malyn",
+   "to": "kyiv.m.klovska"
+  },
+  {
+   "text": "з Малина на Печерськ",
+   "from": "city.Malyn",
+   "to": "kyiv.m.pecherska"
+  },
+  {
+   "text": "з Малина до Звіринецької",
+   "from": "city.Malyn",
+   "to": "kyiv.m.zvirynetska"
+  },
+  {
+   "text": "з Малина до метро Дружби народів",
+   "from": "city.Malyn",
+   "to": "kyiv.m.zvirynetska"
+  },
+  {
+   "text": "з Малина на Видубичі",
+   "from": "city.Malyn",
+   "to": "kyiv.m.vydubychi"
+  },
+  {
+   "text": "з Малина до Славутича",
+   "from": "city.Malyn",
+   "to": "kyiv.m.slavutych"
+  },
+  {
+   "text": "з Малина на Осокорки",
+   "from": "city.Malyn",
+   "to": "kyiv.m.osokorky"
+  },
+  {
+   "text": "з Малина до метро Харківська",
+   "from": "city.Malyn",
+   "to": "kyiv.m.kharkivska"
+  },
+  {
+   "text": "з Малина до Вирлиці",
+   "from": "city.Malyn",
+   "to": "kyiv.m.vyrlytsia"
+  },
+  {
+   "text": "з Малина до ст. м. Бориспільська",
+   "from": "city.Malyn",
+   "to": "kyiv.m.boryspilska"
+  },
+  {
+   "text": "з Малина до Червоного хутора",
+   "from": "city.Malyn",
+   "to": "kyiv.m.chervonyi-khutir"
+  },
+  {
+   "text": "з Малина до Гідропарку",
+   "from": "city.Malyn",
+   "to": "kyiv.m.hidropark"
+  },
+  {
+   "text": "з Малина на Дарницю",
+   "from": "city.Malyn",
+   "to": "kyiv.m.darnytsia"
+  },
+  {
+   "text": "з Малина до метро Чернігівська",
+   "from": "city.Malyn",
+   "to": "kyiv.m.chernihivska"
+  },
+  {
+   "text": "з Малина до метро Арсенальна",
+   "from": "city.Malyn",
+   "to": "kyiv.m.arsenalna"
+  },
+  {
+   "text": "з Малина до метро Театральна",
+   "from": "city.Malyn",
+   "to": "kyiv.m.teatralna"
+  },
+  {
+   "text": "з Малина до метро Мінська",
+   "from": "city.Malyn",
+   "to": "kyiv.m.minska"
+  },
+  {
+   "text": "з Малина до метро Васильківська",
+   "from": "city.Malyn",
+   "to": "kyiv.m.vasylkivska"
+  },
+  {
+   "text": "з Малина до метро Тараса Шевченка",
+   "from": "city.Malyn",
+   "to": "kyiv.m.shevchenka"
+  },
+  {
+   "text": "з Малина до метро Вокзальна",
+   "from": "city.Malyn",
+   "to": "kyiv.pas"
+  },
+  {
+   "text": "з Малина до метро Житомирська",
+   "from": "city.Malyn",
+   "to": "kyiv.zhytomyrska"
+  },
+  {
+   "text": "з Києва (Позняки) до Малина на вокзал",
+   "from": "kyiv.m.pozniaky",
+   "to": "malyn.vokzal"
+  },
+  {
+   "text": "з Осокорків до Малина в центр",
+   "from": "kyiv.m.osokorky",
+   "to": "malyn.tsentr"
+  },
+  {
+   "text": "от Левобережной в Малин",
+   "from": "kyiv.m.livoberezhna",
+   "to": "city.Malyn"
+  },
+  {
+   "text": "из Малина на Крещатик",
+   "from": "city.Malyn",
+   "to": "kyiv.m.khreshchatyk"
+  },
+  {
+   "text": "з Малина до Академмістечка",
+   "from": "city.Malyn",
+   "to": "kyiv.akadem"
+  },
+  {
+   "text": "з Малина до Святошина",
+   "from": "city.Malyn",
+   "to": "kyiv.sviatoshyn"
+  },
+  {
+   "text": "з Малина в Дніпро",
+   "from": "city.Malyn",
+   "to": null
+  },
+  {
+   "text": "з Малина до університету",
+   "from": "city.Malyn",
+   "to": null
+  },
+  {
+   "text": "з Києва в Малин до Лісової",
+   "from": "city.Kyiv",
+   "to": "!kyiv"
+  },
+  {
+   "text": "з Малина до Чернігівської області",
+   "from": "city.Malyn",
+   "to": null
+  },
+  {
+   "text": "з Малина по Харківській трасі",
+   "from": "city.Malyn",
+   "to": null
+  },
+  {
+   "text": "з Малина до театру",
+   "from": "city.Malyn",
+   "to": null
+  },
+  {
+   "text": "з Києва до Малина на вокзал",
+   "from": "city.Kyiv",
+   "to": "malyn.vokzal"
+  },
+  {
+   "text": "з Києва в Малин до лікарні",
+   "from": "city.Kyiv",
+   "to": "malyn.likarnia"
+  },
+  {
+   "text": "з центру до Царського села",
+   "from": "malyn.tsentr",
+   "to": "malyn.tsarske"
+  }
+ ],
+ "notes": [
+  {
+   "note": "до Академмістечка",
+   "kyiv": "kyiv.akadem"
+  },
+  {
+   "note": "(Аккадемістечко)",
+   "kyiv": "kyiv.akadem"
+  },
+  {
+   "note": "Академмістечко",
+   "kyiv": "kyiv.akadem"
+  },
+  {
+   "note": "від м. Житомирська",
+   "kyiv": "kyiv.zhytomyrska"
+  },
+  {
+   "note": "(м. Житом.)",
+   "kyiv": "kyiv.zhytomyrska"
+  },
+  {
+   "note": "є місця; м. Житомирська (дзвоніть або пишіть)",
+   "kyiv": "kyiv.zhytomyrska"
+  },
+  {
+   "note": "є місця; Шулявка",
+   "kyiv": "kyiv.shuliavka"
+  },
+  {
+   "note": "(ст.м. Берестейська далі по проспекту)",
+   "kyiv": "kyiv.beresteiska"
+  },
+  {
+   "note": "(ст.м. Героїв Дніпра)",
+   "kyiv": "kyiv.heroiv"
+  },
+  {
+   "note": "(ст м Героїв Дніпра)",
+   "kyiv": "kyiv.heroiv"
+  },
+  {
+   "note": "(Героїв Дніпра)",
+   "kyiv": "kyiv.heroiv"
+  },
+  {
+   "note": "Є місця; до Цирку",
+   "kyiv": "kyiv.tsyrk"
+  },
+  {
+   "note": "(Печерськ)",
+   "kyiv": "kyiv.m.pecherska"
+  },
+  {
+   "note": "Оболонь; є місця",
+   "kyiv": "kyiv.obolon"
+  },
+  {
+   "note": "Двоє позаду; Академмістечко",
+   "kyiv": "kyiv.akadem"
+  },
+  {
+   "note": "до Святошина",
+   "kyiv": "kyiv.sviatoshyn"
+  },
+  {
+   "note": "Харківська",
+   "kyiv": "kyiv.m.kharkivska"
+  },
+  {
+   "note": "м. Харківська",
+   "kyiv": "kyiv.m.kharkivska"
+  },
+  {
+   "note": "до Лівобережної",
+   "kyiv": "kyiv.m.livoberezhna"
+  },
+  {
+   "note": "їду на Позняки",
+   "kyiv": "kyiv.m.pozniaky"
+  },
+  {
+   "note": "висаджу біля Нивок",
+   "kyiv": "kyiv.m.nyvky"
+  },
+  {
+   "note": "до Петрівки",
+   "kyiv": "kyiv.m.pochaina"
+  },
+  {
+   "note": "через Лук'янівку",
+   "kyiv": "kyiv.m.lukianivska"
+  },
+  {
+   "note": "до КПІ",
+   "kyiv": "kyiv.m.politekh"
+  },
+  {
+   "note": "метро Лісова",
+   "kyiv": "kyiv.m.lisova"
+  },
+  {
+   "note": "до Палацу спорту",
+   "kyiv": "kyiv.m.palats-sportu"
+  },
+  {
+   "note": "Теремки",
+   "kyiv": "kyiv.m.teremky"
+  },
+  {
+   "note": "до ВДНГ",
+   "kyiv": "kyiv.m.vystavkovyi"
+  },
+  {
+   "note": "Видубичі, далі на Бориспіль",
+   "kyiv": "kyiv.m.vydubychi"
+  },
+  {
+   "note": "до вокзалу Київ-Пасажирський",
+   "kyiv": "kyiv.pas"
+  },
+  {
+   "note": "з.п. Борщагівка",
+   "kyiv": "kyiv.borshch"
+  },
+  {
+   "note": "є місця",
+   "kyiv": null
+  },
+  {
+   "note": "(вівторок)",
+   "kyiv": null
+  },
+  {
+   "note": "Двоє позаду",
+   "kyiv": null
+  },
+  {
+   "note": "(кільцева)",
+   "kyiv": null
+  },
+  {
+   "note": "по Житомирській трасі",
+   "kyiv": null
+  },
+  {
+   "note": "(дзвоніть або пишіть)",
+   "kyiv": null
+  },
+  {
+   "note": "Заберу по місту",
+   "kyiv": null
+  },
+  {
+   "note": "(Бориспіль)",
+   "kyiv": null
+  },
+  {
+   "note": "від метро",
+   "kyiv": null
+  },
+  {
+   "note": "їду через Дніпро",
+   "kyiv": null
+  },
+  {
+   "note": "біля університету",
+   "kyiv": null
+  },
+  {
+   "note": "(тільки Viber)",
+   "kyiv": null
+  }
+ ],
+ "paths": [
+  {
+   "from": "kyiv.sviatoshyn",
+   "to": "kyiv.pas",
+   "hops": 5,
+   "transfers": 0
+  },
+  {
+   "from": "kyiv.akadem",
+   "to": "kyiv.zhytomyrska",
+   "hops": 1,
+   "transfers": 0
+  },
+  {
+   "from": "kyiv.akadem",
+   "to": "kyiv.pas",
+   "hops": 7,
+   "transfers": 0
+  },
+  {
+   "from": "kyiv.akadem",
+   "to": "kyiv.m.lisova",
+   "hops": 17,
+   "transfers": 0
+  },
+  {
+   "from": "kyiv.heroiv",
+   "to": "kyiv.m.teremky",
+   "hops": 17,
+   "transfers": 0
+  },
+  {
+   "from": "kyiv.m.syrets",
+   "to": "kyiv.m.chervonyi-khutir",
+   "hops": 15,
+   "transfers": 0
+  },
+  {
+   "from": "kyiv.akadem",
+   "to": "kyiv.m.khreshchatyk",
+   "hops": 10,
+   "transfers": 0
+  },
+  {
+   "from": "kyiv.akadem",
+   "to": "kyiv.m.maidan",
+   "hops": 10,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.akadem",
+   "to": "kyiv.m.zoloti-vorota",
+   "hops": 9,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.akadem",
+   "to": "kyiv.m.pozniaky",
+   "hops": 17,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.akadem",
+   "to": "kyiv.obolon",
+   "hops": 15,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.sviatoshyn",
+   "to": "kyiv.m.teremky",
+   "hops": 18,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.m.pozniaky",
+   "to": "kyiv.m.livoberezhna",
+   "hops": 13,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.heroiv",
+   "to": "kyiv.m.syrets",
+   "hops": 12,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.m.maidan",
+   "to": "kyiv.m.khreshchatyk",
+   "hops": 0,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.m.palats-sportu",
+   "to": "kyiv.m.heroiv-ukrainy",
+   "hops": 0,
+   "transfers": 1
+  },
+  {
+   "from": "kyiv.pas",
+   "to": "kyiv.m.universytet",
+   "hops": 1,
+   "transfers": 0
+  }
+ ]
+}
