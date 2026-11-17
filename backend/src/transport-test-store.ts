@@ -24,6 +24,7 @@ export const TRANSPORT_MODELS = [
   'stickerScan',
   'stickerReturn',
   'stickerPrint',
+  'stickerPerson',
   'transportArrivalReport',
   'transportVehiclePosition',
 ] as const;
@@ -31,9 +32,22 @@ export type TransportModel = (typeof TRANSPORT_MODELS)[number];
 
 const OTHER_MODELS = ['tripPoint', 'watchedSource'] as const;
 /** Моделі з автоінкрементним числовим id */
-const AUTO_ID = new Set<string>(['transportRouteStop', 'transportSegment', 'stickerScan', 'stickerReturn', 'stickerPrint', 'transportArrivalReport', 'transportVehiclePosition', 'tripPoint']);
-/** Значення за замовчуванням із схеми (колонки з DEFAULT) */
-const DEFAULTS: Record<string, StoreRow> = Object.fromEntries(TRANSPORT_MODELS.map((m) => [m, { cityCode: 'Malyn' }]));
+const AUTO_ID = new Set<string>([
+  'transportRouteStop',
+  'transportSegment',
+  'stickerScan',
+  'stickerReturn',
+  'stickerPrint',
+  'stickerPerson',
+  'transportArrivalReport',
+  'transportVehiclePosition',
+  'tripPoint',
+]);
+/** Значення за замовчуванням із схеми (колонки з DEFAULT і необовʼязкові — null, як у Postgres) */
+const DEFAULTS: Record<string, StoreRow> = {
+  ...Object.fromEntries(TRANSPORT_MODELS.map((m) => [m, { cityCode: 'Malyn' }])),
+  stickerPerson: { cityCode: 'Malyn', scans: 0, scanDays: 0, lastScanDay: null, returns: 0, lastReturnAt: null, teaserAt: null },
+};
 
 /** Унікальні ключі таблиць — як у схемі після tenancy M2: тест має падати там, де впала б база (P2002) */
 const UNIQUE_KEYS: Record<string, string[][]> = {
@@ -45,6 +59,7 @@ const UNIQUE_KEYS: Record<string, string[][]> = {
   transportMeta: [['cityCode'], ['id']],
   transportRevision: [['cityCode', 'revision']],
   transportVehiclePosition: [['cityCode', 'vehicleId', 'at']],
+  stickerPerson: [['cityCode', 'clientId']],
 };
 
 const cmp = (a: unknown, b: unknown): number => {

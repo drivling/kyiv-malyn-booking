@@ -290,4 +290,61 @@ describe('StopStickerTab', () => {
     await stickerReady('Залізничний вокзал');
     expect(within(stopList()).getByRole('button')).toHaveAttribute('aria-pressed', 'true');
   });
+
+  it('«Люди»: перемикач у ?view=people — плитки, перші зупинки новеньких, постійні пасажири з історією; «Наклейки» — назад', async () => {
+    const user = userEvent.setup();
+    const asked: string[] = [];
+    server.use(
+      http.get(`${TEST_API_URL}/admin/transport/sticker-people`, ({ request }) => {
+        asked.push(new URL(request.url).search);
+        return HttpResponse.json({
+          days: 30,
+          total: 12,
+          newInPeriod: 5,
+          returning: 4,
+          multiStop: 3,
+          teaser: 6,
+          daily: [{ day: today, count: 2 }],
+          firstStops: [
+            { stopId: 'st_0019', count: 3 },
+            { stopId: 'st_0015', count: 2 },
+          ],
+          people: [
+            {
+              number: 7,
+              who: 'ab12',
+              firstStopId: 'st_0019',
+              firstAt: `${yesterday}T09:00:00.000Z`,
+              lastAt: `${today}T09:00:00.000Z`,
+              scans: 6,
+              stopIds: ['st_0019', 'st_0015'],
+              scanDays: 3,
+              returns: 2,
+              teaser: true,
+            },
+          ],
+        });
+      })
+    );
+    renderTab('/admin/stickers');
+    await user.click(await screen.findByRole('button', { name: 'Люди' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?view=people');
+    const panel = await screen.findByRole('region', { name: 'Люди з наклейок' });
+    await waitFor(() => expect(tile('Пасажири з наклейок', 'Пасажирів усього')).toContain('12'));
+    expect(tile('Пасажири з наклейок', 'Нових за 30 днів')).toBe('5');
+    expect(tile('Пасажири з наклейок', 'Повертались')).toBe('4 · 33 %');
+    const first = within(within(panel).getByRole('list', { name: 'Перші зупинки нових пасажирів' })).getAllByRole('listitem');
+    expect(first[0]).toHaveTextContent('Залізничний вокзал3');
+    const people = within(within(panel).getByRole('list', { name: 'Постійні пасажири' })).getAllByRole('listitem');
+    expect(people[0]).toHaveTextContent('№ 7');
+    expect(people[0]).toHaveTextContent('уперше — Залізничний вокзал');
+    expect(people[0]).toHaveTextContent('2 зуп. · 6 скан. · 3 діб · 2 поверн. · ✓ тизер');
+    expect(people[0]).toHaveTextContent('1. Залізничний вокзал2. з-д «Прожектор»');
+    expect(asked[0]).toContain('days=30');
+    await user.click(within(panel).getByRole('button', { name: '7 днів' }));
+    await waitFor(() => expect(asked[asked.length - 1]).toContain('days=7'));
+    await user.click(screen.getByRole('button', { name: 'Наклейки' }));
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/admin\/stickers$/);
+  });
 });
+

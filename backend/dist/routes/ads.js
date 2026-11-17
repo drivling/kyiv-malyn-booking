@@ -4,6 +4,7 @@ exports.createAdsRouter = createAdsRouter;
 /**
  * Облік реклами «Доведе» (ad-events.ts, Docs/dovede-roadmap.md, «Облік реклами»):
  * - POST /ads/events — подія перегляду з браузера (публічний, як скани наклейок; повтор viewId + event — 200 без запису);
+ *   досмотрений тизер перед табло позначається й у людини з наклейок (StickerPerson.teaserAt, src/sticker-people.ts);
  *   `page` (відкрив /dovede з доступом) приймається лише із заголовком доступу «Доведе» чи адміна — інакше 403;
  * - GET /ads/wall?key=&city= — зведення для стіни наклейок (вкладка «Реклама»), той самий ключ стіни, що й
  *   GET /transport/sticker-wall (лише читання, HMAC від ADMIN_PASSWORD).
@@ -11,6 +12,7 @@ exports.createAdsRouter = createAdsRouter;
 const express_1 = require("express");
 const ad_events_1 = require("../ad-events");
 const access_1 = require("../dovede/access");
+const sticker_people_1 = require("../sticker-people");
 const sticker_wall_1 = require("../sticker-wall");
 const transport_city_1 = require("../transport-city");
 function createAdsRouter(deps) {
@@ -44,6 +46,9 @@ function createAdsRouter(deps) {
                     throw e;
                 res.json({ ok: true, counted: false });
                 return;
+            }
+            if (ev.placement === 'sticker' && ev.event === 'completed' && ev.clientId) {
+                await (0, sticker_people_1.recordPersonTeaser)(deps.prisma, { cityCode, clientId: ev.clientId }).catch((e) => console.error('[POST /ads/events] person', e));
             }
             res.status(201).json({ ok: true, counted: true });
         }

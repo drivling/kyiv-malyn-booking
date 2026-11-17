@@ -13,7 +13,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { apiClient } from '@/api/client';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
-import type { AdEventBody, ArrivalReportBody, ArrivalReportResult, StickerReturnBody, StickerSide } from '@/types';
+import type { AdEventBody, ArrivalReportBody, ArrivalReportResult, StickerReturnBody, StickerScanResult, StickerSide } from '@/types';
 import { isPrerendering } from '@/utils/prerender';
 import { isOnline } from './useOnline';
 import { cityField, isDefaultTransportCity, siteTransportCity } from '@/site/transportCity';
@@ -32,7 +32,7 @@ export type OutboxBodies = {
 };
 export type OutboxKind = keyof OutboxBodies;
 export type OutboxResults = {
-  'sticker-scan': { ok: boolean; counted: boolean };
+  'sticker-scan': StickerScanResult;
   'sticker-return': { ok: boolean; counted: boolean };
   'arrival-report': ArrivalReportResult;
   'ad-event': { ok: boolean; counted: boolean };

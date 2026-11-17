@@ -15,7 +15,21 @@ export type ScanBar = {
  * заголовок; одна барва; стовпчик ≤ 24 px з округленим верхом, проміжок 2 px; наведення або фокус
  * на стовпчику показує значення в рядку над графіком; ті самі значення — у таблиці під графіком.
  */
-export function ScanBars({ title, bars, labelEvery = 1 }: { title: string; bars: ScanBar[]; labelEvery?: number }) {
+/** Що рахує серія: «відкриття з QR» (за замовчуванням) чи, напр., «нові пасажири» */
+export type ScanBarsUnit = { label: (n: number) => string; column: string; none: string };
+const OPENS: ScanBarsUnit = { label: opensLabel, column: 'Відкриттів', none: 'відкриттів ще немає' };
+
+export function ScanBars({
+  title,
+  bars,
+  labelEvery = 1,
+  unit = OPENS,
+}: {
+  title: string;
+  bars: ScanBar[];
+  labelEvery?: number;
+  unit?: ScanBarsUnit;
+}) {
   const [active, setActive] = useState<string | null>(null);
   const tableId = useId();
   const top = niceMax(Math.max(0, ...bars.map((b) => b.value)));
@@ -28,14 +42,14 @@ export function ScanBars({ title, bars, labelEvery = 1 }: { title: string; bars:
         <span className="scan-chart-readout" aria-live="polite">
           {shown ? (
             <>
-              <strong>{opensLabel(shown.value)}</strong> · {shown.name}
+              <strong>{unit.label(shown.value)}</strong> · {shown.name}
             </>
           ) : peak ? (
             <>
               найбільше <strong>{peak.value}</strong> · {peak.name}
             </>
           ) : (
-            'відкриттів ще немає'
+            unit.none
           )}
         </span>
       </figcaption>
@@ -50,7 +64,7 @@ export function ScanBars({ title, bars, labelEvery = 1 }: { title: string; bars:
               key={b.key}
               type="button"
               className={`scan-chart-slot${b.key === active ? ' scan-chart-slot--active' : ''}`}
-              aria-label={`${b.name}: ${opensLabel(b.value)}`}
+              aria-label={`${b.name}: ${unit.label(b.value)}`}
               aria-describedby={tableId}
               onMouseEnter={() => setActive(b.key)}
               onMouseLeave={() => setActive(null)}
@@ -73,7 +87,7 @@ export function ScanBars({ title, bars, labelEvery = 1 }: { title: string; bars:
           <thead>
             <tr>
               <th scope="col">{title}</th>
-              <th scope="col">Відкриттів</th>
+              <th scope="col">{unit.column}</th>
             </tr>
           </thead>
           <tbody>

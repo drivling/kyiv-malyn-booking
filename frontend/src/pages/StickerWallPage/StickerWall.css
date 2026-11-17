@@ -678,6 +678,44 @@ body.wall-mode {
   opacity: 0.75;
 }
 
+/* Вкладка «Люди» (WallPeople.tsx): той самий рядок, що в «Рекламі», але першим — номер пасажира */
+.wall-people-item {
+  grid-template-columns: auto minmax(0, 1fr) auto 4.6em;
+}
+
+/* Номер пасажира — плашка сталого відтінку (той самий, що «хто» у «Рекламі») */
+.wall-people-no {
+  min-width: 3.4em;
+  padding: 0.18em 0.5em;
+  border-radius: 999px;
+  background: hsl(var(--h) 65% 40%);
+  color: #ffffff;
+  font-size: 0.85em;
+  font-weight: 800;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.wall-people-item--new .wall-people-tag {
+  color: var(--up);
+}
+
+.wall-people-item--back .wall-people-tag {
+  color: var(--warn);
+}
+
+.wall-people-stops {
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.wall-people-stops > span {
+  letter-spacing: 0.08em;
+  color: var(--warn);
+}
+
 .wall-sr {
   position: absolute;
   width: 1px;
@@ -933,6 +971,12 @@ body.wall-mode {
 
 .wall-cele--newcomer .wall-cele-name {
   text-shadow: none;
+}
+
+/* Рубіж номера пасажира — «Сотий пасажир!» */
+.wall-cele-headline--milestone {
+  font-size: 1.7em;
+  padding: 0.3em 1.1em;
 }
 
 .wall-cele--newcomer .wall-cele-confetti > span {

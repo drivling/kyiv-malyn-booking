@@ -5,6 +5,7 @@ import { visitorId } from '@/analytics/visitorId';
 import { sendOrQueue } from '@/pwa/outbox';
 import type { StickerSide } from '@/types';
 import { getKyivDateString } from './kyivTime';
+import { noteStickerScan, rememberPassengerNumber } from './stickerPassport';
 import { rememberStickerOrigin } from './stickerReturn';
 
 /**
@@ -44,7 +45,8 @@ export const GA_SKIP_STATE = { gaSkip: true } as const;
  * Потім мітку на адресі міняємо на `utm_source=reload` (toReloadMark): інакше вкладка, яку браузер
  * відновить завтра, знову прийде з `utm_source=sticker` і порахується як новий скан. Міняємо після
  * першого page_view (GA уже записав кампанію в сесію) заміною адреси, яку GoogleAnalyticsTracker не
- * рахує повторно. Браузер запамʼятовує наклейку — для обліку повернень (stickerReturn.ts).
+ * рахує повторно. Браузер запамʼятовує наклейку — для обліку повернень (stickerReturn.ts) — і дописує її в паспорт
+ * пасажира (stickerPassport.ts); номер пасажира приходить у відповіді сервера.
  */
 export function useStickerScan(search: string): void {
   const navigate = useNavigate();
@@ -55,7 +57,6 @@ export function useStickerScan(search: string): void {
   useEffect(() => {
     const scan = parseStickerCampaign(search);
     if (!scan) return;
-    rememberStickerOrigin(scan);
     const key = `${SEEN_PREFIX}${scan.stopId}-${scan.side}`;
     let seen = false;
     try {
@@ -66,10 +67,18 @@ export function useStickerScan(search: string): void {
     }
     if (!seen) {
       gaTrackEvent('transport_sticker_open', { stop: scan.stopId, side: scan.side });
+      noteStickerScan(scan);
       const clientId = visitorId();
       const key = `scan:${scan.stopId}-${scan.side}:${getKyivDateString()}`;
-      void sendOrQueue('sticker-scan', clientId ? { ...scan, clientId } : scan, key).catch(() => undefined);
+      void sendOrQueue('sticker-scan', clientId ? { ...scan, clientId } : scan, key)
+        .then((sent) => {
+          // скан із черги офлайн номера не дасть — допише наступний
+          if (!sent.queued) rememberPassengerNumber(sent.result.person);
+        })
+        .catch(() => undefined);
     }
+    // перша наклейка для повернень — після паспорта: інакше новий паспорт засіявся б із цього ж скану й порахував його двічі
+    rememberStickerOrigin(scan);
     // після ефектів батьків, тобто вже після page_view з міткою
     const strip = window.setTimeout(() => {
       const { pathname, search: now, hash } = latest.current.location;

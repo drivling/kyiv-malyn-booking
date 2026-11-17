@@ -9,7 +9,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import type { AdWallSnapshot, StickerWallSnapshot } from '@/types';
+import type { AdWallSnapshot, PeopleWallSnapshot, StickerWallSnapshot } from '@/types';
 import { STICKER_DATASET } from '@/pages/AdminPage/stopSticker/stickerTestDataset';
 import { StickerWallPage } from './StickerWallPage';
 
@@ -189,6 +189,47 @@ describe('StickerWallPage', () => {
     renderWall('/admin/wall?key=k123');
     await screen.findByTestId('wall-total');
     expect(screen.getAllByText('МАЛИН').length).toBeGreaterThan(0);
+  });
+
+  it('вкладка «Люди»: нові й ті, що повернулись, номер останнього до рубежу, стрічка пасажирів', async () => {
+    const user = userEvent.setup();
+    const now = new Date().toISOString();
+    const people: PeopleWallSnapshot = {
+      now,
+      day: '2026-10-06',
+      total: 96,
+      today: { new: 3, returned: 2 },
+      yesterday: { new: 5 },
+      returned7d: 9,
+      d90: { new: 40, returned: 10, multiStop: 6, teaser: 21 },
+      people: [
+        { number: 96, who: 'ab12', firstStopId: 'st_0015', lastStopId: 'st_0015', stops: 1, scans: 1, scanDays: 1, returns: 0, isNew: true, kind: 'scan', at: now, teaser: true },
+        { number: 37, who: 'cd34', firstStopId: 'st_0019', lastStopId: 'st_0015', stops: 3, scans: 7, scanDays: 4, returns: 1, isNew: false, kind: 'scan', at: now, teaser: false },
+        { number: 12, who: 'ef56', firstStopId: 'st_0019', lastStopId: 'st_0019', stops: 1, scans: 1, scanDays: 1, returns: 2, isNew: false, kind: 'return', at: now, teaser: false },
+      ],
+    };
+    server.use(http.get(`${TEST_API_URL}/transport/sticker-wall/people`, () => HttpResponse.json(people)));
+    renderWall('/admin/wall?key=k123');
+    await screen.findByTestId('wall-total');
+    await user.click(screen.getByRole('tab', { name: 'Люди' }));
+    const region = screen.getByRole('region', { name: 'Люди' });
+    await waitFor(() => expect(within(region).getByText('Нові пасажири')).toBeInTheDocument());
+    expect(region).toHaveTextContent('3 сьогодні');
+    expect(region).toHaveTextContent('вчора 5');
+    expect(region).toHaveTextContent('2 людини');
+    expect(region).toHaveTextContent('за 7 днів 9');
+    expect(region).toHaveTextContent('№ 96 останній');
+    expect(region).toHaveTextContent('до № 100 — ще 4');
+    const rows = within(within(region).getByRole('list', { name: 'Останні пасажири' })).getAllByRole('listitem');
+    expect(rows[0]).toHaveTextContent('№96');
+    expect(rows[0]).toHaveTextContent('з-д «Прожектор»');
+    expect(rows[0]).toHaveTextContent('новий');
+    expect(rows[1]).toHaveTextContent('↻ 4-й день');
+    expect(rows[1]).toHaveTextContent('уперше — Залізничний вокзал');
+    expect(rows[1]).toHaveTextContent('3');
+    expect(rows[2]).toHaveTextContent('Залізничний вокзал');
+    expect(rows[2]).toHaveTextContent('↻ на сайті');
+    expect(region).toHaveTextContent('90 днів нових 40 · повертались 10 (25 %) · на ≥ 2 зупинках 6 · досмотріли тизер 21');
   });
 
   it('застарілий ключ — повідомлення, як отримати нове посилання', async () => {

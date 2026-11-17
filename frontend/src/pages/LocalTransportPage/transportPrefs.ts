@@ -13,10 +13,11 @@ export const TRANSPORT_PREFS_FILENAME = 'malin-transport-prefs.json';
 export const FREQUENT_TO_STOPS_KEY = 'lt.frequentToStops';
 export const FREQUENT_TO_STOPS_MAX = 5;
 
-/** Що саме стирає «Очистити»: особисте (часті зупинки, перша наклейка, анонімний id) і кеш розділу */
+/** Що саме стирає «Очистити»: особисте (часті зупинки, перша наклейка, паспорт пасажира, анонімний id) і кеш розділу */
 export const TRANSPORT_DEVICE_KEYS = [
   FREQUENT_TO_STOPS_KEY,
   'sticker-origin',
+  'sticker-passport:v1',
   'arrival-report-client',
   'transport-install-hint',
   'transport-dataset:v1',

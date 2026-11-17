@@ -348,7 +348,8 @@ paths:
       summary: Відкриття табло з QR-наклейки на зупинці
       description: |
         Сайт пише це раз за сесію, коли табло відкрито з `utm_source=sticker`. Без IP і персональних даних.
-        Повтор від того самого клієнта за 2 хв — `200 { counted: false }`.
+        Повтор від того самого клієнта за 2 хв — `200 { counted: false }`. З `clientId` відповідь несе `person` —
+        номер пасажира з наклейок у місті й коротку історію цього анонімного браузера (для мітки на телефоні).
       requestBody:
         required: true
         content:
@@ -361,13 +362,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WriteResult'
+                $ref: '#/components/schemas/StickerScanResult'
         '200':
           description: Повтор — не зараховано
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/WriteResult'
+                $ref: '#/components/schemas/StickerScanResult'
         '400':
           $ref: '#/components/responses/BadRequest'
         '404':
@@ -987,6 +988,23 @@ components:
       properties:
         ok: { type: boolean }
         counted: { type: boolean, description: 'false — повтор, не зараховано' }
+    StickerScanResult:
+      type: object
+      required: [ok, counted]
+      properties:
+        ok: { type: boolean }
+        counted: { type: boolean, description: 'false — повтор, не зараховано' }
+        person:
+          type: object
+          description: Лише коли в запиті є `clientId`
+          required: [number, scans, stops, firstStopId, firstAt, isNew]
+          properties:
+            number: { type: integer, minimum: 1, description: 'Номер пасажира — порядок першої появи в місті' }
+            scans: { type: integer, description: Зарахованих сканів наклейок }
+            stops: { type: integer, description: Різних зупинок }
+            firstStopId: { $ref: '#/components/schemas/StopId' }
+            firstAt: { type: string, format: date-time }
+            isNew: { type: boolean, description: 'true — цей скан першим зробив браузер відомим' }
     ArrivalReport:
       type: object
       required: [kind, routeId, tripId, direction, stopId, scheduledTime, source]

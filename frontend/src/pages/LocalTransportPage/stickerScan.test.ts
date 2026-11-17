@@ -7,6 +7,7 @@ import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
 import { flushOutbox, readOutbox } from '@/pwa/outbox';
 import { getKyivDateString } from './kyivTime';
+import { readStickerPassport } from './stickerPassport';
 import { parseStickerCampaign, toReloadMark, useStickerScan } from './stickerScan';
 
 describe('parseStickerCampaign', () => {
@@ -61,5 +62,31 @@ describe('useStickerScan без мережі (Docs/transport-offline-writes-2026
     await flushOutbox();
     expect(posted).toEqual([{ stopId: 'st_0015', side: 'a', clientId: expect.stringMatching(/^[A-Za-z0-9-]{8,64}$/) }]);
     expect(readOutbox()).toEqual([]);
+  });
+});
+
+describe('useStickerScan — паспорт пасажира', () => {
+  it('скан дописує зупинку в паспорт, номер пасажира — з відповіді сервера', async () => {
+    sessionStorage.clear();
+    localStorage.clear();
+    server.use(
+      http.post(`${TEST_API_URL}/transport/sticker-scans`, () =>
+        HttpResponse.json(
+          { ok: true, counted: true, person: { number: 37, scans: 1, stops: 1, firstStopId: 'st_0019', firstAt: '2026-11-17T08:00:00.000Z', isNew: true } },
+          { status: 201 }
+        )
+      )
+    );
+    const search = 'utm_source=sticker&utm_medium=qr&utm_campaign=st_0019-b';
+    const wrapper = ({ children }: { children: ReactNode }) =>
+      createElement(MemoryRouter, { initialEntries: [`/transport/stop/st_0019?${search}`] }, children);
+    renderHook(() => useStickerScan(search), { wrapper });
+    expect(readStickerPassport()?.first).toMatchObject({ stopId: 'st_0019', side: 'b' });
+    // один скан — один (а не засів із sticker-origin цього ж скану плюс він сам)
+    expect(readStickerPassport()?.scans).toBe(1);
+    expect(readStickerPassport()?.stops).toEqual([expect.objectContaining({ stopId: 'st_0019', scans: 1 })]);
+    await waitFor(() => expect(readStickerPassport()?.number).toBe(37));
+    localStorage.clear();
+    sessionStorage.clear();
   });
 });

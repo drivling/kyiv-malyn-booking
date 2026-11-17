@@ -435,9 +435,16 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   landscape polls `GET /transport/sticker-wall?key=&after=<id>` every 30 s and celebrates each new scan
   (colour of the stop's line, Web Audio chime) — a finished «Доведе» teaser (`GET /ads/wall`, shown once per browser,
   so a new person) gets its own white «new passenger» celebration with the teaser's bouncing dot; the header shows
-  the city of `?city=`; the key is read-only, `HMAC(ADMIN_PASSWORD)` from
+  the city of `?city=`; a 4th tab «Люди» shows passengers from stickers; the key is read-only, `HMAC(ADMIN_PASSWORD)` from
   `backend/src/sticker-wall.ts`, issued by `GET /admin/transport/sticker-wall-key`.
   Workflow in `Docs/stop-stickers.md`.
+  **People from stickers** (`Docs/stop-stickers.md`, «Люди з наклейок»): every anonymous browser that scanned a sticker is a
+  passenger with a number in its city (order of first appearance, counted from `StickerPerson.id`). The phone keeps a
+  passport (`stickerPassport.ts`, `sticker-passport:v1`: first sticker, all stops, the number from the scan reply); the DB
+  keeps `StickerPerson` (`backend/src/sticker-people.ts`), written by the scan, return and finished-teaser endpoints (a
+  failure never breaks the scan) and backfilled by its migration. Read by the wall's «Люди» tab
+  (`GET /transport/sticker-wall/people`) and the admin «Наклейки зупинок» → «Люди» (`?view=people`,
+  `GET /admin/transport/sticker-people`). Nothing is shown to the passenger yet — greetings and promotions come later.
 - «Факт прибуття»: a long press (or right click / `contextmenu`) on a departure chip of `/transport/route/:id`
   or a card of the stop board opens `ArrivalReportSheet` («автобус тут» now / N min ago, or «автобуса не
   було» + how long they waited) → `POST /transport/arrival-reports` → `TransportArrivalReport` (no FK — the

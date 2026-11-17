@@ -28,9 +28,21 @@ type Row = {
   createdAt: Date;
 };
 
-function store(initial: Row[] = []) {
+type Person = { id: number; cityCode: string; clientId: string; teaserAt: Date | null };
+
+function store(initial: Row[] = [], initialPeople: Person[] = []) {
   const rows = [...initial];
+  const people = [...initialPeople];
   const prisma = {
+    // люди з наклейок: номер пасажира в переглядах і позначка «досмотрів тизер» (src/sticker-people.ts)
+    stickerPerson: {
+      findMany: async (args: { where: { cityCode: string } }) => people.filter((p) => p.cityCode === args.where.cityCode),
+      updateMany: async (args: { where: { cityCode: string; clientId: string; teaserAt: null }; data: { teaserAt: Date } }) => {
+        const hit = people.filter((p) => p.cityCode === args.where.cityCode && p.clientId === args.where.clientId && p.teaserAt === null);
+        hit.forEach((p) => (p.teaserAt = args.data.teaserAt));
+        return { count: hit.length };
+      },
+    },
     adEvent: {
       create: async ({ data }: { data: Omit<Row, 'id' | 'createdAt'> }) => {
         if (rows.some((r) => r.viewId === data.viewId && r.event === data.event)) throw Object.assign(new Error('unique'), { code: 'P2002' });
@@ -48,7 +60,7 @@ function store(initial: Row[] = []) {
       },
     },
   } as unknown as PrismaClient;
-  return { prisma, rows };
+  return { prisma, rows, people };
 }
 
 function app(prisma: PrismaClient, isPublic = false) {
@@ -86,7 +98,7 @@ test('deviceOf: лише клас пристрою', () => {
 });
 
 test('POST /ads/events: записує з пристроєм і містом, повтор тієї ж події — 200 без запису, сміття — 400', async () => {
-  const { prisma, rows } = store();
+  const { prisma, rows, people } = store([], [{ id: 1, cityCode: 'Malyn', clientId: CLIENT, teaserAt: null }]);
   const a = app(prisma);
   const body = { placement: 'sticker', event: 'started', viewId: VIEW, clientId: CLIENT, video: 'hint-1a2b3c4d', stopId: 'st_0015' };
   const first = await request(a).post('/ads/events').set('User-Agent', IPHONE).send(body).expect(201);
@@ -97,7 +109,9 @@ test('POST /ads/events: записує з пристроєм і містом, п
   assert.equal(rows[0].device, 'ios');
   assert.equal(rows[0].cityCode, 'Malyn');
   assert.equal(rows[0].access, null);
+  assert.equal(people[0].teaserAt, null, 'почав — ще не досмотрів');
   await request(a).post('/ads/events').send({ ...body, event: 'completed' }).expect(201);
+  assert.ok(people[0].teaserAt instanceof Date, 'досмотрений тизер позначено в людини з наклейок');
   await request(a).post('/ads/events').send({ placement: 'sticker', event: 'shown', viewId: VIEW }).expect(400);
   await request(a).post('/ads/events').send({ ...body, event: 'shown', city: 'Atlantis' }).expect(404);
 });
@@ -148,6 +162,11 @@ test('зведення стіни: сьогодні й усього, хто ди
     // пізніша подія того самого перегляду з іншим id браузера — не нова людина
     row(11, { viewId: 'view-0002', event: 'started', clientId: 'third-client-0003', device: 'android' }),
     row(12, { placement: 'dovede', viewId: 'page-0006', stopId: null, event: 'page', access: 'admin', video: null, createdAt: yesterday }),
+  ], [
+    // люди з наклейок Малина: CLIENT — другий за появою (id 7 після id 3), other-client — не з наклейки
+    { id: 7, cityCode: 'Malyn', clientId: CLIENT, teaserAt: null },
+    { id: 3, cityCode: 'Malyn', clientId: 'first-person-0001', teaserAt: null },
+    { id: 9, cityCode: 'Korosten', clientId: 'other-client-0002', teaserAt: null },
   ]);
   const snap = await adWallSnapshot(prisma, { cityCode: 'Malyn', now: NOW });
   assert.equal(snap.day, '2026-11-17');
@@ -163,6 +182,8 @@ test('зведення стіни: сьогодні й усього, хто ди
   assert.equal(mine?.completed, true);
   assert.equal(mine?.seenBefore, 1, 'той самий браузер бачив рекламу вчора');
   assert.equal(mine?.who, CLIENT.slice(-4));
+  assert.equal(mine?.number, 2, 'номер пасажира — порядок появи в місті стіни');
+  assert.equal(snap.views.find((v) => v.viewId === 'view-0002')?.number, null, 'людина з наклейок іншого міста — без номера тут');
   const page = snap.views.find((v) => v.viewId === 'page-0005');
   assert.equal(page?.kind, 'page');
   assert.equal(page?.access, 'guest');

@@ -1121,11 +1121,80 @@ export interface AdWallSnapshot {
     stopId: string | null;
     device: string | null;
     who: string | null;
+    /** Номер пасажира з наклейок у місті стіни, якщо цей браузер приходив із наклейки */
+    number?: number | null;
     seenBefore: number;
     access: string | null;
     at: string;
     started: boolean;
     completed: boolean;
+  }[];
+}
+
+/** Номер пасажира й коротка історія браузера — відповідь скану наклейки (backend sticker-people.ts) */
+export interface PassengerSummary {
+  number: number;
+  scans: number;
+  stops: number;
+  firstStopId: string;
+  firstAt: string;
+  isNew: boolean;
+}
+
+export interface StickerScanResult {
+  ok: boolean;
+  counted: boolean;
+  /** Лише коли скан ніс id браузера */
+  person?: PassengerSummary;
+}
+
+/** Вкладка «Люди» на стіні наклейок (GET /transport/sticker-wall/people) */
+export interface PeopleWallSnapshot {
+  now: string;
+  day: string;
+  /** Людей у місті — це й номер останнього пасажира */
+  total: number;
+  today: { new: number; returned: number };
+  yesterday: { new: number };
+  returned7d: number;
+  d90: { new: number; returned: number; multiStop: number; teaser: number };
+  people: {
+    number: number;
+    who: string;
+    firstStopId: string;
+    lastStopId: string;
+    stops: number;
+    scans: number;
+    scanDays: number;
+    returns: number;
+    isNew: boolean;
+    kind: 'scan' | 'return';
+    at: string;
+    teaser: boolean;
+  }[];
+}
+
+/** Підвкладка «Люди» в адмінці наклейок (GET /admin/transport/sticker-people) */
+export interface StickerPeopleStats {
+  days: StickerStatsDays;
+  total: number;
+  newInPeriod: number;
+  returning: number;
+  multiStop: number;
+  teaser: number;
+  daily: { day: string; count: number }[];
+  firstStops: { stopId: string; count: number }[];
+  people: {
+    number: number;
+    who: string;
+    firstStopId: string;
+    firstAt: string;
+    lastAt: string;
+    scans: number;
+    stopIds: string[];
+    scanDays: number;
+    returns: number;
+    teaser: boolean;
   }[];
 }
 
