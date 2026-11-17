@@ -1414,6 +1414,10 @@ export interface DovedeCityStats {
   staleRoutes?: number;
   /** фонове навчання оновлює їх саме (DOVEDE_CITY_REFRESH) */
   refresh?: boolean;
+  /** коли Google востаннє відмовив через власну квоту (429), ISO; null — не відмовляв від запуску сервера */
+  googleQuotaHitAt?: string | null;
+  /** що сказав Google у тій відмові (назва квоти) */
+  googleQuotaMessage?: string;
   archivedRoutes: number;
   routes: Array<{ city: string; source: string; count: number }>;
   lines: Array<{ city: string; count: number }>;

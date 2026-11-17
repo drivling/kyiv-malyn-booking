@@ -106,11 +106,11 @@ const GOOGLE = {
   ],
 };
 
-function fakeFetch(body: unknown = GOOGLE, ok = true) {
+function fakeFetch(body: unknown = GOOGLE, ok = true, status = ok ? 200 : 500) {
   const calls: Array<Record<string, unknown>> = [];
   const fetchImpl = async (_url: string, init: { body: string }) => {
     calls.push(JSON.parse(init.body));
-    return { ok, status: ok ? 200 : 500, json: async () => body };
+    return { ok, status, json: async () => body };
   };
   return { fetchImpl, calls };
 }
@@ -368,7 +368,7 @@ test('невдале оновлення: рядок позначено й тиж
   second.fetchedAt = NOW;
   assert.deepEqual([(await seeded.stats()).staleRoutes, (await seeded.stats()).refresh], [2, true]);
 
-  const down = fakeFetch(GOOGLE, false);
+  const down = fakeFetch({ routes: [] });
   const failing = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: down.fetchImpl, now: () => later, ownRoute: () => null, dailyCap: () => 1000 });
   assert.deepEqual(await failing.learnTick(1), { asked: 1, learned: 0 });
   assert.deepEqual([first.refreshFailedAt, second.refreshFailedAt], [later, null]);
@@ -393,8 +393,8 @@ test('невдале оновлення: рядок позначено й тиж
 
 test('навчання не довбає те саме: пару людей без відповіді й стартову пару, де Google не знайшов дороги, — раз на тиждень', async () => {
   const DAY = 24 * 3600_000;
-  const t = make({ dailyCap: () => 1000 }, GOOGLE, false);
-  await t.svc.find(Q); // людина спитала, Google не відповів
+  const t = make({ dailyCap: () => 1000 }, { routes: [] });
+  await t.svc.find(Q); // людина спитала, Google дороги не знайшов
   assert.deepEqual(t.dovedeCityDemand.rows.map((r) => [r.answered, r.learnFailedAt ?? null]), [[false, null]]);
   // крок навчання: спершу пара людини, потім дві стартові — усі три без успіху
   assert.deepEqual(await t.svc.learnTick(3), { asked: 3, learned: 0 });
@@ -416,6 +416,57 @@ test('навчання не довбає те саме: пару людей бе
   await capped.svc.find(Q);
   assert.deepEqual(await capped.svc.learnTick(3), { asked: 0, learned: 0 });
   assert.equal(capped.dovedeCityDemand.rows[0].learnFailedAt ?? null, null);
+});
+
+test('квота Google (429) і збій — не вина пари: «ліміт» без позначок, крок навчання спиняється, 10 хв Google не чіпаємо', async () => {
+  const DAY = 24 * 3600_000;
+  const quota = fakeFetch({ error: { code: 429, status: 'RESOURCE_EXHAUSTED', message: "Quota exceeded for quota metric 'ComputeRoutes requests' and limit\n 'ComputeRoutes requests per day'" } }, false, 429);
+  const db = fakeDb();
+  let at = NOW;
+  const svc = createCityRoutes({ prisma: db.prisma, key: () => 'k', fetchImpl: quota.fetchImpl, now: () => at, enabled: () => true, store: () => true, dailyCap: () => 100, ownRoute: () => null });
+  assert.equal((await svc.stats()).googleQuotaHitAt, null);
+  // людині — «ліміт», як і при нашому денному: сторінка покаже кнопку Google Maps
+  assert.deepEqual(await svc.find(Q), { ok: false, fallback: 'maps', reason: 'cap' });
+  assert.equal(quota.calls.length, 1);
+  assert.equal((await svc.stats()).googleQuotaHitAt, NOW.toISOString());
+  assert.equal((await svc.stats()).googleQuotaMessage, "Quota exceeded for quota metric 'ComputeRoutes requests' and limit 'ComputeRoutes requests per day'");
+  // десять хвилин не питаємо взагалі — ні для людей, ні в навчанні; наш лічильник ці спроби не їдять
+  assert.deepEqual(await svc.find({ ...Q, to: 'Богунія' }), { ok: false, fallback: 'maps', reason: 'cap' });
+  assert.deepEqual(await svc.learnTick(3), { asked: 0, learned: 0 });
+  assert.equal(quota.calls.length, 1);
+  assert.equal((await svc.stats()).callsToday, 0);
+  // далі пробуємо знову: один запит, знову 429 — і жодної позначки «не чіпати тиждень»
+  at = new Date(NOW.getTime() + 11 * 60_000);
+  assert.deepEqual(await svc.learnTick(3), { asked: 0, learned: 0 });
+  assert.equal(quota.calls.length, 2);
+  assert.deepEqual(db.dovedeCityDemand.rows.map((r) => r.learnFailedAt ?? null), [null, null]);
+
+  // збій Google (500): одна спроба за крок, позначок немає, наступного кроку — та сама пара
+  const down = fakeFetch({}, false, 500);
+  const t = make({ dailyCap: () => 100 });
+  await t.svc.find(Q);
+  t.dovedeCityRoute.rows.length = 0;
+  const broken = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: down.fetchImpl, now: () => NOW, ownRoute: () => null, dailyCap: () => 100 });
+  assert.deepEqual(await broken.learnTick(3), { asked: 1, learned: 0 });
+  assert.deepEqual(await broken.learnTick(3), { asked: 1, learned: 0 });
+  assert.deepEqual((down.calls as Array<{ destination: { address: string } }>).map((c) => c.destination.address), ['Польова 12, Житомир, Україна', 'Польова 12, Житомир, Україна']);
+  assert.equal(t.dovedeCityDemand.rows[0].learnFailedAt ?? null, null);
+  // те саме для оновлення застарілого рядка
+  await t.svc.find({ ...Q, to: 'Корбутівка' });
+  await t.svc.resetDemand();
+  const later = new Date(NOW.getTime() + 29 * DAY);
+  const seeded = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: t.fetchImpl, now: () => later, ownRoute: () => null, dailyCap: () => 1000 });
+  await seeded.learnTick(500);
+  const stale = t.dovedeCityRoute.rows.find((r) => r.toKey === 'корбутівка')!;
+  stale.fetchedAt = NOW;
+  const limited = createCityRoutes({ prisma: t.prisma, key: () => 'k', fetchImpl: fakeFetch({}, false, 429).fetchImpl, now: () => later, ownRoute: () => null, dailyCap: () => 1000 });
+  assert.deepEqual(await limited.learnTick(3), { asked: 0, learned: 0 });
+  assert.equal(stale.refreshFailedAt ?? null, null);
+
+  // 400 — Google не прийняв саме цю адресу: «дороги немає», і це вже вина пари
+  const bad = make({}, {}, false);
+  const rejecting = createCityRoutes({ prisma: bad.prisma, key: () => 'k', fetchImpl: fakeFetch({}, false, 400).fetchImpl, now: () => NOW, ownRoute: () => null });
+  assert.deepEqual(await rejecting.find(Q), { ok: false, fallback: 'maps', reason: 'no_route' });
 });
 
 test('оновлення: коли питати й що саме', () => {
