@@ -214,7 +214,9 @@ of `dist` in a commit.
   (`kind: 'metro'`, `kyivStep` in the composer, card `ui/MetroCard.tsx`): `metroTrip(from, to, at)` in `data/kyiv.ts` times it
   from our own `data/kyivMetroService.ts` (hours 05:30–23:00, fare, average hop per line, headways by time of day) and
   marks it `closed` outside working hours. `METRO_SHUTTLE` there records the stretch where a bus runs instead of trains
-  (green line beyond «Видубичі», bus 318 — inferred from Google on 2026-11-17, owner to confirm; set to `null` when trains return). Golden sets: `eval/kyiv-metro.json`
+  (green line beyond «Видубичі», bus 318 — inferred from Google on 2026-11-17, owner to confirm; set to `null` when trains return). A metro step that is only that bus is never worded as metro: `metroPhrase` in
+  `compose/narrate.ts` says «автобус №318 замість метро до…», and `MetroCard` opens with «Поїзди метро тут не ходять» and
+  drops the token, turnstile and train-headway lines. Golden sets: `eval/kyiv-metro.json`
   (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in
   `eval/golden.json` for the real-model run.
   Kyiv city train (Kyiv City Express, the ring): `npm run dovede:ring [-- --fetch]` (frontend,
