@@ -21,6 +21,8 @@ export interface PlaceRef {
   id: string;
   /** як написала людина */
   text: string;
+  /** місце всередині Києва чи Житомира, якого немає у словнику («Польова 12», «Охматдит»); лише з id міста */
+  detail?: string;
 }
 
 export interface TripIntent {

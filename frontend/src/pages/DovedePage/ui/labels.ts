@@ -49,5 +49,5 @@ export function modeLabel(modes: TripIntent['modes'], routeNos: string[] = [], a
 export function placeRefLabel(ref: PlaceRef | null): string | null {
   if (!ref) return null;
   const p = resolvePlace(ref.id);
-  return p ? placeLabel(p) : ref.text;
+  return p ? `${placeLabel(p)}${ref.detail ? `, ${ref.detail}` : ''}` : ref.text;
 }

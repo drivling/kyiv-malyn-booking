@@ -71,6 +71,22 @@ test('validateIntent: сміття в полях замінюється безп
   assert.equal(i.confidence, 'low');
 });
 
+test('validateIntent: detail — місце словами лише з id Києва чи Житомира; з іншим місцем і порожнє відкидається', () => {
+  const base = { intent: 'trip', when: { day: 'today', time: null, kind: 'depart', part: null }, modes: [], routes: [], avoidRoutes: [], unknown: [], confidence: 'high' };
+  const zt = validateIntent({ ...base, from: { id: 'city.Malyn', text: 'Малина', detail: 'центр' }, to: { id: 'city.Zhytomyr', text: 'в Житомир на Польову 12', detail: ' Польова 12 ' } });
+  assert.deepEqual(zt.to, { id: 'city.Zhytomyr', text: 'в Житомир на Польову 12', detail: 'Польова 12' });
+  assert.deepEqual(zt.from, { id: 'city.Malyn', text: 'Малина' });
+  assert.equal(zt.confidence, 'high');
+  const kyiv = validateIntent({ ...base, from: null, to: { id: 'city.Kyiv', text: 'до Охматдиту', detail: 'Охматдит' } });
+  assert.equal(kyiv.to?.detail, 'Охматдит');
+  const metro = validateIntent({ ...base, from: null, to: { id: 'kyiv.akadem', text: 'Академмістечко', detail: 'Охматдит' } });
+  assert.equal(metro.to?.detail, undefined);
+  for (const detail of [null, '', ' ', 'я', 7]) {
+    assert.equal(validateIntent({ ...base, from: null, to: { id: 'city.Kyiv', text: 'Київ', detail } }).to?.detail, undefined);
+  }
+  assert.equal(validateIntent({ ...base, from: null, to: { id: 'city.Kyiv', text: 'Київ', detail: 'х'.repeat(300) } }).to?.detail?.length, 80);
+});
+
 test('validateIntent: не обʼєкт — IntentShapeError', () => {
   assert.throws(() => validateIntent('trip'), IntentShapeError);
   assert.throws(() => validateIntent(null), IntentShapeError);

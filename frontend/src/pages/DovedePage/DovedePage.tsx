@@ -20,10 +20,10 @@ import { DovedeIntro, type IntroEvent } from './intro/DovedeIntro';
 import { INTRO_NAME } from './intro/introMedia';
 import { newViewId, trackAd } from '@/ads/adEvents';
 import { introSeen } from './intro/introState';
-import { classify, defaultCarMinutes, composeStories, corridorCities, resolveDate, rideDepartures, type DriveEstimate } from './compose/composeStories';
+import { cityAsks, classify, defaultCarMinutes, composeStories, corridorCities, resolveDate, rideDepartures, type DriveEstimate } from './compose/composeStories';
 import { placesInNote, type NoteDir } from './nlu/notePlaces';
 import { clock, shareText } from './compose/narrate';
-import type { ComposeOutcome, Story } from './compose/types';
+import { cityAskKey, type CityRoute, type ComposeOutcome, type Story } from './compose/types';
 import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withHouses, withIntent } from './nlu/merge';
 import { addDays, parseLocal } from './nlu/parseLocal';
 import { setStopPlaces } from './nlu/places';
@@ -281,14 +281,29 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
       try {
         let date = resolveDate(intent.when.day, now);
         const listings = (await searchFor(date)).listings;
-        let outcome = composeStories({ intent, now, date, schedules: await schedulesFor(date), planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: await driveFor(date, listings), notePlaces }, shape);
+        // Дорогу містом (Київ, Житомир) до місця «словами» знає сервер: складаємо, питаємо, чого бракує, і складаємо ще раз
+        const withCity = async (compose: (cityRoutes: ReadonlyMap<string, CityRoute | null>) => ComposeOutcome): Promise<ComposeOutcome> => {
+          const known = new Map<string, CityRoute | null>();
+          let out = compose(known);
+          // з хвилинами міста найкращим може стати інший рейс, про який ще не питали, — тому до трьох кіл
+          for (let round = 0; round < 3; round++) {
+            const asks = cityAsks(out, known);
+            if (!asks.length) break;
+            const got = await Promise.all(asks.map((a) => apiClient.dovedeCityRoute(a)));
+            asks.forEach((a, i) => known.set(cityAskKey(a), got[i]));
+            out = compose(known);
+          }
+          return out;
+        };
+        const today = { schedules: await schedulesFor(date), driveMinutes: await driveFor(date, listings) };
+        let outcome = await withCity((cityRoutes) => composeStories({ intent, now, date, schedules: today.schedules, planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: today.driveMinutes, notePlaces, cityRoutes }, shape));
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);
           const next0: TripIntent = { ...intent, when: { day: 'tomorrow', kind: 'depart' } };
           const later = (await searchFor(tomorrow)).listings;
-          const next = composeStories(
-            { intent: next0, now, date: tomorrow, schedules: await schedulesFor(tomorrow), planner: plannerFor(tomorrow), routes, listings: later, driveMinutes: await driveFor0(tomorrow, later, next0), notePlaces },
-            shape,
+          const morrow = { schedules: await schedulesFor(tomorrow), driveMinutes: await driveFor0(tomorrow, later, next0) };
+          const next = await withCity((cityRoutes) =>
+            composeStories({ intent: next0, now, date: tomorrow, schedules: morrow.schedules, planner: plannerFor(tomorrow), routes, listings: later, driveMinutes: morrow.driveMinutes, notePlaces, cityRoutes }, shape),
           );
           if (next.kind === 'stories') {
             outcome = { ...next, notice: 'Сьогодні вже нічого не їде — найближчі варіанти завтра.' };

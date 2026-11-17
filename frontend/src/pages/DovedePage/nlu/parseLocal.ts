@@ -78,9 +78,108 @@ function prepBefore(toks: Token[], i: number): Token | null {
   return null;
 }
 
+/** Міста, де «Доведе» веде далі до місця, названого словами (сервер: dovede/city-route.ts) */
+const FAR_CITY_RE: Array<[RegExp, 'city.Kyiv' | 'city.Zhytomyr']> = [
+  [/^(київ|києва|києву|киев|киева|киеву)$/, 'city.Kyiv'],
+  [/^(житомир|житомира|житомиру)$/, 'city.Zhytomyr'],
+];
+const DETAIL_TO_PREPS = new Set(['на', 'до', 'біля', 'коло', 'возле', 'около', 'к']);
+const DETAIL_FROM_PREPS = new Set(['з', 'із', 'зі', 'від', 'с', 'со', 'из', 'от']);
+const STREET_WORDS = new Set(['вул', 'вулиця', 'вулицю', 'вулиці', 'улица', 'улицу', 'улицы', 'проспект', 'просп', 'площа', 'площу', 'площі', 'провулок', 'бульвар']);
+/** Слова, які після міста означають час, транспорт чи саме питання, а не місце в місті */
+const NOT_DETAIL_RE =
+  /^(завтра|сьогодн|сегодн|післязавтр|послезавтр|зараз|сейчас|найближч|ближайш|понеділ|понедел|вівтор|вторн|серед|сред|четвер|п'ятниц|пятниц|субот|неділ|воскрес|ранок|ранку|зранку|вранц|утр|вечір|вечор|вечер|ввечер|обід|обед|вдень|днем|ноч|вихідн|выходн|годин|хвилин|минут|тижд|недел|маршрут|зубаст|електрич|електріч|электрич|потяг|поїзд|поезд|автобус|попутк|попутн|блаблакар|машин|таксі|такси|коли|когда|скільки|сколько|кошту|стоит|ціна|цена|можна|можно|треба|надо|потрібно|нужно|доїхати|доехать|добратися|добраться|їхати|ехать|роботу|работу|навчання|учебу|гості|гости|справах|делам)|^(ніч|ночі|час|день|дня|авто|як|как|чим|чем|малин[ауі]?|малине|київ|києв[аіу]|киев[ауе]?|житомир[ауі]?|житомире|коростен[ьяі])$/;
+/** «на автовокзал» у Житомирі — туди рейс і так приходить: це не окреме місце */
+const STATION_WORD_RE = /^(автовокзал|автостанц|вокзал)/;
+
+/**
+ * «на Польову» → «Польова», «до обласної лікарні» → «обласна лікарня»: назву показуємо й шукаємо в називному.
+ * Лише найчастіші закінчення жіночого роду; решту лишаємо, як написано (Google відмінки розуміє).
+ */
+function nominative(word: string): string {
+  if (word.length < 5 || /^\d/.test(word)) return word;
+  if (/(ої|ой)$/i.test(word)) return word.replace(/(ої|ой)$/i, 'а');
+  if (/(ську|цьку|зьку|[вн]у)$/i.test(word)) return `${word.slice(0, -1)}а`;
+  if (/[цн]ю$/i.test(word)) return `${word.slice(0, -1)}я`;
+  if (/[цн]і$/i.test(word)) return `${word.slice(0, -1)}я`;
+  return word;
+}
+
+interface FarDetail {
+  role: 'from' | 'to';
+  cityId: 'city.Kyiv' | 'city.Zhytomyr';
+  /** слова людини про місце; порожньо — «на автовокзал» (слова прибрано, місця немає) */
+  text: string;
+  start: number;
+  end: number;
+  /** індекси слів, які основний розбір не має бачити */
+  skip: Set<number>;
+}
+
+/**
+ * «в Житомир на Польову 12», «з Житомира з Покровської», «у Київ до Охматдиту»: слова одразу після назви
+ * далекого міста, яких словник не знає, — місце всередині нього. Відоме місце (метро, вокзал Києва) лишається
+ * звичайному розбору.
+ */
+function farDetails(text: string, toks: Token[], known: (i: number, cityId: FarDetail['cityId']) => boolean): FarDetail[] {
+  const out: FarDetail[] = [];
+  for (let i = 0; i < toks.length; i++) {
+    const cityId = FAR_CITY_RE.find(([re]) => re.test(toks[i].n))?.[1];
+    if (!cityId) continue;
+    const prep = prepBefore(toks, i);
+    if (!prep) continue;
+    const role: 'from' | 'to' = FROM_PREPS.has(prep.n) ? 'from' : 'to';
+    let j = i + 1;
+    const lead = toks[j];
+    if (!lead) continue;
+    const preps = role === 'to' ? DETAIL_TO_PREPS : DETAIL_FROM_PREPS;
+    if (preps.has(lead.n)) j++;
+    else if (!STREET_WORDS.has(lead.n)) continue;
+    const first = j;
+    let words = 0;
+    while (j < toks.length && j - first < 5) {
+      const t = toks[j];
+      const isNumber = /^\d/.test(t.n);
+      if (isNumber) {
+        // номер будинку — одне число після назви; «на 8 ранку», «о 18:00» — це час
+        if (!words || /[:.]/.test(t.n) || (toks[j + 1] && /^(ранку|вечора|годин|утра|вечера|дня|ночі|ночи)/.test(toks[j + 1].n))) break;
+        j++;
+        break;
+      }
+      if (FROM_PREPS.has(t.n) || TO_PREPS.has(t.n) || HOUR_PREPS.has(t.n)) break;
+      if (NOT_DETAIL_RE.test(t.n)) break;
+      if (!STREET_WORDS.has(t.n)) {
+        if (known(j, cityId)) break;
+        words++;
+      }
+      j++;
+    }
+    if (!words) continue;
+    const skip = new Set<number>();
+    for (let k = i + 1; k < j; k++) skip.add(k);
+    // після прийменника слова стоять у непрямому відмінку; «вул. Київська 77» без нього — вже в називному
+    const said = text.slice(toks[first].start, toks[j - 1].end).replace(/\s+/g, ' ').trim();
+    const body = first > i + 1 ? said.replace(/[\p{L}'’ʼ]+/gu, nominative) : said;
+    const station = cityId === 'city.Zhytomyr' && words === 1 && STATION_WORD_RE.test(toks[j - 1].n);
+    out.push({ role, cityId, text: station ? '' : body, start: toks[i + 1].start, end: toks[j - 1].end, skip });
+  }
+  return out;
+}
+
 /** `stops` — зупинки з розкладу міста (`buildStopPlaces`): «Поворот на Коновальця», «Чорновола 36»… */
 export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], routes: RouteLike[] = []): LocalParse {
-  const toks = tokenize(text);
+  const allToks = tokenize(text);
+  // У Києві відоме місце (метро, вокзал, «Святошин») лишається собою; у Житомирі словник місць не має —
+  // слово, схоже на малинську вулицю («Польова»), там означає житомирську
+  const details = farDetails(text, allToks, (i, cityId) => {
+    if (cityId !== 'city.Kyiv') return false;
+    const t = allToks[i];
+    const place = findPlaceByToken(t.n);
+    return Boolean(place && (place.city === 'Kyiv' || place.id === 'malyn.vokzal')) || Boolean(matchMetro(allToks, i)) || Boolean(matchSynonym(allToks, i));
+  });
+  const hidden = new Set<number>();
+  for (const d of details) d.skip.forEach((k) => hidden.add(k));
+  const toks = hidden.size ? allToks.filter((_, k) => !hidden.has(k)) : allToks;
   // «автобус №5», «9-ка» — раніше за все інше: цифра маршруту не має стати часом, а «маршрутка 7» — маршруткою на Київ
   const routeMentions = findRouteMentions(text, routes);
   const spans: ParseSpan[] = [];
@@ -341,6 +440,14 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     if (!st.from) give('from');
   });
   for (const h of hits) if (h.role) spans.push({ start: h.spanStart, end: h.token.end, kind: h.role });
+  // місце словами в далекому місті чинне, лише коли це місто й лишилося «звідки» чи «куди»
+  const detailOf = (role: 'from' | 'to'): string | null => {
+    const d = details.find((x) => x.role === role && x.text && st[role]?.id === x.cityId);
+    if (!d) return null;
+    spans.push({ start: d.start, end: d.end, kind: role });
+    return d.text;
+  };
+  const detail = { from: detailOf('from'), to: detailOf('to') };
   for (const m of routeMentions) spans.push({ start: m.start, end: m.end, kind: 'mode' });
   const avoidIds = [...new Set(routeMentions.filter((m) => m.avoid).map((m) => m.routeId))];
   const routeIds = [...new Set(routeMentions.filter((m) => !m.avoid).map((m) => m.routeId))].filter((id) => !avoidIds.includes(id));
@@ -386,7 +493,7 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
   const ref = (p: GazetteerPlace | null, role: 'from' | 'to'): PlaceRef | null => {
     if (!p) return null;
     const own = hits.filter((h) => h.role === role).map((h) => h.token.raw);
-    return { id: p.id, text: own.join(' ') || p.label };
+    return { id: p.id, text: own.join(' ') || p.label, ...(detail[role] ? { detail: detail[role]! } : {}) };
   };
 
   const hasCityWord = words.some((w) => CITY_WORD_RE.test(w));

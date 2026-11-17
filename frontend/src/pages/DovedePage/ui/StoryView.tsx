@@ -7,22 +7,15 @@ import { routeNo } from '@/utils/routeNames';
 import { clock } from '../compose/narrate';
 import type { Story, StoryLeg } from '../compose/types';
 import { FlapTime } from './FlapTime';
-import { durationText, metersText } from './format';
+import { durationText, metersText, stopsText } from './format';
 import { METRO_LINE } from '../data/kyivMetroService';
+import { CityLegCard } from './CityLegCard';
 import { MetroCard } from './MetroCard';
 import { RideNote } from './RideBoard';
 
 type IntercityLeg = Extract<StoryLeg, { kind: 'intercity' }>;
 type BusLeg = Extract<StoryLeg, { kind: 'bus' }>;
 type RideLeg = Extract<StoryLeg, { kind: 'ride' }>;
-
-function stopsText(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return `${n} зупинка`;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return `${n} зупинки`;
-  return `${n} зупинок`;
-}
 
 function intercityTitle(l: IntercityLeg): string {
   const dir = l.routeLabel;
@@ -149,12 +142,14 @@ function legTime(l: StoryLeg): string {
   if (l.kind === 'intercity') return clock(l.boardMins, l.boardApprox);
   if (l.kind === 'bus' || l.kind === 'ride') return clock(l.depMins);
   if (l.kind === 'metro') return l.closed ? '' : clock(l.depMins, true);
+  if (l.kind === 'city') return l.depMins != null ? clock(l.depMins, true) : '';
   return '';
 }
 
 function legStyle(l: StoryLeg): CSSProperties | undefined {
   if (l.kind === 'intercity') return { '--dv-c': l.mode === 'elektrichka' ? 'var(--dv-train)' : 'var(--dv-marsh)' } as CSSProperties;
   if (l.kind === 'ride') return { '--dv-c': 'var(--dv-ride)' } as CSSProperties;
+  if (l.kind === 'city' && l.route) return { '--dv-c': 'var(--dv-city)' } as CSSProperties;
   if (l.kind === 'metro') return { '--dv-c': METRO_LINE[l.segments[0].line].color } as CSSProperties;
   if (l.kind === 'bus') return { ...routeColorStyle(l.routeId), '--dv-c': 'var(--lt-route-color, var(--dv-ink))' } as CSSProperties;
   return undefined;
@@ -168,6 +163,8 @@ function LegBody({ l, date, stopName }: { l: StoryLeg; date: string; stopName: (
       return <MetroCard l={l} />;
     case 'ride':
       return <RideCard l={l} />;
+    case 'city':
+      return <CityLegCard l={l} />;
     case 'bus':
       return <BusCard l={l} date={date} stopName={stopName} />;
     case 'walk':
@@ -197,7 +194,7 @@ export function StoryView({ story, stopName }: { story: Story; stopName: (id: st
   return (
     <ol className="dv-story">
       {story.legs.map((l, i) => {
-        const dots = l.kind === 'walk' || l.kind === 'wait' || l.kind === 'kyiv';
+        const dots = l.kind === 'walk' || l.kind === 'wait' || l.kind === 'kyiv' || (l.kind === 'city' && (!l.route || l.route.steps.every((x) => x.kind === 'walk')));
         return (
           <li key={i} className={`dv-leg${dots ? ' dv-leg--dots' : ''}`} style={legStyle(l)}>
             <span className="dv-leg__time">

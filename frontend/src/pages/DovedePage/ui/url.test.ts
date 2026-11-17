@@ -60,4 +60,14 @@ describe('«Доведе» — адреса відповіді', () => {
     expect(i).toMatchObject({ when: { day: 'today', kind: 'depart' }, modes: ['marshrutka'] });
     expect(i?.when.time).toBeUndefined();
   });
+
+  it('місце словами в Києві чи Житомирі їде в `fd=` / `td=`; з іншим місцем — ігнорується', () => {
+    const intent: TripIntent = { intent: 'trip', from: { id: 'city.Malyn', text: 'Малина' }, to: { id: 'city.Zhytomyr', text: 'Житомир', detail: 'Польова 12' }, when: { day: 'today', kind: 'depart' }, modes: [], unknown: [], confidence: 'high' };
+    const params = intentToParams(intent, '2026-11-13');
+    expect(params.get('td')).toBe('Польова 12');
+    expect(params.get('fd')).toBeNull();
+    expect(paramsToIntent(params, { date: '2026-11-13', mins: 600 })?.to).toMatchObject({ id: 'city.Zhytomyr', detail: 'Польова 12' });
+    const alien = new URLSearchParams('f=city.Malyn&t=malyn.vokzal&td=Польова&d=2026-11-13');
+    expect(paramsToIntent(alien, { date: '2026-11-13', mins: 600 })?.to?.detail).toBeUndefined();
+  });
 });

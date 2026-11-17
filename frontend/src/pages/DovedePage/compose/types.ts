@@ -107,7 +107,67 @@ export type StoryLeg =
       closed: boolean;
       mapsUrl: string;
     }
+  | {
+      /**
+       * Містом (Київ, Житомир) до місця, названого словами: кроки віддає сервер (GET /dovede/city-route) —
+       * зі своєї бази або щойно від Google. `route: null` — відповіді ще немає або її немає зовсім: тоді це
+       * кнопка Google Maps.
+       */
+      kind: 'city';
+      city: CityCode;
+      cityName: string;
+      ask: CityAsk;
+      fromLabel: string;
+      toLabel: string;
+      route: CityRoute | null;
+      depMins: number | null;
+      arrMins: number | null;
+      mapsUrl: string;
+    }
   | { kind: 'wait'; text: string };
+
+export type CityCode = 'Kyiv' | 'Zhytomyr';
+
+/** Що питаємо в сервера: точка — id («zhytomyr.avtovokzal», «kyiv.akadem») або слова людини */
+export interface CityAsk {
+  city: CityCode;
+  from: string;
+  to: string;
+  /** 'YYYY-MM-DD' */
+  date: string;
+  /** 'HH:MM' — коли людина вирушає містом */
+  time: string;
+}
+
+export const cityAskKey = (a: CityAsk): string => [a.city, a.from, a.to, a.date, a.time].join('|');
+
+/** Крок містом — той самий контракт, що `CityStep` у backend/src/dovede/city-route.ts */
+export interface CityStep {
+  kind: 'transit' | 'walk';
+  minutes: number;
+  meters?: number;
+  /** BUS | TROLLEYBUS | TRAM | SUBWAY | SHARE_TAXI … */
+  mode?: string;
+  line?: string;
+  agency?: string;
+  color?: string;
+  headsign?: string;
+  fromStop?: string;
+  toStop?: string;
+  stops?: number;
+  headwayMin?: number;
+}
+
+export interface CityRoute {
+  /** google — щойно від Google; stored — з нашої бази (до 30 днів); own — дані власника */
+  source: 'google' | 'stored' | 'own';
+  fromLabel: string;
+  toLabel: string;
+  steps: CityStep[];
+  minutes: number;
+  /** ISO: коли це перевірено */
+  fetchedAt: string;
+}
 
 export interface Story {
   id: string;

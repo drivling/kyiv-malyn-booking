@@ -23,6 +23,7 @@
   --dv-marsh: #0b5c69;
   --dv-train: #4757c9;
   --dv-ride: #b9552a;
+  --dv-city: #2f6f4f;
   --dv-walk: #93a9ad;
   --dv-shadow: 0 2px 12px rgba(5, 71, 82, 0.08);
   --dv-r: 16px;
@@ -2378,4 +2379,166 @@ button.dv-tear__slip:active {
 }
 .dv-metro__strip li:last-child .dv-metro__st {
   right: -13px;
+}
+
+/* ─── Містом до місця «словами» (Київ, Житомир): ui/CityLegCard.tsx ─────────────────────────── */
+.dv-strip__seg--city {
+  background: var(--dv-city);
+}
+.dv-city {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
+  padding: 12px 12px 0;
+  border: 1px solid var(--dv-line);
+  border-radius: var(--dv-r);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 38px),
+    var(--dv-surface);
+  box-shadow: 0 6px 14px rgba(5, 71, 82, 0.08);
+  overflow: hidden;
+}
+.dv-city__head {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--dv-muted);
+  overflow-wrap: anywhere;
+}
+.dv-city__head span {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.dv-city__steps {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.dv-city__walk {
+  padding: 2px 0 2px 14px;
+  border-left: 3px dotted var(--dv-walk);
+  margin-left: 26px;
+  font-size: 14px;
+  color: var(--dv-muted);
+}
+.dv-city__ride {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+}
+/* Табличка маршруту за лобовим склом: світлий пластик у чорній рамці, номер великим, смуга кольору лінії */
+.dv-city__plate {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-width: 58px;
+  max-width: 96px;
+  padding: 4px 8px 7px;
+  border: 2px solid #1b2a2f;
+  border-radius: 7px;
+  color: #10201f;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.07)),
+    #fdf6d8;
+  box-shadow:
+    inset 0 -5px 0 var(--dv-cc, var(--dv-city)),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 2px 5px rgba(5, 71, 82, 0.22);
+  transform: rotate(-1.2deg);
+}
+.dv-city__plate small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4a5a5c;
+}
+.dv-city__plate b {
+  font-size: 24px;
+  line-height: 1.05;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+/* вузький екран: зупинки — поруч із табличкою, подробиці — рядком на всю ширину під ними */
+.dv-city__way {
+  display: contents;
+}
+.dv-city__facts,
+.dv-city__agency {
+  grid-column: 1 / -1;
+}
+.dv-city__stops {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.dv-city__facts,
+.dv-city__agency {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--dv-muted);
+  overflow-wrap: anywhere;
+}
+.dv-city__agency {
+  font-size: 12px;
+}
+.dv-city__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin: 2px -12px 0;
+  padding: 10px 12px 12px;
+  border-top: 2px dashed var(--dv-line);
+  background: linear-gradient(to bottom, rgba(5, 71, 82, 0.035), rgba(5, 71, 82, 0));
+}
+.dv-city__sum {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dv-ink);
+}
+.dv-city__sum small {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--dv-muted);
+}
+.dv-city__maps {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--dv-accent-ink);
+}
+/* табличка «встає» за скло, коли картка лягає */
+.dv-out--in .dv-city__plate {
+  animation: dv-city-plate 0.4s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  animation-delay: 760ms;
+}
+@keyframes dv-city-plate {
+  from {
+    transform: translateY(-8px) rotate(-6deg);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(-1.2deg);
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-out--in .dv-city__plate {
+    animation: none;
+  }
 }

@@ -24,8 +24,8 @@ const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
 interface GoldenCase {
   id: string;
   text: string;
-  expect: { intent?: string; from?: string | null; to?: string | null; when?: Partial<TripIntent['when']>; modes?: string[]; routes?: string[]; avoidRoutes?: string[]; unknown?: string[]; confidence?: string };
-  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'zhytomyr' | 'later';
+  expect: { intent?: string; from?: string | null; to?: string | null; fromDetail?: boolean; toDetail?: boolean; when?: Partial<TripIntent['when']>; modes?: string[]; routes?: string[]; avoidRoutes?: string[]; unknown?: string[]; confidence?: string };
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'zhytomyr' | 'city' | 'later';
 }
 
 /**
@@ -46,6 +46,9 @@ export function gradeIntent(got: TripIntent, e: GoldenCase['expect']): { ok: num
   if (e.intent !== undefined) check('intent', kind(got.intent), kind(e.intent));
   if (e.from !== undefined) check('from', got.from?.id ?? null, e.from);
   if (e.to !== undefined) check('to', got.to?.id ?? null, e.to);
+  // місце словами в Києві чи Житомирі: звіряємо лише «названо / ні» — Claude пише його в називному, людина — як сказала
+  if (e.fromDetail !== undefined) check('fromDetail', Boolean(got.from?.detail), e.fromDetail);
+  if (e.toDetail !== undefined) check('toDetail', Boolean(got.to?.detail), e.toDetail);
   for (const k of ['day', 'time', 'kind', 'part'] as const) {
     if (e.when?.[k] !== undefined) check(`when.${k}`, got.when[k], e.when[k]);
   }

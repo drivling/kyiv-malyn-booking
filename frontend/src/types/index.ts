@@ -1323,6 +1323,23 @@ export interface DovedeDriveTime {
   minutes: Record<string, number>;
 }
 
+/** «Доведе» · транспорт Києва й Житомира в нашій базі (GET /admin/dovede/city) */
+export interface DovedeCityStats {
+  enabled: boolean;
+  /** знайдене пишеться в базу */
+  store: boolean;
+  hasKey: boolean;
+  callsToday: number;
+  dailyCap: number;
+  /** скільки днів збережена відповідь вважається свіжою */
+  freshDays: number;
+  archivedRoutes: number;
+  routes: Array<{ city: string; source: string; count: number }>;
+  lines: Array<{ city: string; count: number }>;
+  stops: Array<{ city: string; count: number }>;
+  demand: Array<{ city: string; from: string; to: string; asked: number; answered: number; lastAskedAt: string }>;
+}
+
 /** «Доведе» · примітки оголошень водіїв за період (GET /admin/dovede/pickups) — без імен і телефонів */
 export interface DovedePickups {
   days: number;

@@ -26,6 +26,7 @@ import type { RouteLike } from '../dovede/prompt';
 import { buildStopPlaces, type StopLike } from '../dovede/stopPlaces';
 import { DEFAULT_TRANSPORT_CITY } from '../transport-city';
 import { DEFAULT_CAR_MINUTES, driveTimeFromEnv, type DriveTimeFn } from '../drive-time';
+import { cityRoutesFromEnv, type CityCode, type CityRoutes } from '../dovede/city-route';
 import { kyivWallToUtc } from '../viber-listing-expiry';
 
 export const DOVEDE_MAX_TEXT = 300;
@@ -39,6 +40,9 @@ export function intentsAgree(a: TripIntent, b: TripIntent): boolean {
     a.intent === b.intent &&
     (a.from?.id ?? null) === (b.from?.id ?? null) &&
     (a.to?.id ?? null) === (b.to?.id ?? null) &&
+    // місце в іншому місті словами: словник і Claude пишуть його в різних відмінках — звіряємо лише, чи воно є
+    Boolean(a.from?.detail) === Boolean(b.from?.detail) &&
+    Boolean(a.to?.detail) === Boolean(b.to?.detail) &&
     a.when.day === b.when.day &&
     (a.when.time ?? null) === (b.when.time ?? null) &&
     (a.when.part ?? null) === (b.when.part ?? null) &&
@@ -76,6 +80,8 @@ export function createAdminDovedeRouter(deps: {
   access?: DovedeAccessConfig;
   /** Час у дорозі авто; типово Google Routes за ключем із середовища, інакше сталий */
   driveTime?: DriveTimeFn;
+  /** Дорога містом (Київ, Житомир) з памʼяттю в базі; типово — з середовища */
+  cityRoutes?: CityRoutes;
 }): Router {
   const { prisma } = deps;
   const understand = deps.understand === undefined ? understandFromEnv() : deps.understand;
@@ -85,6 +91,7 @@ export function createAdminDovedeRouter(deps: {
   const access = deps.access ?? dovedeAccessFromEnv();
   const loginFailures = createLoginFailures(() => clock().getTime());
   const driveTime = deps.driveTime ?? driveTimeFromEnv();
+  const cityRoutes = deps.cityRoutes ?? cityRoutesFromEnv(prisma);
   const r = express.Router();
 
   /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
@@ -251,6 +258,68 @@ export function createAdminDovedeRouter(deps: {
     const source: 'traffic' | 'fixed' = got.some((g) => g.source === 'traffic') ? 'traffic' : 'fixed';
     res.set('Cache-Control', 'private, no-store');
     res.json({ fixedMinutes, source, minutes });
+  });
+
+  /**
+   * Дорога містом між двома точками (Київ, Житомир): з нашої бази, а коли там немає — від Google, і тоді відповідь
+   * лягає в базу. `from` / `to` — id відомої точки («zhytomyr.avtovokzal», «kyiv.akadem») або слова людини.
+   * Будь-яка невдача — 200 з `{ ok: false, fallback: 'maps' }`: сторінка показує посилання Google Maps.
+   */
+  r.get('/dovede/city-route', requireDovedeAccess(access), async (req, res) => {
+    const city = String(req.query.city ?? '').trim();
+    const from = String(req.query.from ?? '').trim();
+    const to = String(req.query.to ?? '').trim();
+    const date = String(req.query.date ?? '').trim();
+    const time = String(req.query.time ?? '').trim();
+    if ((city !== 'Kyiv' && city !== 'Zhytomyr') || !from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+      res.status(400).json({ error: 'city (Kyiv | Zhytomyr), from, to, date (YYYY-MM-DD) і time (HH:MM) обовʼязкові' });
+      return;
+    }
+    const [y, m, d] = date.split('-').map(Number);
+    const [hh, mm] = time.split(':').map(Number);
+    res.set('Cache-Control', 'private, no-store');
+    try {
+      res.json(await cityRoutes.find({ city: city as CityCode, from, to, date, time, departAt: kyivWallToUtc(y, m - 1, d, hh, mm) }));
+    } catch (e) {
+      console.error('❌ GET /dovede/city-route:', e);
+      res.json({ ok: false, fallback: 'maps', reason: 'error' });
+    }
+  });
+
+  /** Адмінка «Місто: що вже знаємо»: лічильники, попит, архів */
+  r.get('/admin/dovede/city', requireAdmin, async (_req, res) => {
+    try {
+      res.set('Cache-Control', 'private, no-store');
+      res.json(await cityRoutes.stats());
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/city:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати дані міста' });
+    }
+  });
+
+  /** Один крок навчання зараз (той самий, що робить таймер) */
+  r.post('/admin/dovede/city/learn', requireAdmin, async (_req, res) => {
+    try {
+      res.json(await cityRoutes.learnTick(5));
+    } catch (e) {
+      console.error('❌ POST /admin/dovede/city/learn:', e);
+      res.status(500).json({ error: 'Не вдалося оновити' });
+    }
+  });
+
+  /** Архівує все, що з Google, або повертає з архіву. Нічого не видаляє; дані власника не чіпає */
+  r.post('/admin/dovede/city/archive', requireAdmin, async (req, res) => {
+    const action = String(req.body?.action ?? '');
+    if (action !== 'archive' && action !== 'restore') {
+      res.status(400).json({ error: 'action: archive | restore' });
+      return;
+    }
+    try {
+      res.json({ action, ...(action === 'archive' ? await cityRoutes.archiveGoogle() : await cityRoutes.restoreGoogle()) });
+    } catch (e) {
+      console.error('❌ POST /admin/dovede/city/archive:', e);
+      res.status(500).json({ error: 'Не вдалося' });
+    }
   });
 
   /**
