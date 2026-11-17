@@ -2348,12 +2348,25 @@ button.dv-tear__slip:active {
     animation: none;
   }
 }
-@media (max-width: 420px) {
+/* вузька колонка картки (телефон і трохи ширше): посилання — під текстом, а не третім стовпчиком */
+@media (max-width: 520px) {
   .dv-metro__foot {
     grid-template-columns: auto minmax(0, 1fr);
   }
   .dv-metro__maps {
     grid-column: 2;
+  }
+}
+/* лише автобус-замінник: жетона немає */
+.dv-metro__foot--plain {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+@media (max-width: 520px) {
+  .dv-metro__foot--plain {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dv-metro__foot--plain .dv-metro__maps {
+    grid-column: 1;
   }
 }
 .dv-strip__seg--metro {
@@ -2904,7 +2917,7 @@ button.dv-tear__slip:active {
     animation: none;
   }
 }
-@media (max-width: 420px) {
+@media (max-width: 520px) {
   .dv-ring__foot {
     grid-template-columns: auto minmax(0, 1fr);
   }

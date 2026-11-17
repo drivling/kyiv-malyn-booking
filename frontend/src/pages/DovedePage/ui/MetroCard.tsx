@@ -62,6 +62,8 @@ function Segment({ sg, n }: { sg: TripSegment; n: number }) {
  * два зчеплені кільця кольорів ліній, унизу — жетон з ціною поїздки. Дані свої; час завжди приблизний.
  */
 export function MetroCard({ l }: { l: MetroLeg }) {
+  // уся дорога — автобусом-замінником (поїзди на цій дільниці не ходять): без жетона, турнікета й інтервалу поїздів
+  const busOnly = l.segments.every((sg) => sg.bus);
   return (
     <div className={`dv-metro${l.closed ? ' dv-metro--closed' : ''}`}>
       {l.closed ? (
@@ -73,7 +75,14 @@ export function MetroCard({ l }: { l: MetroLeg }) {
         const prev = l.segments[i - 1];
         const t = prev ? l.transfers.find((x) => x.from.id === prev.to.id && x.to.id === sg.from.id) : undefined;
         // та сама лінія без пересадки — це стик поїзда з автобусом-замінником
-        const swap = prev && !t ? (sg.bus ? `Далі поїзди не ходять — автобус №${sg.bus} від «${sg.from.name}»` : `Далі метро від «${sg.from.name}»`) : null;
+        const swap =
+          prev && !t
+            ? sg.bus
+              ? `Далі поїзди не ходять — автобус №${sg.bus} від «${sg.from.name}»`
+              : `Далі метро від «${sg.from.name}»`
+            : !prev && sg.bus
+              ? `Поїзди метро тут не ходять — автобус №${sg.bus} від «${sg.from.name}»`
+              : null;
         return (
           <Fragment key={`${sg.from.id}-${sg.bus ?? 'm'}`}>
             {swap ? (
@@ -104,14 +113,16 @@ export function MetroCard({ l }: { l: MetroLeg }) {
           </Fragment>
         );
       })}
-      <div className="dv-metro__foot">
-        <span className="dv-metro__token" aria-label={`Одна поїздка — ${l.priceUah} гривень`}>
-          <b>{l.priceUah}</b>
-          <small>грн</small>
-        </span>
+      <div className={`dv-metro__foot${busOnly ? ' dv-metro__foot--plain' : ''}`}>
+        {busOnly ? null : (
+          <span className="dv-metro__token" aria-label={`Одна поїздка — ${l.priceUah} гривень`}>
+            <b>{l.priceUah}</b>
+            <small>грн</small>
+          </span>
+        )}
         <p className="dv-metro__facts">
-          {l.closed ? 'У дорозі' : 'Разом'} ≈ {durationText(l.minutes)} — з входом, очікуванням і виходом
-          <small>поїзди кожні ≈ {l.headwayMin} хв · оплата карткою чи QR-квитком на турнікеті</small>
+          {l.closed ? 'У дорозі' : 'Разом'} ≈ {durationText(l.minutes)} — {busOnly ? 'з очікуванням автобуса' : 'з входом, очікуванням і виходом'}
+          <small>{busOnly ? 'автобус їде замість поїздів метро, зупинки — біля станцій' : `поїзди кожні ≈ ${l.headwayMin} хв · оплата карткою чи QR-квитком на турнікеті`}</small>
         </p>
         <a className="dv-metro__maps" href={l.mapsUrl} target="_blank" rel="noopener noreferrer">
           Google Maps ↗
