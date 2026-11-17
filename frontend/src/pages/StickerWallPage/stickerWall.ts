@@ -21,6 +21,30 @@ export const TAB_ROTATE_MS = 20_000;
 /** Вкладки правої колонки: «Топ дня», «Зараз ростуть», «Реклама», «Люди» — у порядку автоперемикання */
 export type WallTab = 'top' | 'growing' | 'ads' | 'people';
 export const WALL_TABS: WallTab[] = ['top', 'growing', 'ads', 'people'];
+/** Вкладку обрали рукою — вона тримається хвилину, потім автоперемикання йде далі */
+export const TAB_PAUSE_MS = 60_000;
+
+/**
+ * Стан автоперемикання: яка вкладка, скільки разів перемикали (перезапускає смужку) і скільки тримати цю вкладку.
+ * Один таймер на вкладку (`holdMs`), і той самий час малює смужка — вона закінчується рівно тоді, коли вкладка
+ * міняється. Раніше таймер ішов окремо від смужки (setInterval + пауза після дотику), і після ручного вибору смужка
+ * добігала за 20 с, а вкладка стояла ще до хвилини — виглядало, ніби стіна зависла.
+ */
+export type TabRotation = { tab: WallTab; cycle: number; holdMs: number };
+
+export function firstTabRotation(ms = TAB_ROTATE_MS): TabRotation {
+  return { tab: 'top', cycle: 0, holdMs: ms };
+}
+
+/** Час вкладки вийшов — наступна за колом */
+export function nextTabRotation(r: TabRotation, ms = TAB_ROTATE_MS): TabRotation {
+  return { tab: WALL_TABS[(WALL_TABS.indexOf(r.tab) + 1) % WALL_TABS.length], cycle: r.cycle + 1, holdMs: ms };
+}
+
+/** Дотик до вкладки — вона тримається TAB_PAUSE_MS (і смужка йде стільки ж) */
+export function chooseTabRotation(r: TabRotation, tab: WallTab, ms = TAB_PAUSE_MS): TabRotation {
+  return { tab, cycle: r.cycle + 1, holdMs: ms };
+}
 
 /**
  * Палітра ліній схеми міста стіни (місто датасету, який завантажила стіна) — для смуги, конфеті й зупинок
