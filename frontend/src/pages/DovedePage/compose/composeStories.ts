@@ -856,7 +856,8 @@ function kyivOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'kyi
         approx: !exact,
         endLabel: `Київ, ${KYIV_POINTS[b].label}`,
         endNote: null,
-        price: w.parts.reduce((n, p) => n + (p.kind === 'metro' ? p.trip.priceUah : RING_SERVICE.fareUah), 0),
+        // жетон метро рахуємо лише там, де їде поїзд: сам автобус-замінник — не поїздка метро
+        price: w.parts.reduce((n, p) => n + (p.kind === 'ring' ? RING_SERVICE.fareUah : p.trip.segments.some((sg) => !sg.bus) ? p.trip.priceUah : 0), 0),
       });
     })
     .filter((st) => st.leaveMins >= win.start)
