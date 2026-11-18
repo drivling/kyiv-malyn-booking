@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import type { DirectWalk, Endpoint, Journey } from '@/pages/LocalTransportPage/journey';
 import type { Schedule, ViberListing } from '@/types';
 import { parseLocal } from '../nlu/parseLocal';
-import type { KyivNow } from '../nlu/types';
+import type { KyivNow, TripIntent } from '../nlu/types';
+import { KYIV_POINTS } from '../data/kyiv';
 import { placesInNote } from '../nlu/notePlaces';
 import { cityAsks, classify, composeStories, corridorCities, resolveDate, rideDepartures, ridesWanted } from './composeStories';
 import { shareText } from './narrate';
@@ -708,5 +709,107 @@ describe('Житомир ↔ Малин — між містами', () => {
     if (out.kind !== 'price') throw new Error(out.kind);
     expect(out.lines.map((l) => [l.label, l.price])).toContainEqual(['Маршрутка Житомир ↔ Малин', '287–299 грн']);
     expect(out.lines.some((l) => l.label.startsWith('Електричка'))).toBe(false);
+  });
+});
+
+describe('У межах одного міста: місце словами — дорогу дає сервер', () => {
+  const intentOf = (from: TripIntent['from'], to: TripIntent['to'], when: TripIntent['when'] = { day: 'today', kind: 'depart' }): TripIntent => ({ intent: 'trip', from, to, when, modes: [], unknown: [], confidence: 'high' });
+  const kyiv = (detail?: string) => ({ id: 'city.Kyiv', text: 'Київ', ...(detail ? { detail } : {}) });
+  const cityLeg = (st: Story) => st.legs.find((l): l is Extract<StoryLeg, { kind: 'city' }> => l.kind === 'city')!;
+  const compose = (intent: TripIntent, cityRoutes?: ReadonlyMap<string, CityRoute | null>) => composeStories({ intent, now: NOW, date: resolveDate(intent.when.day, NOW), schedules: [], planner: null, cityRoutes });
+  const route: CityRoute = {
+    source: 'stored',
+    fromLabel: 'Предславинська 28',
+    toLabel: 'Севастопольська площа',
+    minutes: 49,
+    fetchedAt: '2026-11-13T08:00:00.000Z',
+    steps: [
+      { kind: 'walk', minutes: 9, meters: 650 },
+      { kind: 'transit', minutes: 10, mode: 'SUBWAY', line: '2', fromStop: 'Палац "Україна"', toStop: 'Контрактова площа', stops: 5 },
+      { kind: 'transit', minutes: 16, mode: 'BUS', line: '368', fromStop: 'ст. м. Контрактова площа', toStop: 'пл. Севастопольська', stops: 16 },
+      { kind: 'walk', minutes: 5, meters: 350 },
+    ],
+  };
+  // посилання власника: f=city.Kyiv&t=city.Kyiv&fd=Предславинська 28&td=Севастопольська площа
+  const asked = intentOf(kyiv('Предславинська 28'), kyiv('Севастопольська площа'));
+
+  it('форма: обидва кінці в Києві словами — `city`; без уточнення, те саме місце, інше місто — як і було', () => {
+    expect(classify(asked)).toEqual({ kind: 'city', far: 'Kyiv', from: { words: 'Предславинська 28' }, to: { words: 'Севастопольська площа' } });
+    expect(classify(intentOf({ id: 'kyiv.m.khreshchatyk', text: 'Хрещатик' }, kyiv('Предславинська 28')))).toEqual({ kind: 'city', far: 'Kyiv', from: { id: 'kyiv.m.khreshchatyk' }, to: { words: 'Предславинська 28' } });
+    expect(classify(intentOf({ id: 'city.Zhytomyr', text: 'Житомир', detail: 'Польова 12' }, { id: 'city.Zhytomyr', text: 'Житомир', detail: 'Житній ринок' }))).toMatchObject({ kind: 'city', far: 'Zhytomyr' });
+    // «з Києва до Києва» без місця, двічі те саме, Київ ↔ Житомир — дороги немає
+    expect(classify(intentOf(kyiv(), kyiv('Севастопольська площа'))).kind).toBe('outside');
+    expect(classify(intentOf(kyiv('Охматдит'), kyiv('охматдит'))).kind).toBe('outside');
+    expect(classify(intentOf(kyiv('Предславинська 28'), { id: 'city.Zhytomyr', text: 'Житомир', detail: 'Польова 12' })).kind).toBe('outside');
+    // дві станції метро — і далі власні дані, не сервер
+    expect(classify(intentOf({ id: 'kyiv.m.khreshchatyk', text: 'Хрещатик' }, { id: 'kyiv.akadem', text: 'Академмістечко' })).kind).toBe('kyiv');
+  });
+
+  it('відповіді ще не питали — історія з одним кроком і список «що спитати»: слова людини в обидва кінці, час «зараз»', () => {
+    const out = compose(asked);
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    const leg = cityLeg(out.stories[0]);
+    expect(kinds(out.stories[0])).toEqual(['city']);
+    expect(leg.ask).toEqual({ city: 'Kyiv', from: 'Предславинська 28', to: 'Севастопольська площа', date: '2026-11-13', time: '14:20' });
+    expect(leg.route).toBeNull();
+    expect(cityAsks(out)).toEqual([leg.ask]);
+    expect(decodeURIComponent(leg.mapsUrl.replace(/\+/g, ' '))).toContain('origin=Предславинська 28, Київ&destination=Севастопольська площа, Київ');
+  });
+
+  it('відповідь є — вихід зараз, прибуття через хвилини сервера, завжди «≈»; текст каже, чим їхати', () => {
+    const ask = cityLeg((compose(asked) as Extract<ReturnType<typeof compose>, { kind: 'stories' }>).stories[0]).ask;
+    const out = compose(asked, new Map([[cityAskKey(ask), route]]));
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    const st = out.stories[0];
+    expect(out.stories).toHaveLength(1);
+    expect([st.mode, st.leaveMins, st.arriveMins, st.arriveApprox]).toEqual(['city', hm(14, 20), hm(15, 9), true]);
+    expect([st.fromLabel, st.toLabel, st.endLabel]).toEqual(['Київ, Предславинська 28', 'Київ, Севастопольська площа', 'Київ, Севастопольська площа']);
+    expect(st.transfers).toBe(1);
+    expect(st.lead).toBe('Києвом — метро 2, автобус 368. Київ, Севастопольська площа — приблизно о 15:09.');
+    expect(cityAsks(out)).toEqual([]);
+    expect(shareText(st, (id) => id, 'x')).toContain('автобус 368: «ст. м. Контрактова площа» → «пл. Севастопольська», ≈ 16 хв');
+  });
+
+  it('спитали, а відповіді немає — не історія з нулем хвилин, а посилання на карту', () => {
+    const ask = cityLeg((compose(asked) as Extract<ReturnType<typeof compose>, { kind: 'stories' }>).stories[0]).ask;
+    const out = compose(asked, new Map([[cityAskKey(ask), null]]));
+    expect(out).toMatchObject({ kind: 'city_link', cityName: 'Київ', fromLabel: 'Предславинська 28', toLabel: 'Севастопольська площа' });
+    expect(cityAsks(out)).toEqual([]);
+  });
+
+  it('«бути до 18:00» — питаємо на 40 хв раніше й виходимо за хвилини сервера до строку; не встигнути — «запізно»', () => {
+    const by = intentOf(kyiv('Предславинська 28'), kyiv('Севастопольська площа'), { day: 'today', kind: 'arrive', time: '18:00' });
+    const first = compose(by);
+    if (first.kind !== 'stories') throw new Error(first.kind);
+    const ask = cityLeg(first.stories[0]).ask;
+    expect(ask.time).toBe('17:20');
+    const out = compose(by, new Map([[cityAskKey(ask), route]]));
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    expect([out.stories[0].leaveMins, out.stories[0].arriveMins]).toEqual([hm(17, 11), hm(18, 0)]);
+    const soon = intentOf(kyiv('Предславинська 28'), kyiv('Севастопольська площа'), { day: 'today', kind: 'arrive', time: '14:40' });
+    const askSoon = cityLeg((compose(soon) as Extract<ReturnType<typeof compose>, { kind: 'stories' }>).stories[0]).ask;
+    expect(compose(soon, new Map([[cityAskKey(askSoon), route]]))).toEqual({ kind: 'empty', reason: 'too_late' });
+  });
+
+  it('відома точка на одному кінці: метро й вокзал сервер знає за id, платформу електрички питаємо словами', () => {
+    const fromMetro = compose(intentOf({ id: 'kyiv.m.khreshchatyk', text: 'Хрещатик' }, kyiv('Предславинська 28')));
+    if (fromMetro.kind !== 'stories') throw new Error(fromMetro.kind);
+    expect(cityLeg(fromMetro.stories[0])).toMatchObject({ ask: { from: 'kyiv.m.khreshchatyk', to: 'Предславинська 28' }, fromLabel: 'метро «Хрещатик»' });
+    const toStation = compose(intentOf(kyiv('Предславинська 28'), { id: 'kyiv.pas', text: 'вокзал' }));
+    if (toStation.kind !== 'stories') throw new Error(toStation.kind);
+    expect(cityLeg(toStation.stories[0]).ask.to).toBe('kyiv.pas');
+    const ring = Object.keys(KYIV_POINTS).find((id) => id.startsWith('kyiv.e.'))!;
+    const fromRing = compose(intentOf({ id: ring, text: 'платформа' }, kyiv('Предславинська 28')));
+    if (fromRing.kind !== 'stories') throw new Error(fromRing.kind);
+    expect(cityLeg(fromRing.stories[0]).ask.from).toMatch(/^залізнична станція /);
+    expect(cityLeg(fromRing.stories[0]).ask.from).not.toContain('Київ');
+  });
+
+  it('словник сторінки: «з Києва з … до Києва на …» — місця словами на обох кінцях', () => {
+    const intent = parseLocal('з Києва з Предславинської 28 до Києва на Севастопольську площу', NOW).intent;
+    // «площу» словник у називний не ставить (лише найчастіші закінчення) — сервер відмінки розуміє
+    expect([intent.from?.id, intent.from?.detail, intent.to?.id]).toEqual(['city.Kyiv', 'Предславинська 28', 'city.Kyiv']);
+    expect(intent.to?.detail).toMatch(/^Севастопольська площ/);
+    expect(classify(intent).kind).toBe('city');
   });
 });

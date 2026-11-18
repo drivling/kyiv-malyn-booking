@@ -1,5 +1,5 @@
 import { routeNo } from '@/utils/routeNames';
-import { clock } from '../compose/narrate';
+import { cityModeName, clock } from '../compose/narrate';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import type { Story, StoryLeg } from '../compose/types';
 
@@ -28,6 +28,12 @@ export function storySummary(story: Story): { title: string; sub: string; time: 
     const who = ride.ride.name ? maskSenderNameForDisplay(ride.ride.name) : null;
     const sub = [`${clock(ride.depMins)} ${ride.boardLabel}`, bus.length ? `міський №${bus.map((b) => routeNo(b.routeId)).join(', №')}` : null, ride.ride.seats ? `місць: ${ride.ride.seats}` : null, story.priceUah ? `${story.priceUah} ₴` : null];
     return { title: who ? `Попутка · ${who}` : 'Попутка', sub: sub.filter(Boolean).join(' · '), time: clock(story.arriveMins, true) };
+  }
+  if (story.mode === 'city') {
+    // у межах міста до місця словами: чим їхати — з кроків сервера
+    const rides = story.legs.flatMap((l) => (l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit') : []));
+    const lines = rides.map((x) => `${cityModeName(x.mode)} ${x.line ?? ''}`.trim());
+    return { title: 'Містом', sub: [lines.join(' → ') || 'пішки', `≈ ${durationText(story.arriveMins - story.leaveMins)}`].join(' · '), time: clock(story.arriveMins, true) };
   }
   if (story.mode === 'kyiv') {
     // у межах Києва: рейс електрички з точним часом або метро; автобус замість метро називаємо автобусом

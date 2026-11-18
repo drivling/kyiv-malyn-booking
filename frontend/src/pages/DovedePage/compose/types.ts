@@ -188,8 +188,8 @@ export interface CityRoute {
 
 export interface Story {
   id: string;
-  /** kyiv — поїздка в межах Києва: метро й міська електричка */
-  mode: IntercityMode | 'city_bus' | 'poputka' | 'kyiv';
+  /** kyiv — поїздка в межах Києва: метро й міська електричка; city — у межах Києва чи Житомира до місця словами */
+  mode: IntercityMode | 'city_bus' | 'poputka' | 'kyiv' | 'city';
   /** 'YYYY-MM-DD' */
   date: string;
   /** коли вирушати з початкового місця (хв) */
@@ -249,6 +249,8 @@ export type ComposeOutcome =
   | { kind: 'ask_to' }
   | { kind: 'unknown_place'; words: string[] }
   | { kind: 'outside'; city: string | null }
+  /** У межах одного міста (Київ, Житомир) сервер дороги не дав: лишається посилання на Google Maps */
+  | { kind: 'city_link'; cityName: string; fromLabel: string; toLabel: string; mapsUrl: string }
   /** Попутки на цей день: оголошення водіїв з дошки сайту; контакт — на дошці */
   | { kind: 'poputky'; fromCity: string; toCity: string; fromLabel: string; toLabel: string; rides: PoputkaRide[]; more: number; passengers: number; boardUrl: string; notice?: string }
   /** «Скільки коштує»: ціни з розкладу сайту й тарифу міста */

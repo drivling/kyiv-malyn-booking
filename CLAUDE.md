@@ -249,7 +249,14 @@ of `dist` in a commit.
   field of the schema; URL `fd=` / `td=`). The composer adds a story step `kind: 'city'` (`cityStep`: from the point
   where the intercity trip arrives, or to the boarding point with a 7-minute buffer) and the page asks the server for
   what is missing in up to three rounds (`cityAsks` → `GET /dovede/city-route` → compose again); no answer = the old
-  Google Maps button. Card `ui/CityLegCard.tsx`. Server `backend/src/dovede/city-route.ts`: a stored answer of the same
+  Google Maps button. Card `ui/CityLegCard.tsx`. A trip inside one far city with a place in words at either end
+  («Київ, з Предславинської 28 на Севастопольську площу», `f=city.Kyiv&t=city.Kyiv&fd=…&td=…`; also metro / station id
+  at one end) is shape `city` (`insideCity` in `classify`, `cityOutcome`): one story `mode: 'city'` made of that single
+  step, asked with the person's words at both ends (an id only where the server knows it — metro, `kyiv.pas`,
+  `kyiv.borshch`); when the server has no answer the outcome is `city_link` — a panel with the Google Maps link, never a
+  story with zero minutes. Two known Kyiv stations stay shape `kyiv` (own data); a city named without a place stays
+  `outside`. The dictionary reads both places only in the form «з Києва з … до Києва на …»; free wording comes from
+  Claude. Server `backend/src/dovede/city-route.ts`: a stored answer of the same
   pair, day type and hour ± 1 not older than the fresh window (30 days by default; the owner edits it in the admin
   block — singleton `DovedeCitySettings.freshDays`, 1–365, `PUT /admin/dovede/city/settings`, cached for a minute) is
   served from `DovedeCityRoute` (`source: 'stored'`), otherwise
