@@ -24,6 +24,7 @@ import {
   korostenStopByLabel,
   mentionsKorosten,
   mergeKorostenSpans,
+  hasMalynOnlyPlace,
   mentionsOtherCity,
   namesKorostenAsEnd,
   remapForKorosten,
@@ -70,6 +71,7 @@ const EXAMPLES = [
   'електричкою з Києва до Малина',
   'автобусом з Царського села на вокзал',
   'з Паперової фабрики в Коростень до міськлікарні',
+  'у Коростені з Пашин до вокзалу',
 ];
 
 type View =
@@ -422,8 +424,10 @@ function DovedeSearch({
       // Питання про інше місто, ніж зараз на сторінці («з Пашин до ринку» в Малині) — перемикаємо місто й питаємо там.
       // Поїздка Малин ↔ Коростень — питання Малина, не міста Коростеня.
       if (!chosen && !corridor && onCity) {
+        // з Коростеня назад до Малина: назване інше місто, Коростень як кінець поїздки або місце, яке є лише в Малині
+        // («з Царського села на вокзал» — без коростенських слів); окремої кнопки «до Малина» на сторінці нема
         const other = korosten
-          ? mentionsOtherCity(q) || namesKorostenAsEnd(q)
+          ? mentionsOtherCity(q) || namesKorostenAsEnd(q) || (!mentionsKorosten(q) && hasMalynOnlyPlace(parse.intent))
             ? DEFAULT_TRANSPORT_CITY
             : null
           : isKorostenQuestion(q) && !isMalynKorostenTrip(q, parse.intent)
@@ -628,14 +632,6 @@ function DovedeSearch({
       {view.kind === 'idle' ? (
         <section className="dv-home" aria-label="Приклади питань">
           <h2>Спитайте, наприклад</h2>
-          {onCity ? (
-            <p className="dv-city">
-              {korosten ? 'Питання про міські автобуси Коростеня. ' : 'Знаю й міські автобуси Коростеня. '}
-              <button type="button" className="dv-city__switch" onClick={() => onCity(korosten ? DEFAULT_TRANSPORT_CITY : KOROSTEN, '')}>
-                {korosten ? 'Повернутись до Малина' : 'Спитати про Коростень'}
-              </button>
-            </p>
-          ) : null}
           <div className="dv-chips">
             {(korosten ? KOROSTEN_EXAMPLES : EXAMPLES).map((q) => (
               <button

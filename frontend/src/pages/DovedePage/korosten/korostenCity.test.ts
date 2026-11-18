@@ -12,6 +12,8 @@ import malynRoutesFile from '../eval/malyn-routes.json';
 import {
   buildKorostenPlaces,
   combineCorridor,
+  hasMalynOnlyPlace,
+  mentionsKorosten,
   isKorostenQuestion,
   korostenStopByLabel,
   mergeKorostenSpans,
@@ -236,6 +238,20 @@ describe('еталони Коростеня для Claude (eval/korosten-golden.
       const e = c.expect as { from?: string | null; to?: string | null; routes?: string[]; avoidRoutes?: string[] };
       for (const id of [e.from, e.to]) if (id) expect(places.has(id) || id.startsWith('city.'), `${c.id}: ${id}`).toBe(true);
       for (const id of [...(e.routes ?? []), ...(e.avoidRoutes ?? [])]) expect(routeIds.has(id), `${c.id}: №${id}`).toBe(true);
+    }
+  });
+});
+
+describe('hasMalynOnlyPlace: у режимі Коростеня малинське питання повертає сторінку до Малина', () => {
+  // той самий розбір, що на сторінці в режимі Коростеня: місця Коростеня + кураторський словник, вулиці, орієнтири
+  const back = (q: string) => !mentionsKorosten(q) && hasMalynOnlyPlace(parseLocal(q, now, index, routes).intent);
+  it('місце лише Малина без коростенських слів — назад до Малина', () => {
+    expect(back('з Царського села на вокзал')).toBe(true);
+    expect(back('з автостанції до Паперової фабрики')).toBe(true);
+  });
+  it('питання містом Коростенем і спільні слова (вокзал, ринок, центр, лікарня) лишаються в Коростені', () => {
+    for (const q of ['з вокзалу до ринку', 'з центру до лікарні', 'з Пашин до міськлікарні', 'коли №4 на Грозине', 'з вокзалу до Київської']) {
+      expect(back(q), q).toBe(false);
     }
   });
 });
