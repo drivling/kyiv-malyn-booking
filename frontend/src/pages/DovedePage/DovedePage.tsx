@@ -23,6 +23,7 @@ import {
   korostenShape,
   korostenStopByLabel,
   mentionsKorosten,
+  mergeKorostenSpans,
   mentionsOtherCity,
   namesKorostenAsEnd,
   remapForKorosten,
@@ -512,8 +513,21 @@ function DovedeSearch({
   }, [searchParams, run, ready, stopIndex, routes]);
 
   // Розбір під час набору: підсвічування в полі й рядок «Розумію…» ще до кнопки «Знайти»
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- `taught`: нові синоніми міняють розбір того самого тексту
-  const live = useMemo(() => (text.trim() ? parseLocal(text, kyivNow(), stopIndex, routes) : null), [text, stopIndex, routes, taught]);
+  const live = useMemo(() => {
+    if (!text.trim()) return null;
+    const now = kyivNow();
+    const own = parseLocal(text, now, stopIndex, routes);
+    // Коростень на сторінці Малина: коростенські слова теж підсвічені, а «Розумію…» — уже поїздка коридором
+    if (korosten || !farIndex.length || !mentionsKorosten(text)) return own;
+    const far = parseLocal(text, now, farIndex);
+    const corridor = combineCorridor(own.intent, far.intent, farIndex);
+    return { ...own, intent: corridor ?? own.intent, spans: mergeKorostenSpans(own.spans, far.spans) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `taught`: нові синоніми міняють розбір того самого тексту
+  }, [text, stopIndex, routes, taught, korosten, farIndex]);
+  // коростенські слова під час набору — датасет Коростеня вантажиться заздалегідь (і для підсвічування, і для відповіді)
+  useEffect(() => {
+    if (!korosten && mentionsKorosten(text)) setNeedKorosten(true);
+  }, [text, korosten]);
   const answeredFor = view.kind === 'result' ? view.query : null;
   const textMatchesAnswer = answeredFor == null || text.trim() === answeredFor || (answeredFor === '' && !text.trim());
   const shown: { parse: LocalParse; now: KyivNow } | null =
