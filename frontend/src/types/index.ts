@@ -1414,6 +1414,10 @@ export interface DovedeCityStats {
   dailyCapDefault?: number;
   /** власник задав ліміт в адмінці */
   dailyCapFromAdmin?: boolean;
+  /** з чого склались сьогоднішні запити до Google; скільки людям відмовили через ліміт чи квоту */
+  today?: { people: number; learn: number; refused: number };
+  /** пауза після відмови Google: quota — 429, denied — 401 / 403 */
+  blocked?: { until: string; reason: 'quota' | 'denied' } | null;
   /** збережених відповідей з Google, старших за строк свіжості (людям не віддаються) */
   staleRoutes?: number;
   /** фонове навчання оновлює їх саме (DOVEDE_CITY_REFRESH) */
