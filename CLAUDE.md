@@ -313,6 +313,13 @@ of `dist` in a commit.
   URL `c=Korosten`) and remounts the search per city (one planner on screen); Korosten words in a question switch it.
   Places are `StopPlace` entries of Korosten stops plus folk names (`KOROSTEN_ALIASES`), answers are `intra` /
   `route_info` on the Korosten planner, and Claude is not called there yet; shared mirrored files are untouched.
+  Korosten ↔ Malyn door to door (stage 3): anchor = Korosten railway station for elektrichka and marshrutka (owner,
+  2026-11-18; `KOROSTEN_STATION` st_1001, `FarCity 'Korosten'`); only elektrichkas are in the timetable. The Malyn page
+  loads the Korosten dataset as a second, passive planner (`usePlannerModel(city | null, { passive })` — keeps the page's
+  route numbers / colours and its own segment durations; `routeNoIn` / `routeColorStyleIn` print another city's route),
+  `combineCorridor` merges the Malyn and Korosten parses into `city.Korosten` + `detail` = Korosten stop name, and the
+  composer plans the Korosten part with `farPlanner` (`korostenLeg`); Korosten bus legs carry `city` and link to
+  korosten.kiev.ua. No Claude call for the corridor.
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
   listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
   `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:

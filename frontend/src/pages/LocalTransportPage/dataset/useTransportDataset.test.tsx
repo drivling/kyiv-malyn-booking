@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import type { TransportDataset } from '@/api/transportDataset';
-import { routeNo } from '@/utils/routeNames';
+import { routeNo, routeNoIn } from '@/utils/routeNames';
 import { invalidateTransportDatasetCache, useTransportDataset } from './useTransportDataset';
 import { readStored, writeStored } from './datasetStore';
 import { server } from '@/test/msw/server';
@@ -117,5 +117,24 @@ describe('useTransportDataset', () => {
     });
     await waitFor(() => expect(result.current.dataset).not.toBeNull());
     expect(result.current.error).toBe('');
+  });
+
+  it('пасивний другий датасет («Доведе»: Коростень поруч із Малином) не перемикає номери сторінки; enabled false — нічого не вантажить', async () => {
+    server.use(
+      http.get(DATASET, ({ request }) =>
+        HttpResponse.json(new URL(request.url).searchParams.get('city') === 'Korosten' ? { ...sample('k1'), routes: [{ id: '11', shortName: '11-К' }] } : sample('m1')),
+      ),
+    );
+    const { result, rerender } = renderHook(({ on }: { on: boolean }) => ({
+      malyn: useTransportDataset('Malyn'),
+      korosten: useTransportDataset('Korosten', { passive: true, enabled: on }),
+    }), { initialProps: { on: false } });
+    await waitFor(() => expect(result.current.malyn.dataset?.revision).toBe('m1'));
+    expect(result.current.korosten.dataset).toBeNull();
+    expect(result.current.korosten.loading).toBe(false);
+    rerender({ on: true });
+    await waitFor(() => expect(result.current.korosten.dataset?.revision).toBe('k1'));
+    expect(routeNo('11')).toBe('11/1');
+    expect(routeNoIn('Korosten', '11')).toBe('11-К');
   });
 });

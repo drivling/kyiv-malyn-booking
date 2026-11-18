@@ -56,10 +56,15 @@ export function currentScheme(): CityScheme | null {
   return schemeFor(currentCity);
 }
 
-function lookup(routeId: string): RouteColor | undefined {
-  const scheme = currentScheme();
+/** Місто, чиї кольори зараз віддають routeColor / routeColorStyle */
+export function routeColorsCity(): string {
+  return currentCity;
+}
+
+function lookup(routeId: string, city: string = currentCity): RouteColor | undefined {
+  const scheme = schemeFor(city);
   const fromScheme = scheme ? schemeColorsOf(scheme).get(routeId) : undefined;
-  return fromScheme ?? datasetColorsByCity.get(currentCity)?.get(routeId);
+  return fromScheme ?? datasetColorsByCity.get(city)?.get(routeId);
 }
 
 /** HEX-колір лінії або null для маршруту без кольору (нема ні на схемі, ні в датасеті) */
@@ -73,7 +78,12 @@ export function routeColor(routeId: string): string | null {
  * працюють запасні значення в CSS.
  */
 export function routeColorStyle(routeId: string): CSSProperties | undefined {
-  const route = lookup(routeId);
+  return routeColorStyleIn(currentCity, routeId);
+}
+
+/** Те саме для маршруту іншого міста, ніж на екрані («Доведе»: коростенський автобус в історії з Малина) */
+export function routeColorStyleIn(city: string | null | undefined, routeId: string): CSSProperties | undefined {
+  const route = lookup(routeId, city || currentCity);
   if (!route) return undefined;
   return { '--lt-route-color': route.color, '--lt-route-fg': route.fg } as CSSProperties;
 }

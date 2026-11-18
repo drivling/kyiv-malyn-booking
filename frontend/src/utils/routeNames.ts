@@ -29,10 +29,20 @@ export function setRouteNamesCity(city: string): void {
   currentCity = city || DEFAULT_CITY;
 }
 
+/** Місто, чиї номери зараз віддає routeNo (щоб другий датасет на сторінці міг його не перемикати) */
+export function routeNamesCity(): string {
+  return currentCity;
+}
+
 /** «11/1» для id «11»; без номера — сам id */
 export function routeNo(routeId: string | number | null | undefined): string {
+  return routeNoIn(currentCity, routeId);
+}
+
+/** Номер маршруту іншого міста, ніж на екрані («Доведе»: коростенський автобус в історії з Малина) */
+export function routeNoIn(city: string | null | undefined, routeId: string | number | null | undefined): string {
   const id = routeId == null ? '' : String(routeId);
-  return namesByCity.get(currentCity)?.get(id) ?? id;
+  return namesByCity.get(city || currentCity)?.get(id) ?? id;
 }
 
 /** Для адмінки: «11/1 (id 11)», коли номер відрізняється від id */

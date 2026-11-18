@@ -1,4 +1,4 @@
-import { routeNo } from '@/utils/routeNames';
+import { routeNoIn } from '@/utils/routeNames';
 import { clock } from '../compose/narrate';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import type { Story, StoryLeg } from '../compose/types';
@@ -26,7 +26,7 @@ export function storySummary(story: Story): { title: string; sub: string; time: 
   if (ride) {
     // «Попутка · Сергій»: імʼя скорочене, як на дошці сайту
     const who = ride.ride.name ? maskSenderNameForDisplay(ride.ride.name) : null;
-    const sub = [`${clock(ride.depMins)} ${ride.boardLabel}`, bus.length ? `міський №${bus.map((b) => routeNo(b.routeId)).join(', №')}` : null, ride.ride.seats ? `місць: ${ride.ride.seats}` : null, story.priceUah ? `${story.priceUah} ₴` : null];
+    const sub = [`${clock(ride.depMins)} ${ride.boardLabel}`, bus.length ? `міський №${bus.map((b) => routeNoIn(b.city, b.routeId)).join(', №')}` : null, ride.ride.seats ? `місць: ${ride.ride.seats}` : null, story.priceUah ? `${story.priceUah} ₴` : null];
     return { title: who ? `Попутка · ${who}` : 'Попутка', sub: sub.filter(Boolean).join(' · '), time: clock(story.arriveMins, true) };
   }
   if (story.mode === 'kyiv') {
@@ -44,11 +44,11 @@ export function storySummary(story: Story): { title: string; sub: string; time: 
     const rest = train && busNo ? `з метро й автобусом №${busNo}` : train ? 'з метро' : busNo ? `далі автобус №${busNo}` : 'без пересадок';
     return { title: `Міська електричка ${ring.ride.train}`, sub: [`${clock(ring.depMins)} з платформи «${ring.ride.from.name}»`, rest, price].filter(Boolean).join(' · '), time };
   }
-  const title = story.mode === 'elektrichka' ? 'Електричка' : story.mode === 'marshrutka' ? 'Маршрутка' : `Автобус №${bus.map((b) => routeNo(b.routeId)).join(' → №') || ''}`;
+  const title = story.mode === 'elektrichka' ? 'Електричка' : story.mode === 'marshrutka' ? 'Маршрутка' : `Автобус №${bus.map((b) => routeNoIn(b.city, b.routeId)).join(' → №') || ''}`;
   const parts: string[] = [];
   if (ic) parts.push(`${clock(ic.boardMins, ic.boardApprox)} ${ic.boardLabel}`);
   else if (bus[0]) parts.push(`о ${clock(bus[0].depMins)}`);
-  if (ic && bus.length) parts.push(`пересадка на №${bus.map((b) => routeNo(b.routeId)).join(', №')}`);
+  if (ic && bus.length) parts.push(`пересадка на №${bus.map((b) => routeNoIn(b.city, b.routeId)).join(', №')}`);
   else if (ic) parts.push('без пересадок');
   if (story.priceUah) parts.push(`${story.priceUah} ₴`);
   return { title, sub: parts.join(' · '), time: clock(story.arriveMins, story.arriveApprox) };

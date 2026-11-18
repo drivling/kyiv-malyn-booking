@@ -138,8 +138,9 @@ export function namesKorostenAsEnd(text: string): boolean {
  * Малинський розбір питання — поїздка між Малином і Коростенем, а не містом Коростенем: Коростень названо як кінець
  * поїздки («в Коростень», «з Коростеня», не «у Коростені» й не «центр Коростеня»), другий кінець — місце в Малині, і
  * нерозпізнаних слів нема. Людина пише таке без слова «Малин» (сайт малинський: «з вокзалу в Коростень» — малинський
- * вокзал), тож `isKorostenQuestion` сама його не відрізнить. Таке питання лишається в Малині й чесно отримує
- * «цю дорогу я ще вчу» (міжміська поїздка в Коростень — етап 3). Місця шукає `resolvePlace`, тобто реєстр Малина.
+ * вокзал), тож `isKorostenQuestion` сама його не відрізнить. Таке питання лишається в Малині (коридор, етап 3).
+ * Запас на випадок, коли датасет Коростеня не завантажився і `combineCorridor` нема з чим порівняти. Місця шукає
+ * `resolvePlace`, тобто реєстр Малина.
  */
 export function isMalynKorostenTrip(text: string, intent: TripIntent): boolean {
   if (intent.unknown.length || !intent.from || !intent.to || !namesKorostenAsEnd(text)) return false;
@@ -147,6 +148,54 @@ export function isMalynKorostenTrip(text: string, intent: TripIntent): boolean {
   const k = ends.findIndex((r) => r.id === 'city.Korosten');
   if (k < 0) return false;
   return resolvePlace(ends[1 - k].id)?.city === 'Malyn';
+}
+
+/** Коростенські слова в питанні: сторінці Малина потрібен датасет Коростеня — для коридору чи перемикання */
+export function mentionsKorosten(text: string): boolean {
+  return hasStem(text, KOROSTEN_STEMS);
+}
+
+/** Місце Коростеня за назвою (`PlaceRef.detail` коридору) → id зупинки; null — такого нема */
+export function korostenStopByLabel(index: StopPlace[], label: string): string | null {
+  const want = label.trim().toLowerCase();
+  const hit = index.find((e) => e.place.label.toLowerCase() === want);
+  return hit ? (hit.place.stopIds?.[0] ?? hit.place.id) : null;
+}
+
+/**
+ * Етап 3: поїздка Малин ↔ Коростень з двох розборів одного питання — малинським словником (`malyn`, сторінка Малина)
+ * і коростенським (`korosten`, `parseLocal` з `buildKorostenPlaces`). Один кінець — місце Малина (чи «Малин»), другий —
+ * «Коростень» чи зупинка Коростеня; зупинка стає `detail` кінця `city.Korosten` (назва, як у датасеті), її шлях
+ * від вокзалу будує планувальник Коростеня. Обидва кінці в Коростені — це питання містом Коростенем (null), так само
+ * як і коли Малина в питанні нема. «З вокзалу в Коростень»: «вокзал» тут той самий кінець, що й малинський, — не
+ * коростенське місце.
+ */
+export function combineCorridor(malyn: TripIntent, korosten: TripIntent, index: StopPlace[]): TripIntent | null {
+  const byId = new Map(index.map((e) => [e.place.id, e.place]));
+  const kp = (r: PlaceRef | null) => (r ? (byId.get(r.id) ?? null) : null);
+  const kFrom = kp(korosten.from);
+  const kTo = kp(korosten.to);
+  if (kFrom && kTo) return null;
+  const isKorostenCity = (r: PlaceRef | null) => r?.id === 'city.Korosten';
+  const isMalyn = (r: PlaceRef | null): r is PlaceRef => r != null && (r.id === 'city.Malyn' || resolvePlace(r.id)?.city === 'Malyn');
+  const side: 'from' | 'to' | null = isKorostenCity(malyn.from) ? 'from' : isKorostenCity(malyn.to) ? 'to' : kFrom ? 'from' : kTo ? 'to' : null;
+  if (!side) return null;
+  const other = side === 'from' ? 'to' : 'from';
+  const malynRef = malyn[other];
+  if (!isMalyn(malynRef)) return null;
+  const found = (
+    [
+      [korosten.from, kFrom],
+      [korosten.to, kTo],
+    ] as const
+  ).find(([r, p]) => p && r && r.text.toLowerCase() !== malynRef.text.toLowerCase());
+  const place = found?.[1] ?? null;
+  const said = malyn[side] ?? korosten[side] ?? found?.[0] ?? null;
+  const ref: PlaceRef = { id: 'city.Korosten', text: said?.text ?? 'Коростень', ...(place ? { detail: place.label } : {}) };
+  // слова, які малинський словник не впізнав, а коростенський — так («Пашин»), уже не невідомі
+  const known = [korosten.from, korosten.to].filter((r): r is PlaceRef => Boolean(r && kp(r))).map((r) => r.text.toLowerCase()).join(' ');
+  const unknown = malyn.unknown.filter((w) => !known.includes(w.toLowerCase()));
+  return { ...malyn, [side]: ref, [other]: malynRef, unknown };
 }
 
 /** Питання називає інше місто (Малин, Київ…) — у режимі Коростеня це вже не питання про місто Коростень */
