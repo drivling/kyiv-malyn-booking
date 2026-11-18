@@ -33,6 +33,7 @@ from lunch.reparse_day import (
     process_text_message,
 )
 from lunch.catch_up import catch_up_today, resolve_incomplete_orders
+from lunch.debt_reminder import remind_debtors
 from lunch.listener import edit_or_reply
 from lunch.parse_summary import parse_numbered_summary
 from lunch.reparse_person import reparse_person
@@ -166,6 +167,31 @@ class FakeDB:
 
     async def enqueue_outbound(self, text, *, kind="send", telegram_message_id=None, reply_to_message_id=None, target="lunch"):
         self.outbound.append({"text": text, "reply_to": reply_to_message_id, "kind": kind, "edit_id": telegram_message_id})
+
+    async def summary_rows(self, day_id):
+        rows = []
+        for uid, p in self.participants.items():
+            pid = p["id"]
+            o = self.orders.get(pid)
+            if not o or pid in self.cancelled:
+                continue
+            paid = sum(x["amount"] for x in self.payments if x["pid"] == pid)
+            rows.append({
+                "participant_id": pid, "telegram_user_id": uid, "display_name": p["name"],
+                "username": p.get("username"), "total_uah": o["total"], "paid_uah": paid,
+                "debt_uah": o["total"] - paid, "cash_promised": pid in self.cash,
+            })
+        return sorted(rows, key=lambda r: r["display_name"])
+
+    async def enqueue_outbound_once(self, text, *, reply_to_message_id, marker, cooldown_sec):
+        # «щойно» = рядок без позначки old (тест старить рядки вручну)
+        for row in self.outbound:
+            if row["text"].startswith(marker) and (
+                row["reply_to"] == reply_to_message_id or (cooldown_sec > 0 and not row.get("old"))
+            ):
+                return False
+        await self.enqueue_outbound(text, reply_to_message_id=reply_to_message_id)
+        return True
 
     async def find_order_source_by_reply_id(self, reply_id):
         for o in self.orders.values():
@@ -1564,6 +1590,84 @@ def test_compare_day_reports_where_models_disagree():
     assert any("Суп грибний 55→65" in ln for ln in lines) and "підсумок" in lines[-1]
 
 
+# ---------- «Иду в столовую. Кидайте деньги» → нагадування боржникам ----------
+
+ANDRII = "5040092113"
+
+
+def _day_with_debts():
+    """Юрій не платив, Аліна доплатила не все, Оля розрахувалась, Андрій (збирач) теж замовляв."""
+    db = FakeDB(status="closed")
+    for uid, name, nick, total, paid in (
+        ("6973751301", "Юрій", None, 175, 0),
+        ("820707048", "Аліна", "@alina", 140, 95),
+        ("3", "Оля", None, 90, 90),
+        (ANDRII, "Андрей Кравченко", None, 200, 0),
+    ):
+        pid = run(db.upsert_participant(uid, name, nick))
+        run(db.upsert_order(1, pid, "заказ", total, [OrderLineInput(1, "Пюре", 1, total, total)]))
+        if paid:
+            run(db.add_payment(1, pid, paid, "чек", source="receipt"))
+    return db
+
+
+def test_canteen_call_reminds_debtors_once():
+    db = _day_with_debts()
+    assert run(remind_debtors(db, trigger_message_id=115493, collector_uid=ANDRII)) == "queued"
+    assert len(db.outbound) == 1 and db.outbound[0]["reply_to"] == 115493
+    assert db.outbound[0]["text"].splitlines()[:4] == [
+        "Нагадування про оплату обіду — ще не скинули:",
+        "• Аліна (@alina) — 45 грн (заказ 140, оплачено 95)",
+        "• [Юрій](tg://user?id=6973751301) — 175 грн",
+        "Разом: 220 грн",
+    ]
+    assert "Андрей" not in db.outbound[0]["text"] and "Оля" not in db.outbound[0]["text"]
+    # те саме повідомлення ще раз (дозбір після перезапуску) і друге «кидайте» за кілька хвилин — без дубля
+    assert run(remind_debtors(db, trigger_message_id=115493, collector_uid=ANDRII)) == "duplicate"
+    assert run(remind_debtors(db, trigger_message_id=115500, collector_uid=ANDRII)) == "duplicate"
+    # минуло більше за паузу — нове «кидайте» знову нагадує; на старе повідомлення — ні
+    db.outbound[0]["old"] = True
+    assert run(remind_debtors(db, trigger_message_id=115493, collector_uid=ANDRII)) == "duplicate"
+    assert run(remind_debtors(db, trigger_message_id=115600, collector_uid=ANDRII)) == "queued"
+
+
+def test_canteen_call_when_all_paid_or_nothing_ordered():
+    db = _day_with_debts()
+    run(db.add_payment(1, db.participants["6973751301"]["id"], 175, "оплатив 175"))
+    run(db.add_payment(1, db.participants["820707048"]["id"], 45, "оплатив 45"))
+    assert run(remind_debtors(db, trigger_message_id=1, collector_uid=ANDRII)) == "queued"
+    assert db.outbound[-1]["text"] == "Нагадування про оплату обіду: боргів немає — усі розраховані ✅"
+
+    only_andrii = FakeDB()
+    pid = run(only_andrii.upsert_participant(ANDRII, "Андрей Кравченко"))
+    run(only_andrii.upsert_order(1, pid, "заказ", 200, [OrderLineInput(1, "Пюре", 1, 200, 200)]))
+    assert run(remind_debtors(only_andrii, trigger_message_id=1, collector_uid=ANDRII)) == "no_orders"
+    nodday = FakeDB()
+    nodday.no_day = True
+    assert run(remind_debtors(nodday, trigger_message_id=1, collector_uid=ANDRII)) == "no_day"
+    assert only_andrii.outbound == [] and nodday.outbound == []
+
+
+def test_catch_up_reminds_on_missed_canteen_call_even_in_closed_day():
+    db = _day_with_debts()
+    call = FakeMsg(115493, "Иду в столовую. Кидайте деньги", _today_at(12, 17), sender_id=int(ANDRII))
+    out = run(catch_up_today(FakeClient([call]), object(), db, now=_now_at(12, 25)))
+    assert out["skipped_reason"] == "день закрито" and out["reminder"] == "queued"
+    assert [r["reply_to"] for r in db.outbound] == [115493]
+    # наступний дозбір (перезапуск слухача) — уже нагадали
+    assert run(catch_up_today(FakeClient([call]), object(), db, now=_now_at(12, 30)))["reminder"] == "duplicate"
+    assert len(db.outbound) == 1
+
+
+def test_catch_up_ignores_stale_or_foreign_canteen_calls():
+    db = _day_with_debts()
+    stale = FakeMsg(1, "Иду в столовую. Кидайте деньги", _today_at(11, 0), sender_id=int(ANDRII))
+    foreign = FakeMsg(2, "Иду в столовую. Кидайте деньги", _today_at(12, 20), sender_id=999)
+    chat = FakeMsg(3, "дякую", _today_at(12, 21), sender_id=int(ANDRII))
+    out = run(catch_up_today(FakeClient([stale, foreign, chat]), object(), db, now=_now_at(12, 25)))
+    assert "reminder" not in out and db.outbound == []
+
+
 def main():
     tests = [
         test_plan_kinds_and_reasons,
@@ -1639,6 +1743,10 @@ def main():
         test_catch_up_receipt_marks_paid_in_our_reply_even_when_day_is_closed,
         test_person_reparse_takes_link_and_cash,
         test_compare_day_reports_where_models_disagree,
+        test_canteen_call_reminds_debtors_once,
+        test_canteen_call_when_all_paid_or_nothing_ordered,
+        test_catch_up_reminds_on_missed_canteen_call_even_in_closed_day,
+        test_catch_up_ignores_stale_or_foreign_canteen_calls,
     ]
     failed = 0
     for t in tests:

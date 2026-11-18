@@ -95,6 +95,9 @@ describe('isLunchSystemEcho', () => {
     expect(isLunchSystemEcho('Меню на сьогодні:\n• Пюре — 40 грн')).toBe(true);
     expect(isLunchSystemEcho('Марта, сьогодні немає: Пюре.')).toBe(true);
     expect(isLunchSystemEcho('!зведення')).toBe(true);
+    // нагадування боржникам на «Иду в столовую. Кидайте деньги» (telegram-user/lunch/debt_reminder.py)
+    expect(isLunchSystemEcho('Нагадування про оплату обіду — ще не скинули:\n• Юрій — 175 грн')).toBe(true);
+    expect(isLunchSystemEcho('Иду в столовую. Кидайте деньги')).toBe(false);
     expect(isLunchSystemEcho('')).toBe(true);
     expect(isLunchSystemEcho('Пюре, котлети курячі')).toBe(false);
     expect(isLunchSystemEcho('оплатив 150')).toBe(false);

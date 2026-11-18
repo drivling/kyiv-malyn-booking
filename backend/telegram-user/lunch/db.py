@@ -750,6 +750,39 @@ class LunchDB:
                 target,
             )
 
+    async def enqueue_outbound_once(
+        self,
+        text: str,
+        *,
+        reply_to_message_id: int,
+        marker: str,
+        cooldown_sec: int,
+    ) -> bool:
+        """Відповідь у групу обідів, якщо такої (текст починається з marker) ще не було на це повідомлення
+        і за останні cooldown_sec. Перевірка й вставка — одним запитом, щоб живий обробник і дозбір після
+        перезапуску не надіслали двічі. True — поставлено в чергу."""
+        async with self.pool.acquire() as conn:
+            row_id = await conn.fetchval(
+                """
+                INSERT INTO "LunchOutboundMessage" (text, kind, "replyToMessageId", target, status)
+                SELECT $1::text, 'send', $2::bigint, 'lunch', 'pending'
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM "LunchOutboundMessage"
+                    WHERE target = 'lunch'
+                      AND "createdAt" > NOW() - INTERVAL '1 day'
+                      AND left(text, length($3::text)) = $3::text
+                      AND ("replyToMessageId" = $2::bigint
+                           OR "createdAt" > NOW() - ($4::int * INTERVAL '1 second'))
+                )
+                RETURNING id
+                """,
+                text,
+                int(reply_to_message_id),
+                marker,
+                max(0, int(cooldown_sec)),
+            )
+            return row_id is not None
+
     async def add_payment(
         self,
         day_id: int,
@@ -951,7 +984,7 @@ class LunchDB:
                 """
                 SELECT o.id, o."rawText", o."unmatchedText", o."totalUah",
                        o."trayCount", o."trayTotalUah", o."cashPromised",
-                       p.id AS pid, p."displayName", p.username
+                       p.id AS pid, p."displayName", p.username, p."telegramUserId"
                 FROM "LunchOrder" o
                 JOIN "LunchParticipant" p ON p.id = o."participantId"
                 WHERE o."dayId" = $1 AND o.status = 'active'
@@ -989,6 +1022,7 @@ class LunchDB:
                 result.append(
                     {
                         "participant_id": pid,
+                        "telegram_user_id": o["telegramUserId"],
                         "display_name": o["displayName"],
                         "username": o["username"],
                         "raw_text": o["rawText"],

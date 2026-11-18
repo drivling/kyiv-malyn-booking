@@ -30,6 +30,13 @@ from typing import Any, Optional
 import os
 
 from .db import LunchDB, today_kyiv
+from .debt_reminder import (
+    CATCH_UP_WINDOW as REMINDER_WINDOW,
+    collector_ids,
+    is_canteen_call,
+    is_debt_reminder,
+    remind_debtors,
+)
 from .evidence import (
     MAX_SCANS_PER_RUN,
     apply_claim,
@@ -143,6 +150,39 @@ async def catch_up_today(
     now: Optional[datetime] = None,
     notify: bool = True,
 ) -> dict[str, Any]:
+    stats, canteen_call = await _catch_up(client, entity, db, now=now, notify=notify)
+    # «Иду в столовую. Кидайте деньги», яке слухач проґавив: нагадати боржникам — після чеків і оплат із
+    # пропущених повідомлень, і в закритому дні теж (збирач іде в столову вже після підсумку)
+    if notify and canteen_call is not None:
+        stats["reminder"] = await remind_debtors(
+            db, trigger_message_id=int(canteen_call.id), collector_uid=str(canteen_call.sender_id)
+        )
+    return stats
+
+
+def _canteen_call(messages: list, current: datetime) -> Any:
+    """Останнє свіже «Иду в столовую. Кидайте деньги» від того, хто несе гроші, або None."""
+    collectors = collector_ids()
+    found = None
+    for msg, _fresh in messages:
+        md = msg.date if msg.date.tzinfo else msg.date.replace(tzinfo=timezone.utc)
+        if md < current - REMINDER_WINDOW:
+            continue
+        sender_id = getattr(msg, "sender_id", None)
+        text = (getattr(msg, "message", None) or getattr(msg, "text", None) or "").strip()
+        if sender_id and str(sender_id) in collectors and not is_debt_reminder(text) and is_canteen_call(text):
+            found = msg
+    return found
+
+
+async def _catch_up(
+    client,
+    entity,
+    db: LunchDB,
+    *,
+    now: Optional[datetime],
+    notify: bool,
+) -> tuple[dict[str, Any], Any]:
     stats: dict[str, Any] = {
         "scanned": 0, "orders": 0, "payments": 0, "cards": 0, "resolved": 0, "partial": 0, "skipped_reason": None,
     }
@@ -167,6 +207,7 @@ async def catch_up_today(
             break
         messages.append((msg, md >= since))
     messages.reverse()
+    canteen_call = _canteen_call(messages, current)
 
     # --- фото й PDF, які слухач пропустив: меню дня і чеки оплати ---
     fresh_media = [msg for msg, fresh in messages if fresh and media_of(msg)]
@@ -209,15 +250,15 @@ async def catch_up_today(
 
     if day is None:
         stats["skipped_reason"] = "немає дня"
-        return stats
+        return stats, canteen_call
     if day.status == "closed":
         stats["skipped_reason"] = "день закрито"
-        return stats
+        return stats, canteen_call
     ctx = DayContext()
     menu, fallback = await ctx.load(db, day.id)
     if not menu and not fallback:
         stats["skipped_reason"] = "немає меню"
-        return stats
+        return stats, canteen_call
 
     card_known = bool(day.payee_card)
     confirms: list[tuple[int, int, str, Any]] = []
@@ -378,4 +419,4 @@ async def catch_up_today(
         stats["summary_owner"] = info["status"]
         if info["status"] == "created":
             stats["orders"] += 1
-    return stats
+    return stats, canteen_call
