@@ -106,6 +106,7 @@ describe('dovede-crawl: нові місця з відповіді', () => {
       { kind: 'transit', minutes: 5, mode: 'BUS', line: '9', fromStop: 'A', toStop: 'Супермаркет', headsign: 'ж/м Теремки' },
       { kind: 'transit', minutes: 5, mode: 'BUS', line: '7', fromStop: 'Гіпермаркет', toStop: 'Авторинок', headsign: 'Національний музей народної архітектури та побуту' },
       { kind: 'transit', minutes: 5, mode: 'BUS', line: '5', fromStop: 'Універмаг "Дитячий світ"', toStop: 'вул. Татарська', headsign: 'Медучилище' },
+      { kind: 'transit', minutes: 5, mode: 'BUS', line: '3', fromStop: 'станція', toStop: 'Дорога', headsign: 'Дитяча поліклініка' },
     ]);
     // сторінка інколи скорочує назву до одного складу чи обриває на сполучнику
     const siteForm = (name: string) => (name.startsWith('ж/м') ? 'ж' : name.replace(/ побуту$/, ''));
