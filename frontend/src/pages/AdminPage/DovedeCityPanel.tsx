@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { DovedeCityStats } from '@/types';
+import { DovedeCityPlaces } from './DovedeCityPlaces';
 
 const CITY: Record<string, string> = { Kyiv: 'Київ', Zhytomyr: 'Житомир' };
 const SOURCE: Record<string, string> = { google: 'з Google', own: 'свої', open: 'відкриті дані' };
@@ -23,7 +24,8 @@ const count = (rows: Array<{ city: string; count: number }>, city: string) => ro
 
 /**
  * «Місто: що вже знаємо» — транспорт Києва й Житомира, який «Доведе» зібрала із запитів людей (Docs/dovede-roadmap.md,
- * «Місто»). Нічого не видаляється: «заархівувати» ховає дані з Google від відповідей і навчання, «відновити» повертає,
+ * «Місто»). Нічого не видаляється: «заархівувати» ховає дані з Google від відповідей і навчання, «відновити» повертає
+ * (одне місце з неправильною відповіддю прибирає список «Місця» — `DovedeCityPlaces`),
  * «скинути лічильник попиту» обнуляє список «Що питають найчастіше» (після прогону `npm run dovede:crawl`), а строк
  * свіжості збереженої відповіді власник задає тут сам.
  */
@@ -209,6 +211,7 @@ export const DovedeCityPanel: React.FC = () => {
             </button>
           </div>
           {note ? <p className="dovede-log-note">{note}</p> : null}
+          <DovedeCityPlaces onChange={load} />
         </>
       ) : null}
     </div>

@@ -249,6 +249,22 @@ function createCityRoutes(deps) {
         freshMemo = { at: now().getTime(), days };
         return days;
     }
+    // Місця в архіві («місто|ключ»): власник прибрав їх із відповідей. Памʼять на хвилину; архів і повернення скидають її
+    let archivedMemo = null;
+    async function archivedPlaces() {
+        const at = now().getTime();
+        if (archivedMemo && at - archivedMemo.at >= 0 && at - archivedMemo.at < SETTINGS_TTL_MS)
+            return archivedMemo.keys;
+        try {
+            const rows = await prisma.dovedeCityPlace.findMany({ where: { archivedAt: { not: null } }, select: { cityCode: true, key: true } });
+            archivedMemo = { at, keys: new Set(rows.map((r) => `${r.cityCode}|${r.key}`)) };
+            return archivedMemo.keys;
+        }
+        catch (e) {
+            console.error('❌ city-route: архів місць не прочитано, беру попередній:', e instanceof Error ? e.message : e);
+            return archivedMemo?.keys ?? new Set();
+        }
+    }
     const freshSince = async () => new Date(now().getTime() - (await freshDays()) * 24 * 3600000);
     async function callsToday() {
         const today = (0, guard_1.kyivDayStart)(now());
@@ -385,6 +401,11 @@ function createCityRoutes(deps) {
                 return own;
             }
         }
+        // Місце в архіві (власник прибрав: Google показує для цих слів не те): ні збереженого, ні нового запиту —
+        // сторінка дасть кнопку карти. Попит не рахуємо. Власні дані Житомира вище від архіву не залежать
+        const hidden = await archivedPlaces();
+        if (hidden.has(`${q.city}|${from.key}`) || hidden.has(`${q.city}|${to.key}`))
+            return { ok: false, fallback: 'maps', reason: 'archived' };
         const stored = force
             ? null
             : await findStored(q, from, to, hour).catch((e) => {
@@ -463,6 +484,9 @@ function createCityRoutes(deps) {
             if (pair.demandId === undefined && (seedFailed.get(seedKey) ?? 0) > retryFrom.getTime())
                 continue;
             const r = await find(q, true);
+            // місце в архіві — рішення власника: Google не питали, пара навчанню не потрібна
+            if (!r.ok && r.reason === 'archived')
+                continue;
             if (!r.ok && r.reason !== 'no_route') {
                 if (r.reason === 'error')
                     asked++;
@@ -511,14 +535,14 @@ function createCityRoutes(deps) {
                     continue;
                 }
                 // ліміт, квота, немає ключа, збій Google — рядок ні до чого, спробуємо наступного разу
-                if (!r.ok && r.reason !== 'no_route') {
+                if (!r.ok && r.reason !== 'no_route' && r.reason !== 'archived') {
                     if (r.reason === 'error')
                         asked++;
                     break;
                 }
                 await giveUp(row.id);
-                // `r.ok` тут — пару тепер закривають власні дані: Google не питали, лічити нічого
-                if (!r.ok)
+                // `r.ok` тут — пару тепер закривають власні дані, `archived` — місце в архіві: Google не питали, лічити нічого
+                if (!r.ok && r.reason === 'no_route')
                     asked++;
             }
         }
@@ -577,7 +601,88 @@ function createCityRoutes(deps) {
             prisma.dovedeCityLine.updateMany({ where, data: { archivedAt: null } }),
             prisma.dovedeCityStop.updateMany({ where, data: { archivedAt: null } }),
         ]);
-        return { routes: routes.count, lines: lines.count, stops: stops.count };
+        // місця, які власник прибрав окремо, лишаються в архіві: їхні дороги повертає лише «Повернути» біля самого місця
+        let kept = 0;
+        const at = now();
+        for (const m of await prisma.dovedeCityPlace.findMany({ where: { archivedAt: { not: null } } })) {
+            const again = await prisma.dovedeCityRoute.updateMany({ where: { cityCode: m.cityCode, source: 'google', archivedAt: null, OR: [{ toKey: m.key }, { fromKey: m.key }] }, data: { archivedAt: at } });
+            kept += again.count;
+        }
+        return { routes: routes.count - kept, lines: lines.count, stops: stops.count };
+    }
+    /** Ключ місця для архіву: слова людини; id точки посадки чи станції метро архівувати не можна — це наші власні точки */
+    function placeKey(raw) {
+        const value = raw.trim();
+        if (!value || value.length > 120 || isKnownPointId(value))
+            return null;
+        const key = normalizeKey(value);
+        return key.length >= 2 ? key : null;
+    }
+    const placeRoutes = (city, key) => ({ cityCode: city, source: 'google', OR: [{ toKey: key }, { fromKey: key }] });
+    /**
+     * Архів одного місця: усі збережені з Google дороги до нього й від нього йдуть в архів, а саме місце — у
+     * `DovedeCityPlace`: далі про нього не віддаємо збереженого й не питаємо Google (людина отримує кнопку карти),
+     * навчання й оновлення його не чіпають. Нічого не видаляється. null — це не місце словами (порожньо, id точки).
+     */
+    async function archivePlace(city, raw) {
+        const key = placeKey(raw);
+        if (!key)
+            return null;
+        const at = now();
+        const sample = await prisma.dovedeCityRoute.findFirst({ where: placeRoutes(city, key) });
+        const label = sample ? (sample.toKey === key ? sample.toLabel : sample.fromLabel) : raw.trim().replace(/\s+/g, ' ');
+        await prisma.dovedeCityPlace.upsert({ where: { cityCode_key: { cityCode: city, key } }, create: { cityCode: city, key, label, archivedAt: at }, update: { label, archivedAt: at } });
+        const done = await prisma.dovedeCityRoute.updateMany({ where: { ...placeRoutes(city, key), archivedAt: null }, data: { archivedAt: at } });
+        archivedMemo = null;
+        return { city, key, label, routes: done.count };
+    }
+    /** Повертає місце з архіву разом із його збереженими дорогами (застарілі за цей час навчання оновить саме) */
+    async function restorePlace(city, raw) {
+        const key = placeKey(raw);
+        if (!key)
+            return null;
+        await prisma.dovedeCityPlace.updateMany({ where: { cityCode: city, key, archivedAt: { not: null } }, data: { archivedAt: null } });
+        const done = await prisma.dovedeCityRoute.updateMany({ where: { ...placeRoutes(city, key), archivedAt: { not: null } }, data: { archivedAt: null } });
+        archivedMemo = null;
+        return { city, key, routes: done.count };
+    }
+    /**
+     * Місця словами, про які є збережені дороги з Google (кінець пари, що не є нашою точкою), і місця в архіві.
+     * Для адмінки: знайти місце з неправильною відповіддю й прибрати саме його.
+     */
+    async function places() {
+        const [rows, marks] = await Promise.all([
+            prisma.dovedeCityRoute.findMany({ where: { source: 'google' }, select: { cityCode: true, fromKey: true, toKey: true, fromLabel: true, toLabel: true, minutes: true, archivedAt: true } }),
+            prisma.dovedeCityPlace.findMany({ where: { archivedAt: { not: null } } }),
+        ]);
+        const byKey = new Map();
+        const entry = (city, key, label) => {
+            const id = `${city}|${key}`;
+            let p = byKey.get(id);
+            if (!p) {
+                p = { city, key, label, routes: 0, archivedRoutes: 0, minMinutes: null, maxMinutes: null, archivedAt: null };
+                byKey.set(id, p);
+            }
+            return p;
+        };
+        const add = (city, key, label, minutes, archived) => {
+            if (isKnownPointId(key))
+                return;
+            const p = entry(city, key, label);
+            if (archived)
+                p.archivedRoutes++;
+            else
+                p.routes++;
+            p.minMinutes = p.minMinutes == null ? minutes : Math.min(p.minMinutes, minutes);
+            p.maxMinutes = p.maxMinutes == null ? minutes : Math.max(p.maxMinutes, minutes);
+        };
+        for (const r of rows) {
+            add(r.cityCode, r.toKey, r.toLabel, r.minutes, r.archivedAt != null);
+            add(r.cityCode, r.fromKey, r.fromLabel, r.minutes, r.archivedAt != null);
+        }
+        for (const m of marks)
+            entry(m.cityCode, m.key, m.label).archivedAt = m.archivedAt.toISOString();
+        return [...byKey.values()].sort((a, b) => a.city.localeCompare(b.city) || a.label.localeCompare(b.label, 'uk'));
     }
     /**
      * Обнуляє лічильник попиту (після прогону самонавчання, щоб його пари не стояли поруч із питаннями людей).
@@ -587,7 +692,7 @@ function createCityRoutes(deps) {
         const r = await prisma.dovedeCityDemand.updateMany({ where: { asked: { gt: 0 } }, data: { asked: 0 } });
         return { reset: r.count };
     }
-    return { find, learnTick, stats, archiveGoogle, restoreGoogle, resetDemand, setFreshDays };
+    return { find, learnTick, stats, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays };
 }
 /** Найближчий будень о 09:00 за Києвом (взимку UTC+2, влітку UTC+3 — похибка в годину для навчання неважлива) */
 function nextWeekdayMorning(now) {

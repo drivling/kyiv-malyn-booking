@@ -1141,6 +1141,16 @@ class ApiClient {
     return this.request('/admin/dovede/city/archive', { method: 'POST', body: JSON.stringify({ action }) });
   }
 
+  /** Адмін: місця словами зі збереженими дорогами й місця в архіві */
+  async getDovedeCityPlaces(): Promise<{ places: import('@/types').DovedeCityPlace[] }> {
+    return this.request('/admin/dovede/city/places');
+  }
+
+  /** Адмін: прибрати одне місце в архів (сервер про нього не відповідає й Google не питає) або повернути. Нічого не видаляється */
+  async dovedeCityPlaceArchive(city: string, key: string, action: 'archive' | 'restore'): Promise<{ action: string; city: string; key: string; routes: number }> {
+    return this.request('/admin/dovede/city/place/archive', { method: 'POST', body: JSON.stringify({ city, key, action }) });
+  }
+
   /** Адмін: обнулити лічильник попиту «Що питають найчастіше» (після самонавчання). Збережені дороги лишаються */
   async dovedeCityResetDemand(): Promise<{ reset: number }> {
     return this.request('/admin/dovede/city/demand/reset', { method: 'POST' });

@@ -350,6 +350,42 @@ export function createAdminDovedeRouter(deps: {
     }
   });
 
+  /** Місця словами зі збереженими дорогами й місця в архіві — щоб прибрати одне місце з неправильною відповіддю */
+  r.get('/admin/dovede/city/places', requireAdmin, async (_req, res) => {
+    try {
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ places: await cityRoutes.places() });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/city/places:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати місця' });
+    }
+  });
+
+  /**
+   * Архів одного місця або повернення з нього: `{ city, key, action: archive | restore }`. Дороги цього місця не
+   * видаляються; поки воно в архіві, сервер про нього не відповідає й Google не питає.
+   */
+  r.post('/admin/dovede/city/place/archive', requireAdmin, async (req, res) => {
+    const city = String(req.body?.city ?? '');
+    const key = typeof req.body?.key === 'string' ? req.body.key : '';
+    const action = String(req.body?.action ?? '');
+    if ((city !== 'Kyiv' && city !== 'Zhytomyr') || (action !== 'archive' && action !== 'restore')) {
+      res.status(400).json({ error: 'city: Kyiv | Zhytomyr, action: archive | restore' });
+      return;
+    }
+    try {
+      const done = action === 'archive' ? await cityRoutes.archivePlace(city, key) : await cityRoutes.restorePlace(city, key);
+      if (!done) {
+        res.status(400).json({ error: 'key: місце словами (не id точки посадки чи станції метро)' });
+        return;
+      }
+      res.json({ action, ...done });
+    } catch (e) {
+      console.error('❌ POST /admin/dovede/city/place/archive:', e);
+      res.status(500).json({ error: 'Не вдалося' });
+    }
+  });
+
   /**
    * «Звідки забирають попутки»: примітки оголошень водіїв за період, згруповані за напрямком і текстом.
    * Без імен і телефонів; місця в примітках розбирає адмінка тим самим словником, що й сторінка.

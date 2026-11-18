@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import type { DovedeCityStats } from '@/types';
+import type { DovedeCityPlace, DovedeCityStats } from '@/types';
 import { DovedeCityPanel } from './DovedeCityPanel';
 
 function mock(over: Partial<DovedeCityStats> = {}) {
@@ -31,7 +31,22 @@ function mock(over: Partial<DovedeCityStats> = {}) {
     ...over,
   };
   const calls: string[] = [];
+  const places: DovedeCityPlace[] = [
+    { city: 'Kyiv', key: 'палац спорту', label: 'Палац спорту', routes: 5, archivedRoutes: 0, minMinutes: 31, maxMinutes: 48, archivedAt: null },
+    { city: 'Kyiv', key: 'торговельно-економічний університет', label: 'Торговельно-економічний університет', routes: 15, archivedRoutes: 0, minMinutes: 5, maxMinutes: 8, archivedAt: null },
+    { city: 'Zhytomyr', key: 'житній ринок', label: 'Житній ринок', routes: 0, archivedRoutes: 2, minMinutes: 12, maxMinutes: 14, archivedAt: '2026-11-18T08:00:00.000Z' },
+  ];
   server.use(
+    http.get(`${TEST_API_URL}/admin/dovede/city/places`, () => HttpResponse.json({ places })),
+    http.post(`${TEST_API_URL}/admin/dovede/city/place/archive`, async ({ request }) => {
+      const body = (await request.json()) as { city: string; key: string; action: 'archive' | 'restore' };
+      calls.push(`place:${body.action}:${body.city}:${body.key}`);
+      const p = places.find((x) => x.city === body.city && x.key === body.key)!;
+      const moved = body.action === 'archive' ? p.routes : p.archivedRoutes;
+      if (body.action === 'archive') Object.assign(p, { archivedRoutes: p.archivedRoutes + p.routes, routes: 0, archivedAt: '2026-11-18T09:00:00.000Z' });
+      else Object.assign(p, { routes: p.routes + p.archivedRoutes, archivedRoutes: 0, archivedAt: null });
+      return HttpResponse.json({ action: body.action, city: body.city, key: body.key, routes: moved });
+    }),
     http.get(`${TEST_API_URL}/admin/dovede/city`, () => HttpResponse.json(state)),
     http.put(`${TEST_API_URL}/admin/dovede/city/settings`, async ({ request }) => {
       const body = (await request.json()) as { freshDays: number };
@@ -99,5 +114,45 @@ describe('DovedeCityPanel', () => {
     expect(calls).toEqual(['reset']);
     await screen.findByText('Запитів про дорогу містом ще не було.');
     expect(reset).toBeDisabled();
+  });
+});
+
+describe('«Місця»: архів одного місця', () => {
+  it('місця в архіві зверху; пошук за назвою; «спершу найкоротші» піднімає підозріло коротку дорогу', async () => {
+    mock();
+    const { user } = await open();
+    const rows = () => [...document.querySelectorAll('.dovede-city-places li')].map((li) => li.textContent ?? '');
+    await waitFor(() => expect(rows()).toHaveLength(3));
+    expect(rows()[0]).toContain('Житній ринок');
+    expect(rows()[0]).toContain('в архіві з 18 листопада, доріг: 2');
+    expect(rows()[1]).toContain('Палац спорту — доріг: 5, 31–48 хв');
+
+    await user.click(screen.getByLabelText('спершу найкоротші дороги'));
+    expect(rows()[1]).toContain('Торговельно-економічний університет — доріг: 15, 5–8 хв');
+
+    await user.type(screen.getByLabelText('Знайти місце'), 'палац');
+    expect(rows()).toHaveLength(1);
+    await user.clear(screen.getByLabelText('Знайти місце'));
+    await user.type(screen.getByLabelText('Знайти місце'), 'немає такого');
+    expect(screen.getByText('Такого місця серед збережених немає.')).toBeInTheDocument();
+  });
+
+  it('«В архів» питає підтвердження й шле місто з ключем; «Повернути» — без питання', async () => {
+    const { calls } = mock();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false).mockReturnValue(true);
+    const { user } = await open();
+    const archive = await screen.findByRole('button', { name: 'В архів: Торговельно-економічний університет' });
+    await user.click(archive);
+    expect(calls).toEqual([]);
+    await user.click(archive);
+    expect(confirm.mock.calls[1][0]).toContain('«Торговельно-економічний університет» (Київ)');
+    await screen.findByText('«Торговельно-економічний університет» (Київ) — в архіві, доріг: 15.');
+    expect(calls).toEqual(['place:archive:Kyiv:торговельно-економічний університет']);
+    await screen.findByRole('button', { name: 'Повернути: Торговельно-економічний університет' });
+
+    await user.click(screen.getByRole('button', { name: 'Повернути: Житній ринок' }));
+    await screen.findByText('«Житній ринок» (Житомир) — повернуто, доріг: 2.');
+    expect(calls[1]).toBe('place:restore:Zhytomyr:житній ринок');
+    expect(confirm).toHaveBeenCalledTimes(2);
   });
 });

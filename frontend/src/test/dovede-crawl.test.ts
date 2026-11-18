@@ -100,6 +100,18 @@ describe('dovede-crawl: нові місця з відповіді', () => {
     const siteForm = (name: string) => (name.includes('вокзал') ? null : name.split(' ').slice(0, 5).join(' '));
     expect(candidates(s, { siteForm }).map((c) => c.name)).toEqual(['Кінотеатр «Росія»', 'Національний університет біоресурсів і природокористування']);
   });
+
+  it('назви, яких у місті багато, і обірвані словником сторінки — не питає: Google знайшов би не те місце', () => {
+    const s = compactSteps([
+      { kind: 'transit', minutes: 5, mode: 'BUS', line: '9', fromStop: 'A', toStop: 'Супермаркет', headsign: 'ж/м Теремки' },
+      { kind: 'transit', minutes: 5, mode: 'BUS', line: '7', fromStop: 'Гіпермаркет', toStop: 'Авторинок', headsign: 'Національний музей народної архітектури та побуту' },
+      { kind: 'transit', minutes: 5, mode: 'BUS', line: '5', fromStop: 'Універмаг "Дитячий світ"', toStop: 'вул. Татарська', headsign: 'Медучилище' },
+      { kind: 'transit', minutes: 5, mode: 'BUS', line: '3', fromStop: 'станція', toStop: 'Дорога', headsign: 'Дитяча поліклініка' },
+    ]);
+    // сторінка інколи скорочує назву до одного складу чи обриває на сполучнику
+    const siteForm = (name: string) => (name.startsWith('ж/м') ? 'ж' : name.replace(/ побуту$/, ''));
+    expect(candidates(s, { siteForm }).map((c) => c.name)).toEqual(['Універмаг "Дитячий світ"', 'вул. Татарська']);
+  });
 });
 
 describe('dovede-crawl: обхід у ширину', () => {

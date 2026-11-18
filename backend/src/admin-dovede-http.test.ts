@@ -561,8 +561,24 @@ test('місто в адмінці: лише адмін; зведення, кр�
     restoreGoogle: async () => (done.push('restore'), { routes: 5, lines: 3, stops: 9 }),
     resetDemand: async () => (done.push('reset'), { reset: 7 }),
     setFreshDays: async (n: number) => (done.push(`fresh:${n}`), n),
+    places: async () => [{ city: 'Kyiv', key: 'охматдит', label: 'Охматдит', routes: 5, archivedRoutes: 0, minMinutes: 31, maxMinutes: 48, archivedAt: null }],
+    archivePlace: async (city: string, key: string) => (!key || key.includes('.') ? null : (done.push(`place:archive:${city}:${key}`), { city, key: key.toLowerCase(), label: key, routes: 5 })),
+    restorePlace: async (city: string, key: string) => (done.push(`place:restore:${city}:${key}`), { city, key: key.toLowerCase(), routes: 5 }),
   } as unknown as CityRoutes;
   const app = appWith({ prisma: {} as PrismaClient, cityRoutes });
+  // архів одного місця: лише адмін; місто й дія перевіряються; id точки посадки — 400
+  assert.equal((await request(app).get('/admin/dovede/city/places')).status, 401);
+  assert.equal((await request(app).post('/admin/dovede/city/place/archive').send({ city: 'Kyiv', key: 'Охматдит', action: 'archive' })).status, 401);
+  const placesRes = await request(app).get('/admin/dovede/city/places').set('Authorization', AUTH);
+  assert.equal(placesRes.headers['cache-control'], 'private, no-store');
+  assert.deepEqual(placesRes.body.places.map((p: { key: string; routes: number }) => [p.key, p.routes]), [['охматдит', 5]]);
+  const place = (body: Record<string, unknown>) => request(app).post('/admin/dovede/city/place/archive').set('Authorization', AUTH).send(body);
+  assert.deepEqual((await place({ city: 'Kyiv', key: 'Охматдит', action: 'archive' })).body, { action: 'archive', city: 'Kyiv', key: 'охматдит', label: 'Охматдит', routes: 5 });
+  assert.deepEqual((await place({ city: 'Kyiv', key: 'Охматдит', action: 'restore' })).body, { action: 'restore', city: 'Kyiv', key: 'охматдит', routes: 5 });
+  for (const bad of [{ city: 'Malyn', key: 'Охматдит', action: 'archive' }, { city: 'Kyiv', key: 'Охматдит', action: 'delete' }, { city: 'Kyiv', key: 'kyiv.akadem', action: 'archive' }, { city: 'Kyiv', action: 'archive' }]) {
+    assert.equal((await place(bad)).status, 400);
+  }
+  assert.deepEqual(done.splice(0), ['place:archive:Kyiv:Охматдит', 'place:restore:Kyiv:Охматдит']);
   assert.equal((await request(app).get('/admin/dovede/city')).status, 401);
   assert.equal((await request(app).post('/admin/dovede/city/archive').send({ action: 'archive' })).status, 401);
   assert.equal((await request(app).get('/admin/dovede/city').set('Authorization', AUTH)).body.callsToday, 3);

@@ -1423,6 +1423,22 @@ export interface DovedeCityStats {
   demand: Array<{ city: string; from: string; to: string; asked: number; answered: boolean; lastAskedAt: string }>;
 }
 
+/** «Доведе» · місце словами зі збереженими дорогами містом (GET /admin/dovede/city/places) */
+export interface DovedeCityPlace {
+  city: string;
+  /** ключ у базі: слова людини малими літерами */
+  key: string;
+  label: string;
+  /** збережені дороги з Google, які віддаємо */
+  routes: number;
+  archivedRoutes: number;
+  /** найкоротша й найдовша збережена дорога, хв */
+  minMinutes: number | null;
+  maxMinutes: number | null;
+  /** null — місце не в архіві */
+  archivedAt: string | null;
+}
+
 /** «Доведе» · примітки оголошень водіїв за період (GET /admin/dovede/pickups) — без імен і телефонів */
 export interface DovedePickups {
   days: number;

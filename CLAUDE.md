@@ -258,6 +258,13 @@ of `dist` in a commit.
   decisions (2026-11-17):** Google answers are stored under his own contract with Google (switch `DOVEDE_CITY_STORE=0`,
   `DOVEDE_CITY_ROUTES=off`); the card never credits Google — every answer shows «перевірено N днів тому» (see below); **these tables are never deleted from — only archived** (`archivedAt`,
   `POST /admin/dovede/city/archive { action: archive | restore }`; archived rows are neither served nor refreshed).
+  One place whose Google answer is wrong (Google matched the words to another spot) is archived on its own: list «Місця»
+  in the admin block (`AdminPage/DovedeCityPlaces.tsx`, `GET /admin/dovede/city/places`,
+  `POST /admin/dovede/city/place/archive { city, key, action }`) → `archivePlace` puts the place into `DovedeCityPlace`
+  and archives its routes. Unlike the bulk archive, a person's question does not bring it back: while the place is
+  archived the server neither serves stored rows nor asks Google about it (`reason: 'archived'`, the page shows the
+  Google Maps button, no demand is counted), learning skips it, and the bulk «Відновити з архіву» leaves it archived —
+  only «Повернути» next to the place restores it. Known point ids (boarding points, metro) cannot be archived.
   Background learning: `startIntervalJob('dovede-city-learn')` (`DOVEDE_CITY_LEARN_INTERVAL_MIN`, default 60) refreshes
   the most asked pairs and `SEED_PAIRS` within half of the daily cap, then re-asks stored Google answers that have
   expired or will within `refreshLeadDays` (2 days) — on the row's own day type and hour, most served first
@@ -289,6 +296,8 @@ of `dist` in a commit.
   `--both` adds the way back (place → boarding point), `--reverse` asks only that way — with an evening `--when` it
   is the trip home from the city.
   `--unanswered` starts from people's questions the server could not answer; `--places <file>` from a list — the
+  the walk skips stop names a city has many of («Супермаркет», «Авторинок» — `GENERIC` in the core) and names the
+  page's parser cut off at a conjunction, because Google would match them to some other spot;
   starter lists are `scripts/data/dovede-places-kyiv.txt` / `-zhytomyr.txt` (a test keeps every line a «place in
   words» for the page: no metro, no leading «Київський», no «імені», which the page's `nominative` turns into «іменя»).
   Zhytomyr from the owner's own site (stage 3б): `npm run zhytomyr:snapshot` (backend; flags in the script header) keeps

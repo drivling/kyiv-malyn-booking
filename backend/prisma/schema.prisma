@@ -1383,6 +1383,21 @@ model DovedeCityStop {
   @@unique([cityCode, name], map: "DovedeCityStop_key")
 }
 
+/// Місце, яке власник прибрав з відповідей дороги містом (Google показує для цих слів не те). `archivedAt` — місце
+/// в архіві: збережене для нього не віддаємо й Google не питаємо; повернення ставить null. Рядки не видаляються
+model DovedeCityPlace {
+  id         Int       @id @default(autoincrement())
+  createdAt  DateTime  @default(now())
+  cityCode   String
+  /// той самий нормалізований ключ, що `DovedeCityRoute.fromKey / toKey` (слова людини малими літерами)
+  key        String
+  label      String
+  archivedAt DateTime?
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([cityCode, key], map: "DovedeCityPlace_key")
+}
+
 /// Налаштування дороги містом (singleton id=1): редагуються в адмінці «Місто: що вже знаємо», без редеплою
 model DovedeCitySettings {
   id        Int      @id
