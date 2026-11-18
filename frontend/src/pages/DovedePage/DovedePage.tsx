@@ -14,7 +14,19 @@ import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import { getKyivDateString, getKyivMinutesNow } from '@/pages/LocalTransportPage/kyivTime';
 import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerModel';
-import { KOROSTEN, buildKorostenPlaces, isKorostenQuestion, isMalynKorostenTrip, korostenShape, mentionsOtherCity, namesKorostenAsEnd, remapForKorosten } from './korosten/korostenCity';
+import {
+  KOROSTEN,
+  buildKorostenPlaces,
+  combineCorridor,
+  isKorostenQuestion,
+  isMalynKorostenTrip,
+  korostenShape,
+  korostenStopByLabel,
+  mentionsKorosten,
+  mentionsOtherCity,
+  namesKorostenAsEnd,
+  remapForKorosten,
+} from './korosten/korostenCity';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
 import { DovedeIntro, type IntroEvent } from './intro/DovedeIntro';
@@ -54,6 +66,7 @@ const EXAMPLES = [
   'з Царського села до Києва завтра зранку',
   'електричкою з Києва до Малина',
   'автобусом з Царського села на вокзал',
+  'з Паперової фабрики в Коростень до міськлікарні',
 ];
 
 type View =
@@ -235,6 +248,13 @@ function DovedeSearch({
 }) {
   const korosten = city === KOROSTEN;
   const { ready, plannerFor, stops, routes, fare } = usePlannerModel(city);
+  // Коридор Малин ↔ Коростень (етап 3): датасет Коростеня вантажиться, щойно питання його назвало, і лишається
+  // другим, «пасивним» планувальником — номери й кольори сторінки лишаються малинськими
+  const [needKorosten, setNeedKorosten] = useState(false);
+  const far = usePlannerModel(!korosten && needKorosten ? KOROSTEN : null, { passive: true });
+  const farIndex = useMemo(() => buildKorostenPlaces(far.stops), [far.stops]);
+  /** датасет Коростеня є або вже не прийде (помилка) — питання з Коростенем можна розбирати */
+  const farSettled = far.ready || (needKorosten && !far.loading && far.error != null);
   // Зупинки з розкладу стають місцями словника («Поворот на Коновальця»); список «поточний», як номери маршрутів.
   // У Коростені — його зупинки й народні назви («Пашини», «Гастелло», «міськлікарня»)
   const stopIndex = useMemo(() => {
@@ -324,14 +344,17 @@ function DovedeSearch({
           return out;
         };
         const today = { schedules: await schedulesFor(date), driveMinutes: await driveFor(date, listings) };
-        let outcome = await withCity((cityRoutes) => composeStories({ intent, now, date, schedules: today.schedules, planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: today.driveMinutes, notePlaces, cityRoutes }, shape));
+        // Коростень у коридорі: місце словами → зупинка його датасету, шлях від / до вокзалу — його планувальником
+        const farStop = (detail: string) => korostenStopByLabel(farIndex, detail);
+        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop });
+        let outcome = await withCity((cityRoutes) => composeStories({ intent, now, date, schedules: today.schedules, planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: today.driveMinutes, notePlaces, cityRoutes, ...farFor(date) }, shape));
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);
           const next0: TripIntent = { ...intent, when: { day: 'tomorrow', kind: 'depart' } };
           const later = (await searchFor(tomorrow)).listings;
           const morrow = { schedules: await schedulesFor(tomorrow), driveMinutes: await driveFor0(tomorrow, later, next0) };
           const next = await withCity((cityRoutes) =>
-            composeStories({ intent: next0, now, date: tomorrow, schedules: morrow.schedules, planner: plannerFor(tomorrow), routes, listings: later, driveMinutes: morrow.driveMinutes, notePlaces, cityRoutes }, shape),
+            composeStories({ intent: next0, now, date: tomorrow, schedules: morrow.schedules, planner: plannerFor(tomorrow), routes, listings: later, driveMinutes: morrow.driveMinutes, notePlaces, cityRoutes, ...farFor(tomorrow) }, shape),
           );
           if (next.kind === 'stories') {
             outcome = { ...next, notice: 'Сьогодні вже нічого не їде — найближчі варіанти завтра.' };
@@ -364,7 +387,7 @@ function DovedeSearch({
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [plannerFor, setSearchParams, routes, fare, stopIndex, korosten],
+    [plannerFor, setSearchParams, routes, fare, stopIndex, korosten, far, farIndex],
   );
 
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
@@ -372,9 +395,22 @@ function DovedeSearch({
     async (q: string, chosen?: TripIntent) => {
       const now = kyivNow();
       const parse = parseLocal(q, now, stopIndex, routes);
+      // Коростень у питанні на сторінці Малина: спершу датасет Коростеня (коридор чи перемикання вирішуємо з ним)
+      const korostenEnd = (i?: TripIntent | null) => i?.from?.id === 'city.Korosten' || i?.to?.id === 'city.Korosten';
+      const wantsFar = !korosten && (chosen ? korostenEnd(chosen) : mentionsKorosten(q));
+      if (wantsFar && !farSettled) {
+        setNeedKorosten(true);
+        ++seq.current;
+        setView({ kind: 'loading', parse: chosen ? withIntent(parse, chosen) : parse, now });
+        pending.current = { q, chosen };
+        return;
+      }
+      // Поїздка Малин ↔ Коростень («з Паперової фабрики в Коростень до міськлікарні», «з Пашин до Паперової фабрики»):
+      // два розбори — малинський і коростенський; відповідає Малин, без Claude
+      const corridor = !chosen && wantsFar ? combineCorridor(parse.intent, parseLocal(q, now, farIndex).intent, farIndex) : null;
       // Питання про інше місто, ніж зараз на сторінці («з Пашин до ринку» в Малині) — перемикаємо місто й питаємо там.
-      // Поїздка Малин ↔ Коростень («з Паперової фабрики в Коростень») — питання Малина, не міста Коростеня.
-      if (!chosen && onCity) {
+      // Поїздка Малин ↔ Коростень — питання Малина, не міста Коростеня.
+      if (!chosen && !corridor && onCity) {
         const other = korosten
           ? mentionsOtherCity(q) || namesKorostenAsEnd(q)
             ? DEFAULT_TRANSPORT_CITY
@@ -390,12 +426,17 @@ function DovedeSearch({
       const id = ++seq.current;
       setChosenId(null);
       setSuggestion(null);
-      setView({ kind: 'loading', parse: chosen ? withIntent(parse, chosen) : parse, now });
+      const shown = chosen ?? corridor;
+      setView({ kind: 'loading', parse: shown ? withIntent(parse, shown) : parse, now });
       if (!ready) {
         pending.current = { q, chosen };
         return;
       }
       pending.current = null;
+      if (corridor) {
+        await answer(id, q, withIntent(parse, corridor), corridor, now);
+        return;
+      }
       // Коростень (етап 1): лише словник — місця й маршрути Коростеня; Claude ще не знає цього міста
       if (korosten) {
         const intent = chosen ?? remapForKorosten(parse.intent);
@@ -422,7 +463,7 @@ function DovedeSearch({
       const intent = pickIntent(parse.intent, r?.intent);
       await answer(id, q, withIntent(parse, intent), intent, now);
     },
-    [ready, answer, stopIndex, routes, korosten, onCity],
+    [ready, answer, stopIndex, routes, korosten, onCity, farSettled, farIndex],
   );
 
   // Питання, з яким перемкнули місто: відповідаємо, щойно є розклад нового міста (run сам чекає на нього)
@@ -437,7 +478,7 @@ function DovedeSearch({
       const { q, chosen } = pending.current;
       void run(q, chosen);
     }
-  }, [ready, run]);
+  }, [ready, farSettled, run]);
 
   const ask = (q: string) => {
     const t = q.trim();
@@ -759,8 +800,8 @@ function Result({
     case 'outside':
       return (
         <Panel title="Цю дорогу я ще вчу">
-          «Доведе» знає дорогу Київ — Малин, Житомир — Малин і міські автобуси Малина та Коростеня. Між Малином і Коростенем
-          та інші напрямки — далі.
+          «Доведе» знає дороги Київ — Малин, Житомир — Малин, Коростень — Малин і міські автобуси Малина та Коростеня. Інші
+          напрямки — далі.
         </Panel>
       );
     case 'city_link':

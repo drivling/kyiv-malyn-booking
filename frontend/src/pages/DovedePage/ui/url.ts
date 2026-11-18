@@ -14,8 +14,11 @@ const PARTS = ['morning', 'day', 'evening'] as const;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 export const DOVEDE_URL_KEYS = ['f', 't', 'fd', 'td', 'd', 'h', 'a', 'p', 'm', 'r', 'x', 'q'] as const;
-/** Міста, де до місця «словами» веде сервер (`fd=` / `td=` — це місце) */
-const DETAIL_CITIES = new Set(['city.Kyiv', 'city.Zhytomyr']);
+/**
+ * Міста, де місце всередині міста — `fd=` / `td=`: у Києві й Житомирі до нього веде сервер, у Коростені — назва
+ * зупинки його датасету (етап 3, планувальник Коростеня)
+ */
+const DETAIL_CITIES = new Set(['city.Kyiv', 'city.Zhytomyr', 'city.Korosten']);
 const MAX_DETAIL = 80;
 /** Найдовше питання, яке приймає сторінка й сервер */
 const MAX_QUESTION = 300;

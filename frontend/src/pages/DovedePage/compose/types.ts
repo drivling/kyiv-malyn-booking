@@ -5,7 +5,7 @@ import type { TripSegment } from '../data/kyiv';
 import type { RingRide } from '../data/kyivRing';
 import type { MetroStation } from '../nlu/kyivMetroData';
 
-/** Міський планувальник Малина на один день (RAPTOR з LocalTransportPage/journey) */
+/** Міський планувальник одного міста на один день (RAPTOR з LocalTransportPage/journey) */
 export interface LocalPlanner {
   plan(from: Endpoint, to: Endpoint): DayPlan;
   stopName(stopId: string): string;
@@ -60,6 +60,13 @@ export type StoryLeg =
   | {
       kind: 'bus';
       routeId: string;
+      /**
+       * Місто автобуса, коли воно не місто сторінки (Коростень в історії з Малина): номер, колір і посилання на рейс —
+       * цього міста, назви зупинок — `fromName` / `toName`
+       */
+      city?: string;
+      fromName?: string;
+      toName?: string;
       fromStopId: string;
       toStopId: string;
       direction: 'there' | 'back';

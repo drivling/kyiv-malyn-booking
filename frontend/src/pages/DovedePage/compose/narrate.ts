@@ -1,7 +1,7 @@
 /**
  * Текст історії — лише шаблони (Docs/dovede-roadmap.md, принцип 1): числа беруться з легів, не вигадуються.
  */
-import { routeNo } from '@/utils/routeNames';
+import { routeNoIn } from '@/utils/routeNames';
 import { minsToClock } from './intercity';
 import type { Story, StoryLeg } from './types';
 
@@ -39,7 +39,7 @@ function legPhrase(l: StoryLeg): string | null {
     const name = l.mode === 'elektrichka' ? `електричка${l.tripNumber ? ` ${l.tripNumber}` : ''}` : 'маршрутка';
     return `${name} о ${clock(l.boardMins, l.boardApprox)} ${l.boardLabel}`;
   }
-  if (l.kind === 'bus') return `автобус №${routeNo(l.routeId)} о ${clock(l.depMins)}`;
+  if (l.kind === 'bus') return `автобус №${routeNoIn(l.city, l.routeId)} о ${clock(l.depMins)}`;
   if (l.kind === 'metro') return l.closed ? null : metroPhrase(l);
   if (l.kind === 'ring') return `міська електричка ${l.ride.train} о ${clock(l.depMins)} з платформи «${l.ride.from.name}»`;
   if (l.kind === 'ride') return `попутка о ${clock(l.depMins)} ${l.boardLabel}`;
@@ -70,7 +70,7 @@ export function shareText(story: Story, stopName: (id: string) => string, header
       lines.push(`${clock(l.boardMins, l.boardApprox)} — ${name} ${l.boardLabel}${l.priceUah ? `, ${l.priceUah} ₴` : ''}`);
       lines.push(`${clock(l.alightMins, l.alightApprox)} — вийти ${l.alightLabel}`);
     } else if (l.kind === 'bus') {
-      lines.push(`${clock(l.depMins)} — автобус №${routeNo(l.routeId)} від «${stopName(l.fromStopId)}» до «${stopName(l.toStopId)}»`);
+      lines.push(`${clock(l.depMins)} — автобус №${routeNoIn(l.city, l.routeId)} від «${l.fromName ?? stopName(l.fromStopId)}» до «${l.toName ?? stopName(l.toStopId)}»`);
     } else if (l.kind === 'metro') {
       const first = l.segments[0];
       const last = l.segments[l.segments.length - 1];
