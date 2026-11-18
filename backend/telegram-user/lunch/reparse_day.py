@@ -167,6 +167,7 @@ def is_system_echo(text: str) -> bool:
         "Не вдалося",
         "Помилка OCR",
         "Нові замовлення не приймаються",
+        "Нагадування про оплату обіду",
     )
     if t.startswith(prefixes):
         return True

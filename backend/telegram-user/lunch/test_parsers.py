@@ -26,7 +26,10 @@ from lunch.ocr_menu import (
     scan_media_bytes,
     sniff_mime,
 )
+from lunch.debt_reminder import collector_ids, debtor_rows, is_canteen_call, is_debt_reminder
+from lunch.formatters import debtor_mention, format_debt_reminder
 from lunch.order_reply import PersonalOrderAction, decide_personal_order_action, ocr_enabled
+from lunch.reparse_day import is_system_echo
 from lunch.parse_order import looks_like_order, parse_order, parse_order_contextual
 from lunch.parse_payment import (
     is_cash_promise,
@@ -921,6 +924,83 @@ def test_cash_promise_and_receipt_link_phrases():
     assert receipt_links("https://send.monobank.ua/jar/abc") == []  # посилання на оплату — не чек
 
 
+def test_canteen_call_phrases():
+    """Так Андрій кличе скидати гроші перед столовою (з історії групи, 09–11.2026) — і схожі слова."""
+    for text in (
+        "Иду в столовую. Кидайте деньги", "Иду в столовую кидайте деньги 🫰", "В столовой, кидайте гроши",
+        "Иду в столовую. Кидайте  🫰", "Иду. Бросайте деньги", "Иду в столовую, кидайте деньги",
+        "Иду в столовую кидайте деньги срочно", "Иду в столовую. Кидайте гроши", "Иду в столовую.",
+        "Йду в їдальню, скидайте гроші", "Іду в столову", "Кидайте деньги", "Скидываем деньги на обед",
+        "Кто забыл скинуть за обед?", "Хто ще не скинув?", "ИДУ В СТОЛОВУЮ", "Пошел в столовую, переводите",
+    ):
+        assert is_canteen_call(text), text
+    # розмова, замовлення, оплата чи прохання до когось одного — не заклик до всіх
+    for text in (
+        "Ми так багато не заробляємо , є кеш тільки на столову", "сейчас заказ сделаю и скину сразу",
+        "я закинул андрею", "скинь кеш", "оплатив 150", "оплатив?", "Кидайте заказы", "Пюре, котлета",
+        "Завтра иду в столовую позже", "Сегодня не иду в столовую", "Кто скинул?", "",
+        "Можна писати тут оплатив і сумму і воно буде рахувати :)",
+    ):
+        assert not is_canteen_call(text), text
+
+
+def test_collector_is_andrii_by_default():
+    import os
+
+    old = os.environ.get("LUNCH_COLLECTOR_IDS")
+    try:
+        os.environ.pop("LUNCH_COLLECTOR_IDS", None)
+        assert collector_ids() == {"5040092113"}
+        os.environ["LUNCH_COLLECTOR_IDS"] = " 111, 222 ,"
+        assert collector_ids() == {"111", "222"}
+    finally:
+        if old is None:
+            os.environ.pop("LUNCH_COLLECTOR_IDS", None)
+        else:
+            os.environ["LUNCH_COLLECTOR_IDS"] = old
+
+
+def test_debt_reminder_text_mentions_debtors():
+    rows = [
+        {"display_name": "Юрій", "telegram_user_id": "6973751301", "username": None,
+         "total_uah": 175, "paid_uah": 0, "debt_uah": 175, "cash_promised": False},
+        {"display_name": "Аліна", "telegram_user_id": "820707048", "username": "@alina",
+         "total_uah": 140, "paid_uah": 95, "debt_uah": 45, "cash_promised": False},
+        {"display_name": "Марта", "telegram_user_id": "name:марта", "username": None,
+         "total_uah": 160, "paid_uah": 0, "debt_uah": 160, "cash_promised": True},
+    ]
+    text = format_debt_reminder(rows)
+    assert text.splitlines() == [
+        "Нагадування про оплату обіду — ще не скинули:",
+        "• [Юрій](tg://user?id=6973751301) — 175 грн",
+        "• Аліна (@alina) — 45 грн (заказ 140, оплачено 95)",
+        "• Марта — 160 грн — 💵 готівкою",
+        "Разом: 380 грн",
+        "Уже скинули? Надішліть сюди чек або напишіть «оплатив».",
+    ], text
+    assert is_debt_reminder(text)
+    assert format_debt_reminder([]) == "Нагадування про оплату обіду: боргів немає — усі розраховані ✅"
+    # квадратні дужки в імені не ламають markdown-посилання; нік без «@» і нік замість імені
+    assert debtor_mention("Оля [HR]", "5") == "[Оля (HR)](tg://user?id=5)"
+    assert debtor_mention("Іра", "5", "ira") == "Іра (@ira)"
+    assert debtor_mention("@ira", "5", "@ira") == "@ira"
+    # наше нагадування — не замовлення, не підсумок і не оплата, коли повертається в обробник
+    assert is_system_echo(text)
+    assert not looks_like_day_summary(text)
+
+
+def test_debtor_rows_skip_collector_and_dozazak():
+    rows = [
+        {"telegram_user_id": "5040092113", "debt_uah": 200},
+        {"telegram_user_id": "name:dozazak", "debt_uah": 60},
+        {"telegram_user_id": "1", "debt_uah": 0},
+        {"telegram_user_id": "2", "debt_uah": 90},
+    ]
+    debtors, any_orders = debtor_rows(rows, exclude_ids={"5040092113"})
+    assert [r["telegram_user_id"] for r in debtors] == ["2"] and any_orders
+    assert debtor_rows(rows[:2], exclude_ids={"5040092113"}) == ([], False)
+
+
 def test_ocr_workspace_header_for_org_level_key():
     """Ключ без воркспейсу → API вимагає anthropic-workspace-id (400 у проді 2026-11-10)."""
     import os
@@ -1023,6 +1103,10 @@ def main():
         test_ocr_ignores_photos_that_are_not_a_menu,
         test_ocr_refusal_and_oversized_files_raise,
         test_cash_promise_and_receipt_link_phrases,
+        test_canteen_call_phrases,
+        test_collector_is_andrii_by_default,
+        test_debt_reminder_text_mentions_debtors,
+        test_debtor_rows_skip_collector_and_dozazak,
         test_ocr_workspace_header_for_org_level_key,
         test_ocr_model_name_ignores_old_openai_setting,
         test_menu_from_photo_is_merged_into_the_days_menu,

@@ -26,6 +26,7 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from lunch.db import LunchDB, today_kyiv  # noqa: E402
+from lunch.debt_reminder import collector_ids, is_canteen_call, is_debt_reminder, remind_debtors  # noqa: E402
 from lunch.evidence import (  # noqa: E402
     apply_claim,
     apply_link,
@@ -269,6 +270,7 @@ async def run() -> None:
                 "Картка для оплати",
                 "Фото отримано",
                 "Зафіксовано людей:",
+                "Нагадування про оплату обіду",
             )
             if text.startswith(echo_prefixes) or ", заказ:" in text.lower() or ": зараховано " in text.lower() or ", сьогодні немає:" in text.lower():
                 return
@@ -443,6 +445,15 @@ async def run() -> None:
             else:
                 return
 
+        # --- «Иду в столовую. Кидайте деньги» від того, хто несе гроші → нагадати боржникам ---
+        # Далі повідомлення розбирається як завжди: заказ у тому ж тексті не губиться.
+        if uid and uid in collector_ids() and is_canteen_call(text):
+            try:
+                outcome = await remind_debtors(db, trigger_message_id=msg.id, collector_uid=uid)
+                print(f"[lunch] msg {msg.id} from {name}: іде в столову — нагадування боржникам: {outcome}")
+            except Exception as e:  # noqa: BLE001 — нагадування не повинне зривати розбір повідомлення
+                print(f"[lunch] msg {msg.id}: нагадування боржникам не вдалося: {e}", file=sys.stderr)
+
         # --- оплата ---
         pay = parse_payment(text)
         if pay:
@@ -594,7 +605,10 @@ async def run() -> None:
             from lunch.catch_up import catch_up_today
 
             stats = await catch_up_today(client, entity, db)
-            if stats.get("orders") or stats.get("payments") or stats.get("cards") or stats.get("resolved") or stats.get("partial"):
+            if (
+                stats.get("orders") or stats.get("payments") or stats.get("cards") or stats.get("resolved")
+                or stats.get("partial") or stats.get("reminder") == "queued"
+            ):
                 print(f"[lunch] catch-up ({reason}): {stats}")
         except Exception as e:  # noqa: BLE001 — дозбір не повинен валити слухача
             print(f"[lunch] catch-up ({reason}) failed: {e}", file=sys.stderr)
@@ -660,7 +674,8 @@ async def run() -> None:
                         await db.mark_outbound_sent(row["id"])
                         sent_id = getattr(sent, "id", None) if sent is not None else None
                         reply_to = row.get("reply_to_message_id")
-                        if sent_id and reply_to:
+                        # нагадування боржникам — відповідь збирачу, а не на замовлення: не прив'язуємо
+                        if sent_id and reply_to and not is_debt_reminder(row["text"]):
                             await db.set_order_reply_message_id_by_source(int(reply_to), int(sent_id))
                         print(f"[lunch] outbound sent id={row['id']} kind={kind}")
                     except Exception as e:

@@ -165,6 +165,45 @@ def format_debts(rows: Sequence[dict[str, Any]]) -> str:
     return "\n".join(lines)
 
 
+# Початок нагадування боржникам (debt_reminder.py). Ехо-фільтри слухача, розбору дня й адмінки
+# (reparse_day.is_system_echo, backend/src/lunch-people.ts) знають цей префікс — міняти разом.
+DEBT_REMINDER_HEADER = "Нагадування про оплату обіду"
+
+
+def debtor_mention(display_name: str, telegram_user_id: Any = None, username: Any = None) -> str:
+    """Ім'я, на яке Telegram сповістить людину: «Ім'я (@нік)» або markdown-згадка за числовим id.
+    Учасник лише з підсумку (id «name:…») — просто ім'я."""
+    name = (display_name or "?").replace("[", "(").replace("]", ")").replace("`", "'").strip() or "?"
+    nick = str(username or "").strip()
+    if nick:
+        nick = nick if nick.startswith("@") else f"@{nick}"
+        return nick if name.lower() == nick.lower() else f"{name} ({nick})"
+    uid = str(telegram_user_id or "").strip()
+    if uid.isdigit():
+        return f"[{name}](tg://user?id={uid})"
+    return name
+
+
+def format_debt_reminder(rows: Sequence[dict[str, Any]]) -> str:
+    """Відповідь на «Иду в столовую. Кидайте деньги»: хто ще не скинув за обід і скільки.
+    rows — рядки summary_rows з боргом > 0 (без самого збирача)."""
+    if not rows:
+        return f"{DEBT_REMINDER_HEADER}: боргів немає — усі розраховані ✅"
+    lines = [f"{DEBT_REMINDER_HEADER} — ще не скинули:"]
+    total = 0
+    for r in rows:
+        debt = int(r["debt_uah"])
+        total += debt
+        who = debtor_mention(r["display_name"], r.get("telegram_user_id"), r.get("username"))
+        paid = int(r.get("paid_uah") or 0)
+        part = f" (заказ {r['total_uah']}, оплачено {paid})" if paid > 0 else ""
+        cash = " — 💵 готівкою" if r.get("cash_promised") else ""
+        lines.append(f"• {who} — {debt} грн{part}{cash}")
+    lines.append(f"Разом: {total} грн")
+    lines.append("Уже скинули? Надішліть сюди чек або напишіть «оплатив».")
+    return "\n".join(lines)
+
+
 def format_day_closed_from_summary(
     named_count: int,
     dozazak: bool,

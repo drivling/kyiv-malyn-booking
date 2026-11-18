@@ -441,7 +441,11 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   «скинула гроші» / «оплатив» with no amount and no receipt does the same with `source = 'claim'` (the owner's
   decision; past tense in the first person only — «скину», «скиньте», a question are not payments);
   «віддам готівкою» sets `LunchOrder.cashPromised` and shows «💵 Готівкою» in our reply until paid — it is not a
-  payment. Every scanned message is journalled in `LunchMediaScan`, so catch-up after a listener pause (which now
+  payment. **Debt reminder** (`lunch/debt_reminder.py`): when the person who carries the money to the canteen
+  (`LUNCH_COLLECTOR_IDS`, default Андрій Кравченко `5040092113`) writes «Иду в столовую. Кидайте деньги» or similar, the
+  listener queues a reply listing today's debtors with mentions (not him, not «Дозаказ»); one per message, 10-min
+  cooldown, deduplicated in SQL (`enqueue_outbound_once`), and catch-up answers a missed call younger than 20 min. Its
+  header «Нагадування про оплату обіду» is in every echo filter (listener, `is_system_echo`, `lunch-people.ts`). Every scanned message is journalled in `LunchMediaScan`, so catch-up after a listener pause (which now
   also picks up a missed menu photo and receipts) and «Розібрати день» never ask the model twice; a failed scan is
   not journalled and is retried. Nothing is posted to the group for a receipt — «✅ Оплатив» appears as an edit of
   our reply. The reply text is built in two places that must stay identical: `lunch/formatters.py` and
