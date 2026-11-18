@@ -288,7 +288,10 @@ of `dist` in a commit.
   block — singleton `DovedeCitySettings.freshDays`, 1–365, `PUT /admin/dovede/city/settings`, cached for a minute) is
   served from `DovedeCityRoute` (`source: 'stored'`), otherwise
   Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`; daily cap — the field «Запитів до Google на день» in the admin
-  block, `DovedeCitySettings.dailyCap` 0–5000, else `DOVEDE_CITY_DAILY_CAP`, else 150) and the route, its lines
+  block, `DovedeCitySettings.dailyCap` 0–5000, else `DOVEDE_CITY_DAILY_CAP`, else 150; the count of the Kyiv day, the
+  people / learning split, people refused, the pause after Google's 429 / 401 / 403 and its last error text live in
+  `DovedeCityGoogleDay`, shared by every container — one `cityRoutes` instance per process is created in `index.ts` and
+  passed to `createApp`, so people and background learning share it too) and the route, its lines
   (`DovedeCityLine`), stops (`DovedeCityStop`) and the demand (`DovedeCityDemand`) are written to the DB. **Owner's
   decisions (2026-11-17):** Google answers are stored under his own contract with Google (switch `DOVEDE_CITY_STORE=0`,
   `DOVEDE_CITY_ROUTES=off`); the card never credits Google — every answer shows «перевірено N днів тому» (see below); **these tables are never deleted from — only archived** (`archivedAt`,

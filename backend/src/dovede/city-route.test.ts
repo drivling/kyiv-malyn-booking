@@ -77,8 +77,9 @@ function fakeDb() {
   const dovedeCityDemand = table(['cityCode', 'fromKey', 'toKey']);
   const dovedeCitySettings = table(['id']);
   const dovedeCityPlace = table(['cityCode', 'key']);
-  const prisma = { dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeCityPlace, $transaction: async (ops: Array<Promise<unknown>>) => Promise.all(ops) } as unknown as PrismaClient;
-  return { prisma, dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeCityPlace };
+  const dovedeCityGoogleDay = table(['day']);
+  const prisma = { dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeCityPlace, dovedeCityGoogleDay, $transaction: async (ops: Array<Promise<unknown>>) => Promise.all(ops) } as unknown as PrismaClient;
+  return { prisma, dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeCityPlace, dovedeCityGoogleDay };
 }
 
 const GOOGLE = {
@@ -542,7 +543,8 @@ test('квота Google (429) і збій — не вина пари: «лімі
   assert.deepEqual(await closed.find({ ...Q, to: 'Малеванка' }), { ok: false, fallback: 'maps', reason: 'denied' });
   assert.deepEqual(await closed.learnTick(3), { asked: 0, learned: 0 });
   assert.equal(denied.calls.length, 1);
-  assert.deepEqual([(await closed.stats()).googleError?.status, (await closed.stats()).googleError?.message, (await closed.stats()).callsToday], [403, 'Requests to this API routes.googleapis.com method google.maps.routing.v2.Routes.ComputeRoutes are blocked.', 0]);
+  // лічильник спільний (у базі): перший запит іншого екземпляра врахований, відмови 403 — ні
+  assert.deepEqual([(await closed.stats()).googleError?.status, (await closed.stats()).googleError?.message, (await closed.stats()).callsToday], [403, 'Requests to this API routes.googleapis.com method google.maps.routing.v2.Routes.ComputeRoutes are blocked.', 1]);
   assert.equal(dn.dovedeCityDemand.rows.every((r) => (r.learnFailedAt ?? null) === null), true);
 
   // 400 — Google не прийняв саме цю адресу: «дороги немає», і це вже вина пари
@@ -627,4 +629,35 @@ test('денний ліміт Google з адмінки: сильніший за 
   await assert.rejects(() => t.svc.setDailyCap(5001));
   await assert.rejects(() => t.svc.setDailyCap(-1));
   await assert.rejects(() => t.svc.setDailyCap(1.5));
+});
+
+test('облік Google — у базі й спільний: другий екземпляр бачить ліміт, паузу після відмови й текст; люди / навчання / відмовлено', async () => {
+  const db = fakeDb();
+  const net = fakeFetch();
+  const opts = { prisma: db.prisma, key: () => 'k', fetchImpl: net.fetchImpl, now: () => NOW, enabled: () => true, store: () => true, dailyCap: () => 3, ownRoute: () => null };
+  // два контейнери під час деплою — два обʼєкти над однією базою
+  const a = createCityRoutes(opts);
+  const b = createCityRoutes(opts);
+  assert.equal((await a.find(Q)).ok, true);
+  assert.equal((await b.find({ ...Q, to: 'Житній ринок' })).ok, true);
+  assert.equal((await b.find({ ...Q, to: 'Богунія' }, true)).ok, true);
+  // ліміт 3 вичерпано разом: четвертий запит не йде в Google ні з а, ні з b
+  assert.deepEqual(await a.find({ ...Q, to: 'Корбутівка' }), { ok: false, fallback: 'maps', reason: 'cap' });
+  assert.equal(net.calls.length, 3);
+  assert.deepEqual(db.dovedeCityGoogleDay.rows.map((r) => [r.day, r.calls, r.people, r.learn, r.refused]), [['2026-11-17', 3, 2, 1, 1]]);
+  const st = await b.stats();
+  assert.deepEqual([st.callsToday, st.today, st.blocked], [3, { people: 2, learn: 1, refused: 1 }, null]);
+
+  // відмова Google в одному екземплярі — пауза й текст видно в іншому (і після перезапуску)
+  const db2 = fakeDb();
+  const quota = fakeFetch({ error: { message: 'Quota exceeded' } }, false, 429);
+  const one = createCityRoutes({ ...opts, prisma: db2.prisma, fetchImpl: quota.fetchImpl, dailyCap: () => 100 });
+  assert.deepEqual(await one.find(Q), { ok: false, fallback: 'maps', reason: 'cap' });
+  const ok = fakeFetch();
+  const fresh = createCityRoutes({ ...opts, prisma: db2.prisma, fetchImpl: ok.fetchImpl, dailyCap: () => 100 });
+  assert.deepEqual(await fresh.find({ ...Q, to: 'Житній ринок' }), { ok: false, fallback: 'maps', reason: 'cap' });
+  assert.equal(ok.calls.length, 0);
+  const st2 = await fresh.stats();
+  assert.deepEqual([st2.googleError?.status, st2.googleError?.message, st2.blocked?.reason, st2.callsToday, st2.today.refused], [429, 'Quota exceeded', 'quota', 0, 2]);
+  assert.equal(st2.blocked?.until, new Date(NOW.getTime() + 10 * 60_000).toISOString());
 });

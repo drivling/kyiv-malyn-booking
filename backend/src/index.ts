@@ -37,7 +37,9 @@ function main(): void {
   let gpsJob: IntervalJob | null = null;
   let cityLearnJob: IntervalJob | null = null;
   let eltrainJob: IntervalJob | null = null;
-  const app = createApp({ prisma });
+  // «Доведе»: одна «дорога містом» на весь процес — для людей (роутер) і для фонового навчання нижче
+  const cityRoutes = cityRoutesFromEnv(prisma);
+  const app = createApp({ prisma, cityRoutes });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {
     if (row) console.log(`[transport-revisions] initial row ${row.revision}`);
@@ -161,7 +163,6 @@ function main(): void {
       );
       // «Доведе»: поступове навчання дороги містом (Київ, Житомир) — найзапитуваніші пари без свіжої відповіді,
       // у межах половини денного ліміту Google; DOVEDE_CITY_LEARN_INTERVAL_MIN (за замовч. 60, 0 = вимкнено)
-      const cityRoutes = cityRoutesFromEnv(prisma);
       cityLearnJob = startIntervalJob(
         'dovede-city-learn',
         async () => {

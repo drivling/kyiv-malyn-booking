@@ -26,6 +26,7 @@ import { createAdminDzhuraRouter } from './routes/admin-dzhura';
 import { createAdminDovedeRouter } from './routes/admin-dovede';
 import { createAdsRouter } from './routes/ads';
 import type { UnderstandFn } from './dovede/understand';
+import type { CityRoutes } from './dovede/city-route';
 import type { DovedeAccessConfig } from './dovede/access';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
@@ -52,6 +53,8 @@ export type CreateAppDeps = {
   dovedeUnderstand?: UnderstandFn | null;
   /** «Доведе»: хто відкриває сторінку (dovede/access.ts). Не задано — `DOVEDE_PUBLIC` / `DOVEDE_PASSWORD` */
   dovedeAccess?: DovedeAccessConfig;
+  /** «Доведе» · дорога містом: той самий обʼєкт, що й у фонового навчання (index.ts); немає — роутер створить свій */
+  cityRoutes?: CityRoutes;
   /** Стеження за джерелами розкладу (transport-source-watch.ts): тести підміняють мережу й сповіщення */
   sourceWatch?: Partial<SourceWatchDeps>;
 };
@@ -143,7 +146,8 @@ app.use(createAdminViberAnalyticsRouter({ prisma }));
 app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
 app.use(createAdminDzhuraRouter({ prisma }));
-app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess }));
+// одна «дорога містом» на весь сервер: лічильник Google, пауза після відмови й фонове навчання — спільні (index.ts)
+app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess, ...(deps.cityRoutes ? { cityRoutes: deps.cityRoutes } : {}) }));
 app.use(createAdsRouter({ prisma, adminPassword: ADMIN_PASSWORD, access: deps.dovedeAccess }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
 app.use(

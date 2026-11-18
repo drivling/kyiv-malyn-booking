@@ -1398,6 +1398,27 @@ model DovedeCityPlace {
   @@unique([cityCode, key], map: "DovedeCityPlace_key")
 }
 
+/// Запити до Google Routes за київську добу (`day` = 'YYYY-MM-DD'): спільний лічильник для всіх контейнерів, людей,
+/// фонового навчання й обходу; пауза після відмови Google і остання відмова з її текстом. Рядки не видаляються
+model DovedeCityGoogleDay {
+  day              String    @id
+  /// усі запити, що пішли в Google (і «маршруту немає» теж); відмову 429 / 401 / 403 не рахуємо
+  calls            Int       @default(0)
+  /// з них — питання людей
+  people           Int       @default(0)
+  /// з них — навчання (фонове, `learn=1` обходу)
+  learn            Int       @default(0)
+  /// скільки людям того дня не дали дорогу через ліміт чи квоту
+  refused          Int       @default(0)
+  /// Google відмовив усім одразу — до цього моменту не питаємо; причина: quota (429) | denied (401 / 403)
+  blockedUntil     DateTime?
+  blockedReason    String?
+  lastErrorStatus  Int?
+  lastErrorMessage String?
+  lastErrorAt      DateTime?
+  updatedAt        DateTime  @default(now()) @updatedAt
+}
+
 /// Налаштування дороги містом (singleton id=1): редагуються в адмінці «Місто: що вже знаємо», без редеплою
 model DovedeCitySettings {
   id        Int      @id

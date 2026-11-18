@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { DovedeCityStats } from '@/types';
 import { DovedeCityPlaces } from './DovedeCityPlaces';
-import { googleErrorLine } from './dovede/googleError';
+import { googleErrorLine, quotaTime } from './dovede/googleError';
 
 const CITY: Record<string, string> = { Kyiv: 'Київ', Zhytomyr: 'Житомир' };
 const SOURCE: Record<string, string> = { google: 'з Google', own: 'свої', open: 'відкриті дані' };
@@ -142,7 +142,9 @@ export const DovedeCityPanel: React.FC<{ defaultOpen?: boolean }> = ({ defaultOp
               data.enabled ? null : 'Пошук містом вимкнено (DOVEDE_CITY_ROUTES=off)',
               data.hasKey ? null : 'немає ключа GOOGLE_MAPS_API_KEY — відповідаємо лише з бази',
               data.store ? null : 'запис у базу вимкнено (DOVEDE_CITY_STORE=0)',
-              `запитів до Google сьогодні: ${data.callsToday} з ${data.dailyCap}`,
+              `запитів до Google сьогодні: ${data.callsToday} з ${data.dailyCap}${data.today && data.callsToday ? ` (люди ${data.today.people}, навчання ${data.today.learn})` : ''}`,
+              data.today?.refused ? `людям відмовили через ліміт: ${data.today.refused}` : null,
+              data.blocked ? `Google не питаємо до ${quotaTime(data.blocked.until)} — ${data.blocked.reason === 'quota' ? 'вичерпано квоту' : 'відмовлено в доступі'}` : null,
               data.googleError ? googleErrorLine(data.googleError) : null,
               data.staleRoutes ? `застаріло доріг: ${data.staleRoutes} — ${data.refresh ? 'сервер оновлює їх сам, потроху щогодини' : 'оновлення вимкнено (DOVEDE_CITY_REFRESH=0)'}` : null,
               data.archivedRoutes ? `в архіві маршрутів: ${data.archivedRoutes}` : null,
