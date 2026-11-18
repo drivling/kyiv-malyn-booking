@@ -12,7 +12,7 @@ import type { GazetteerPlace } from '../nlu/gazetteer';
 import { stopBaseName, type StopLike, type StopPlace } from '../nlu/stopPlaces';
 import { resolvePlace } from '../nlu/places';
 import { tokenize } from '../nlu/normalize';
-import type { PlaceRef, TripIntent } from '../nlu/types';
+import type { ParseSpan, PlaceRef, TripIntent } from '../nlu/types';
 import type { TripShape } from '../compose/composeStories';
 
 export const KOROSTEN = 'Korosten';
@@ -196,6 +196,19 @@ export function combineCorridor(malyn: TripIntent, korosten: TripIntent, index: 
   const known = [korosten.from, korosten.to].filter((r): r is PlaceRef => Boolean(r && kp(r))).map((r) => r.text.toLowerCase()).join(' ');
   const unknown = malyn.unknown.filter((w) => !known.includes(w.toLowerCase()));
   return { ...malyn, [side]: ref, [other]: malynRef, unknown };
+}
+
+/**
+ * Підсвічування поля на сторінці Малина, коли питання про Коростень: до малинських шматків додаються «звідки / куди»
+ * коростенського розбору («Пашин», «міськлікарні»). Малинський шматок місця чи часу лишається; «невідоме» слово, яке
+ * впізнав коростенський словник, стає місцем.
+ */
+export function mergeKorostenSpans(malyn: ParseSpan[], korosten: ParseSpan[]): ParseSpan[] {
+  const overlaps = (a: ParseSpan, b: ParseSpan) => a.start < b.end && b.start < a.end;
+  const places = korosten.filter((k) => k.kind === 'from' || k.kind === 'to');
+  const added = places.filter((k) => !malyn.some((m) => m.kind !== 'unknown' && overlaps(m, k)));
+  const kept = malyn.filter((m) => m.kind !== 'unknown' || !added.some((k) => overlaps(m, k)));
+  return [...kept, ...added].sort((a, b) => a.start - b.start);
 }
 
 /** Питання називає інше місто (Малин, Київ…) — у режимі Коростеня це вже не питання про місто Коростень */

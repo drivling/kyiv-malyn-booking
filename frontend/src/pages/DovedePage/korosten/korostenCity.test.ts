@@ -13,6 +13,7 @@ import {
   combineCorridor,
   isKorostenQuestion,
   korostenStopByLabel,
+  mergeKorostenSpans,
   isMalynKorostenTrip,
   korostenShape,
   mentionsOtherCity,
@@ -188,5 +189,30 @@ describe('combineCorridor: два розбори одного питання →
     expect(korostenStopByLabel(index, 'Міськлікарня')).toBe('st_1079');
     expect(korostenStopByLabel(index, 'Пашини')).toBe('st_1087');
     expect(korostenStopByLabel(index, 'Паперова фабрика')).toBeNull();
+  });
+});
+
+describe('mergeKorostenSpans: підсвічування коростенських слів на сторінці Малина', () => {
+  const malynIndex = buildStopPlaces(malynStopsFile.stops);
+  const malynRoutes = malynRoutesFile.routes as RouteLike[];
+  beforeAll(() => setStopPlaces(malynIndex));
+  afterAll(() => setStopPlaces(index));
+  const marked = (q: string) =>
+    mergeKorostenSpans(parseLocal(q, now, malynIndex, malynRoutes).spans, parseLocal(q, now, index).spans).map((s) => `${s.kind}:${q.slice(s.start, s.end)}`);
+
+  it('коростенські місця підсвічені; «невідоме» слово стає місцем; малинське лишається малинським', () => {
+    // шматок місця бере й прийменник, як і в малинському розборі
+    expect(marked('з Паперової фабрики в Коростень до міськлікарні')).toEqual(['from:з Паперової', 'to:в Коростень', 'to:до міськлікарні']);
+    const pashyny = marked('з Пашин до Паперової фабрики');
+    expect(pashyny[0]).toBe('from:з Пашин');
+    expect(pashyny.some((x) => x.startsWith('unknown:'))).toBe(false);
+    expect(pashyny.some((x) => x.startsWith('to:') && x.includes('Паперової'))).toBe(true);
+  });
+
+  it('шматки не перекриваються', () => {
+    for (const q of ['з вокзалу в Коростень', 'як з Малина доїхати до Коростеня до Грозиного', 'з міськлікарні Коростеня на автостанцію о 9']) {
+      const spans = mergeKorostenSpans(parseLocal(q, now, malynIndex, malynRoutes).spans, parseLocal(q, now, index).spans);
+      for (let i = 1; i < spans.length; i++) expect(spans[i].start, q).toBeGreaterThanOrEqual(spans[i - 1].end);
+    }
   });
 });
