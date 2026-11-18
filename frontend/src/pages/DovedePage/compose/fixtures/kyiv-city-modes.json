@@ -1,0 +1,439 @@
+{
+ "about": "Справжні відповіді GET /dovede/city-route (наша база, Київ, 2026-11-18) — по одній на вид транспорту. Оновлювати лише новою відповіддю сервера, руками не правити.",
+ "answers": {
+  "funicular": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "kyiv.m.poshtova",
+    "to": "Михайлівська площа",
+    "date": "2026-11-19",
+    "time": "12:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "метро «Поштова площа»",
+    "toLabel": "Михайлівська площа",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 110,
+      "minutes": 2
+     },
+     {
+      "kind": "transit",
+      "line": "Фунікулер",
+      "mode": "FUNICULAR",
+      "color": "#eb8c81",
+      "stops": 1,
+      "agency": "KП \"Київпастранс\"",
+      "toStop": "Верхня станція",
+      "minutes": 1,
+      "fromStop": "Нижняя станция",
+      "headsign": "Верхня станція",
+      "headwayMin": 4
+     },
+     {
+      "kind": "walk",
+      "meters": 250,
+      "minutes": 4
+     }
+    ],
+    "minutes": 9,
+    "fetchedAt": "2026-11-18T11:09:52.856Z"
+   }
+  },
+  "funicular_down": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "Михайлівська площа",
+    "to": "Контрактова площа",
+    "date": "2026-11-19",
+    "time": "12:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "Михайлівська площа",
+    "toLabel": "Контрактова площа",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 250,
+      "minutes": 4
+     },
+     {
+      "kind": "transit",
+      "line": "Фунікулер",
+      "mode": "FUNICULAR",
+      "color": "#eb8c81",
+      "stops": 1,
+      "agency": "KП \"Київпастранс\"",
+      "toStop": "Нижняя станция",
+      "minutes": 1,
+      "fromStop": "Верхня станція",
+      "headsign": "Нижня станція",
+      "headwayMin": 4
+     },
+     {
+      "kind": "walk",
+      "meters": 690,
+      "minutes": 10
+     }
+    ],
+    "minutes": 18,
+    "fetchedAt": "2026-11-18T11:09:53.777Z"
+   }
+  },
+  "tram": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "kyiv.m.kontraktova",
+    "to": "Пуща-Водиця",
+    "date": "2026-11-19",
+    "time": "12:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "метро «Контрактова площа»",
+    "toLabel": "Пуща-Водиця",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 240,
+      "minutes": 4
+     },
+     {
+      "kind": "transit",
+      "line": "12",
+      "mode": "TRAM",
+      "color": "#eb8c81",
+      "stops": 31,
+      "agency": "KП \"Київпастранс\"",
+      "toStop": "6-а лінія",
+      "minutes": 60,
+      "fromStop": "вул. Ярославська",
+      "headsign": "Пуща-Водиця"
+     },
+     {
+      "kind": "walk",
+      "meters": 220,
+      "minutes": 3
+     }
+    ],
+    "minutes": 67,
+    "fetchedAt": "2026-11-18T11:09:54.202Z"
+   }
+  },
+  "tram_podil": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "kyiv.sviatoshyn",
+    "to": "Інститут нейрохірургії",
+    "date": "2026-11-19",
+    "time": "09:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "метро «Святошин»",
+    "toLabel": "Інститут нейрохірургії",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 180,
+      "minutes": 3
+     },
+     {
+      "kind": "transit",
+      "line": "1",
+      "mode": "SUBWAY",
+      "color": "#dd2616",
+      "stops": 2,
+      "agency": "КП \"Київський метрополітен\"",
+      "toStop": "Берестейська",
+      "minutes": 4,
+      "fromStop": "Святошин",
+      "headsign": "Лісова"
+     },
+     {
+      "kind": "walk",
+      "meters": 200,
+      "minutes": 3
+     },
+     {
+      "kind": "transit",
+      "line": "14",
+      "mode": "TRAM",
+      "color": "#eb8c81",
+      "stops": 8,
+      "agency": "KП \"Київпастранс\"",
+      "toStop": "вул. Довнар-Запольського",
+      "minutes": 16,
+      "fromStop": "ст. м. Берестейська",
+      "headsign": "пл. Контрактова"
+     },
+     {
+      "kind": "walk",
+      "meters": 1080,
+      "minutes": 16
+     }
+    ],
+    "minutes": 47,
+    "fetchedAt": "2026-11-17T23:22:10.129Z"
+   }
+  },
+  "speed_tram": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "Інститут Шалімова",
+    "to": "kyiv.pas",
+    "date": "2026-11-19",
+    "time": "09:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "Інститут Шалімова",
+    "toLabel": "вокзал Київ-Пасажирський",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 550,
+      "minutes": 7
+     },
+     {
+      "kind": "transit",
+      "line": "1",
+      "mode": "TRAM",
+      "color": "#eb8c81",
+      "stops": 6,
+      "agency": "KП \"Київпастранс\"",
+      "toStop": "станція \"Старовокзальна\"",
+      "minutes": 17,
+      "fromStop": "станція \"Академіка Шалімова\"",
+      "headsign": "станція \"Старовокзальна\""
+     },
+     {
+      "kind": "walk",
+      "meters": 360,
+      "minutes": 5
+     }
+    ],
+    "minutes": 29,
+    "fetchedAt": "2026-11-17T23:27:15.503Z"
+   }
+  },
+  "trolleybus": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "kyiv.pas",
+    "to": "Національний військово-медичний клінічний центр",
+    "date": "2026-11-19",
+    "time": "09:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "вокзал Київ-Пасажирський",
+    "toLabel": "Національний військово-медичний клінічний центр",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 180,
+      "minutes": 3
+     },
+     {
+      "kind": "transit",
+      "line": "14",
+      "mode": "TROLLEYBUS",
+      "color": "#0051f2",
+      "stops": 11,
+      "agency": "KП \"Київпастранс\"",
+      "toStop": "Військовий шпиталь",
+      "minutes": 23,
+      "fromStop": "Залізничний вокзал \"Центральний\"",
+      "headsign": "Ботанічний сад"
+     },
+     {
+      "kind": "walk",
+      "meters": 160,
+      "minutes": 2
+     }
+    ],
+    "minutes": 28,
+    "fetchedAt": "2026-11-17T23:22:43.504Z"
+   }
+  },
+  "bus": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "kyiv.m.kontraktova",
+    "to": "вулиця Глибочицька 40",
+    "date": "2026-11-19",
+    "time": "12:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "метро «Контрактова площа»",
+    "toLabel": "вулиця Глибочицька 40",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 200,
+      "minutes": 3
+     },
+     {
+      "kind": "transit",
+      "line": "820",
+      "mode": "BUS",
+      "stops": 4,
+      "agency": "ППІ \"Надія-2000\"",
+      "toStop": "узвіз Кудрявський",
+      "minutes": 3,
+      "fromStop": "вул. Нижній Вал - ст. м. Контрактова площа",
+      "headsign": "Вишневе"
+     },
+     {
+      "kind": "walk",
+      "meters": 230,
+      "minutes": 4
+     }
+    ],
+    "minutes": 10,
+    "fetchedAt": "2026-11-18T11:09:54.630Z"
+   }
+  },
+  "ring": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "kyiv.pas",
+    "to": "вулиця Сім’ї Сосніних 9",
+    "date": "2026-11-19",
+    "time": "12:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "вокзал Київ-Пасажирський",
+    "toLabel": "вулиця Сім’ї Сосніних 9",
+    "steps": [
+     {
+      "kind": "transit",
+      "line": "Kyiv City Express",
+      "mode": "HEAVY_RAIL",
+      "stops": 3,
+      "agency": "Укрзалізниця",
+      "toStop": "Борщагівка",
+      "minutes": 18,
+      "fromStop": "Північна",
+      "headsign": "E2 (Караваєвi Дачі)"
+     },
+     {
+      "kind": "walk",
+      "meters": 1530,
+      "minutes": 20
+     }
+    ],
+    "minutes": 39,
+    "fetchedAt": "2026-11-18T11:09:55.309Z"
+   }
+  },
+  "share_taxi": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "Платформа Куренівка",
+    "to": "Платформа Русанівка",
+    "date": "2026-11-19",
+    "time": "12:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "Платформа Куренівка",
+    "toLabel": "Платформа Русанівка",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 110,
+      "minutes": 1
+     },
+     {
+      "kind": "transit",
+      "line": "575",
+      "mode": "SHARE_TAXI",
+      "color": "#e6b82e",
+      "stops": 34,
+      "agency": "ПП \"Парк\"",
+      "toStop": "вул. Володимирська",
+      "minutes": 48,
+      "fromStop": "вул. Замковецька",
+      "headsign": "вул. Терещенківська",
+      "headwayMin": 30
+     },
+     {
+      "kind": "transit",
+      "line": "118Д",
+      "mode": "BUS",
+      "stops": 13,
+      "agency": "KП \"Київпастранс\"",
+      "toStop": "бул. Ігоря Шамо",
+      "minutes": 27,
+      "fromStop": "вул. Володимирська",
+      "headsign": "ст. м. Лісова"
+     },
+     {
+      "kind": "walk",
+      "meters": 720,
+      "minutes": 11
+     }
+    ],
+    "minutes": 119,
+    "fetchedAt": "2026-11-18T11:09:55.749Z"
+   }
+  },
+  "rail": {
+   "ask": {
+    "city": "Kyiv",
+    "from": "Райдужний масив, вулиця Каштанова",
+    "to": "Київ-Деміївський вокзал",
+    "date": "2026-11-19",
+    "time": "12:00"
+   },
+   "route": {
+    "source": "stored",
+    "fromLabel": "Райдужний масив, вулиця Каштанова",
+    "toLabel": "Київ-Деміївський вокзал",
+    "steps": [
+     {
+      "kind": "walk",
+      "meters": 540,
+      "minutes": 7
+     },
+     {
+      "kind": "transit",
+      "line": "44",
+      "mode": "BUS",
+      "stops": 26,
+      "agency": "KП \"Київпастранс\"",
+      "toStop": "станція Березняки",
+      "minutes": 47,
+      "fromStop": "вул. Каштанова",
+      "headsign": "станція Березняки"
+     },
+     {
+      "kind": "walk",
+      "meters": 260,
+      "minutes": 4
+     },
+     {
+      "kind": "transit",
+      "line": "6809",
+      "mode": "HEAVY_RAIL",
+      "stops": 2,
+      "agency": "Укрзалізниця",
+      "toStop": "Київ-Деміївський",
+      "minutes": 11,
+      "fromStop": "Березняки",
+      "headsign": "Видубичi"
+     }
+    ],
+    "minutes": 80,
+    "fetchedAt": "2026-11-18T11:09:56.279Z"
+   }
+  }
+ }
+}

@@ -146,6 +146,21 @@ export type StoryLeg =
       arrMins: number | null;
       mapsUrl: string;
     }
+  | {
+      /**
+       * Одна поїздка з відповіді сервера (Google) містом — автобус, маршрутка, тролейбус, трамвай, фунікулер,
+       * приміська електричка: картка за видом транспорту (`ui/CityRideCard.tsx`). Метро й міську електричку Києва
+       * складальник замінює своїми (`compose/cityTransit.ts`). Час — завжди приблизний.
+       */
+      kind: 'cityRide';
+      city: CityCode;
+      step: CityStep;
+      depMins: number;
+      arrMins: number;
+      /** лише в останній поїздці відповіді: коли її звіряли (ISO) і посилання на карту всієї дороги */
+      checkedAt: string | null;
+      mapsUrl: string | null;
+    }
   | { kind: 'wait'; text: string };
 
 export type CityCode = 'Kyiv' | 'Zhytomyr';
