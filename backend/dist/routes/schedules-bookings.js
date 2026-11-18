@@ -17,6 +17,8 @@ const phone_block_1 = require("../phone-block");
 const schedule_price_1 = require("../schedule-price");
 const schedule_trip_1 = require("../schedule-trip");
 const schedule_timetable_sync_1 = require("../schedule-timetable-sync");
+const eltrain_sync_1 = require("../eltrain-sync");
+const swrailway_eltrain_1 = require("../swrailway-eltrain");
 const phone_booking_1 = require("../phone-booking");
 async function buildAvailabilityPayload(prisma, schedule, date) {
     if (schedule.vehicleType === 'elektrichka') {
@@ -290,6 +292,31 @@ function createSchedulesBookingsRouter(deps) {
             }
             console.error('timetable-preview failed', error);
             res.status(500).json({ error: 'Failed to build timetable preview' });
+        }
+    });
+    /**
+     * Електрички з ПЗЗ для всіх пар лінії Київ – Малин – Коростень: нові, змінені, скасовані (те саме робить
+     * фонова задача eltrain-sync). `dryRun` — лише звіт; `force` — застосувати, навіть коли зникла б більша
+     * частина рейсів пари; `pages` — збережені HTML-сторінки, якщо сайт недоступний із сервера.
+     */
+    r.post('/schedules/eltrain-sync', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const pages = (0, schedule_timetable_sync_1.parseTimetablePages)(req.body?.pages);
+            const provided = new Map(pages.map((p) => [p.url, p.html]));
+            const report = await (0, eltrain_sync_1.runEltrainSync)(prisma, {
+                dryRun: req.body?.dryRun === true,
+                force: req.body?.force === true,
+                fetchPage: async (url) => provided.get(url) ?? (0, swrailway_eltrain_1.fetchEltrainPage)(url),
+            });
+            res.json(report);
+        }
+        catch (error) {
+            const status = error.status ?? 500;
+            if (status >= 400 && status < 500) {
+                return res.status(status).json({ error: error instanceof Error ? error.message : 'Bad request' });
+            }
+            console.error('eltrain-sync failed', error);
+            res.status(500).json({ error: 'Failed to sync elektrichka timetable' });
         }
     });
     /** Apply selected patches from a preview token (fail-all on unique conflicts). */

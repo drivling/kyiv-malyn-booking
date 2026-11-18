@@ -16,6 +16,7 @@ const booking_reminders_1 = require("./booking-reminders");
 const listing_match_jobs_1 = require("./listing-match-jobs");
 const transport_source_watch_1 = require("./transport-source-watch");
 const transport_gps_1 = require("./transport-gps");
+const eltrain_sync_1 = require("./eltrain-sync");
 var create_app_2 = require("./create-app");
 Object.defineProperty(exports, "CODE_VERSION", { enumerable: true, get: function () { return create_app_2.CODE_VERSION; } });
 Object.defineProperty(exports, "createApp", { enumerable: true, get: function () { return create_app_2.createApp; } });
@@ -31,6 +32,7 @@ function main() {
     let sourceWatchJob = null;
     let gpsJob = null;
     let cityLearnJob = null;
+    let eltrainJob = null;
     const app = (0, create_app_1.createApp)({ prisma });
     // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
     void (0, transport_revisions_1.ensureInitialTransportRevision)(prisma).then((row) => {
@@ -124,6 +126,12 @@ function main() {
                     if (r.error)
                         console.log(`🛰️ GPS ${r.cityCode}: ${r.error}`);
             }, { intervalMin: Number(process.env.TRANSPORT_GPS_INTERVAL_MIN ?? 1), firstDelayMs: 90000 });
+            // Електрички з розкладу ПЗЗ (swrailway.gov.ua): нові / змінені / скасовані рейси Київ – Малин – Коростень,
+            // зміни й нові проблеми → адмін-чат; ELTRAIN_SYNC_INTERVAL_MIN (за замовч. 360, 0 = вимкнено)
+            const eltrainTick = (0, eltrain_sync_1.createEltrainSyncTick)(prisma, { notify: telegram_1.sendAdminAlertHtml });
+            eltrainJob = (0, interval_job_1.startIntervalJob)('eltrain-sync', async () => {
+                await eltrainTick();
+            }, { intervalMin: Number(process.env.ELTRAIN_SYNC_INTERVAL_MIN ?? 360), firstDelayMs: 10 * 60000 });
             // «Доведе»: поступове навчання дороги містом (Київ, Житомир) — найзапитуваніші пари без свіжої відповіді,
             // у межах половини денного ліміту Google; DOVEDE_CITY_LEARN_INTERVAL_MIN (за замовч. 60, 0 = вимкнено)
             const cityRoutes = (0, city_route_1.cityRoutesFromEnv)(prisma);
@@ -144,6 +152,7 @@ function main() {
         sourceWatchJob?.stop();
         gpsJob?.stop();
         cityLearnJob?.stop();
+        eltrainJob?.stop();
         // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
         await (0, lunch_listener_1.stopLunchListenerAndWait)(3000);
         await lease?.stop();

@@ -32,6 +32,8 @@ import {
   type VehicleType,
 } from '../schedule-trip';
 import { applyTimetablePreview, buildTimetablePreview, parseTimetablePages } from '../schedule-timetable-sync';
+import { runEltrainSync } from '../eltrain-sync';
+import { fetchEltrainPage } from '../swrailway-eltrain';
 import { PHONE_ONLY_NOTICE_TEXT, isPhoneOnlyBooking } from '../phone-booking';
 
 async function buildAvailabilityPayload(
@@ -352,6 +354,31 @@ export function createSchedulesBookingsRouter(deps: {
       }
       console.error('timetable-preview failed', error);
       res.status(500).json({ error: 'Failed to build timetable preview' });
+    }
+  });
+
+  /**
+   * Електрички з ПЗЗ для всіх пар лінії Київ – Малин – Коростень: нові, змінені, скасовані (те саме робить
+   * фонова задача eltrain-sync). `dryRun` — лише звіт; `force` — застосувати, навіть коли зникла б більша
+   * частина рейсів пари; `pages` — збережені HTML-сторінки, якщо сайт недоступний із сервера.
+   */
+  r.post('/schedules/eltrain-sync', requireAdmin, async (req, res) => {
+    try {
+      const pages = parseTimetablePages(req.body?.pages);
+      const provided = new Map(pages.map((p) => [p.url, p.html]));
+      const report = await runEltrainSync(prisma, {
+        dryRun: req.body?.dryRun === true,
+        force: req.body?.force === true,
+        fetchPage: async (url) => provided.get(url) ?? fetchEltrainPage(url),
+      });
+      res.json(report);
+    } catch (error) {
+      const status = (error as { status?: number }).status ?? 500;
+      if (status >= 400 && status < 500) {
+        return res.status(status).json({ error: error instanceof Error ? error.message : 'Bad request' });
+      }
+      console.error('eltrain-sync failed', error);
+      res.status(500).json({ error: 'Failed to sync elektrichka timetable' });
     }
   });
 

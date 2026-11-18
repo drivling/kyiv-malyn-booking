@@ -1,0 +1,3531 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html><head>
+<title>РОЗКЛАД РУХУ Приміських поїздів</title>
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="keywords" content="Південно-Західна залізниця,розклад, поїзди, приміських поїздів, розклад руху електропоїздів, розклад руху поїздів, укрзалізниця">
+<link rel="stylesheet" type="text/css" href="/modules/css/eltrain-way.css"><link rel="stylesheet" type="text/css" href="/modules/js/jquery-ui/jquery-ui.min.css"><link rel="stylesheet" type="text/css" href="/modules/js/leaflet/leaflet.css"><link rel="stylesheet" type="text/css" href="/modules/js/leaflet/Control.FullScreen.css"><link rel="stylesheet" type="text/css" href="/modules/css/eltrain.css"><link rel="stylesheet" type="text/css" href="/modules/css/style.css"><link rel="stylesheet" type="text/css" href="/modules/css/mystyle.css"><link rel="stylesheet" type="text/css" href="/modules/css/tpagemenu/css/site-top.css"><script language="JavaScript" src="/modules/js/jquery.min.js" type="text/javascript"></script><script language="JavaScript" src="/modules/js/jquery-ui/jquery-ui.min.js" type="text/javascript"></script><script language="JavaScript" src="/modules/js/jquery-ui/datepicker-uk.js" type="text/javascript"></script><script language="JavaScript" src="/modules/js/rsi_autocomplete_class.js" type="text/javascript"></script><script language="JavaScript" src="/modules/js/leaflet/leaflet.js" type="text/javascript"></script><script language="JavaScript" src="/modules/js/leaflet/Control.FullScreen.js" type="text/javascript"></script><script language="JavaScript" src="/modules/js/direction-atmap.js?v=x103" type="text/javascript"></script><script language="JavaScript" src="/modules/css/tpagemenu/js/TPageMenu.js" type="text/javascript"></script><script language="JavaScript" src="/modules/js/utils.js" type="text/javascript"></script>
+</head>
+<BODY onload="" bottomMargin=0 bgColor=#ffffff leftMargin=0 topMargin=0 align="center" marginheight="0" marginwidth="0" rigthmargin="0">
+<TABLE width="990" HEIGHT="100%" cellspacing="0" cellpadding="0" align=center>
+<TR>
+<TD height=10><TABLE cellSpacing=0 cellPadding=0 width="100%"
+  border=0 align=center><TBODY>
+  <TR vAlign=top>
+<TD width=1 background="/img/bg_dotv.gif" height="100%"><IMG height=1 alt="" src="/img/spacer.gif" width=1 border=0></TD>
+    <TD><TABLE cellSpacing=0 cellPadding=0 width=100% border=0 align=center>
+        <TBODY>
+        <TR>
+          <TD><table cellpadding=0 cellspacing=0 border=0 width=100%>
+           <tr><td width=223 style='background-color:#DEF1FE'>
+           <A class=lang title='НА ГОЛОВНУ СТОРІНКУ' href="/"><img src='/img/Logo-net.jpg' width=223 height=146 border=0></A></td>
+           <td><img src="/img/vokzal-net.jpg" width=100% height=146 border=0></td>
+          </tr></table></TD></TR>
+         <TR><TD id="menujs" name="menujs" style="height:26px;background-color:#6CACD8;text-align:center;font-family: Tahoma; font-size: 11px; font-weight: bold; color: White;z-index:10;" >
+         Завантаження меню ... <NOSCRIPT>Відображення меню неможливо - у вас відключено JavaScript</NOSCRIPT>
+         </TD></TR></TBODY></TABLE>
+</TD>
+</TR>
+</TABLE>
+  <script language="JavaScript">
+  <!--
+      //Создание объекта меню
+      K = new TPageMenu;
+      //Промежуток между меню в пикселах
+      K.MenuSpacing = 5;
+      K.SubMenuSpacing = 1;
+      //Смещение тени
+      K.ShadowOffsetX = 3;
+      K.ShadowOffsetY = 3;
+      //Задержки перед появлением и исчезновением меню
+      K.ShowDelay = 150;
+      K.HideDelay = 400;
+      //Задание структуры меню
+      K.addItem("Про нас", "/head/", false);K.Items[0].addItem("Загальна інформація", "/head/general/", false);K.Items[0].addItem("Керівництво", "/head/managment/", false);K.Items[0].addItem("Дорпрофсож", "/head/dorpr/", false);K.addItem("НОВИНИ та ІНТЕРВ'Ю", "/newsline/", false);K.addItem("Перевезення вантажів", "/M/", false);K.Items[2].addItem("Правила перевезення вантажів", "/M/pravila/", false);K.Items[2].addItem("Роботи, послуги за вільними тарифами", "/M/victory_tar/", false);K.Items[2].addItem("Укладання договорів на залізниці", "/M/cod_doc/", false);K.Items[2].addItem("Перелік послуг, які надаються комерційним господарством", "/M/poslygi/", false);K.Items[2].addItem("Послуги Жмеринської механізованої дистанції навантажувально-розвантажувальних робіт", "/M/posl_jmer/", false);K.Items[2].addItem("Станції, відкриті для вантажних операцій на місцях загального користування", "/M/st/", false);K.Items[2].addItem("Перелік осіб, яким надається право дозволу на переадресування вантажів", "/M/perelik_osib/", false);K.Items[2].addItem("Структурний підрозділ служба статистики", "/M/statistics/", false);K.addItem("Послуги", "/poslugi/", false);K.addItem("РОЗКЛАД РУХУ", "/timetable/", false);K.Items[4].addItem("РОЗКЛАД РУХУ Приміських поїздів", "/timetable/eltrain/", false);K.addItem("Кваліфікаційний центр", "/kvalc/", false);
+      //Вставка объекта в указанный тег HTML
+      K.insertElementIn("menujs", "top", true);
+  //-->
+  </script></TD>
+</TR>
+<TR><TD>
+ <table width=100% height=100% cellspacing="0" cellpadding="0">
+ <tr>
+ <TD width=1 background="/img/bg_dotv.gif" height="30"><IMG height=1 alt="" src="/img/spacer.gif" width=1></TD>
+ <TD valign=top width=100%  height="30">
+  <ul style="margin-top:7px;margin-left:26px;margin-bottom:7px;"><li><font color=darkgray><a href='/' class=status>Головна</a> <img src='/img/arrows2.gif'> <a href='/timetable/'>РОЗКЛАД РУХУ</a> <img src='/img/arrows2.gif'> РОЗКЛАД РУХУ Приміських поїздів</font></ul>
+ </td>
+ <TD width=1 background="/img/bg_dotv.gif" height="30"><IMG height=1 alt="" src="/img/spacer.gif" width=1></TD>
+ </tR>
+  <tr>
+ <TD width=1 background="/img/bg_dotv.gif" height="30"><IMG height=1 alt="" src="/img/spacer.gif" width=1></TD>
+ <TD width=100% valign=top>
+  <table width=100% cellspacing="3" cellpadding="3">
+   <tr><td>
+   <style>
+input.geoandstation { font-size:16px;}
+input.train { font-size:16px; width:190px;}
+</style>
+<table width=100% border=0 cellSpacing=0 cellPadding=0 >
+<tr><td nowrap>
+<a href='.'><font color=silver size='1'>[На початок]</font></a>
+</font></td>
+ <td width=100%><div align=center> </div></td>
+<td nowrap><div align=right>
+<a href=".?gid=1&rid=68&reverse=2&half=1&count=4"><img src=/img/lng/ukr_off.gif></a><!--<a href=".?gid=1&rid=68&reverse=2&half=1&count=4&lng=_ru"><img src=/img/lng/rus_off.gif></a>--><a href=".?gid=1&rid=68&reverse=2&half=1&count=4&lng=_en"><img src=/img/lng/eng_off.gif></a>
+</div></td></tr>
+<TR ><TD colspan=3 >
+<center>
+
+
+Розклад на сайті повинен щоденно поновлюватись відповідальними працівниками по кожній регіональній дирекції. 
+<br>Поки що в розкладі можлива відсутність відображення невеликих тимчасових змін, або випадкові розбіжності. 
+<br>для надійності погоджуйте розклад з поточною інформацією на станціях!
+
+
+<p>
+
+<b>
+<font color=red>До уваги! </font> Розклад руху <a href='?rid=471'><font color=red>Київської кільцевої електрички</font></a>  <br>
+</b> 
+
+
+<!--
+<font color=red>До уваги!</font> <a href="?rid=471" style='font-size:12px;color:maroon;font-weight:bold'><img src="/img/arrows2.gif"> Розклад руху <b>міської</b> електрички залізничним кільцем (Київ)</a>
+
+
+</p> 
+<p>
+
+<font color=red>До уваги!</font> <a href="?rid=239"><img src="/img/arrows2.gif"> Розклад руху <b>Kyiv Boryspil Express</b> </a>
+
+
+</p>
+-->
+
+<!--<font color=red>До уваги!</font> <a href="?gid=1&rid=470&nofar=1" style='font-size:14px;color:maroon;font-weight:bold'><img src="/img/arrows2.gif"> З метою перевезення пасажирів по м. Київ з 21.03.2022р. <br>і до відміни призначається курсування наступних приміських поїздів (РОЗКЛАД тут)</a>
+
+<font color=red>До уваги!</font> <span style='font-size:14px;color:maroon;font-weight:bold'> Повний розклад міської електрички м. Києва буде опубліковано 28 березня о 15:30</span>
+-->
+
+
+
+
+<p>
+<font color=red>До уваги!</font> <font color=green><b>Кілометри тарифних відстаней</b></font>  поки що відображаються приблизно, можуть бути деякі розбіжності чи відсутність даних
+
+</p>
+
+
+
+<div><!--<a href="eltrain-v4.1.htm" style="color:#CA6D35"><b>&raquo; ЩО НОВОГО з <font color=red>10 березня 2021</font>?</b></a>--></div>
+<div id="divbody">
+<form name="route_form">
+<table width=100% align=center border="0" cellspacing="1" cellpadding="0">
+<tr><td class=sh2>
+Розклад руху приміських потягів за напрямком
+
+
+</td></tr>
+<tr><td height=3 class=sh_line><img src=/img/spacer.gif></td></tr>
+<tr><td class=sh style="padding:5 5 5 5">
+<select name='gid'  id='gid'><option value=1 selected>Укрзалізниця (Україна)</option><option value=2>&nbsp;&nbsp;П-Зах. (Південно-Західна залізниця)</option><option value=8 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-1 (Київська дирекція)</option><option value=9 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-2 (Козятинська дирекція)</option><option value=10 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-3 (Жмеринська дирекція)</option><option value=11 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-4 (Коростенська дирекція)</option><option value=12 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-5 (Конотопська дирекція)</option><option value=3>&nbsp;&nbsp;Льв. (Львівська залізниця)</option><option value=30 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-1 (Львівська дирекція)</option><option value=31 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-2 (Тернопільска дирекція)</option><option value=32 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-3 (Рівенська дирекція)</option><option value=33 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-4 (Івано-Франківськ. дирекція)</option><option value=34 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-5 (Ужгородська дирекція)</option><option value=4>&nbsp;&nbsp;Од. (Одеська залізниця)</option><option value=22 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-1 (Одеська дирекція)</option><option value=23 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-2 (Шевченківська дирекція)</option><option value=24 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-3 (Знам'янська дирекція)</option><option value=25 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-4 ( Херсонська дирекція)</option><option value=35 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-5 (Взаємодія портів та п.станцій)</option><option value=5>&nbsp;&nbsp;Півд. (Південна залізниця)</option><option value=13 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-2 (Харківська дирекція)</option><option value=14 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-3 (Сумська дирекція)</option><option value=15 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-4 (Полтавська дирекція)</option><option value=6>&nbsp;&nbsp;Придн. (Придніпровська залізниця)</option><option value=26 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДЗР-1 (Дніпровський )</option><option value=27 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДЗР-2 (Криворізький)</option><option value=28 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДЗР-3 (Запорізький)</option><option value=29 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-4 (Кримська дирекція)</option><option value=7>&nbsp;&nbsp;Дон. (Донецька залізниця)</option><option value=18 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-1 (Ясинуватська дирекція)</option><option value=19 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-2 (Краснолиманська дирекція)</option><option value=20 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-4 (Луганська дирекція )</option><option value=21 style='background-color:#E6E6E6'>&nbsp;&nbsp;&nbsp;&nbsp;ДН-5 (Дебальцевська дирекція )</option></select><br><span id='s_rid'><select size="1" name=rid id=rid >
+<option value="0">Виберіть напрямок</option>
+
+  <option value="363" >Івано-Франківськ - Ворохта</option>
+
+  <option value="343" >Івано-Франківськ - Делятин</option>
+
+  <option value="342" >Івано-Франківськ - Моршин</option>
+
+  <option value="341" >Івано-Франківськ - Рахів</option>
+
+  <option value="339" >Івано-Франківськ - Стрий</option>
+
+  <option value="340" >Івано-Франківськ - Ходорів</option>
+
+  <option value="278" >Апостолове - Дніпро</option>
+
+  <option value="350" >Батьово - Королево - Дяково</option>
+
+  <option value="481" >Бахмач - Ромни</option>
+
+  <option value="43" >Бахмач - Сновськ</option>
+
+  <option value="490" >Берестин - Дніпро</option>
+
+  <option value="516" >Берестин - Лозова</option>
+
+  <option value="509" >Берестин - Полтава</option>
+
+  <option value="213" >Верхньоторецьке - Торецьк - Слов'янськ - Лиман</option>
+
+  <option value="279" >Верхівцеве - Кривий Ріг</option>
+
+  <option value="95" >Ворожба - Конотоп - Бахмач</option>
+
+  <option value="513" >Вінниця - Коростень</option>
+
+  <option value="44" >Вінниця - Хмельницький</option>
+
+  <option value="454" >Гайворон - Вінниця</option>
+
+  <option value="457" >Гайворон - Вінниця</option>
+
+  <option value="123" >Гайворон - Рудниця</option>
+
+  <option value="504" >Гребінка - Бахмач</option>
+
+  <option value="492" >Гребінка - Київ</option>
+
+  <option value="506" >Гребінка - Черкаси</option>
+
+  <option value="55" >Дарниця - Почайна - Київ-Волинський - Дарниця</option>
+
+  <option value="277" >Дніпро - Берестин</option>
+
+  <option value="260" >Дніпро - Верхівцеве</option>
+
+  <option value="274" >Дніпро - Запоріжжя</option>
+
+  <option value="262" >Дніпро - Кам'янське</option>
+
+  <option value="263" >Дніпро - Кривий Ріг</option>
+
+  <option value="276" >Дніпро - Меліоративне - Павлоград</option>
+
+  <option value="264" >Дніпро - П'ятихатки</option>
+
+  <option value="270" >Дніпро - Синельникове - Чаплине</option>
+
+  <option value="268" >Дніпро - Синельникове - Чаплине - Межова</option>
+
+  <option value="24" >Житомир - Звягель</option>
+
+  <option value="22" >Житомир - Козятин</option>
+
+  <option value="21" >Житомир - Фастів</option>
+
+  <option value="12" >Жмеринка - Вапнярка</option>
+
+  <option value="11" >Жмеринка - Гречани</option>
+
+  <option value="10" >Жмеринка - Козятин</option>
+
+  <option value="26" >Жмеринка - Могилів-Подільський</option>
+
+  <option value="355" >Здолбунів - Красне</option>
+
+  <option value="356" >Здолбунів - Луцьк</option>
+
+  <option value="357" >Здолбунів - Луцьк - Ковель</option>
+
+  <option value="325" >Здолбунів - Львів</option>
+
+  <option value="358" >Здолбунів - Сарни</option>
+
+  <option value="361" >Здолбунів - Шепетівка</option>
+
+  <option value="120" >Знам'янка - Помічна</option>
+
+  <option value="79" >Знам'янка - Тимкове - Долинська</option>
+
+  <option value="326" >Золочів - Львів</option>
+
+  <option value="3" >Київ - Гребінка</option>
+
+  <option value="5" >Київ - Миронівка</option>
+
+  <option value="2" >Київ - Ніжин</option>
+
+  <option value="51" >Київ - Ніжин - Конотоп</option>
+
+  <option value="64" >Київ - Ніжин - Конотоп - Ворожба</option>
+
+  <option value="66" >Київ - Ніжин - Чернігів</option>
+
+  <option value="68" selected>Київ - Тетерів - Коростень</option>
+
+  <option value="69" >Київ - Тетерів - Коростень - Шепетівка</option>
+
+  <option value="1" >Київ - Фастів</option>
+
+  <option value="60" >Київ - Фастів - Житомир</option>
+
+  <option value="50" >Київ - Фастів - Козятин</option>
+
+  <option value="54" >Київ - Фастів - Миронівка</option>
+
+  <option value="368" >Ковель - Луцьк</option>
+
+  <option value="369" >Ковель - Львів</option>
+
+  <option value="367" >Ковель - Рокитниця</option>
+
+  <option value="371" >Ковель - Сарни</option>
+
+  <option value="373" >Ковель - Червоноград</option>
+
+  <option value="449" >Козятин - Бердичів</option>
+
+  <option value="445" >Козятин - Погребище</option>
+
+  <option value="447" >Козятин - Погребище - Жашків</option>
+
+  <option value="39" >Козятин - Шепетівка</option>
+
+  <option value="344" >Коломия - Івано-Франківськ</option>
+
+  <option value="379" >Коломия - Заліщики</option>
+
+  <option value="381" >Коломия - Рахів</option>
+
+  <option value="382" >Коломия - Чернівці</option>
+
+  <option value="87" >Колосівка - Одеса</option>
+
+  <option value="29" >Конотоп - Ніжин</option>
+
+  <option value="383" >Королево - Батьово</option>
+
+  <option value="16" >Коростень - Виступовичи</option>
+
+  <option value="20" >Коростень - Житомир</option>
+
+  <option value="18" >Коростень - Олевськ</option>
+
+  <option value="25" >Коростень - Шепетівка</option>
+
+  <option value="384" >Красне - Рівне</option>
+
+  <option value="385" >Красне - Тернопіль</option>
+
+  <option value="175" >Кременчук - Бурти - Знам'янка</option>
+
+  <option value="464" >Кременчук - Ромодан - Гадяч</option>
+
+  <option value="290" >Кривий Ріг - Інгулець</option>
+
+  <option value="281" >Кривий Ріг - Апостолове</option>
+
+  <option value="306" >Кривий Ріг - Запоріжжя</option>
+
+  <option value="285" >Кривий Ріг - Тимкове</option>
+
+  <option value="388" >Ківерці - Луцьк</option>
+
+  <option value="365" >Ківерці - Сапіжанка</option>
+
+  <option value="366" >Ківерці - Стоянів</option>
+
+  <option value="508" >Лавочне - Лавочне - Жашків - Козятин - Шепетівка</option>
+
+  <option value="348" >Лавочне - Мукачево</option>
+
+  <option value="450" >Ланівці - Шепетівка</option>
+
+  <option value="228" >Лиман - Слов'янськ - Близнюки - Лозова</option>
+
+  <option value="505" >Лозова - Синельникове</option>
+
+  <option value="185" >Лубни - Гребінка</option>
+
+  <option value="386" >Луцьк - Здолбунів</option>
+
+  <option value="387" >Луцьк - Стоянів</option>
+
+  <option value="389" >Львів - Здолбунів</option>
+
+  <option value="390" >Львів - Золочів</option>
+
+  <option value="347" >Львів - Лавочне</option>
+
+  <option value="393" >Львів - Мостиська</option>
+
+  <option value="345" >Львів - Мукачево</option>
+
+  <option value="400" >Львів - Рава-Руська</option>
+
+  <option value="334" >Львів - Самбір</option>
+
+  <option value="395" >Львів - Сокаль</option>
+
+  <option value="327" >Львів - Стрий</option>
+
+  <option value="396" >Львів - Сянки</option>
+
+  <option value="333" >Львів - Тернопіль</option>
+
+  <option value="330" >Львів - Трускавець</option>
+
+  <option value="397" >Львів - Ходорів</option>
+
+  <option value="398" >Львів - Шкло-Старжиська</option>
+
+  <option value="134" >Люботин - Мерчик</option>
+
+  <option value="482" >Люботин - Тростянець-Смородине</option>
+
+  <option value="124" >Миколаїв - Каховка</option>
+
+  <option value="119" >Миколаїв - Колосівка</option>
+
+  <option value="353" >Млинівці - Волочиськ</option>
+
+  <option value="349" >Мукачево - Батьово</option>
+
+  <option value="402" >Мукачево - Батьово</option>
+
+  <option value="404" >Мукачево - Сянки</option>
+
+  <option value="405" >Мукачево - Ужгород</option>
+
+  <option value="67" >Неданчичі - Чернігів - Ніжин - Київ</option>
+
+  <option value="56" >Неданчичі - Чернігів - Ніжин - Київ - Фастів</option>
+
+  <option value="30" >Неплюєве - Конотоп</option>
+
+  <option value="61" >Неплюєве - Конотоп - Ніжин - Київ - Фастів</option>
+
+  <option value="484" >Ніжин - Прилуки - Гребінка</option>
+
+  <option value="287" >Нікополь - Запоріжжя</option>
+
+  <option value="283" >Нікополь - Кривий Ріг</option>
+
+  <option value="284" >Нікополь - Тимкове</option>
+
+  <option value="189" >Огульці - Люботин</option>
+
+  <option value="192" >Огульці - Люботин - Харків</option>
+
+  <option value="143" >Огульці - Полтава</option>
+
+  <option value="76" >Одеса - Білгород-Дністровський</option>
+
+  <option value="232" >Одеса - Білине</option>
+
+  <option value="118" >Одеса - Вапнярка</option>
+
+  <option value="82" >Одеса - Колосівка</option>
+
+  <option value="117" >Одеса - Роздільна</option>
+
+  <option value="156" >Охтирка - Кириківка - Тростянець-Смородине</option>
+
+  <option value="323" >П'ятихатки - Кривий Ріг</option>
+
+  <option value="286" >П'ятихатки - Кривий Ріг - Тимкове</option>
+
+  <option value="142" >Полтава - Гребінка</option>
+
+  <option value="491" >Полтава - Кобеляки</option>
+
+  <option value="219" >Полтава - Кременчук</option>
+
+  <option value="121" >Помічна - Долинська - Знам'янка</option>
+
+  <option value="233" >Помічна - Подільск</option>
+
+  <option value="147" >Прилуки - Гребінка</option>
+
+  <option value="407" >Рава-Руська - Сокаль</option>
+
+  <option value="289" >Рокувата - П'ятихатки</option>
+
+  <option value="148" >Ромодан - Ромни - Бахмач</option>
+
+  <option value="408" >Рівне - Могиляни</option>
+
+  <option value="409" >Рівне - Шепетівка</option>
+
+  <option value="338" >Самбір - Нижанковичі</option>
+
+  <option value="337" >Самбір - Старжава</option>
+
+  <option value="336" >Самбір - Стрий</option>
+
+  <option value="410" >Самбір - Хирів</option>
+
+  <option value="411" >Сарни - Горинь</option>
+
+  <option value="412" >Сарни - Маневичі</option>
+
+  <option value="413" >Сарни - Олевськ</option>
+
+  <option value="205" >Сватове - Попасна</option>
+
+  <option value="471" >Святошин - Дарниця - Святошин</option>
+
+  <option value="480" >Святошин - Святошин</option>
+
+  <option value="174" >Світловодськ - Бурти</option>
+
+  <option value="65" >Семенівка - Терещенська - Конотоп - Ніжин - Київ</option>
+
+  <option value="305" >Сиваш - Новоолексіївка - Генічеськ</option>
+
+  <option value="266" >Синельникове - Дніпро</option>
+
+  <option value="259" >Синельникове - Сухачівка</option>
+
+  <option value="267" >Синельникове - Чаплине</option>
+
+  <option value="223" >Слов'янськ - Близнюки - Лозова</option>
+
+  <option value="225" >Слов'янськ - Близнюки - Лозова - Павлоград - Покровськ</option>
+
+  <option value="210" >Слов'янськ - Лиман</option>
+
+  <option value="209" >Слов'янськ - Лиман - Ізюм</option>
+
+  <option value="211" >Слов'янськ - Лиман - Курдюмівка</option>
+
+  <option value="109" >Сміла - Знам'янка</option>
+
+  <option value="104" >Сміла - Знам'янка - Тимкове</option>
+
+  <option value="111" >Сміла - Христинівка</option>
+
+  <option value="101" >Сміла - Черкаси</option>
+
+  <option value="102" >Сміла - Черкаси - Гребінка</option>
+
+  <option value="414" >Сокаль - Львів</option>
+
+  <option value="415" >Солотвино - Батьово</option>
+
+  <option value="416" >Солотвино - Королево</option>
+
+  <option value="417" >Солотвино - Королево - Батьово</option>
+
+  <option value="418" >Солотвино - Тячів</option>
+
+  <option value="200" >Станиця-Луганська - Лантратівка</option>
+
+  <option value="329" >Стрий - Мукачево</option>
+
+  <option value="328" >Стрий - Ходорів</option>
+
+  <option value="183" >Суми - Ворожба</option>
+
+  <option value="500" >Суми - Віринський завод</option>
+
+  <option value="486" >Суми - Лебединська</option>
+
+  <option value="261" >Сухачівка - Дніпро</option>
+
+  <option value="273" >Сухачівка - Запоріжжя</option>
+
+  <option value="419" >Сянки - Ужгород</option>
+
+  <option value="226" >Сіверськ - Попасна</option>
+
+  <option value="34" >Терещенська - Семенівка</option>
+
+  <option value="422" >Тернопіль - Іване-Пусте</option>
+
+  <option value="420" >Тернопіль - Заліщики</option>
+
+  <option value="427" >Тернопіль - Ланівці</option>
+
+  <option value="424" >Тернопіль - Львів</option>
+
+  <option value="421" >Тернопіль - Млинівці</option>
+
+  <option value="425" >Тернопіль - Підволочиськ</option>
+
+  <option value="426" >Тернопіль - Ходорів</option>
+
+  <option value="428" >Тернопіль - Чортків</option>
+
+  <option value="4" >Тетерів - Київ</option>
+
+  <option value="15" >Тетерів - Коростень</option>
+
+  <option value="216" >Торецьк - Слов'янськ - Близнюки</option>
+
+  <option value="214" >Торецьк - Слов'янськ - Лиман - Ізюм</option>
+
+  <option value="217" >Торецьк - Слов'янськ - Лиман - Курдюмівка</option>
+
+  <option value="195" >Тростянець-Смородине - Суми - Ворожба</option>
+
+  <option value="431" >Тячів - Батьово</option>
+
+  <option value="430" >Тячів - Королево</option>
+
+  <option value="62" >Фастів - Київ - Гребінка</option>
+
+  <option value="38" >Фастів - Козятин</option>
+
+  <option value="37" >Фастів - Миронівка</option>
+
+  <option value="496" >Харків - Ізюм</option>
+
+  <option value="510" >Харків - Гракове</option>
+
+  <option value="489" >Харків - Дергачі</option>
+
+  <option value="472" >Харків - Зміїв</option>
+
+  <option value="487" >Харків - Золочів</option>
+
+  <option value="182" >Харків - Люботин</option>
+
+  <option value="149" >Харків - Мерефа - Берестин</option>
+
+  <option value="141" >Харків - Мерефа - Лозова</option>
+
+  <option value="140" >Харків - Мерчик</option>
+
+  <option value="160" >Харків - Нова Баварія - Огульці</option>
+
+  <option value="494" >Харків - Чугуїв</option>
+
+  <option value="125" >Херсон - Веселе</option>
+
+  <option value="432" >Хирів - Самбір</option>
+
+  <option value="28" >Хмельницький - Ларга</option>
+
+  <option value="14" >Хмельницький - Підволочиськ</option>
+
+  <option value="42" >Хмельницький - Шепетівка</option>
+
+  <option value="27" >Хмельницький - Ярмолинці</option>
+
+  <option value="433" >Хмільник - Виноградів</option>
+
+  <option value="324" >Ходорів - Львів</option>
+
+  <option value="112" >Христинівка - Вапнярка</option>
+
+  <option value="238" >Христинівка - Козятин</option>
+
+  <option value="435" >Чернівці - Вижниця</option>
+
+  <option value="437" >Чернівці - Степанівка</option>
+
+  <option value="438" >Чернівці - Сторожинець</option>
+
+  <option value="434" >Чернівці - Черепківці</option>
+
+  <option value="7" >Чернігів - Неданчичі</option>
+
+  <option value="9" >Чернігів - Ніжин</option>
+
+  <option value="483" >Чернігів - Ніжин - Конотоп</option>
+
+  <option value="40" >Шепетівка - Здолбунів</option>
+
+  <option value="439" >Шепетівка - Ланівці</option>
+
+  <option value="269" >Шкло-Старжиська - Івано-Франківськ - Делятин</option>
+
+  <option value="515" >Шостка - Конотоп</option>
+
+</select></span><select  name='reverse' id='reverse' ><option value='0' >Обидва рейси</option>
+<option value='1' >Туди</option>
+<option value='2' selected>Назад</option>
+</select>
+<input type="submit"  value="Показати"><br>
+<input name="dateR" type="radio" value="0">
+Всі дні
+<input name="dateR" type="radio" value="1">
+На дату
+<input name="eventdate" type="text" value="" class='inpDate eventdate' readonly >
+<input name="nofar" type="checkbox" value="1" >
+Скорочений вигляд
+
+
+
+<tr><td class=sh style='background-color:#FEF8CD'>
+Відображати потяги:
+<input name="half" type="checkbox" value="1" checked> 
+Перетинають середину
+<input name="count" type="number" value="4" style="width:40px" min=1 max=12 onkeydown="return false">
+Мінімальна кількість зупинок
+
+</td></tr>
+
+<tr><td class=sh> 
+Перелік напрямків може бути неповним. Дивіться також розклад між пунктами
+
+</td></tr>
+<tr><td height=3 class=sh_line><img src=/img/spacer.gif></td></tr>
+</table>
+</form>
+
+<script language="javascript"><!--
+$(document).ready(function(){
+  
+  $('#gid').change(function (){
+    var rid = $('#rid').val();
+    $('#s_rid').load('?AJ=route&gid='+$('#gid').val()+'&rid='+rid+"&lng="+$('#language').val());
+  });
+  $('#gid').change();
+  
+});
+//--->
+</script><style>
+td.course {-webkit-text-size-adjust:none; text-size-adjust:none;} 
+.kmss {color:#009B4E;font-size:9px;text-align:center;padding-right:2px;}
+</style>
+<style>.td_center td {text-align:center;}</style>
+<div id="tabs" style="margin:0 5 0 5;">
+  <ul style="padding: 0 0 0 0;margin:0 0 0 0">
+    
+        
+    <li><a href="#tabs-trains2" class="tb trains"><img align=center src=/img/train24.png>
+    <b> Потяги </b>(Назад) 
+      <sup><span id=fav_cnt style='font-size:10px;color:blue;font-weight:bold'>14</span></sup></a> </li>
+      
+    <li><a href="#tabs-map" class="tb" ><img align=center src=/img/rekl_map.png width=24> <b>НА КАРТІ</b></a></li>
+    <li><a href="#tabs-notes" class="tb notes"><img align=center src="/img/rekl_list.png" width=24> Зміни руху  
+      <sup><span id=vac_cnt style='font-size:10px;color:red;font-weight:bold'>2</span></sup></a></li>
+  </ul>
+  <div id="tabs-map"  style="padding:5 5 5 5;" >
+     <div id="MapsID" style="margin-top:1px;width:100%;height:550px;"></div>
+  </div>
+  <div id="tabs-routes"  style="padding:5 5 5 5;" >
+    <style>a.rid {font-size:14px;font-weight:bold;} </style>
+     <ol></ol>
+  </div>
+  <div id="tabs-notes"  style="padding:5 5 5 5;" > <style>
+ div.n_descr {font-size:12px;margin-top:5px;margin-bottom:10px;margin-left:15px;color:navy} 
+ div.note {background-color:#FFFACA; padding: 3 3 3 3}
+</style>
+<div style='text-align:left;padding: 10 10 10 10;'>
+<ol>
+
+  <li> <div class=note>До уваги пасажирів, з 02.08.2026 встановлюється курсування 
+приміського поїзда № 6606 сполученням Коростень -Київ по 7 дням 
+тижня</div><div class=n_descr s>Дійсно з: <b>2026-07-30</b> до: <b>2026-12-12</b> / 
+  <b>Потяг:  #<a href="?tid=26871">6606</a> </b></div>
+  </li>
+
+  <li> <div class=note> До уваги пасажирів, з 02.08.2026 встановлюється курсування 
+приміського поїзда № 6610 сполученням Коростень - Борщагівка крім  7 
+дня тижня</div><div class=n_descr s>Дійсно з: <b>2026-08-11</b> до: <b>2026-12-12</b> / 
+  <b>Потяг:  #<a href="?tid=25751">6610</a> </b></div>
+  </li>
+
+</ol>
+</div></div>
+  
+  <div id="tabs-trains2"  style="padding:5 5 5 5;" >  <table cellSpacing=0 cellPadding=0>
+  <TR >
+  <TD valign=top>
+  <table class=left cellSpacing=0 cellPadding=0 border=0 style='' width="195">
+  <tr class=pix2><td colspan=5><img src=/img/spacer.gif></td></tr>
+  <tr class="onx shapka_obig" height=50px ><td colspan=3 style="text-align:center"><span style="margin-left:3;margin-right:3;"><b>Коростень - Тетерів - Київ</b><br></span></td></tr>
+  <tr class=pix2><td colspan=150><img src=/img/spacer.gif></td></tr>
+  <tr class="on"><td colspan=2 class="on_left_tb" style='text-align:center'>
+   Пункт / Номер та обіг
+   </td>
+   <td class=kmss>Σ<br>км</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+   
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>40</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=310">
+    <b>Коростень</b>
+    </a></td>
+    <td class=kmss>155.4</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>39</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=309">
+    з.п. Древлянка
+    </a></td>
+    <td class=kmss>149.2</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>38</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=308">
+    <b>Шатрище</b>
+    </a></td>
+    <td class=kmss>146.4</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>37</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=307">
+    з.п. Новаки
+    </a></td>
+    <td class=kmss>141.5</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>36</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=306">
+    з.п. Стремигород
+    </a></td>
+    <td class=kmss>138.9</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>35</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=305">
+    з.п. 140км
+    </a></td>
+    <td class=kmss>136.8</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>34</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=304">
+    з.п. Мелені
+    </a></td>
+    <td class=kmss>134</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>33</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=303">
+    <b>Чоповичі</b>
+    </a></td>
+    <td class=kmss>129</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>32</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=302">
+    з.п. 130 км
+    </a></td>
+    <td class=kmss>126.3</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>31</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=301">
+    з.п. Йосипівка
+    </a></td>
+    <td class=kmss>124.2</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>30</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=311">
+    з.п. Тишів
+    </a></td>
+    <td class=kmss>119.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>29</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=300">
+    з.п. Головки
+    </a></td>
+    <td class=kmss>115.6</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>28</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=299">
+    з.п. Пиріжківський
+    </a></td>
+    <td class=kmss>107.6</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>27</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=298">
+    <b>Малин</b>
+    </a></td>
+    <td class=kmss>101.4</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>26</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=297">
+    з.п. Щебзавод
+    </a></td>
+    <td class=kmss>96.7</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>25</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=296">
+    <b>Пенизевичі</b>
+    </a></td>
+    <td class=kmss>94.5</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>24</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=295">
+    <b>Ірша</b>
+    </a></td>
+    <td class=kmss>88.4</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>23</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=294">
+    з.п. Макалевичі
+    </a></td>
+    <td class=kmss>81.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>22</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=102">
+    <b>Тетерів</b>
+    </a></td>
+    <td class=kmss>77.9</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>21</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=101">
+    з.п. Пісківка
+    </a></td>
+    <td class=kmss>74.5</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>20</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=100">
+    <b>Спартак</b>
+    </a></td>
+    <td class=kmss>67.6</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>19</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=99">
+    з.п. Загальці
+    </a></td>
+    <td class=kmss>63.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>18</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=98">
+    з.п. Хутір Гай
+    </a></td>
+    <td class=kmss>58.6</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>17</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=97">
+    <b>Бородянка</b>
+    </a></td>
+    <td class=kmss>55.7</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>16</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=96">
+    з.п. Макійчукове
+    </a></td>
+    <td class=kmss>50.7</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>15</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=95">
+    <b>Клавдієво</b>
+    </a></td>
+    <td class=kmss>46.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>14</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=94">
+    <b>Немішаєве</b>
+    </a></td>
+    <td class=kmss>40.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>13</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=93">
+    з.п. Кічеєве
+    </a></td>
+    <td class=kmss>37.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>12</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=92">
+    з.п. Ворзель
+    </a></td>
+    <td class=kmss>34.2</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>11</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=91">
+    з.п. Склозаводська
+    </a></td>
+    <td class=kmss>31.5</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>10</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=90">
+    <b>Буча</b>
+    </a></td>
+    <td class=kmss>29.2</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>9</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=89">
+    з.п. Лісова Буча
+    </a></td>
+    <td class=kmss>28.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>8</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=88">
+    <b>Ірпінь</b>
+    </a></td>
+    <td class=kmss>24.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>7</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=87">
+    <b>Біличі</b>
+    </a></td>
+    <td class=kmss>17.2</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>6</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=86">
+    з.п. Новобіличі
+    </a></td>
+    <td class=kmss>15.2</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>5</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=85">
+    <b>Святошин</b>
+    </a></td>
+    <td class=kmss>12.1</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>4</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=83">
+    з.п. Борщагівка
+    </a></td>
+    <td class=kmss>10</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>3</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=4">
+    <b>Київ-Волинський</b>
+    </a></td>
+    <td class=kmss>6.2</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>2</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=3">
+    з.п. Караваєві Дачі
+    </a></td>
+    <td class=kmss>3</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>1</font>&nbsp;</td>
+    <td nowrap class=q0>
+    <a class=et href=".?sid=2">
+    <b>Київ-Пас. (Приміський)</b>
+    </a></td>
+    <td class=kmss>0.3</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx" style="CURSOR:pointer;">
+   <td width=30 style="text-align:center"><font color=#808080>0</font>&nbsp;</td>
+    <td nowrap class=q1>
+    <a class=et href=".?sid=1">
+    з.п. Київ-Пас. (Північна)
+    </a></td>
+    <td class=kmss>0</td>
+   </tr>
+   <tr class=pix><td colspan=5><img src=/img/spacer.gif></td></tr>
+  
+  </table>
+  </td>
+  <td valign=top>
+   <div class=gotime style='overflow-x: scroll; width:775px'>
+  <table class=td_center cellSpacing=0 cellPadding=0 border=0 >
+  <tr class=pix2><td colspan=150><img src=/img/spacer.gif></td></tr>
+  <tr class="onx train_obig" height=50>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Тетерів – Святошин&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Тетерів – Київ-Пас. (Приміський)&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Тетерів – Святошин&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Коростень – Київ-Пас. (Приміський)&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Коростень – Київ-Пас. (Приміський)&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Тетерів – Святошин&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Коростень – Борщагівка&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Тетерів – Київ-Пас. (Приміський)&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Коростень – Київ-Пас. (Приміський)&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Коростень – Київ-Пас. (Приміський)&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Малин – Святошин&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Тетерів – Київ-Пас. (Приміський)&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Коростень – Київ-Пас. (Приміський)&nbsp;</td>
+  
+  <td width=1 class=sh_line ><img src=/img/spacer.gif></td>
+  <td colspan=2 class=course>&nbsp;Тетерів – Борщагівка&nbsp;</td>
+  
+  </tr>
+  <tr class=pix2><td colspan=150><img src=/img/spacer.gif></td></tr>
+  <tr class="on">
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=28635">6602, 
+    
+    
+    
+	
+	<br> крім сб., нд.
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=30972">6602, 
+    
+    
+    
+	
+	<br> по сб., нд.
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=28636">6604, 
+    
+    
+    
+	
+	<br> крім сб., нд.
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=26871">6606, 
+    
+    
+    
+	
+	<br> по нд.
+    
+    </font></a> 
+    <font color=red title='є актуальні повідомленя'><sup><b>1</b></sup></font>
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=29846">856, 
+    
+    
+    
+	
+	<br> крім нд.
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=30363">6608, 
+    
+    
+    
+	
+	<br> крім сб., нд.
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=25751">6610, 
+    
+    
+    
+	
+	<br> крім нд.
+    
+    </font></a> 
+    <font color=red title='є актуальні повідомленя'><sup><b>1</b></sup></font>
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=30175">6612, 
+    
+    
+    
+	
+	<br> щоденно
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=31141">6614, 
+    
+    
+    
+	
+	<br> щоденно
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=29863">860, 
+    
+    
+    
+	
+	<br> крім сб., нд.
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=31106">6620, 
+    
+    
+    
+	
+	<br> щоденно
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=30191">6622, 
+    
+    
+    
+	
+	<br> щоденно
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=30284">6626, 
+    
+    
+    
+	
+	<br> щоденно
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td colspan="2" class="on_right_t"><font size=-1><a class=et title='' href=".?tid=30289">6628, 
+    
+    
+    
+	
+	<br> щоденно
+    
+    </font></a> 
+    
+    
+    
+  </td>
+  
+  </tr>
+  <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  <tr class="on">
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+   
+  <td width="1" class="sh_line"><img src=/img/spacer.gif></td>
+  <td class="on_right_b">приб.</td>
+  <td class="on_right_b">відпр.</td>
+  
+  </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+   
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>04:10</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>04:54</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>05:50</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>08:40</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>13:29</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>18:25</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>04:15</td><td width=46 class=q1 nowrap>04:16</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:55</td><td width=46 class=q1 nowrap>05:56</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:45</td><td width=46 class=q1 nowrap>08:46</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:30</td><td width=46 class=q1 nowrap>18:31</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>04:20</td><td width=46 class=q0 nowrap>04:21</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:00</td><td width=46 class=q0 nowrap>06:01</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>08:50</td><td width=46 class=q0 nowrap>08:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>18:35</td><td width=46 class=q0 nowrap>18:36</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>04:25</td><td width=46 class=q1 nowrap>04:26</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:05</td><td width=46 class=q1 nowrap>06:06</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:55</td><td width=46 class=q1 nowrap>08:56</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:40</td><td width=46 class=q1 nowrap>18:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>04:29</td><td width=46 class=q1 nowrap>04:30</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:09</td><td width=46 class=q1 nowrap>06:10</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:59</td><td width=46 class=q1 nowrap>09:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:44</td><td width=46 class=q1 nowrap>18:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>04:33</td><td width=46 class=q1 nowrap>04:34</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:09</td><td width=46 class=q1 nowrap>05:10</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:13</td><td width=46 class=q1 nowrap>06:14</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:03</td><td width=46 class=q1 nowrap>09:04</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>13:44</td><td width=46 class=q1 nowrap>13:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:48</td><td width=46 class=q1 nowrap>18:49</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>04:37</td><td width=46 class=q1 nowrap>04:38</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:17</td><td width=46 class=q1 nowrap>06:18</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:07</td><td width=46 class=q1 nowrap>09:08</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:52</td><td width=46 class=q1 nowrap>18:53</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>04:44</td><td width=46 class=q0 nowrap>04:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:17</td><td width=46 class=q0 nowrap>05:18</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:24</td><td width=46 class=q0 nowrap>06:25</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:14</td><td width=46 class=q0 nowrap>09:15</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>13:52</td><td width=46 class=q0 nowrap>13:53</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>18:59</td><td width=46 class=q0 nowrap>19:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>04:48</td><td width=46 class=q1 nowrap>04:49</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:28</td><td width=46 class=q1 nowrap>06:29</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:18</td><td width=46 class=q1 nowrap>09:19</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:03</td><td width=46 class=q1 nowrap>19:04</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>04:52</td><td width=46 class=q1 nowrap>04:53</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:23</td><td width=46 class=q1 nowrap>05:24</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:32</td><td width=46 class=q1 nowrap>06:33</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:22</td><td width=46 class=q1 nowrap>09:23</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>13:58</td><td width=46 class=q1 nowrap>13:59</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:07</td><td width=46 class=q1 nowrap>19:08</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>04:57</td><td width=46 class=q1 nowrap>04:58</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:37</td><td width=46 class=q1 nowrap>06:38</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:27</td><td width=46 class=q1 nowrap>09:28</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:12</td><td width=46 class=q1 nowrap>19:13</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:03</td><td width=46 class=q1 nowrap>05:04</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:31</td><td width=46 class=q1 nowrap>05:32</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:43</td><td width=46 class=q1 nowrap>06:44</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:33</td><td width=46 class=q1 nowrap>09:34</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>14:06</td><td width=46 class=q1 nowrap>14:07</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:18</td><td width=46 class=q1 nowrap>19:19</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:10</td><td width=46 class=q1 nowrap>05:11</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:50</td><td width=46 class=q1 nowrap>06:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:40</td><td width=46 class=q1 nowrap>09:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:25</td><td width=46 class=q1 nowrap>19:26</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:16</td><td width=46 class=q0 nowrap>05:18</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:43</td><td width=46 class=q0 nowrap>05:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:56</td><td width=46 class=q0 nowrap>06:58</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:46</td><td width=46 class=q0 nowrap>09:48</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>14:18</td><td width=46 class=q0 nowrap>14:20</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>14:55</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>19:31</td><td width=46 class=q0 nowrap>19:32</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:23</td><td width=46 class=q1 nowrap>05:24</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:50</td><td width=46 class=q1 nowrap>05:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:03</td><td width=46 class=q1 nowrap>07:04</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:53</td><td width=46 class=q1 nowrap>09:54</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>14:25</td><td width=46 class=q1 nowrap>14:26</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:01</td><td width=46 class=q1 nowrap>15:02</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:37</td><td width=46 class=q1 nowrap>19:38</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:28</td><td width=46 class=q0 nowrap>05:29</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:08</td><td width=46 class=q0 nowrap>07:09</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:58</td><td width=46 class=q0 nowrap>09:59</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:06</td><td width=46 class=q0 nowrap>15:07</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>19:42</td><td width=46 class=q0 nowrap>19:43</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:35</td><td width=46 class=q0 nowrap>05:36</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:01</td><td width=46 class=q0 nowrap>06:02</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:15</td><td width=46 class=q0 nowrap>07:16</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>10:06</td><td width=46 class=q0 nowrap>10:07</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>14:36</td><td width=46 class=q0 nowrap>14:37</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:13</td><td width=46 class=q0 nowrap>15:14</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>19:49</td><td width=46 class=q0 nowrap>19:50</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:44</td><td width=46 class=q1 nowrap>05:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:24</td><td width=46 class=q1 nowrap>07:25</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>10:15</td><td width=46 class=q1 nowrap>10:16</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:22</td><td width=46 class=q1 nowrap>15:23</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:58</td><td width=46 class=q1 nowrap>19:59</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>05:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>05:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>05:27</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:50</td><td width=46 class=q0 nowrap>05:52</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:13</td><td width=46 class=q0 nowrap>06:14</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>06:22</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:30</td><td width=46 class=q0 nowrap>07:32</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>08:50</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>10:20</td><td width=46 class=q0 nowrap>10:22</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>14:49</td><td width=46 class=q0 nowrap>14:50</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:27</td><td width=46 class=q0 nowrap>15:29</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>17:43</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>20:03</td><td width=46 class=q0 nowrap>20:04</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>20:47</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:04</td><td width=46 class=q1 nowrap>05:05</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:04</td><td width=46 class=q1 nowrap>05:05</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:33</td><td width=46 class=q1 nowrap>05:34</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:56</td><td width=46 class=q1 nowrap>05:57</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:26</td><td width=46 class=q1 nowrap>06:27</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:36</td><td width=46 class=q1 nowrap>07:37</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:54</td><td width=46 class=q1 nowrap>08:55</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>10:27</td><td width=46 class=q1 nowrap>10:28</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:33</td><td width=46 class=q1 nowrap>15:34</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>17:48</td><td width=46 class=q1 nowrap>17:49</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>20:09</td><td width=46 class=q1 nowrap>20:10</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>20:51</td><td width=46 class=q1 nowrap>20:52</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:11</td><td width=46 class=q0 nowrap>05:12</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:11</td><td width=46 class=q0 nowrap>05:12</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:40</td><td width=46 class=q0 nowrap>05:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:03</td><td width=46 class=q0 nowrap>06:04</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:33</td><td width=46 class=q0 nowrap>06:34</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:43</td><td width=46 class=q0 nowrap>07:44</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:01</td><td width=46 class=q0 nowrap>09:02</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>10:34</td><td width=46 class=q0 nowrap>10:35</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:41</td><td width=46 class=q0 nowrap>15:42</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>17:55</td><td width=46 class=q0 nowrap>17:56</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>20:16</td><td width=46 class=q0 nowrap>20:17</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>20:58</td><td width=46 class=q0 nowrap>20:59</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:16</td><td width=46 class=q1 nowrap>05:17</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:16</td><td width=46 class=q1 nowrap>05:17</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:46</td><td width=46 class=q1 nowrap>05:47</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:09</td><td width=46 class=q1 nowrap>06:10</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:39</td><td width=46 class=q1 nowrap>06:40</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:49</td><td width=46 class=q1 nowrap>07:50</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:06</td><td width=46 class=q1 nowrap>09:07</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>10:40</td><td width=46 class=q1 nowrap>10:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:46</td><td width=46 class=q1 nowrap>15:47</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:00</td><td width=46 class=q1 nowrap>18:01</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>20:21</td><td width=46 class=q1 nowrap>20:22</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:02</td><td width=46 class=q1 nowrap>21:03</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:21</td><td width=46 class=q1 nowrap>05:22</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:21</td><td width=46 class=q1 nowrap>05:22</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:51</td><td width=46 class=q1 nowrap>05:52</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:15</td><td width=46 class=q1 nowrap>06:16</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:45</td><td width=46 class=q1 nowrap>06:46</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:55</td><td width=46 class=q1 nowrap>07:56</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:10</td><td width=46 class=q1 nowrap>09:11</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>10:45</td><td width=46 class=q1 nowrap>10:46</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:51</td><td width=46 class=q1 nowrap>15:52</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:05</td><td width=46 class=q1 nowrap>18:06</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>20:26</td><td width=46 class=q1 nowrap>20:27</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:06</td><td width=46 class=q1 nowrap>21:07</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:25</td><td width=46 class=q0 nowrap>05:26</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:25</td><td width=46 class=q0 nowrap>05:26</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:56</td><td width=46 class=q0 nowrap>05:57</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:20</td><td width=46 class=q0 nowrap>06:21</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:32</td><td width=46 class=q0 nowrap>06:33</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:50</td><td width=46 class=q0 nowrap>06:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>08:00</td><td width=46 class=q0 nowrap>08:01</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:15</td><td width=46 class=q0 nowrap>09:16</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>10:50</td><td width=46 class=q0 nowrap>10:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:10</td><td width=46 class=q0 nowrap>15:11</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:56</td><td width=46 class=q0 nowrap>15:57</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>18:09</td><td width=46 class=q0 nowrap>18:10</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>20:30</td><td width=46 class=q0 nowrap>20:31</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:11</td><td width=46 class=q0 nowrap>21:12</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:29</td><td width=46 class=q1 nowrap>05:30</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:29</td><td width=46 class=q1 nowrap>05:30</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:01</td><td width=46 class=q1 nowrap>06:02</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:24</td><td width=46 class=q1 nowrap>06:25</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:54</td><td width=46 class=q1 nowrap>06:55</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:04</td><td width=46 class=q1 nowrap>08:05</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:21</td><td width=46 class=q1 nowrap>09:22</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>10:55</td><td width=46 class=q1 nowrap>10:56</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>16:01</td><td width=46 class=q1 nowrap>16:02</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:13</td><td width=46 class=q1 nowrap>18:14</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>20:35</td><td width=46 class=q1 nowrap>20:36</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:16</td><td width=46 class=q1 nowrap>21:17</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:35</td><td width=46 class=q0 nowrap>05:36</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:35</td><td width=46 class=q0 nowrap>05:36</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:07</td><td width=46 class=q0 nowrap>06:08</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:30</td><td width=46 class=q0 nowrap>06:31</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:40</td><td width=46 class=q0 nowrap>06:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:00</td><td width=46 class=q0 nowrap>07:01</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>08:10</td><td width=46 class=q0 nowrap>08:11</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:27</td><td width=46 class=q0 nowrap>09:28</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>11:00</td><td width=46 class=q0 nowrap>11:01</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:19</td><td width=46 class=q0 nowrap>15:20</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>16:07</td><td width=46 class=q0 nowrap>16:08</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>18:19</td><td width=46 class=q0 nowrap>18:20</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>20:40</td><td width=46 class=q0 nowrap>20:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:22</td><td width=46 class=q0 nowrap>21:23</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:41</td><td width=46 class=q0 nowrap>05:42</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:41</td><td width=46 class=q0 nowrap>05:42</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:14</td><td width=46 class=q0 nowrap>06:15</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:37</td><td width=46 class=q0 nowrap>06:38</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:07</td><td width=46 class=q0 nowrap>07:08</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>08:17</td><td width=46 class=q0 nowrap>08:18</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:34</td><td width=46 class=q0 nowrap>09:35</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>11:07</td><td width=46 class=q0 nowrap>11:08</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>16:14</td><td width=46 class=q0 nowrap>16:15</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>18:27</td><td width=46 class=q0 nowrap>18:28</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>20:47</td><td width=46 class=q0 nowrap>20:48</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:29</td><td width=46 class=q0 nowrap>21:30</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:44</td><td width=46 class=q1 nowrap>05:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:44</td><td width=46 class=q1 nowrap>05:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:18</td><td width=46 class=q1 nowrap>06:19</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:40</td><td width=46 class=q1 nowrap>06:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:10</td><td width=46 class=q1 nowrap>07:11</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:20</td><td width=46 class=q1 nowrap>08:21</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:38</td><td width=46 class=q1 nowrap>09:39</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>11:11</td><td width=46 class=q1 nowrap>11:12</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>16:18</td><td width=46 class=q1 nowrap>16:19</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:30</td><td width=46 class=q1 nowrap>18:31</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>20:51</td><td width=46 class=q1 nowrap>20:52</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:33</td><td width=46 class=q1 nowrap>21:34</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:48</td><td width=46 class=q1 nowrap>05:49</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:48</td><td width=46 class=q1 nowrap>05:49</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:22</td><td width=46 class=q1 nowrap>06:23</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:44</td><td width=46 class=q1 nowrap>06:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:50</td><td width=46 class=q1 nowrap>06:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:14</td><td width=46 class=q1 nowrap>07:15</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:24</td><td width=46 class=q1 nowrap>08:25</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:42</td><td width=46 class=q1 nowrap>09:43</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>11:14</td><td width=46 class=q1 nowrap>11:15</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:29</td><td width=46 class=q1 nowrap>15:30</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>16:22</td><td width=46 class=q1 nowrap>16:23</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:34</td><td width=46 class=q1 nowrap>18:35</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>20:54</td><td width=46 class=q1 nowrap>20:55</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:38</td><td width=46 class=q1 nowrap>21:39</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:52</td><td width=46 class=q1 nowrap>05:53</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>05:52</td><td width=46 class=q1 nowrap>05:53</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:26</td><td width=46 class=q1 nowrap>06:27</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:48</td><td width=46 class=q1 nowrap>06:49</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:18</td><td width=46 class=q1 nowrap>07:19</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:28</td><td width=46 class=q1 nowrap>08:29</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:46</td><td width=46 class=q1 nowrap>09:47</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>11:18</td><td width=46 class=q1 nowrap>11:19</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:33</td><td width=46 class=q1 nowrap>15:34</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>16:26</td><td width=46 class=q1 nowrap>16:27</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:38</td><td width=46 class=q1 nowrap>18:39</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>20:59</td><td width=46 class=q1 nowrap>21:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:43</td><td width=46 class=q1 nowrap>21:44</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:56</td><td width=46 class=q0 nowrap>05:57</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>05:56</td><td width=46 class=q0 nowrap>05:57</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:30</td><td width=46 class=q0 nowrap>06:31</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:51</td><td width=46 class=q0 nowrap>06:52</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:56</td><td width=46 class=q0 nowrap>06:57</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:21</td><td width=46 class=q0 nowrap>07:22</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>08:31</td><td width=46 class=q0 nowrap>08:32</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:51</td><td width=46 class=q0 nowrap>09:52</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>11:22</td><td width=46 class=q0 nowrap>11:23</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:37</td><td width=46 class=q0 nowrap>15:38</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>16:30</td><td width=46 class=q0 nowrap>16:31</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>18:42</td><td width=46 class=q0 nowrap>18:43</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:02</td><td width=46 class=q0 nowrap>21:03</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:48</td><td width=46 class=q0 nowrap>21:49</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:00</td><td width=46 class=q1 nowrap>06:02</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:00</td><td width=46 class=q1 nowrap>06:02</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:34</td><td width=46 class=q1 nowrap>06:36</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:55</td><td width=46 class=q1 nowrap>06:57</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:59</td><td width=46 class=q1 nowrap>07:01</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:25</td><td width=46 class=q1 nowrap>07:27</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:35</td><td width=46 class=q1 nowrap>08:37</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:54</td><td width=46 class=q1 nowrap>09:55</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>11:26</td><td width=46 class=q1 nowrap>11:27</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:40</td><td width=46 class=q1 nowrap>15:42</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>16:33</td><td width=46 class=q1 nowrap>16:35</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>18:45</td><td width=46 class=q1 nowrap>18:47</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:05</td><td width=46 class=q1 nowrap>21:07</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:51</td><td width=46 class=q1 nowrap>21:53</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:05</td><td width=46 class=q0 nowrap>06:06</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:05</td><td width=46 class=q0 nowrap>06:06</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:39</td><td width=46 class=q0 nowrap>06:40</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:00</td><td width=46 class=q0 nowrap>07:01</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:04</td><td width=46 class=q0 nowrap>07:05</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:30</td><td width=46 class=q0 nowrap>07:31</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>08:40</td><td width=46 class=q0 nowrap>08:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>09:59</td><td width=46 class=q0 nowrap>10:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>11:31</td><td width=46 class=q0 nowrap>11:32</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:45</td><td width=46 class=q0 nowrap>15:46</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>16:39</td><td width=46 class=q0 nowrap>16:40</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>18:50</td><td width=46 class=q0 nowrap>18:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:11</td><td width=46 class=q0 nowrap>21:12</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:58</td><td width=46 class=q0 nowrap>21:59</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:12</td><td width=46 class=q0 nowrap>06:13</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:12</td><td width=46 class=q0 nowrap>06:13</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:47</td><td width=46 class=q0 nowrap>06:48</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:07</td><td width=46 class=q0 nowrap>07:08</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:11</td><td width=46 class=q0 nowrap>07:12</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:37</td><td width=46 class=q0 nowrap>07:38</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>08:47</td><td width=46 class=q0 nowrap>08:48</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>10:05</td><td width=46 class=q0 nowrap>10:06</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>11:38</td><td width=46 class=q0 nowrap>11:39</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:52</td><td width=46 class=q0 nowrap>15:53</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>16:46</td><td width=46 class=q0 nowrap>16:47</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>18:59</td><td width=46 class=q0 nowrap>19:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:18</td><td width=46 class=q0 nowrap>21:19</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>22:05</td><td width=46 class=q0 nowrap>22:06</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:15</td><td width=46 class=q1 nowrap>06:16</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:15</td><td width=46 class=q1 nowrap>06:16</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:50</td><td width=46 class=q1 nowrap>06:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:10</td><td width=46 class=q1 nowrap>07:11</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:14</td><td width=46 class=q1 nowrap>07:15</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:40</td><td width=46 class=q1 nowrap>07:41</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>08:50</td><td width=46 class=q1 nowrap>08:51</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>10:08</td><td width=46 class=q1 nowrap>10:09</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>11:41</td><td width=46 class=q1 nowrap>11:42</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>15:55</td><td width=46 class=q1 nowrap>15:56</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>16:49</td><td width=46 class=q1 nowrap>16:50</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:01</td><td width=46 class=q1 nowrap>19:02</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:22</td><td width=46 class=q1 nowrap>21:23</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>22:08</td><td width=46 class=q1 nowrap>22:09</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:21</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:21</td><td width=46 class=q0 nowrap>06:24</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:55</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:15</td><td width=46 class=q0 nowrap>07:18</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:18</td><td width=46 class=q0 nowrap>07:20</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:45</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>08:55</td><td width=46 class=q0 nowrap>09:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>10:15</td><td width=46 class=q0 nowrap>10:18</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>11:47</td><td width=46 class=q0 nowrap>11:50</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>15:59</td><td width=46 class=q0 nowrap>16:01</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>16:55</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>19:07</td><td width=46 class=q0 nowrap>19:10</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:27</td><td width=46 class=q0 nowrap>21:45</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>22:17</td><td width=46 class=q0 nowrap>22:20</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:28</td><td width=46 class=q1 nowrap>06:29</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:24</td><td width=46 class=q1 nowrap>07:25</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>09:06</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>10:24</td><td width=46 class=q1 nowrap>10:25</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>11:56</td><td width=46 class=q1 nowrap>11:57</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:15</td><td width=46 class=q1 nowrap>19:17</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>21:51</td><td width=46 class=q1 nowrap>21:53</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>22:27</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:35</td><td width=46 class=q0 nowrap>06:37</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:30</td><td width=46 class=q0 nowrap>07:32</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:30</td><td width=46 class=q0 nowrap>07:32</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>10:30</td><td width=46 class=q0 nowrap>10:32</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>12:04</td><td width=46 class=q0 nowrap>12:06</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>16:11</td><td width=46 class=q0 nowrap>16:13</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>19:22</td><td width=46 class=q0 nowrap>19:24</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>21:58</td><td width=46 class=q0 nowrap>22:00</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>06:42</td><td width=46 class=q1 nowrap>06:43</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:36</td><td width=46 class=q1 nowrap>07:37</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>07:36</td><td width=46 class=q1 nowrap>07:37</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>10:36</td><td width=46 class=q1 nowrap>10:37</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>12:10</td><td width=46 class=q1 nowrap>12:11</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>16:17</td><td width=46 class=q1 nowrap>16:18</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>19:28</td><td width=46 class=q1 nowrap>19:29</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>22:04</td><td width=46 class=q1 nowrap>22:05</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="on">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>06:48</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:42</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>07:42</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>10:43</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>12:17</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>16:23</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>19:35</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>22:11</td><td width=46 class=q0 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q0 width=46>–</td><td width=46 class=q0 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+   <tr class="onx">
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+    <td width=1 class=sh_line><img src=/img/spacer.gif></td>
+      <td nowrap class=q1 width=46>–</td><td width=46 class=q1 nowrap>–</td>
+     
+   </tr>
+   <tr class=pix><td colspan=150><img src=/img/spacer.gif></td></tr>
+  
+  </table>
+   </div>
+
+  </td>
+  </tr>
+  <tr><td>&nbsp;</td></tr>
+  </table>
+<script language="javascript" type="text/javascript">
+$(document).ready(function(){
+  var w = 650;
+//  if ($('.nntime').width()> w) $('.gotime').css({ width: w });
+ // alert ($('#train_obig').height());
+  if ($('.train_obig').height()> 40) { $('.shapka_obig').css({ height: $('.train_obig').height() }); $('.train_obig').height($('.train_obig').height()); }
+//  $('tr.on,tr.onx').click(function() {  if ($(this).find('.et').attr('href')) window.location.href = $(this).find('.et').attr('href'); });
+});
+</script></div>  
+</div> 
+<input name="sid[]" type="hidden" value="1"><input name="sid[]" type="hidden" value="2"><input name="sid[]" type="hidden" value="3"><input name="sid[]" type="hidden" value="4"><input name="sid[]" type="hidden" value="83"><input name="sid[]" type="hidden" value="85"><input name="sid[]" type="hidden" value="86"><input name="sid[]" type="hidden" value="87"><input name="sid[]" type="hidden" value="88"><input name="sid[]" type="hidden" value="89"><input name="sid[]" type="hidden" value="90"><input name="sid[]" type="hidden" value="91"><input name="sid[]" type="hidden" value="92"><input name="sid[]" type="hidden" value="93"><input name="sid[]" type="hidden" value="94"><input name="sid[]" type="hidden" value="95"><input name="sid[]" type="hidden" value="96"><input name="sid[]" type="hidden" value="97"><input name="sid[]" type="hidden" value="98"><input name="sid[]" type="hidden" value="99"><input name="sid[]" type="hidden" value="100"><input name="sid[]" type="hidden" value="101"><input name="sid[]" type="hidden" value="102"><input name="sid[]" type="hidden" value="294"><input name="sid[]" type="hidden" value="295"><input name="sid[]" type="hidden" value="296"><input name="sid[]" type="hidden" value="297"><input name="sid[]" type="hidden" value="298"><input name="sid[]" type="hidden" value="299"><input name="sid[]" type="hidden" value="300"><input name="sid[]" type="hidden" value="311"><input name="sid[]" type="hidden" value="301"><input name="sid[]" type="hidden" value="302"><input name="sid[]" type="hidden" value="303"><input name="sid[]" type="hidden" value="304"><input name="sid[]" type="hidden" value="305"><input name="sid[]" type="hidden" value="306"><input name="sid[]" type="hidden" value="307"><input name="sid[]" type="hidden" value="308"><input name="sid[]" type="hidden" value="309"><input name="sid[]" type="hidden" value="310">
+<script language="javascript" type="text/javascript">
+$(document).ready(function(){
+  
+  var dir_map = new direction_at_map ('MapsID');
+  dir_map.loadPuncts($('[name="sid[]"]'));
+  
+  $( "#tabs" ).tabs();
+  
+  
+});
+</script>
+</div>
+
+<!--
+<br><font color=red>До уваги!</font> <img src=/img/imap.png valign=middle> <a href="railmap/"><img src="/img/arrows2.gif"><b> Інтерактивна карта-схема  Південно-Західнної залізниці</b></a>
+
+
+-->
+<br><br>
+
+довідка: <a class=et href='../eltrain/attention/'>Тарифи</a> | <a class=et href='/img/pzz_mapa.png'>Карта Південно-Західнної залізниці</a>
+
+
+
+
+
+</center>
+</TD></TR>
+<tr><td ><font color=silver size='1'>ElTrain&nbsp;v4.1<font></td>
+<td width=100%>
+<!--<center>&nbsp;<a title='інформація про систему розкладу' href='info/'><font color=silver size='1'>[інформація]</font>&nbsp;</a>&nbsp;</center>
+--></td>
+<td nowrap><div align=right><a href="/head/services/info/M/"><font color=silver size='1'>&copy;&nbsp;2005-2021&nbsp;ГІОЦ ВП КВ</font></a></div>
+</TD></TR>
+<TR><TD colspan=3>
+
+  <table width=100%><tr>
+   <td>   
+
+    
+   </td>
+   <td align=center style='border:1px;'>
+   
+   </td>
+   <td style='text-align:right'>
+
+   </td></tr> 
+  </table>
+
+</TD></TR>
+</TABLE>
+<input id="language" name="lng" type="hidden" value=""> <!-- name=lng использую в rsi_autocomplete filters -->
+<script>
+$(document).ready(function(){
+  
+  var language  = $('#language').val();
+  var rsi_autocomplete = new rsi_autocomplete_class('rsi_autocomplete'); 
+  
+  $('#divbody').on('mouseover', 'tr.on,tr.onx', function () { $(this).data("bc", $(this).css("background-color")).css("background-color","#FFFFBB"); } );
+  $('#divbody').on('mouseout', 'tr.on,tr.onx', function () { $(this).css("background-color",$(this).data("bc")); } );
+  
+  $('.hide_menu').hide();
+  
+  $( ".eventdate" )
+      .datepicker({ changeMonth: true, changeYear: true,  monthNamesShort: $.datepicker.regional['uk'].monthNames,  
+                    minDate: '2026-11-18', maxDate: '2027-01-18', dateFormat: 'yy-mm-dd' });
+  $('form').each (function (i, e) {
+    var it = this;
+    var $dateR = $('input[name="dateR"]', this); 
+    var $eventdate = $('.eventdate', this);
+    $eventdate.change(function() { 
+      if ($eventdate.val()) $('input[name="dateR"][value="1"]', it).prop('checked', true); 
+      else $('input[name="dateR"][value="0"]', it).prop('checked', true);
+    }); 
+    $eventdate.change();
+    if ($eventdate.val()) 
+      $('input[name="dateR"][value="1"]').prop('checked', true); 
+    else 
+      $('input[name="dateR"][value="0"]').prop('checked', true);
+    $dateR.change(function() {  
+      if ($(this).val()==0) $eventdate.val('');  // установим текущую дату
+      else if (!$eventdate.val()) $eventdate.val($.datepicker.formatDate('yy-mm-dd', new Date()));  
+    }); 
+    
+  });
+  
+ // очистим форму отправки от ненужных элементов, добавим параметр язык если задан
+ $('form').submit(function(e) {
+   $('[name="dateR"]', this).prop( "disabled", true); 
+    $(':input', this).each (function (k, v) {  
+      if (!$(this).val() || $(this).val()=="0")  { $(this).prop( "disabled", true );  }
+    });
+   if (language) { var input = $('<input>').attr('type', 'hidden').attr('name', 'lng').val(language); $(this).append(input);  }  
+   $('input[type="submit"]').hide();
+ }); 
+  
+
+});
+</script>
+ 
+   </td></tr>
+  </td></tr>
+  </table>
+ </TD>
+ <TD width=1 background="/img/bg_dotv.gif" height="30"><IMG height=1 alt="" src="/img/spacer.gif" width=1></TD>
+ </tr>
+ </table>
+</TR></TD>
+<TR><TD height=10><TABLE height="100%" cellSpacing=0 cellPadding=0 width="100%" align=center border=0>
+<TBODY>
+<TR><TD width="100%" background="/img/bg_dot.gif" colSpan=3><IMG height=1 src="/img/spacer.gif" width=1 border=0></TD></TR>
+<TR>
+<TD width=1 background=/img/bg_dotv.gif height="100%"><IMG height=1 alt="" src="/img/spacer.gif" width=1 border=0></TD>
+<TD align=left width="100%">
+<TABLE height=58 cellSpacing=0 cellPadding=0 width="100%" bgColor=#ebf2f8 border=0>
+<TBODY>
+<TR style="background-image: url(/img/bg_niz.gif);">
+<TD width=221 height="100%" nowrap >
+<!--<DIV style="PADDING-RIGHT: 15px; PADDING-LEFT: 15px; FONT-WEIGHT: bold; FONT-SIZE: 11px; PADDING-BOTTOM: 5px; COLOR: #44515a; PADDING-TOP: 5px; FONT-FAMILY: Tahoma">Контактна інформація</DIV>-->
+</TD>
+<TD width=1 height="100%">
+<DIV style="BACKGROUND-IMAGE: url(/img/bg_dotv.gif); MARGIN: 5px 0px; WIDTH: 1px; HEIGHT: 70%"><IMG height=1 src="/img/spacer.gif" width=1 border=0></DIV></TD>
+<TD width=900 height="100%">
+<DIV style="TEXT-ALIGN: right;PADDING-RIGHT: 15px;"><a class=nnbtitle href="/map/info/M/">&nbsp;© регіональна філія «Південно-Західна залізниця» АТ «Укрзалізниця» 2003-2026</a></DIV></TD></TR></TBODY></TABLE></TD>
+<TD width=1 background=/img/bg_dotv.gif height="100%"><IMG height=1 alt="" src="/img/spacer.gif" width=1 border=0></TD></TR>
+<TR><TD width="100%" background="/img/bg_dot.gif" colSpan=3><IMG height=1 src="/img/spacer.gif" width=1 border=0></TD></TR>
+</TBODY></TABLE></TD></TR></TBODY></TABLE></TD></TR>
+</TABLE>
+</body>
+</html>
+<!--сгенерено за 0.27115106582642 секунд
+-->
