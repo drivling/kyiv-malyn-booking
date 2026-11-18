@@ -3,7 +3,8 @@ import type { DirectWalk, Endpoint, Journey } from '@/pages/LocalTransportPage/j
 import type { Schedule, ViberListing } from '@/types';
 import { parseLocal } from '../nlu/parseLocal';
 import type { KyivNow, TripIntent } from '../nlu/types';
-import { KYIV_POINTS } from '../data/kyiv';
+import { KYIV_POINTS, metroTrip } from '../data/kyiv';
+import { minsToClock as clockOf } from './intercity';
 import { placesInNote } from '../nlu/notePlaces';
 import { cityAsks, classify, composeStories, corridorCities, resolveDate, rideDepartures, ridesWanted } from './composeStories';
 import { shareText } from './narrate';
@@ -758,18 +759,27 @@ describe('У межах одного міста: місце словами — �
     expect(decodeURIComponent(leg.mapsUrl.replace(/\+/g, ' '))).toContain('origin=Предславинська 28, Київ&destination=Севастопольська площа, Київ');
   });
 
-  it('відповідь є — вихід зараз, прибуття через хвилини сервера, завжди «≈»; текст каже, чим їхати', () => {
+  it('відповідь є — метро своє (картка метро), решта від сервера; прибуття — завжди «≈»; текст каже, чим їхати', () => {
     const ask = cityLeg((compose(asked) as Extract<ReturnType<typeof compose>, { kind: 'stories' }>).stories[0]).ask;
     const out = compose(asked, new Map([[cityAskKey(ask), route]]));
     if (out.kind !== 'stories') throw new Error(out.kind);
     const st = out.stories[0];
     expect(out.stories).toHaveLength(1);
-    expect([st.mode, st.leaveMins, st.arriveMins, st.arriveApprox]).toEqual(['city', hm(14, 20), hm(15, 9), true]);
+    // пішки до станції → наше метро «Палац «Україна»» → «Контрактова площа» → далі містом автобусом 368
+    expect(kinds(st)).toEqual(['walk', 'metro', 'city']);
+    const metro = st.legs[1] as Extract<StoryLeg, { kind: 'metro' }>;
+    const own = metroTrip('kyiv.m.palats-ukraina', 'kyiv.m.kontraktova', { mins: hm(14, 29), date: NOW.date })!;
+    expect([metro.depMins, metro.minutes, metro.segments[0].from.name, metro.segments.at(-1)!.to.name]).toEqual([hm(14, 29), own.minutes, 'Палац «Україна»', 'Контрактова площа']);
+    const rest = st.legs[2] as Extract<StoryLeg, { kind: 'city' }>;
+    expect([rest.fromLabel, rest.toLabel, rest.route!.minutes, rest.route!.steps.map((x) => x.line ?? x.kind)]).toEqual(['метро «Контрактова площа»', 'Севастопольська площа', 21, ['368', 'walk']]);
+    expect([st.mode, st.leaveMins, st.arriveMins, st.arriveApprox]).toEqual(['city', hm(14, 20), hm(14, 29) + own.minutes + 21, true]);
     expect([st.fromLabel, st.toLabel, st.endLabel]).toEqual(['Київ, Предславинська 28', 'Київ, Севастопольська площа', 'Київ, Севастопольська площа']);
     expect(st.transfers).toBe(1);
-    expect(st.lead).toBe('Києвом — метро 2, автобус 368. Київ, Севастопольська площа — приблизно о 15:09.');
+    expect(st.lead).toBe(`Метро до «Контрактова площа», далі Києвом — автобус 368. Київ, Севастопольська площа — приблизно о ${clockOf(st.arriveMins)}.`);
     expect(cityAsks(out)).toEqual([]);
-    expect(shareText(st, (id) => id, 'x')).toContain('автобус 368: «ст. м. Контрактова площа» → «пл. Севастопольська», ≈ 16 хв');
+    const text = shareText(st, (id) => id, 'x');
+    expect(text).toContain('метро «Палац «Україна»» → «Контрактова площа»');
+    expect(text).toContain('автобус 368: «ст. м. Контрактова площа» → «пл. Севастопольська», ≈ 16 хв');
   });
 
   it('спитали, а відповіді немає — не історія з нулем хвилин, а посилання на карту', () => {
@@ -787,7 +797,9 @@ describe('У межах одного міста: місце словами — �
     expect(ask.time).toBe('17:20');
     const out = compose(by, new Map([[cityAskKey(ask), route]]));
     if (out.kind !== 'stories') throw new Error(out.kind);
-    expect([out.stories[0].leaveMins, out.stories[0].arriveMins]).toEqual([hm(17, 11), hm(18, 0)]);
+    // своє метро: вихід — за нашими хвилинами, прибуття — рівно до строку
+    expect(out.stories[0].arriveMins).toBe(hm(18, 0));
+    expect(out.stories[0].leaveMins).toBe(hm(18, 0) - out.stories[0].legs.reduce((n, l) => n + (l.kind === 'city' ? l.route!.minutes : 'minutes' in l ? l.minutes : 0), 0));
     const soon = intentOf(kyiv('Предславинська 28'), kyiv('Севастопольська площа'), { day: 'today', kind: 'arrive', time: '14:40' });
     const askSoon = cityLeg((compose(soon) as Extract<ReturnType<typeof compose>, { kind: 'stories' }>).stories[0]).ask;
     expect(compose(soon, new Map([[cityAskKey(askSoon), route]]))).toEqual({ kind: 'empty', reason: 'too_late' });

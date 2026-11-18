@@ -31,8 +31,10 @@ export function storySummary(story: Story): { title: string; sub: string; time: 
   }
   if (story.mode === 'city') {
     // у межах міста до місця словами: чим їхати — з кроків сервера
-    const rides = story.legs.flatMap((l) => (l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit') : []));
-    const lines = rides.map((x) => `${cityModeName(x.mode)} ${x.line ?? ''}`.trim());
+    // метро — своє (картка метро), решта — з кроків сервера
+    const lines = story.legs.flatMap((l) =>
+      l.kind === 'metro' ? ['метро'] : l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit').map((x) => `${cityModeName(x.mode)} ${x.line ?? ''}`.trim()) : [],
+    );
     return { title: 'Містом', sub: [lines.join(' → ') || 'пішки', `≈ ${durationText(story.arriveMins - story.leaveMins)}`].join(' · '), time: clock(story.arriveMins, true) };
   }
   if (story.mode === 'kyiv') {

@@ -256,7 +256,11 @@ of `dist` in a commit.
   `kyiv.borshch`); when the server has no answer the outcome is `city_link` — a panel with the Google Maps link, never a
   story with zero minutes. Two known Kyiv stations stay shape `kyiv` (own data); a city named without a place stays
   `outside`. The dictionary reads both places only in the form «з Києва з … до Києва на …»; free wording comes from
-  Claude. Server `backend/src/dovede/city-route.ts`: a stored answer of the same
+  Claude. Metro inside a server answer is ours, as everywhere else: `compose/cityMetro.ts` (`withOwnMetro`, called by
+  `cityLeg` for every city step) finds the Google boarding / alighting stations in `METRO_STATIONS` by name, recomputes
+  that ride with `metroTrip` (two trains with a short walk between = one ride with a transfer) and splits the step into
+  `walk` → `metro` (`MetroCard`) → `city` (the rest from the server); an unknown station, a closed metro or Zhytomyr
+  leave the step as it was. Server `backend/src/dovede/city-route.ts`: a stored answer of the same
   pair, day type and hour ± 1 not older than the fresh window (30 days by default; the owner edits it in the admin
   block — singleton `DovedeCitySettings.freshDays`, 1–365, `PUT /admin/dovede/city/settings`, cached for a minute) is
   served from `DovedeCityRoute` (`source: 'stored'`), otherwise
