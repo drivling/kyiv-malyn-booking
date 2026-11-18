@@ -13,8 +13,8 @@ describe('ролик-вступ «Доведе»: хто вже бачив', () 
     expect(introSeen()).toBe(true);
   });
 
-  it('ключ — dovede-intro:v1 (новий ролик для всіх = новий ключ)', () => {
-    expect(INTRO_SEEN_KEY).toBe('dovede-intro:v1');
+  it('ключ — dovede-intro:v2 (новий ролик для всіх = новий ключ; v1 → v2 2026-11-18)', () => {
+    expect(INTRO_SEEN_KEY).toBe('dovede-intro:v2');
   });
 
   it('localStorage недоступний для запису — памʼятаємо в sessionStorage', () => {

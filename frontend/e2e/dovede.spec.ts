@@ -219,7 +219,7 @@ test.describe('«Доведе»: ролик-вступ перед сторінк
     await page.getByRole('button', { name: 'Прокомпостувати квиток і увійти' }).click();
     await expect(page.getByRole('dialog', { name: 'Ролик «Доведе.»' })).toHaveCount(0);
     await expect(page.getByLabel('Пароль')).toBeFocused();
-    expect(await page.evaluate(() => localStorage.getItem('dovede-intro:v1'))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('dovede-intro:v2'))).toBeNull();
   });
 
   test('досмотрів до кінця — наступного разу одразу сторінка', async ({ page }) => {
@@ -228,7 +228,7 @@ test.describe('«Доведе»: ролик-вступ перед сторінк
     await expect(page.getByRole('dialog', { name: 'Ролик «Доведе.»' }).locator('video')).toBeAttached();
     await page.evaluate(() => document.querySelector('video')?.dispatchEvent(new Event('ended')));
     await expect(page.getByRole('button', { name: 'Прокомпостувати квиток і увійти' })).toBeVisible();
-    expect(await page.evaluate(() => localStorage.getItem('dovede-intro:v1'))).not.toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem('dovede-intro:v2'))).not.toBeNull();
     await page.reload();
     await expect(page.getByLabel('Пароль')).toBeFocused();
     await expect(page.getByRole('dialog', { name: 'Ролик «Доведе.»' })).toHaveCount(0);

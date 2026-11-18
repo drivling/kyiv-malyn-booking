@@ -141,7 +141,7 @@ of `dist` in a commit.
 
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
-  opens the page — `DovedePage/intro/`, flag `dovede-intro:v1`, file `public/dovede/intro-<hash>.mp4` from
+  opens the page — `DovedePage/intro/`, flag `dovede-intro:v2`, file `public/dovede/intro-<hash>.mp4` from
   `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends
   `X-Robots-Tag: noindex…` on `/dovede` and everything under it — `robotsHeadersFor`; never list it in `robots.txt`; the same full-screen ad
   mechanics in `frontend/src/ads/` play an 8-second teaser once before the stop board for sticker scans — `stickerAd.ts`,

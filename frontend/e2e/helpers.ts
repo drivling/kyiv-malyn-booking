@@ -6,7 +6,7 @@ const API_HOST = /localhost:3000|127\.0\.0\.1:3000/;
 export async function skipDovedeIntro(page: Page) {
   await page.addInitScript(() => {
     try {
-      localStorage.setItem('dovede-intro:v1', '2026-11-16T00:00:00.000Z');
+      localStorage.setItem('dovede-intro:v2', '2026-11-16T00:00:00.000Z');
     } catch {
       /* ignore */
     }
