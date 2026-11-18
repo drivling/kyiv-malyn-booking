@@ -2,10 +2,12 @@
  * «Доведе» · дорога містом: з бази без Google, від Google із записом, ліміт, архів і відновлення, фонове навчання.
  * База — у памʼяті; Google — підмінений `fetchImpl`.
  */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
-import { createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, type CityRouteQuery } from './city-route';
+import { MODE_PAIRS, SEED_PAIRS, createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, type CityRouteQuery } from './city-route';
 
 type Row = Record<string, unknown>;
 
@@ -589,4 +591,14 @@ test('Житомир: власна пряма поїздка — перед ба
 
   const off = make({ ownRoute: () => own, ownEnabled: () => false });
   assert.equal(((await off.svc.find(Q)) as { source?: string }).source, 'google');
+});
+
+test('пари видів транспорту: ті самі, що в фікстурах сторінки, і навчання тримає їх свіжими', () => {
+  const file = path.resolve(__dirname, '../../../frontend/src/pages/DovedePage/compose/fixtures/kyiv-city-modes.json');
+  const asks = Object.values((JSON.parse(readFileSync(file, 'utf8')) as { answers: Record<string, { ask: { city: string; from: string; to: string } }> }).answers).map((a) => a.ask);
+  assert.deepEqual(MODE_PAIRS.map((p) => [p.city, p.from, p.to]).sort(), asks.map((a) => [a.city, a.from, a.to]).sort());
+  for (const p of MODE_PAIRS) {
+    assert.ok(SEED_PAIRS.includes(p));
+    assert.ok(resolveCityPoint(p.city, p.from) && resolveCityPoint(p.city, p.to), `${p.from} → ${p.to}`);
+  }
 });

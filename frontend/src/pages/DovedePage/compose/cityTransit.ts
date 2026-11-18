@@ -110,6 +110,17 @@ function partsOf(steps: CityStep[], kyiv: boolean): Part[] {
 
 const sum = (steps: CityStep[], f: (s: CityStep) => number) => steps.reduce((n, s) => n + f(s), 0);
 
+/** Очікування коротше за це — без окремого рядка (лише в часі): пара хвилин на зупинці — звичайна справа */
+export const WAIT_SHOWN_MIN = 3;
+
+/** «Чекати ≈ 32 хв на зупинці «вул. Замковецька».» — де саме, за видом: зупинка, станція, платформа */
+function waitText(city: CityLeg['city'], step: CityStep, minutes: number): string {
+  const look = rideLook(step);
+  const where = look === 'rail' ? 'на платформі' : look === 'funicular' || look === 'speedTram' || look === 'subway' ? 'на станції' : 'на зупинці';
+  const name = rideStopName(city, step, 'from');
+  return `Чекати ≈ ${minutes} хв ${where}${name ? ` «${name}»` : ''}.`;
+}
+
 /** Як назвати місце посадки наступної частини (для підпису «пішки до …») */
 function boardingName(p: Part | undefined, city: CityLeg['city']): string | null {
   if (!p || p.kind === 'walk') return null;
@@ -137,7 +148,9 @@ export function splitCityRoute(leg: CityLeg, dep: number, date: string): { legs:
   const out: StoryLeg[] = [];
   let t = dep;
   const ride = (p: { step: CityStep }, k: number) => {
-    // очікування, якого Google не розписав, — перед першою його поїздкою
+    // очікування, якого Google не розписав, — перед першою його поїздкою; від кількох хвилин — окремим рядком, щоб
+    // людина бачила, звідки взялися пів години між «пішки» й маршруткою
+    if (slack >= WAIT_SHOWN_MIN) out.push({ kind: 'wait', text: waitText(leg.city, p.step, slack) });
     t += slack;
     slack = 0;
     const last = k === lastRide;

@@ -91,6 +91,8 @@ export function shareText(story: Story, stopName: (id: string) => string, header
     } else if (l.kind === 'ride') {
       // телефону тут немає: номер людина відриває сама на сторінці
       lines.push(`${clock(l.depMins)} — попутка ${l.boardLabel}${l.ride.priceUah ? `, ${l.ride.priceUah} ₴` : ''} (місце уточніть у водія)`);
+    } else if (l.kind === 'wait') {
+      lines.push(l.text);
     } else if (l.kind === 'cityRide') {
       lines.push(`${clock(l.depMins, true)} — ${ridePhrase(l.city, l.step)}: «${rideStopName(l.city, l.step, 'from') ?? '?'}» → «${rideStopName(l.city, l.step, 'to') ?? '?'}», ≈ ${l.step.minutes} хв`);
     } else if (l.kind === 'city') {

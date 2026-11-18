@@ -264,8 +264,12 @@ of `dist` in a commit.
   everything else is a `cityRide` leg drawn by `ui/CityRideCard.tsx` per mode (`rideLook`: bus, minibus = `SHARE_TAXI`,
   trolleybus — wires over the card, tram — rails, speed tram — stops named «станція "…"» or `LIGHT_RAIL`, own station
   line, funicular — a slope with our station names from `FUNICULARS`, rail — suburban trains), with «перевірено N днів
-  тому» and the map link only on the last Google ride. Cards are per mode, not per city. Real answers for each mode are
-  test fixtures in `compose/fixtures/kyiv-city-modes.json` (from our DB, with the `ask` that produced them). Server `backend/src/dovede/city-route.ts`: a stored answer of the same
+  тому» and the map link only on the last Google ride. Waiting Google does not itemise (its total is longer than the
+  steps) goes before the first Google ride and, from `WAIT_SHOWN_MIN` (3) minutes, is a `wait` leg «Чекати ≈ N хв на
+  зупинці «…»» (also in the share text). Cards are per mode, not per city. Real answers for each mode are test
+  fixtures in `compose/fixtures/kyiv-city-modes.json` (from our DB, with the `ask` that produced them); the same pairs
+  are `MODE_PAIRS` in `backend/src/dovede/city-route.ts`, part of `SEED_PAIRS`, so background learning keeps them
+  fresh (a backend test keeps the two lists equal). Server `backend/src/dovede/city-route.ts`: a stored answer of the same
   pair, day type and hour ± 1 not older than the fresh window (30 days by default; the owner edits it in the admin
   block — singleton `DovedeCitySettings.freshDays`, 1–365, `PUT /admin/dovede/city/settings`, cached for a minute) is
   served from `DovedeCityRoute` (`source: 'stored'`), otherwise

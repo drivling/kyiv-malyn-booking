@@ -591,8 +591,9 @@ describe('Житомир ↔ Малин — між містами', () => {
       const out = run('з Малина в Житомир на Польову 12 завтра зранку', fromMalyn.slice(0, 1), { cityRoutes: new Map([[cityAskKey(ask), route]]) });
       const st = out.stories[0];
       const ic = intercity(st);
-      // відповідь сервера — кроками за видом: пішки, картка автобуса, пішки; очікування (21 − 18 хв) — перед автобусом
-      expect(kinds(st).slice(-3)).toEqual(['walk', 'cityRide', 'walk']);
+      // відповідь сервера — кроками за видом: пішки, очікування (21 − 18 хв) окремим рядком, картка автобуса, пішки
+      expect(kinds(st).slice(-4)).toEqual(['walk', 'wait', 'cityRide', 'walk']);
+      expect(st.legs.find((l) => l.kind === 'wait')).toEqual({ kind: 'wait', text: 'Чекати ≈ 3 хв на зупинці «Автовокзал».' });
       const ride = st.legs.find((l): l is Extract<StoryLeg, { kind: 'cityRide' }> => l.kind === 'cityRide')!;
       expect([ride.step.line, ride.depMins, ride.arrMins, ride.checkedAt]).toEqual(['110', ic.alightMins + 6, ic.alightMins + 20, route.fetchedAt]);
       expect(st.arriveMins).toBe(ic.alightMins + 21);
@@ -615,9 +616,9 @@ describe('Житомир ↔ Малин — між містами', () => {
       const out = run(q, toMalyn.slice(0, 1), { cityRoutes: new Map([[cityAskKey(ask), route]]) });
       const st = out.stories[0];
       expect(st.leaveMins).toBe(hm(15, 50) - 7 - 21);
-      expect(kinds(st).slice(0, 3)).toEqual(['walk', 'cityRide', 'walk']);
+      expect(kinds(st).slice(0, 4)).toEqual(['walk', 'wait', 'cityRide', 'walk']);
       // вихід − 21 хв: пішки 3, очікування 3, автобус 14, пішки 1
-      expect(st.legs[1]).toMatchObject({ kind: 'cityRide', depMins: hm(15, 50) - 7 - 15, arrMins: hm(15, 50) - 7 - 1 });
+      expect(st.legs[2]).toMatchObject({ kind: 'cityRide', depMins: hm(15, 50) - 7 - 15, arrMins: hm(15, 50) - 7 - 1 });
       expect(st.fromLabel).toBe('Житомир, вулиця Покровська');
     });
 

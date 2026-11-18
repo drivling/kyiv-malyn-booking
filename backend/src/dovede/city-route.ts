@@ -304,6 +304,25 @@ export function cityDailyCap(env: NodeJS.ProcessEnv = process.env): number {
   return Number.isInteger(n) && n >= 0 ? n : DEFAULT_CITY_DAILY_CAP;
 }
 
+/**
+ * Пари, у відповідях на які є кожен вид транспорту Києва (2026-11-18): фунікулер угору й униз, трамвай №12, трамвай
+ * Подолом після метро, швидкісний трамвай, тролейбус, автобус, кільцева, маршрутка + автобус, автобус + приміська.
+ * Навчання тримає їх свіжими — так у базі завжди є справжня відповідь для картки кожного виду. Той самий перелік —
+ * `ask` у frontend/src/pages/DovedePage/compose/fixtures/kyiv-city-modes.json (тест звіряє обидва).
+ */
+export const MODE_PAIRS: Array<{ city: CityCode; from: string; to: string }> = [
+  { city: 'Kyiv', from: 'kyiv.m.poshtova', to: 'Михайлівська площа' },
+  { city: 'Kyiv', from: 'Михайлівська площа', to: 'Контрактова площа' },
+  { city: 'Kyiv', from: 'kyiv.m.kontraktova', to: 'Пуща-Водиця' },
+  { city: 'Kyiv', from: 'kyiv.sviatoshyn', to: 'Інститут нейрохірургії' },
+  { city: 'Kyiv', from: 'Інститут Шалімова', to: 'kyiv.pas' },
+  { city: 'Kyiv', from: 'kyiv.pas', to: 'Національний військово-медичний клінічний центр' },
+  { city: 'Kyiv', from: 'kyiv.m.kontraktova', to: 'вулиця Глибочицька 40' },
+  { city: 'Kyiv', from: 'kyiv.pas', to: 'вулиця Сім’ї Сосніних 9' },
+  { city: 'Kyiv', from: 'Платформа Куренівка', to: 'Платформа Русанівка' },
+  { city: 'Kyiv', from: 'Райдужний масив, вулиця Каштанова', to: 'Київ-Деміївський вокзал' },
+];
+
 /** Пари, з яких навчання починає, поки людей ще не питали (2026-11-17): куди найчастіше їдуть від місця висадки */
 export const SEED_PAIRS: Array<{ city: CityCode; from: string; to: string }> = [
   { city: 'Zhytomyr', from: 'zhytomyr.avtovokzal', to: 'Залізничний вокзал' },
@@ -314,6 +333,8 @@ export const SEED_PAIRS: Array<{ city: CityCode; from: string; to: string }> = [
   { city: 'Kyiv', from: 'kyiv.akadem', to: 'Центральний автовокзал' },
   // Житомир: від автовокзалу до кінцевих усіх маршрутів міста — щоб база наповнювалась сама, не чекаючи питань
   ...[...new Set(ZT_OWN.dirs.map((d) => d.stops[d.stops.length - 1][0]))].sort().map((to) => ({ city: 'Zhytomyr' as const, from: 'zhytomyr.avtovokzal', to })),
+  // Київ: по парі на кожен вид транспорту — щоб картки мали свіжу справжню відповідь
+  ...MODE_PAIRS,
 ];
 
 export function createCityRoutes(deps: CityRoutesDeps) {

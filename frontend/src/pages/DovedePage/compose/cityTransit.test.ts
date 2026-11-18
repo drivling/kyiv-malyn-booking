@@ -61,7 +61,7 @@ describe('cityTransit: кожен вид — свій крок', () => {
     const r = rides(up.legs)[0];
     expect(funicularWay('Kyiv', r.step)).toEqual({ up: true, from: 'Поштова площа', to: 'Михайлівська площа' });
     expect(ridePhrase('Kyiv', r.step)).toBe('фунікулер вгору до «Михайлівська площа»');
-    // очікування, якого Google не розписав (9 − 7 хв), — перед вагончиком; уся дорога — як у відповіді
+    // очікування, якого Google не розписав (9 − 7 хв), — перед вагончиком, без окремого рядка (коротке); уся дорога — як у відповіді
     expect([r.depMins, up.minutes]).toEqual([720 + 2 + 2, 9]);
     expect([r.checkedAt, r.mapsUrl]).toEqual([answers.funicular.route.fetchedAt, 'https://maps.example/x']);
     // пішки — до нашої назви станції, а не до «Нижняя станция» Google
@@ -90,7 +90,9 @@ describe('cityTransit: кожен вид — свій крок', () => {
 
   it('маршрутка + автобус: дві поїздки; «перевірено» й карта — лише в останній', () => {
     const legs = split('share_taxi').legs;
-    expect(kinds(legs)).toEqual(['walk', 'ride:minibus', 'ride:bus', 'walk']);
+    // загальний час відповіді (119 хв) більший за суму кроків (87) — 32 хв очікування окремим рядком перед маршруткою
+    expect(kinds(legs)).toEqual(['walk', 'wait', 'ride:minibus', 'ride:bus', 'walk']);
+    expect(legs[1]).toEqual({ kind: 'wait', text: 'Чекати ≈ 32 хв на зупинці «вул. Замковецька».' });
     const [a, b] = rides(legs);
     expect([a.checkedAt, a.mapsUrl, b.checkedAt != null, b.mapsUrl]).toEqual([null, null, true, 'https://maps.example/x']);
     expect(b.depMins).toBe(a.arrMins);
@@ -112,8 +114,9 @@ describe('cityTransit: кожен вид — свій крок', () => {
 
   it('приміська електричка (номер, не City Express) лишається поїздкою Google — вигляд «електричка»', () => {
     const legs = split('rail').legs;
-    expect(kinds(legs)).toEqual(['walk', 'ride:bus', 'walk', 'ride:rail']);
+    expect(kinds(legs)).toEqual(['walk', 'wait', 'ride:bus', 'walk', 'ride:rail']);
     expect(ridePhrase('Kyiv', rides(legs)[1].step)).toBe('електричка 6809');
+    expect(legs[1]).toMatchObject({ kind: 'wait', text: expect.stringMatching(/^Чекати ≈ \d+ хв на зупинці «вул. Каштанова»\.$/) });
   });
 
   it('метро + трамвай Подолом: метро своє, трамвай — картка трамвая', () => {

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SEED_PAIRS = exports.CITY_NAME = exports.DEFAULT_CITY_DAILY_CAP = exports.isValidFreshDays = exports.QUOTA_BACKOFF_MS = exports.REFRESH_RETRY_DAYS = exports.refreshLeadDays = exports.CITY_FRESH_DAYS_MAX = exports.CITY_FRESH_DAYS_MIN = exports.CITY_FRESH_DAYS = void 0;
+exports.SEED_PAIRS = exports.MODE_PAIRS = exports.CITY_NAME = exports.DEFAULT_CITY_DAILY_CAP = exports.isValidFreshDays = exports.QUOTA_BACKOFF_MS = exports.REFRESH_RETRY_DAYS = exports.refreshLeadDays = exports.CITY_FRESH_DAYS_MAX = exports.CITY_FRESH_DAYS_MIN = exports.CITY_FRESH_DAYS = void 0;
 exports.normalizeKey = normalizeKey;
 exports.resolveCityPoint = resolveCityPoint;
 exports.storedPoint = storedPoint;
@@ -191,6 +191,24 @@ function cityDailyCap(env = process.env) {
     const n = Number(raw);
     return Number.isInteger(n) && n >= 0 ? n : exports.DEFAULT_CITY_DAILY_CAP;
 }
+/**
+ * Пари, у відповідях на які є кожен вид транспорту Києва (2026-11-18): фунікулер угору й униз, трамвай №12, трамвай
+ * Подолом після метро, швидкісний трамвай, тролейбус, автобус, кільцева, маршрутка + автобус, автобус + приміська.
+ * Навчання тримає їх свіжими — так у базі завжди є справжня відповідь для картки кожного виду. Той самий перелік —
+ * `ask` у frontend/src/pages/DovedePage/compose/fixtures/kyiv-city-modes.json (тест звіряє обидва).
+ */
+exports.MODE_PAIRS = [
+    { city: 'Kyiv', from: 'kyiv.m.poshtova', to: 'Михайлівська площа' },
+    { city: 'Kyiv', from: 'Михайлівська площа', to: 'Контрактова площа' },
+    { city: 'Kyiv', from: 'kyiv.m.kontraktova', to: 'Пуща-Водиця' },
+    { city: 'Kyiv', from: 'kyiv.sviatoshyn', to: 'Інститут нейрохірургії' },
+    { city: 'Kyiv', from: 'Інститут Шалімова', to: 'kyiv.pas' },
+    { city: 'Kyiv', from: 'kyiv.pas', to: 'Національний військово-медичний клінічний центр' },
+    { city: 'Kyiv', from: 'kyiv.m.kontraktova', to: 'вулиця Глибочицька 40' },
+    { city: 'Kyiv', from: 'kyiv.pas', to: 'вулиця Сім’ї Сосніних 9' },
+    { city: 'Kyiv', from: 'Платформа Куренівка', to: 'Платформа Русанівка' },
+    { city: 'Kyiv', from: 'Райдужний масив, вулиця Каштанова', to: 'Київ-Деміївський вокзал' },
+];
 /** Пари, з яких навчання починає, поки людей ще не питали (2026-11-17): куди найчастіше їдуть від місця висадки */
 exports.SEED_PAIRS = [
     { city: 'Zhytomyr', from: 'zhytomyr.avtovokzal', to: 'Залізничний вокзал' },
@@ -201,6 +219,8 @@ exports.SEED_PAIRS = [
     { city: 'Kyiv', from: 'kyiv.akadem', to: 'Центральний автовокзал' },
     // Житомир: від автовокзалу до кінцевих усіх маршрутів міста — щоб база наповнювалась сама, не чекаючи питань
     ...[...new Set(zhytomyr_own_data_1.ZT_OWN.dirs.map((d) => d.stops[d.stops.length - 1][0]))].sort().map((to) => ({ city: 'Zhytomyr', from: 'zhytomyr.avtovokzal', to })),
+    // Київ: по парі на кожен вид транспорту — щоб картки мали свіжу справжню відповідь
+    ...exports.MODE_PAIRS,
 ];
 function createCityRoutes(deps) {
     const { prisma } = deps;
