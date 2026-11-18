@@ -14,7 +14,7 @@ import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import { getKyivDateString, getKyivMinutesNow } from '@/pages/LocalTransportPage/kyivTime';
 import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerModel';
-import { KOROSTEN, buildKorostenPlaces, isKorostenQuestion, korostenShape, mentionsOtherCity, remapForKorosten } from './korosten/korostenCity';
+import { KOROSTEN, buildKorostenPlaces, isKorostenQuestion, isMalynKorostenTrip, korostenShape, mentionsOtherCity, namesKorostenAsEnd, remapForKorosten } from './korosten/korostenCity';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
 import { DovedeIntro, type IntroEvent } from './intro/DovedeIntro';
@@ -370,16 +370,23 @@ function DovedeSearch({
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
   const run = useCallback(
     async (q: string, chosen?: TripIntent) => {
-      // Питання про інше місто, ніж зараз на сторінці («з Пашин до ринку» в Малині) — перемикаємо місто й питаємо там
+      const now = kyivNow();
+      const parse = parseLocal(q, now, stopIndex, routes);
+      // Питання про інше місто, ніж зараз на сторінці («з Пашин до ринку» в Малині) — перемикаємо місто й питаємо там.
+      // Поїздка Малин ↔ Коростень («з Паперової фабрики в Коростень») — питання Малина, не міста Коростеня.
       if (!chosen && onCity) {
-        const other = korosten ? (mentionsOtherCity(q) ? DEFAULT_TRANSPORT_CITY : null) : isKorostenQuestion(q) ? KOROSTEN : null;
+        const other = korosten
+          ? mentionsOtherCity(q) || namesKorostenAsEnd(q)
+            ? DEFAULT_TRANSPORT_CITY
+            : null
+          : isKorostenQuestion(q) && !isMalynKorostenTrip(q, parse.intent)
+            ? KOROSTEN
+            : null;
         if (other) {
           onCity(other, q);
           return;
         }
       }
-      const now = kyivNow();
-      const parse = parseLocal(q, now, stopIndex, routes);
       const id = ++seq.current;
       setChosenId(null);
       setSuggestion(null);
@@ -752,7 +759,8 @@ function Result({
     case 'outside':
       return (
         <Panel title="Цю дорогу я ще вчу">
-          «Доведе» знає дорогу Київ — Малин, Житомир — Малин і міські автобуси Малина. Коростень та інші напрямки — далі.
+          «Доведе» знає дорогу Київ — Малин, Житомир — Малин і міські автобуси Малина та Коростеня. Між Малином і Коростенем
+          та інші напрямки — далі.
         </Panel>
       );
     case 'poputky':

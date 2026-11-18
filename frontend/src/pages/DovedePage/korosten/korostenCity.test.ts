@@ -2,9 +2,21 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { parseLocal } from '../nlu/parseLocal';
 import { setStopPlaces } from '../nlu/places';
 import type { RouteLike } from '../nlu/routes';
+import { buildStopPlaces } from '../nlu/stopPlaces';
+import { classify } from '../compose/composeStories';
 import stopsFile from '../eval/korosten-stops.json';
 import routesFile from '../eval/korosten-routes.json';
-import { buildKorostenPlaces, isKorostenQuestion, korostenShape, mentionsOtherCity, remapForKorosten } from './korostenCity';
+import malynStopsFile from '../eval/malyn-stops.json';
+import malynRoutesFile from '../eval/malyn-routes.json';
+import {
+  buildKorostenPlaces,
+  isKorostenQuestion,
+  isMalynKorostenTrip,
+  korostenShape,
+  mentionsOtherCity,
+  namesKorostenAsEnd,
+  remapForKorosten,
+} from './korostenCity';
 
 const routes = routesFile.routes as RouteLike[];
 const index = buildKorostenPlaces(stopsFile.stops);
@@ -76,5 +88,64 @@ describe('isKorostenQuestion', () => {
     expect(isKorostenQuestion('з Царського села на вокзал')).toBe(false);
     expect(mentionsOtherCity('з Пашин до Малина')).toBe(true);
     expect(mentionsOtherCity('з Пашин до ринку')).toBe(false);
+  });
+});
+
+describe('поїздка Малин ↔ Коростень — питання Малина, а не міста Коростеня (етап 3)', () => {
+  const malynIndex = buildStopPlaces(malynStopsFile.stops);
+  const malynRoutes = malynRoutesFile.routes as RouteLike[];
+  beforeAll(() => setStopPlaces(malynIndex));
+  afterAll(() => setStopPlaces(index));
+  const malyn = (q: string) => parseLocal(q, now, malynIndex, malynRoutes).intent;
+  /** те саме рішення, що й на сторінці в Малині: перемкнути на Коростень? */
+  const switches = (q: string) => isKorostenQuestion(q) && !isMalynKorostenTrip(q, malyn(q));
+
+  it('малинське місце + «в Коростень» / «з Коростеня» — лишаємось у Малині, відповідь «вчу»', () => {
+    for (const q of [
+      'як доїхати з Паперової фабрики в Коростень до міської лікарні',
+      'з Коростеня до Паперової фабрики',
+      'з автостанції в Коростень',
+      'з Царського села до Коростеня',
+      'з вокзалу в Коростень',
+    ]) {
+      expect(switches(q), q).toBe(false);
+      expect(classify(malyn(q)), q).toEqual({ kind: 'outside', city: 'Korosten' });
+    }
+  });
+
+  it('питання містом Коростенем як і раніше перемикають сторінку', () => {
+    for (const q of [
+      'з Пашин до міськлікарні',
+      'коли №4 на Грозине',
+      'як у Коростені доїхати з Пашин до ринку',
+      'з Пашин до ринку в Коростені',
+      'Коростень: з Пашин до ринку',
+      'в Коростені з вокзалу до ринку',
+      'з вокзалу до центру в Коростені',
+      'з центру Коростеня на вокзал',
+      'з Пашин до Коростеня-Подільського',
+    ]) {
+      expect(switches(q), q).toBe(true);
+    }
+  });
+
+  it('Київ і Житомир правило не зачіпає: без слова «Коростень» воно не спрацьовує, малинська відповідь та сама', () => {
+    for (const q of ['з вокзалу в Київ', 'з ринку до Житомира', 'з Паперової фабрики на Академмістечко', 'з Житомира на автостанцію']) {
+      expect(isKorostenQuestion(q), q).toBe(false);
+      expect(isMalynKorostenTrip(q, malyn(q)), q).toBe(false);
+      expect(namesKorostenAsEnd(q), q).toBe(false);
+      expect(['from_malyn', 'to_malyn'], q).toContain(classify(malyn(q)).kind);
+    }
+    // Коростень разом з Києвом чи Житомиром — теж не місто Коростень (`mentionsOtherCity`), сторінка лишається в Малині
+    expect(switches('з Коростеня до Києва')).toBe(false);
+  });
+
+  it('namesKorostenAsEnd: у режимі Коростеня «в Коростень» повертає сторінку в Малин', () => {
+    expect(namesKorostenAsEnd('з Паперової фабрики в Коростень')).toBe(true);
+    expect(namesKorostenAsEnd('з Коростеня до лікарні')).toBe(true);
+    expect(namesKorostenAsEnd('як у Коростені доїхати до вокзалу')).toBe(false);
+    expect(namesKorostenAsEnd('з центру Коростеня на вокзал')).toBe(false);
+    expect(namesKorostenAsEnd('з Пашин до Коростеня-Подільського')).toBe(false);
+    expect(namesKorostenAsEnd('Коростень: з Пашин до ринку')).toBe(false);
   });
 });

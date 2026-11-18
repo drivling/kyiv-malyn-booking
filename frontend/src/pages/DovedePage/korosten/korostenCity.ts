@@ -114,6 +114,41 @@ export function isKorostenQuestion(text: string): boolean {
   return hasStem(text, KOROSTEN_STEMS) && !hasStem(text, OTHER_CITY_STEMS);
 }
 
+/** Прийменники напрямку: «в Коростень», «до Коростеня», «з Коростеня» — Коростень як кінець поїздки, не уточнення міста */
+const DIRECTION_PREPS = new Set(['з', 'із', 'зі', 'від', 'до', 'в', 'у', 'на']);
+
+/**
+ * Коростень — кінець поїздки: «в Коростень» / «з Коростеня» — так; «у Коростені» (де?), «центру Коростеня» (чого?) і
+ * зупинка «до Коростеня-Подільського» — ні. Містом Коростенем так не питають, тож і в режимі Коростеня це питання
+ * про поїздку з Малина чи в Малин.
+ */
+export function namesKorostenAsEnd(text: string): boolean {
+  const toks = tokenize(text);
+  return toks.some(
+    (t, i) =>
+      t.n.startsWith('коростен') &&
+      t.n !== 'коростені' &&
+      i > 0 &&
+      DIRECTION_PREPS.has(toks[i - 1].n) &&
+      !toks[i + 1]?.n.startsWith('подільськ'),
+  );
+}
+
+/**
+ * Малинський розбір питання — поїздка між Малином і Коростенем, а не містом Коростенем: Коростень названо як кінець
+ * поїздки («в Коростень», «з Коростеня», не «у Коростені» й не «центр Коростеня»), другий кінець — місце в Малині, і
+ * нерозпізнаних слів нема. Людина пише таке без слова «Малин» (сайт малинський: «з вокзалу в Коростень» — малинський
+ * вокзал), тож `isKorostenQuestion` сама його не відрізнить. Таке питання лишається в Малині й чесно отримує
+ * «цю дорогу я ще вчу» (міжміська поїздка в Коростень — етап 3). Місця шукає `resolvePlace`, тобто реєстр Малина.
+ */
+export function isMalynKorostenTrip(text: string, intent: TripIntent): boolean {
+  if (intent.unknown.length || !intent.from || !intent.to || !namesKorostenAsEnd(text)) return false;
+  const ends = [intent.from, intent.to];
+  const k = ends.findIndex((r) => r.id === 'city.Korosten');
+  if (k < 0) return false;
+  return resolvePlace(ends[1 - k].id)?.city === 'Malyn';
+}
+
 /** Питання називає інше місто (Малин, Київ…) — у режимі Коростеня це вже не питання про місто Коростень */
 export function mentionsOtherCity(text: string): boolean {
   return hasStem(text, OTHER_CITY_STEMS);
