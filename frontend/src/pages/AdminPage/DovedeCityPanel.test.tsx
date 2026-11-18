@@ -103,6 +103,14 @@ describe('DovedeCityPanel', () => {
     await waitFor(() => expect(field.value).toBe('90'));
   });
 
+  it('рядок стану: з чого склались запити до Google, скільки людям відмовили, пауза після відмови', async () => {
+    mock({ callsToday: 40, dailyCap: 150, today: { people: 25, learn: 15, refused: 3 }, blocked: { until: '2026-11-18T10:20:00.000Z', reason: 'quota' } });
+    await open();
+    const status = screen.getByText(/запитів до Google сьогодні: 40 з 150 \(люди 25, навчання 15\)/);
+    expect(status.textContent).toContain('людям відмовили через ліміт: 3');
+    expect(status.textContent).toMatch(/Google не питаємо до 18 листопада о 12:20 — вичерпано квоту/);
+  });
+
   it('денний ліміт Google: видно, скільки вже витрачено; зберігає новий; «Як на сервері» повертає змінну', async () => {
     const { calls } = mock({ callsToday: 1536, dailyCap: 2450, dailyCapDefault: 2450, dailyCapFromAdmin: false });
     const { user } = await open();

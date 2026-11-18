@@ -237,10 +237,10 @@ function createCityRoutes(deps) {
     const ownRoute = deps.ownRoute ?? zhytomyr_own_1.ownZhytomyrRoute;
     // Власні дані Житомира: маршрути й зупинки із сайту власника, хвилини виправлено за Google; `DOVEDE_CITY_OWN=0` вимикає
     const ownEnabled = deps.ownEnabled ?? (() => (process.env.DOVEDE_CITY_OWN ?? '1').trim() !== '0');
-    // лічильник у памʼяті — на випадок, коли запис у базу вимкнено й рахувати рядки нема з чого
+    // Лічильник і пауза — у базі (`DovedeCityGoogleDay`), спільні для всіх контейнерів. Памʼять — лише запас, коли база
+    // не відповідає: тоді рахуємо в цьому процесі, як раніше
     let memoDay = '';
     let memoCalls = 0;
-    // Google відмовив усім одразу (429 — квота, 401 / 403 — доступ): до цього моменту не питаємо зовсім
     let blockedUntil = 0;
     let blockedReason = 'cap';
     /**
@@ -311,6 +311,18 @@ function createCityRoutes(deps) {
         }
     }
     const freshSince = async () => new Date(now().getTime() - (await freshDays()) * 24 * 3600000);
+    /** Київська дата 'YYYY-MM-DD' — ключ рядка обліку */
+    const kyivDay = (at) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Kyiv', year: 'numeric', month: '2-digit', day: '2-digit' }).format(at);
+    async function dayRow() {
+        return prisma.dovedeCityGoogleDay.findUnique({ where: { day: kyivDay(now()) } }).catch((e) => {
+            console.error('❌ city-route: облік Google не прочитано:', e instanceof Error ? e.message : e);
+            return null;
+        });
+    }
+    /**
+     * Запитів до Google сьогодні: облік у базі; не менше за кількість сьогоднішніх записаних відповідей (у день
+     * переходу на облік рядок порожній, а відповіді вже є) і за лічильник цього процесу (якщо база не відповідала).
+     */
     async function callsToday() {
         const today = (0, guard_1.kyivDayStart)(now());
         const key = today.toISOString();
@@ -318,8 +330,54 @@ function createCityRoutes(deps) {
             memoDay = key;
             memoCalls = 0;
         }
-        const stored = await prisma.dovedeCityRoute.count({ where: { source: 'google', fetchedAt: { gte: today } } }).catch(() => 0);
-        return Math.max(stored, memoCalls);
+        const [row, stored] = await Promise.all([dayRow(), prisma.dovedeCityRoute.count({ where: { source: 'google', fetchedAt: { gte: today } } }).catch(() => 0)]);
+        return Math.max(row?.calls ?? 0, stored, memoCalls);
+    }
+    /** Записати запит у облік до виклику; `undo` — Google відмовив усім (429 / 401 / 403), запит не рахується */
+    async function countCall(purpose, delta) {
+        const day = kyivDay(now());
+        try {
+            const row = await prisma.dovedeCityGoogleDay.upsert({
+                where: { day },
+                create: { day, calls: Math.max(0, delta), [purpose]: Math.max(0, delta) },
+                update: { calls: { increment: delta }, [purpose]: { increment: delta } },
+            });
+            return row.calls;
+        }
+        catch (e) {
+            console.error('❌ city-route: облік Google не записано:', e instanceof Error ? e.message : e);
+            memoCalls += delta;
+            return null;
+        }
+    }
+    /** Людині не дали дорогу через ліміт чи квоту — видно в адмінці («людям відмовили») */
+    async function noteRefused() {
+        const day = kyivDay(now());
+        await prisma.dovedeCityGoogleDay
+            .upsert({ where: { day }, create: { day, refused: 1 }, update: { refused: { increment: 1 } } })
+            .catch((e) => console.error('❌ city-route: облік відмов:', e instanceof Error ? e.message : e));
+    }
+    /** Відмова Google: текст (і пауза для 429 / 401 / 403) — у базу, щоб бачили всі контейнери й адмінка після перезапуску */
+    async function noteGoogleError(status, message, block) {
+        const at = now();
+        const day = kyivDay(at);
+        const data = {
+            lastErrorStatus: status,
+            lastErrorMessage: message || null,
+            lastErrorAt: at,
+            ...(block ? { blockedUntil: new Date(at.getTime() + exports.QUOTA_BACKOFF_MS), blockedReason: block } : {}),
+        };
+        await prisma.dovedeCityGoogleDay.upsert({ where: { day }, create: { day, ...data }, update: data }).catch((e) => console.error('❌ city-route: відмову Google не записано:', e instanceof Error ? e.message : e));
+    }
+    /** Пауза після відмови Google — з бази (спільна), інакше з памʼяті цього процесу */
+    async function blockedNow() {
+        const row = await dayRow();
+        const until = row?.blockedUntil ? row.blockedUntil.getTime() : 0;
+        if (until > now().getTime())
+            return row?.blockedReason === 'denied' ? 'denied' : 'cap';
+        if (now().getTime() < blockedUntil)
+            return blockedReason;
+        return null;
     }
     async function findStored(q, from, to, hour) {
         const freshFrom = await freshSince();
@@ -378,15 +436,22 @@ function createCityRoutes(deps) {
             });
         }
     }
-    async function askGoogle(q, from, to) {
+    async function askGoogle(q, from, to, purpose) {
         const key = deps.key();
         if (!key)
             return 'no_key';
-        if ((await callsToday()) >= (await capNow()))
+        const blocked = await blockedNow();
+        if (blocked)
+            return blocked;
+        const cap = await capNow();
+        if ((await callsToday()) >= cap)
             return 'cap';
-        if (now().getTime() < blockedUntil)
-            return blockedReason;
-        memoCalls++;
+        // записуємо запит до виклику: два контейнери, що питають одночасно, разом ліміту не перейдуть
+        const counted = await countCall(purpose, 1);
+        if (counted != null && counted > cap) {
+            await countCall(purpose, -1);
+            return 'cap';
+        }
         try {
             // Google приймає лише майбутній час; для «вже зараз» — без нього
             const future = q.departAt.getTime() > now().getTime() + 60000;
@@ -405,12 +470,14 @@ function createCityRoutes(deps) {
             if (res.status === 429 || res.status === 401 || res.status === 403) {
                 // 429 — квота в Google Cloud менша за наш денний ліміт або її вибрали інші скрипти з тим самим ключем;
                 // 401 / 403 — ключ, вимкнений API або білінг. Не вина пари й не наш ліміт: спроба не рахується
-                memoCalls--;
+                await countCall(purpose, -1);
                 blockedUntil = now().getTime() + exports.QUOTA_BACKOFF_MS;
                 blockedReason = res.status === 429 ? 'cap' : 'denied';
+                await noteGoogleError(res.status, message, res.status === 429 ? 'quota' : 'denied');
                 console.error(`⛔ city-route: Google Routes ${res.status} — ${res.status === 429 ? 'квоту вичерпано' : 'відмовлено в доступі'}, 10 хв не питаємо${tail}`);
                 return blockedReason;
             }
+            await noteGoogleError(res.status, message, null);
             // 400 / 404 — Google не прийняв саме цю пару (адресу): для неї дороги немає
             if (res.status === 400 || res.status === 404)
                 return 'no_route';
@@ -467,10 +534,12 @@ function createCityRoutes(deps) {
             }
             return { ok: true, source: stored.source === 'own' ? 'own' : 'stored', city: q.city, fromLabel: stored.fromLabel, toLabel: stored.toLabel, steps: stored.steps, minutes: stored.minutes, fetchedAt: stored.fetchedAt.toISOString() };
         }
-        const got = await askGoogle(q, from, to);
+        const got = await askGoogle(q, from, to, background ? 'learn' : 'people');
         if (typeof got === 'string') {
             if (!background)
                 await noteDemand(q.city, from, to, false);
+            if (!background && (got === 'cap' || got === 'denied'))
+                await noteRefused();
             return { ok: false, fallback: 'maps', reason: got };
         }
         if (store()) {
@@ -606,13 +675,25 @@ function createCityRoutes(deps) {
             prisma.dovedeCityDemand.findMany({ where: { asked: { gt: 0 }, answered: false }, orderBy: [{ asked: 'desc' }, { lastAskedAt: 'desc' }], take: 100 }),
             prisma.dovedeCityRoute.count({ where: { source: 'google', archivedAt: null, fetchedAt: { lt: new Date(now().getTime() - fresh * 24 * 3600000) } } }),
         ]);
+        const [day, lastError] = await Promise.all([
+            dayRow(),
+            prisma.dovedeCityGoogleDay.findFirst({ where: { lastErrorAt: { not: null } }, orderBy: { lastErrorAt: 'desc' } }).catch(() => null),
+        ]);
+        // остання відмова: з бази (переживає перезапуск, спільна для контейнерів), інакше — з памʼяті цього процесу
+        const fromDb = lastError?.lastErrorAt && lastError.lastErrorStatus != null ? { at: lastError.lastErrorAt, status: lastError.lastErrorStatus, message: lastError.lastErrorMessage ?? '' } : null;
+        const lastRefusal = [fromDb, googleError].filter((x) => x != null).sort((a, b) => b.at.getTime() - a.at.getTime())[0] ?? null;
+        const blockedTill = day?.blockedUntil && day.blockedUntil.getTime() > now().getTime() ? day.blockedUntil : null;
         return {
             enabled: enabled(),
             store: store(),
             hasKey: Boolean(deps.key()),
-            // остання відмова Google з моменту запуску сервера (статус і його власний текст); null — не відмовляв
-            googleError: googleError ? { at: googleError.at.toISOString(), status: googleError.status, message: googleError.message } : null,
+            // остання відмова Google (статус і його власний текст); null — не відмовляв
+            googleError: lastRefusal ? { at: lastRefusal.at.toISOString(), status: lastRefusal.status, message: lastRefusal.message } : null,
             callsToday: today,
+            // з чого склались сьогоднішні запити: люди, навчання; скільки людям відмовили через ліміт чи квоту
+            today: { people: day?.people ?? 0, learn: day?.learn ?? 0, refused: day?.refused ?? 0 },
+            // пауза після відмови Google (429 — квота, 401 / 403 — доступ): до цього часу Google не питаємо
+            blocked: blockedTill ? { until: blockedTill.toISOString(), reason: day?.blockedReason === 'denied' ? 'denied' : 'quota' } : null,
             dailyCap: await capNow(),
             // без значення з адмінки — ліміт зі змінної середовища (або 150 з коду); `dailyCapFromAdmin` — власник задав свій
             dailyCapDefault: dailyCap(),
