@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && node scripts/sri.mjs && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs && node scripts/prerender-spa.mjs && PRERENDER_SITE=korosten node scripts/prerender-transport-stops.mjs && PRERENDER_SITE=korosten node scripts/prerender-spa.mjs && node scripts/build-sw.mjs && SEO_SMOKE_STRICT=1 node scripts/seo-smoke.mjs && SEO_SMOKE_STRICT=1 SEO_SMOKE_SITE=korosten node scripts/seo-smoke.mjs",
+    "build": "tsc && vite build && node scripts/sri.mjs && node scripts/dovede-html.mjs && node scripts/prerender-corridors.mjs && node scripts/prerender-transport-stops.mjs && node scripts/prerender-spa.mjs && PRERENDER_SITE=korosten node scripts/prerender-transport-stops.mjs && PRERENDER_SITE=korosten node scripts/prerender-spa.mjs && node scripts/build-sw.mjs && SEO_SMOKE_STRICT=1 node scripts/seo-smoke.mjs && SEO_SMOKE_STRICT=1 SEO_SMOKE_SITE=korosten node scripts/seo-smoke.mjs",
     "prerender:spa": "node scripts/prerender-spa.mjs",
     "seo:smoke": "node scripts/seo-smoke.mjs",
     "preview": "node scripts/serve-dist.mjs",
@@ -18,6 +18,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "dovede:intro": "node scripts/dovede-intro.mjs",
+    "dovede:icons": "node scripts/dovede-icons.mjs",
     "dovede:ring": "node scripts/kyiv-ring-snapshot.mjs",
     "dovede:crawl": "node scripts/dovede-crawl.mjs"
   },

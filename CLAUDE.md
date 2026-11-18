@@ -141,9 +141,13 @@ of `dist` in a commit.
 
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
-  opens the page — `DovedePage/intro/`, flag `dovede-intro:v1`, file `public/dovede/intro-<hash>.mp4` from
+  opens the page — `DovedePage/intro/`, flag `dovede-intro:v2`, file `public/dovede/intro-<hash>.mp4` from
   `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends
-  `X-Robots-Tag: noindex…` on `/dovede` and everything under it — `robotsHeadersFor`; never list it in `robots.txt`; the same full-screen ad
+  `X-Robots-Tag: noindex…` on `/dovede` and everything under it — `robotsHeadersFor`; never list it in `robots.txt`; the tab icon
+  and the link preview (Telegram, Viber) are the logo from the video — names and texts in `scripts/dovede-brand.mjs`, PNGs in
+  `public/dovede/` from `npm run dovede:icons`, and the build step `scripts/dovede-html.mjs` (right after `sri.mjs`) writes
+  `dist/dovede/index.html`, the shell with Dovede's head, because messengers do not run JS; the page itself swaps the tab
+  icon on SPA navigation (`useDovedeIcons`), `usePageSeo({ ogImage })` sets the card; a new drawing = new `-v2` names; the same full-screen ad
   mechanics in `frontend/src/ads/` play an 8-second teaser once before the stop board for sticker scans — `stickerAd.ts`,
   flag `dovede-hint:v1`; views and `/dovede` visits with access go to `AdEvent` via `POST /ads/events`, the wall
   widget's «Реклама» tab reads `GET /ads/wall`): a person asks in plain words and gets a story of cards built in the browser
