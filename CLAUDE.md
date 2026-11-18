@@ -139,7 +139,8 @@ of `dist` in a commit.
   sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
 
-- «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; research in
+- «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; the admin tab
+  redesign and server-side learning runs are planned in `Docs/dovede-admin-roadmap.md` (plan of plans, read it first); research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
   opens the page — `DovedePage/intro/`, flag `dovede-intro:v2`, file `public/dovede/intro-<hash>.mp4` from
   `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends
