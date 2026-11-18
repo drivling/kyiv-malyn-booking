@@ -22,6 +22,7 @@ import { defaultReminderDeps, runDueBookingReminders } from './booking-reminders
 import { startListingMatchWorker } from './listing-match-jobs';
 import { WATCHED_SOURCES, fetchSourceText, runSourceWatch } from './transport-source-watch';
 import { fetchGpsFeedText, recordGpsPositions } from './transport-gps';
+import { createEltrainSyncTick } from './eltrain-sync';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
 
@@ -35,6 +36,7 @@ function main(): void {
   let sourceWatchJob: IntervalJob | null = null;
   let gpsJob: IntervalJob | null = null;
   let cityLearnJob: IntervalJob | null = null;
+  let eltrainJob: IntervalJob | null = null;
   const app = createApp({ prisma });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {
@@ -147,6 +149,16 @@ function main(): void {
         },
         { intervalMin: Number(process.env.TRANSPORT_GPS_INTERVAL_MIN ?? 1), firstDelayMs: 90_000 },
       );
+      // Електрички з розкладу ПЗЗ (swrailway.gov.ua): нові / змінені / скасовані рейси Київ – Малин – Коростень,
+      // зміни й нові проблеми → адмін-чат; ELTRAIN_SYNC_INTERVAL_MIN (за замовч. 360, 0 = вимкнено)
+      const eltrainTick = createEltrainSyncTick(prisma, { notify: sendAdminAlertHtml });
+      eltrainJob = startIntervalJob(
+        'eltrain-sync',
+        async () => {
+          await eltrainTick();
+        },
+        { intervalMin: Number(process.env.ELTRAIN_SYNC_INTERVAL_MIN ?? 360), firstDelayMs: 10 * 60_000 },
+      );
       // «Доведе»: поступове навчання дороги містом (Київ, Житомир) — найзапитуваніші пари без свіжої відповіді,
       // у межах половини денного ліміту Google; DOVEDE_CITY_LEARN_INTERVAL_MIN (за замовч. 60, 0 = вимкнено)
       const cityRoutes = cityRoutesFromEnv(prisma);
@@ -171,6 +183,7 @@ function main(): void {
     sourceWatchJob?.stop();
     gpsJob?.stop();
     cityLearnJob?.stop();
+    eltrainJob?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);
     await lease?.stop();
