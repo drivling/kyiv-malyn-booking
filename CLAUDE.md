@@ -286,6 +286,8 @@ of `dist` in a commit.
   shared with people: `--budget` (default 40 new answers per run) and, with the admin token in the environment,
   `--reserve` (default 50 of the daily cap left untouched). With the admin token it sends `learn=1`, so demand is not
   counted (`--as-person` switches that off); with only the guests' password every ask counts like a person's.
+  `--both` adds the way back (place → boarding point), `--reverse` asks only that way — with an evening `--when` it
+  is the trip home from the city.
   `--unanswered` starts from people's questions the server could not answer; `--places <file>` from a list — the
   starter lists are `scripts/data/dovede-places-kyiv.txt` / `-zhytomyr.txt` (a test keeps every line a «place in
   words» for the page: no metro, no leading «Київський», no «імені», which the page's `nominative` turns into «іменя»).
