@@ -1403,6 +1403,8 @@ model DovedeCitySettings {
   id        Int      @id
   /// Скільки днів збережена відповідь вважається свіжою; далі сервер питає Google знову
   freshDays Int      @default(30)
+  /// Скільки запитів до Google Routes на день (люди + навчання); NULL — як у змінній DOVEDE_CITY_DAILY_CAP, інакше 150
+  dailyCap  Int?
   updatedAt DateTime @updatedAt
 }
 

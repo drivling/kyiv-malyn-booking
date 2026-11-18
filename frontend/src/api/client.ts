@@ -1163,6 +1163,11 @@ class ApiClient {
     return this.request('/admin/dovede/city/settings', { method: 'PUT', body: JSON.stringify({ freshDays }) });
   }
 
+  /** Адмін: денний ліміт запитів до Google (0–5000); null — як у змінній середовища на сервері */
+  async setDovedeCityDailyCap(dailyCap: number | null): Promise<{ dailyCap: number }> {
+    return this.request('/admin/dovede/city/settings', { method: 'PUT', body: JSON.stringify({ dailyCap }) });
+  }
+
   /** Адмін: примітки оголошень водіїв за період — для підрахунку «Звідки забирають попутки» */
   async getDovedePickups(days: import('@/types').DovedeLogDays = 90): Promise<import('@/types').DovedePickups> {
     return this.request(`/admin/dovede/pickups?days=${days}`);
