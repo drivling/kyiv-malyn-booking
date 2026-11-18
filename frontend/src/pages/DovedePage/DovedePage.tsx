@@ -14,6 +14,7 @@ import { apiClient } from '@/api/client';
 import { usePageSeo } from '@/hooks';
 import { getKyivDateString, getKyivMinutesNow } from '@/pages/LocalTransportPage/kyivTime';
 import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerModel';
+import { KOROSTEN, buildKorostenPlaces, isKorostenQuestion, isMalynKorostenTrip, korostenShape, mentionsOtherCity, namesKorostenAsEnd, remapForKorosten } from './korosten/korostenCity';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
 import { DovedeIntro, type IntroEvent } from './intro/DovedeIntro';
@@ -46,6 +47,8 @@ import { StoryView } from './ui/StoryView';
 import { Understanding } from './ui/Understanding';
 import './DovedePage.css';
 
+const KOROSTEN_EXAMPLES = ['З Пашин до міськлікарні', 'Від Гастелло до вокзалу', 'Коли №4 на Грозине', 'З Чолівки на ринок'];
+
 const EXAMPLES = [
   'Як доїхати з Києва (Святошин) до Малина на вокзал',
   'з Царського села до Києва завтра зранку',
@@ -75,9 +78,20 @@ export default function DovedePage() {
   const onIntroEvent = (event: IntroEvent) => trackAd({ placement: 'dovede', event, viewId, video: INTRO_NAME });
   usePageSeenOnce(access.state === 'open' && !covered);
   // Розклад міста й пошук вантажаться лише після входу
+  // Місто питань: Малин (рідне) чи Коростень (етап 1 — лише містом; korosten/korostenCity.ts). Інше місто — інший
+  // планувальник, тому пошук створюється наново (key), а питання, з яким перемкнулись, він ставить сам
+  const [cityParams, setCityParams] = useSearchParams();
+  const [cityState, setCityState] = useState<{ city: string; carry: string | null }>(() => ({
+    city: cityParams.get('c') === KOROSTEN ? KOROSTEN : DEFAULT_TRANSPORT_CITY,
+    carry: null,
+  }));
+  const switchCity = (city: string, q: string) => {
+    setCityParams(city === KOROSTEN ? { c: KOROSTEN } : {}, { replace: true });
+    setCityState({ city, carry: q || null });
+  };
   const page =
     access.state === 'open' ? (
-      <DovedeSearch focusOnMount={access.justLoggedIn} />
+      <DovedeSearch key={cityState.city} city={cityState.city} carry={cityState.carry} onCity={switchCity} focusOnMount={access.justLoggedIn} />
     ) : (
       <Lock checking={access.state === 'checking'} holdFocus={covered} error={access.error} busy={access.busy} onLogin={access.login} />
     );
@@ -206,14 +220,28 @@ function Lock({
   );
 }
 
-function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
-  const { ready, plannerFor, stops, routes, fare } = usePlannerModel(DEFAULT_TRANSPORT_CITY);
-  // Зупинки з розкладу стають місцями словника («Поворот на Коновальця»); список «поточний», як номери маршрутів
+function DovedeSearch({
+  focusOnMount = false,
+  city = DEFAULT_TRANSPORT_CITY,
+  carry = null,
+  onCity,
+}: {
+  focusOnMount?: boolean;
+  /** місто питань: Малин чи Коростень (лише поїздки містом) */
+  city?: string;
+  /** питання, з яким перемкнули місто, — ставимо й відповідаємо одразу */
+  carry?: string | null;
+  onCity?: (city: string, q: string) => void;
+}) {
+  const korosten = city === KOROSTEN;
+  const { ready, plannerFor, stops, routes, fare } = usePlannerModel(city);
+  // Зупинки з розкладу стають місцями словника («Поворот на Коновальця»); список «поточний», як номери маршрутів.
+  // У Коростені — його зупинки й народні назви («Пашини», «Гастелло», «міськлікарня»)
   const stopIndex = useMemo(() => {
-    const index = buildStopPlaces(stops);
+    const index = korosten ? buildKorostenPlaces(stops) : buildStopPlaces(stops);
     setStopPlaces(index);
     return index;
-  }, [stops]);
+  }, [stops, korosten]);
   const [searchParams, setSearchParams] = useSearchParams();
   // Слова питання з посилання (чи з памʼяті вкладки) — у полі з першого кадру; відповідь будує ефект нижче.
   // Пошук монтується вже після перевірки доступу: слова, поставлені лише в ефекті, приходили б пізніше за відповідь
@@ -231,7 +259,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
     };
   }, []);
   const [text, setText] = useState(() =>
-    paramsToIntent(searchParams, kyivNow()) ? questionFromParams(searchParams) || recallQuestion(searchParams) : '',
+    carry ?? (paramsToIntent(searchParams, kyivNow()) ? questionFromParams(searchParams) || recallQuestion(searchParams) : ''),
   );
   const [view, setView] = useState<View>({ kind: 'idle' });
   const [chosenId, setChosenId] = useState<string | null>(null);
@@ -256,7 +284,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
   /** Намір → розклад → історії */
   const answer = useCallback(
     async (id: number, q: string, parse: LocalParse, intent: TripIntent, now: KyivNow) => {
-      const shape = classify(intent);
+      const shape = korosten ? korostenShape(intent) : classify(intent);
       const cities = corridorCities(shape);
       // один запит: розклад коридору й оголошення попуток на цей день
       const found = new Map<string, Promise<{ schedules: Schedule[]; listings: ViberListing[] }>>();
@@ -326,6 +354,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
         // Відповідь будується з id місць, дати, часу й транспорту; слова питання йдуть у посилання цілком —
         // перезавантаження й чуже відкриття показують ту саму фразу. Вкладка ще й памʼятає їх сама (запас)
         const params = intentToParams(intent, date);
+        if (korosten) params.set('c', KOROSTEN);
         const words = questionForUrl(q);
         if (words) params.set('q', words);
         rememberQuestion(params, q);
@@ -335,7 +364,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [plannerFor, setSearchParams, routes, fare, stopIndex],
+    [plannerFor, setSearchParams, routes, fare, stopIndex, korosten],
   );
 
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
@@ -343,6 +372,21 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
     async (q: string, chosen?: TripIntent) => {
       const now = kyivNow();
       const parse = parseLocal(q, now, stopIndex, routes);
+      // Питання про інше місто, ніж зараз на сторінці («з Пашин до ринку» в Малині) — перемикаємо місто й питаємо там.
+      // Поїздка Малин ↔ Коростень («з Паперової фабрики в Коростень») — питання Малина, не міста Коростеня.
+      if (!chosen && onCity) {
+        const other = korosten
+          ? mentionsOtherCity(q) || namesKorostenAsEnd(q)
+            ? DEFAULT_TRANSPORT_CITY
+            : null
+          : isKorostenQuestion(q) && !isMalynKorostenTrip(q, parse.intent)
+            ? KOROSTEN
+            : null;
+        if (other) {
+          onCity(other, q);
+          return;
+        }
+      }
       const id = ++seq.current;
       setChosenId(null);
       setSuggestion(null);
@@ -352,6 +396,12 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
         return;
       }
       pending.current = null;
+      // Коростень (етап 1): лише словник — місця й маршрути Коростеня; Claude ще не знає цього міста
+      if (korosten) {
+        const intent = chosen ?? remapForKorosten(parse.intent);
+        await answer(id, q, withIntent(parse, intent), intent, now);
+        return;
+      }
       if (chosen) {
         await answer(id, q, withIntent(parse, chosen), chosen, now);
         return;
@@ -372,8 +422,14 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
       const intent = pickIntent(parse.intent, r?.intent);
       await answer(id, q, withIntent(parse, intent), intent, now);
     },
-    [ready, answer, stopIndex, routes],
+    [ready, answer, stopIndex, routes, korosten, onCity],
   );
+
+  // Питання, з яким перемкнули місто: відповідаємо, щойно є розклад нового міста (run сам чекає на нього)
+  useEffect(() => {
+    if (carry) void run(carry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- лише раз, при появі пошуку в новому місті
+  }, []);
 
   // Датасет міста ще вантажився, коли людина спитала, — відповідаємо, щойно він є
   useEffect(() => {
@@ -488,8 +544,16 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
       {view.kind === 'idle' ? (
         <section className="dv-home" aria-label="Приклади питань">
           <h2>Спитайте, наприклад</h2>
+          {onCity ? (
+            <p className="dv-city">
+              {korosten ? 'Питання про міські автобуси Коростеня. ' : 'Знаю й міські автобуси Коростеня. '}
+              <button type="button" className="dv-city__switch" onClick={() => onCity(korosten ? DEFAULT_TRANSPORT_CITY : KOROSTEN, '')}>
+                {korosten ? 'Повернутись до Малина' : 'Спитати про Коростень'}
+              </button>
+            </p>
+          ) : null}
           <div className="dv-chips">
-            {EXAMPLES.map((q) => (
+            {(korosten ? KOROSTEN_EXAMPLES : EXAMPLES).map((q) => (
               <button
                 key={q}
                 type="button"
@@ -521,6 +585,7 @@ function DovedeSearch({ focusOnMount = false }: { focusOnMount?: boolean }) {
         {view.kind === 'result' ? (
           <Result
             view={view}
+            korosten={korosten}
             chosenId={chosenId}
             onChoose={setChosenId}
             stopName={stopName}
@@ -613,6 +678,7 @@ type ResultView = Extract<View, { kind: 'result' }>;
 
 function Result({
   view,
+  korosten = false,
   chosenId,
   onChoose,
   stopName,
@@ -622,6 +688,8 @@ function Result({
   onReset,
 }: {
   view: ResultView;
+  /** питання про Коростень: підказки й варіанти «звідки» — коростенські */
+  korosten?: boolean;
   chosenId: string | null;
   onChoose: (id: string) => void;
   stopName: (id: string) => string;
@@ -632,15 +700,31 @@ function Result({
 }) {
   const { outcome, now } = view;
   const chooseFrom = useCallback(
-    (key: string) => onRetry({ from: key === 'kyiv' ? { id: 'city.Kyiv', text: 'Київ' } : { id: 'malyn.tsentr', text: 'центр' } }),
+    (key: string) =>
+      onRetry({
+        from:
+          key === 'kyiv'
+            ? { id: 'city.Kyiv', text: 'Київ' }
+            : key === 'k-vokzal'
+              ? { id: 'st_1001', text: 'вокзал' }
+              : key === 'k-tsentr'
+                ? { id: 'st_1003', text: 'центр' }
+                : { id: 'malyn.tsentr', text: 'центр' },
+      }),
     [onRetry],
   );
   const askFromChoices = useMemo<Choice[]>(
-    () => [
-      { key: 'kyiv', title: 'З Києва', sub: 'маршрутка ≈ 1 год 30 хв, електричка ≈ 2 год' },
-      { key: 'malyn', title: 'Містом, з центру Малина', sub: 'міський автобус' },
-    ],
-    [],
+    () =>
+      korosten
+        ? [
+            { key: 'k-vokzal', title: 'Від вокзалу', sub: 'міський автобус' },
+            { key: 'k-tsentr', title: 'Від центру Коростеня', sub: 'міський автобус' },
+          ]
+        : [
+            { key: 'kyiv', title: 'З Києва', sub: 'маршрутка ≈ 1 год 30 хв, електричка ≈ 2 год' },
+            { key: 'malyn', title: 'Містом, з центру Малина', sub: 'міський автобус' },
+          ],
+    [korosten],
   );
   const stories = useMemo(() => (outcome.kind === 'stories' ? outcome.stories : []), [outcome]);
   const modeChoices = useMemo<Choice[]>(
@@ -654,20 +738,29 @@ function Result({
 
   switch (outcome.kind) {
     case 'ask_from':
-      return <ChoiceCards question="Звідки вирушаєте?" choices={askFromChoices} hint="«з Києва»" onChoose={chooseFrom} />;
+      return <ChoiceCards question="Звідки вирушаєте?" choices={askFromChoices} hint={korosten ? '«з Пашин»' : '«з Києва»'} onChoose={chooseFrom} />;
     case 'ask_to':
-      return <Panel title="Куди їдемо?">Напишіть, звідки й куди, наприклад «з Малина до Києва завтра зранку».</Panel>;
+      return (
+        <Panel title="Куди їдемо?">
+          {korosten ? 'Напишіть, звідки й куди, наприклад «з Пашин до міськлікарні».' : 'Напишіть, звідки й куди, наприклад «з Малина до Києва завтра зранку».'}
+        </Panel>
+      );
     case 'unknown_place':
       return (
         <Panel title={`Не знаю, де це: «${outcome.words[0]}»`}>
-          <p>Я знаю Київ, Малин і місця в Малині: вокзал, автостанцію, центр, лікарню, Царське село, Малинівку, Юрівку…</p>
+          {korosten ? (
+            <p>У Коростені я знаю зупинки міських автобусів і народні назви: вокзал, ринок, центр, Гастелло, Пашини, Грозине, Чолівку, міськлікарню…</p>
+          ) : (
+            <p>Я знаю Київ, Малин і місця в Малині: вокзал, автостанцію, центр, лікарню, Царське село, Малинівку, Юрівку…</p>
+          )}
           <p>Напишіть найближчу зупинку або район.</p>
         </Panel>
       );
     case 'outside':
       return (
         <Panel title="Цю дорогу я ще вчу">
-          «Доведе» знає дорогу Київ — Малин, Житомир — Малин і міські автобуси Малина. Коростень та інші напрямки — далі.
+          «Доведе» знає дорогу Київ — Малин, Житомир — Малин і міські автобуси Малина та Коростеня. Між Малином і Коростенем
+          та інші напрямки — далі.
         </Panel>
       );
     case 'poputky':

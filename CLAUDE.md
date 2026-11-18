@@ -309,6 +309,10 @@ of `dist` in a commit.
   OpenStreetMap calls the stops nearby (`nameChecks`). **No Google credit anywhere on the page** («це мої дані
   тепер»): the city card says only «перевірено N днів тому», whatever the source; do not add «за даними Google» back.
   Background learning also seeds the bus station → every route terminus (`SEED_PAIRS` from `ZT_OWN`).
+  Korosten city questions (stage 1, `DovedePage/korosten/korostenCity.ts`): the page holds a city (`Malyn` / `Korosten`,
+  URL `c=Korosten`) and remounts the search per city (one planner on screen); Korosten words in a question switch it.
+  Places are `StopPlace` entries of Korosten stops plus folk names (`KOROSTEN_ALIASES`), answers are `intra` /
+  `route_info` on the Korosten planner, and Claude is not called there yet; shared mirrored files are untouched.
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
   listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
   `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:
