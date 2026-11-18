@@ -423,18 +423,20 @@ async function main() {
       console.log(`${n} ⛔ ${body.reason}  ${label}`);
       googleTrouble = true;
       break;
-    } else if (res.status === 200 && body && body.ok === false && body.reason !== 'no_route') {
+    } else if (res.status === 200 && body && body.ok === false && body.reason !== 'no_route' && body.reason !== 'archived') {
       // збій Google — не відповідь про місце: у журнал не пишемо, питання повториться наступного запуску
       count.failed++;
       failStreak++;
       googleTrouble = true;
       console.log(`${n} ⚠️  Google не відповів     ${label}`);
     } else if ((res.status === 200 && body && body.ok === false) || res.status === 400) {
-      const { record } = crawl.done(task, { ok: false, reason: res.status === 400 ? 'bad_request' : 'no_route' });
+      // `archived` — власник прибрав це місце в адмінці («Місця» → «В архів»): сервер про нього не відповідає
+      const archived = res.status === 200 && body.reason === 'archived';
+      const { record } = crawl.done(task, { ok: false, reason: res.status === 400 ? 'bad_request' : archived ? 'archived' : 'no_route' });
       appendJournal(file, record);
       failStreak = 0;
       count.noRoute++;
-      console.log(`${n} ·  маршруту немає        ${label}`);
+      console.log(`${n} ·  ${archived ? 'місце в архіві       ' : 'маршруту немає       '} ${label}`);
     } else {
       // мережа або збій сервера: у журнал не пишемо, питання повториться наступного запуску
       count.failed++;

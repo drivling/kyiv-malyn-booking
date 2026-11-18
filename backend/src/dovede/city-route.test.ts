@@ -74,8 +74,9 @@ function fakeDb() {
   const dovedeCityStop = table(['cityCode', 'name']);
   const dovedeCityDemand = table(['cityCode', 'fromKey', 'toKey']);
   const dovedeCitySettings = table(['id']);
-  const prisma = { dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, $transaction: async (ops: Array<Promise<unknown>>) => Promise.all(ops) } as unknown as PrismaClient;
-  return { prisma, dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings };
+  const dovedeCityPlace = table(['cityCode', 'key']);
+  const prisma = { dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeCityPlace, $transaction: async (ops: Array<Promise<unknown>>) => Promise.all(ops) } as unknown as PrismaClient;
+  return { prisma, dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeCityPlace };
 }
 
 const GOOGLE = {
@@ -294,6 +295,73 @@ test('архів: нічого не видаляється; заархівова
   const back = await t.svc.find(Q);
   assert.equal(back.ok && back.source, 'stored');
   assert.equal(t.calls.length, 1);
+});
+
+test('архів одного місця: його дороги в архіві, Google про нього не питаємо; інші місця й повернення працюють', async () => {
+  const t = make();
+  await t.svc.find(Q);
+  await t.svc.find({ ...Q, time: '17:10' });
+  await t.svc.find({ ...Q, from: 'Польова 12', to: 'zhytomyr.avtovokzal' });
+  await t.svc.find({ ...Q, to: 'Житній ринок' });
+  assert.equal(t.calls.length, 4);
+
+  // список місць: слова людини, без наших точок; хвилини — щоб побачити підозріло коротку дорогу
+  assert.deepEqual(await t.svc.places(), [
+    { city: 'Zhytomyr', key: 'житній ринок', label: 'Житній ринок', routes: 1, archivedRoutes: 0, minMinutes: 22, maxMinutes: 22, archivedAt: null },
+    { city: 'Zhytomyr', key: 'польова 12', label: 'Польова 12', routes: 3, archivedRoutes: 0, minMinutes: 22, maxMinutes: 22, archivedAt: null },
+  ]);
+
+  // точку посадки й порожнє архівувати не можна
+  assert.equal(await t.svc.archivePlace('Zhytomyr', 'zhytomyr.avtovokzal'), null);
+  assert.equal(await t.svc.archivePlace('Zhytomyr', ' '), null);
+  assert.deepEqual(await t.svc.archivePlace('Zhytomyr', ' «Польова  12» '), { city: 'Zhytomyr', key: 'польова 12', label: 'Польова 12', routes: 3 });
+  assert.equal(t.dovedeCityRoute.rows.length, 4);
+  assert.equal(t.dovedeCityRoute.rows.filter((r) => r.archivedAt != null).length, 3);
+
+  // людина питає про це місце (в обидва боки, будь-якими літерами) — ні збереженого, ні Google, ні рядка попиту
+  const demand = t.dovedeCityDemand.rows.map((r) => r.asked).join();
+  assert.deepEqual(await t.svc.find(Q), { ok: false, fallback: 'maps', reason: 'archived' });
+  assert.deepEqual(await t.svc.find({ ...Q, to: 'ПОЛЬОВА 12', time: '13:00' }), { ok: false, fallback: 'maps', reason: 'archived' });
+  assert.deepEqual(await t.svc.find({ ...Q, from: 'Польова 12', to: 'zhytomyr.avtovokzal' }), { ok: false, fallback: 'maps', reason: 'archived' });
+  assert.equal(t.calls.length, 4);
+  assert.equal(t.dovedeCityDemand.rows.map((r) => r.asked).join(), demand);
+  // сусіднє місце відповідає з бази, як і раніше
+  const other = await t.svc.find({ ...Q, to: 'Житній ринок' });
+  assert.equal(other.ok && other.source, 'stored');
+
+  const listed = await t.svc.places();
+  assert.deepEqual(listed.map((p) => [p.key, p.routes, p.archivedRoutes, p.archivedAt]), [['житній ринок', 1, 0, null], ['польова 12', 0, 3, NOW.toISOString()]]);
+  // загальне зведення цих доріг уже не рахує
+  assert.deepEqual((await t.svc.stats()).routes, [{ city: 'Zhytomyr', source: 'google', count: 1 }]);
+
+  // повернення: рядок місця лишається (без позначки), дороги знову віддаються з бази
+  assert.deepEqual(await t.svc.restorePlace('Zhytomyr', 'польова 12'), { city: 'Zhytomyr', key: 'польова 12', routes: 3 });
+  assert.deepEqual(t.dovedeCityPlace.rows.map((r) => [r.key, r.archivedAt]), [['польова 12', null]]);
+  const back = await t.svc.find(Q);
+  assert.equal(back.ok && back.source, 'stored');
+  assert.equal(t.calls.length, 4);
+});
+
+test('загальне «відновити з архіву» не повертає місце, яке власник прибрав окремо', async () => {
+  const t = make();
+  await t.svc.find(Q);
+  await t.svc.find({ ...Q, to: 'Житній ринок' });
+  await t.svc.archivePlace('Zhytomyr', 'Польова 12');
+  assert.equal((await t.svc.archiveGoogle()).routes, 1);
+  // з двох рядків в архіві повертається один: дорога до прибраного місця лишається там
+  assert.equal((await t.svc.restoreGoogle()).routes, 1);
+  assert.deepEqual(t.dovedeCityRoute.rows.map((r) => [r.toKey, r.archivedAt != null]), [['польова 12', true], ['житній ринок', false]]);
+  assert.deepEqual(await t.svc.find(Q), { ok: false, fallback: 'maps', reason: 'archived' });
+});
+
+test('архів місця й навчання: пару з таким місцем навчання пропускає, Google не питає й решту кроку не зупиняє', async () => {
+  const t = make({ dailyCap: () => 100 });
+  // місця ще ніхто не питав — архівувати наперед теж можна
+  assert.deepEqual(await t.svc.archivePlace('Zhytomyr', 'Залізничний вокзал'), { city: 'Zhytomyr', key: 'залізничний вокзал', label: 'Залізничний вокзал', routes: 0 });
+  const tick = await t.svc.learnTick(2);
+  assert.deepEqual(tick, { asked: 2, learned: 2 });
+  assert.equal(t.dovedeCityRoute.rows.some((r) => r.toKey === 'залізничний вокзал'), false);
+  assert.equal(t.calls.length, 2);
 });
 
 test('навчання у фоні: стартові пари, не більше batch, лише до половини денного ліміту; попит людей не накручує', async () => {

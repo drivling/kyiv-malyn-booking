@@ -137,7 +137,14 @@ export function compactSteps(steps) {
 /** Метро й залізниця — уже власні дані «Доведе»: їхні станції в обхід не беремо */
 const RAIL_MODES = /^(SUBWAY|METRO_RAIL|RAIL|HEAVY_RAIL|COMMUTER_TRAIN|LONG_DISTANCE_TRAIN|HIGH_SPEED_TRAIN)$/;
 const METRO_NAME_RE = /(^|[\s(«"])(ст\.?\s?м\.?|станція метро|станция метро|метро|м\.)\s/i;
-const GENERIC = new Set(['зупинка', 'кінцева', 'школа', 'магазин', 'ринок', 'лікарня', 'поліклініка', 'церква', 'парк', 'міст', 'центр', 'вокзал', 'площа', 'завод', 'аптека', 'пошта', 'стадіон', 'гаражі', 'дачі', 'кладовище']);
+const GENERIC = new Set(['зупинка', 'кінцева', 'школа', 'магазин', 'ринок', 'лікарня', 'поліклініка', 'церква', 'парк', 'міст', 'центр', 'вокзал', 'площа', 'завод', 'аптека', 'пошта', 'стадіон', 'гаражі', 'дачі', 'кладовище',
+  // назви зупинок, яких у місті багато: Google знайде «якийсь» супермаркет, і в базу ляже дорога не туди
+  'супермаркет', 'гіпермаркет', 'універмаг', 'універсам', 'авторинок', 'автостанція', 'гуртожиток', 'дитячий садок', 'дитсадок', 'банк', 'готель',
+  'кінотеатр', 'музей', 'бібліотека', 'училище', 'медучилище', 'інститут', 'університет', 'технікум', 'ліцей', 'гімназія', 'будинок культури', 'басейн',
+  'депо', 'амбулаторія', 'пологовий будинок', 'хлібозавод', 'молокозавод', 'кільце', 'переїзд', 'торговий центр', 'тц', 'трц', 'азс', 'ж/м', 'жм']);
+
+/** Назва обірвана на сполучнику чи прийменнику («…архітектури та») — словник сторінки її не дочитав; таке не питаємо */
+const CUT_TAIL = /(?:^|\s)(?:та|і|й|на|в|у|до|з|із|біля|ім|імені)$/u;
 
 /** Назва, схожа на станцію метро: таку дорогу «Доведе» рахує сам, сервер про неї не питають */
 export function looksLikeMetro(name) {
@@ -170,8 +177,9 @@ export function candidates(steps, { dir = 'to', siteForm = plainForm, headsigns 
     if (seen.has(key)) return;
     seen.add(key);
     const form = siteForm(clean);
-    if (!form) return;
+    if (!form || !usableName(form)) return;
     const formKey = normalizeKey(form);
+    if (CUT_TAIL.test(formKey)) return;
     // сторінка скоротила назву до вже баченої — це те саме місце
     if (formKey !== key && seen.has(formKey)) return;
     seen.add(formKey);
@@ -257,7 +265,7 @@ export function createCrawl({ records = [], seeds = [], slots, maxDepth = 3, fre
     if (!r.at || new Date(r.at).getTime() < freshFrom) continue;
     const key = taskKey(recNode(r), r.dayType, r.hour);
     if (r.ok) memo.set(key, { ok: true, steps: r.steps ?? [] });
-    else if (r.reason === 'no_route' || r.reason === 'bad_request') memo.set(key, { ok: false, steps: [] });
+    else if (r.reason === 'no_route' || r.reason === 'bad_request' || r.reason === 'archived') memo.set(key, { ok: false, steps: [] });
     // збій (`error`) — не відповідь: Google міг відмовити всім одразу (квота, ключ), тож питання лишається в черзі
   }
 
@@ -381,7 +389,7 @@ export function summarizeRecords(records, { freshDays = DEFAULT_FRESH_DAYS, now 
         if (s.line) lines.add(`${r.city}|${s.mode}|${s.line}`);
         for (const n of [s.from, s.to]) if (n) stops.add(`${r.city}|${normalizeKey(n)}`);
       }
-    } else if (r.reason === 'no_route' || r.reason === 'bad_request') by.no_route++;
+    } else if (r.reason === 'no_route' || r.reason === 'bad_request' || r.reason === 'archived') by.no_route++;
     else by.error++;
   }
   return { total: records.length, pairs: pairs.size, lines: lines.size, stops: stops.size, by, stale, expiring };

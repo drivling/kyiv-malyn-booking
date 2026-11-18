@@ -345,3 +345,49 @@
 .dovede-city-fresh input:invalid {
   border-color: #c0392b;
 }
+
+.dovede-city-places-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 4px 0 8px;
+  font-size: 14px;
+}
+.dovede-city-places-bar input[type='search'] {
+  flex: 1 1 180px;
+  max-width: 320px;
+  padding: 6px 8px;
+  border: 1px solid #dde3e6;
+  border-radius: 8px;
+  font: inherit;
+  color: #3d4950;
+}
+.dovede-city-places-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.dovede-city-places {
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.4;
+}
+.dovede-city-places li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-top: 1px solid #eef1f3;
+}
+.dovede-city-places li.is-archived strong {
+  font-weight: 500;
+  color: #6b777e;
+  text-decoration: line-through;
+}
+.dovede-city-places .dovede-log-chip {
+  flex: none;
+}
