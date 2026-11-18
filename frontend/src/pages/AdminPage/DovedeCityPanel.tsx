@@ -8,6 +8,9 @@ const SOURCE: Record<string, string> = { google: 'з Google', own: 'свої', o
 
 const FRESH_MIN = 1;
 const FRESH_MAX = 365;
+/** межі денного ліміту Google — як на сервері (квота проєкту в Google Cloud — 5000 на день) */
+const CAP_MIN = 0;
+const CAP_MAX = 5000;
 
 /** «17 листопада о 23:45» за Києвом */
 const quotaTime = (iso: string) => new Date(iso).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
@@ -27,7 +30,7 @@ const count = (rows: Array<{ city: string; count: number }>, city: string) => ro
  * «Місто»). Нічого не видаляється: «заархівувати» ховає дані з Google від відповідей і навчання, «відновити» повертає
  * (одне місце з неправильною відповіддю прибирає список «Місця» — `DovedeCityPlaces`),
  * «скинути лічильник попиту» обнуляє список «Що питають найчастіше» (після прогону `npm run dovede:crawl`), а строк
- * свіжості збереженої відповіді власник задає тут сам.
+ * свіжості збереженої відповіді й денний ліміт запитів до Google власник задає тут сам.
  */
 export const DovedeCityPanel: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -37,6 +40,8 @@ export const DovedeCityPanel: React.FC = () => {
   const [busy, setBusy] = useState(false);
   /** рядок у полі «днів»; null — людина його не чіпала, показуємо значення сервера */
   const [fresh, setFresh] = useState<string | null>(null);
+  /** рядок у полі ліміту Google; null — не чіпали, показуємо значення сервера */
+  const [cap, setCap] = useState<string | null>(null);
 
   const load = useCallback(() => {
     apiClient
@@ -76,6 +81,26 @@ export const DovedeCityPanel: React.FC = () => {
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не вдалося');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const capValue = cap ?? String(data?.dailyCap ?? '');
+  const capNumber = Number(capValue);
+  const capOk = /^\d+$/.test(capValue) && capNumber >= CAP_MIN && capNumber <= CAP_MAX;
+
+  /** null — повернути ліміт зі змінної середовища */
+  const saveCap = async (value: number | null) => {
+    setBusy(true);
+    setNote('');
+    try {
+      const r = await apiClient.setDovedeCityDailyCap(value);
+      setCap(null);
+      setNote(value == null ? `Ліміт — як у змінній на сервері: ${r.dailyCap} на день.` : `Збережено: до ${r.dailyCap} запитів до Google на день.`);
+      load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Не вдалося зберегти');
     } finally {
       setBusy(false);
     }
@@ -154,6 +179,39 @@ export const DovedeCityPanel: React.FC = () => {
               {freshOk
                 ? `Старішу відповідь сервер не віддає, а питає Google знову${data.refresh ? '; у фоні сам оновлює ті, що ось-ось застаріють' : ''}.${data.freshDaysDefault ? ` Типово ${data.freshDaysDefault}.` : ''}`
                 : `Ціле число від ${FRESH_MIN} до ${FRESH_MAX}.`}
+            </span>
+          </form>
+          <form
+            className="dovede-city-fresh"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (capOk) void saveCap(capNumber);
+            }}
+          >
+            <label htmlFor="dovede-city-cap">Запитів до Google на день</label>
+            <input
+              id="dovede-city-cap"
+              type="number"
+              inputMode="numeric"
+              min={CAP_MIN}
+              max={CAP_MAX}
+              step={10}
+              value={capValue}
+              onChange={(e) => setCap(e.target.value)}
+              aria-describedby="dovede-city-cap-hint"
+            />
+            <button type="submit" className="dovede-log-chip" disabled={busy || !capOk || capNumber === data.dailyCap}>
+              Зберегти
+            </button>
+            {data.dailyCapFromAdmin ? (
+              <button type="button" className="dovede-log-chip" disabled={busy} onClick={() => void saveCap(null)}>
+                Як на сервері{data.dailyCapDefault != null ? ` (${data.dailyCapDefault})` : ''}
+              </button>
+            ) : null}
+            <span id="dovede-city-cap-hint" className="dovede-log-dim">
+              {capOk
+                ? `Сьогодні вже ${data.callsToday}. Люди й навчання разом; фонове навчання бере не більше половини. 0 — Google не питати зовсім.${data.dailyCapFromAdmin ? '' : ' Зараз — зі змінної на сервері.'}`
+                : `Ціле число від ${CAP_MIN} до ${CAP_MAX} (квота проєкту в Google Cloud).`}
             </span>
           </form>
           <div className="dovede-log-table-wrap">

@@ -1,6 +1,6 @@
 /** «Місто: що вже знаємо» в адмінці: строк свіжості збереженої відповіді та скидання лічильника попиту. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
@@ -49,9 +49,15 @@ function mock(over: Partial<DovedeCityStats> = {}) {
     }),
     http.get(`${TEST_API_URL}/admin/dovede/city`, () => HttpResponse.json(state)),
     http.put(`${TEST_API_URL}/admin/dovede/city/settings`, async ({ request }) => {
-      const body = (await request.json()) as { freshDays: number };
+      const body = (await request.json()) as { freshDays?: number; dailyCap?: number | null };
+      if ('dailyCap' in body) {
+        calls.push(`cap:${body.dailyCap}`);
+        state.dailyCap = body.dailyCap ?? state.dailyCapDefault ?? 150;
+        state.dailyCapFromAdmin = body.dailyCap != null;
+        return HttpResponse.json({ dailyCap: state.dailyCap });
+      }
       calls.push(`fresh:${body.freshDays}`);
-      state.freshDays = body.freshDays;
+      state.freshDays = body.freshDays!;
       return HttpResponse.json({ freshDays: body.freshDays });
     }),
     http.post(`${TEST_API_URL}/admin/dovede/city/demand/reset`, () => {
@@ -81,7 +87,7 @@ describe('DovedeCityPanel', () => {
     expect(field.value).toBe('30');
     expect(screen.getByText(/застаріло доріг: 3 — сервер оновлює їх сам/)).toBeInTheDocument();
     expect(screen.getByText(/Google відмовив \(HTTP 403\) 18 листопада о 00:12 — немає доступу: обмеження ключа, вимкнений Routes API або білінг; Google: «Requests to this API are blocked.»/)).toBeInTheDocument();
-    const save = screen.getByRole('button', { name: 'Зберегти' });
+    const save = within(field.closest('form')!).getByRole('button', { name: 'Зберегти' });
     expect(save).toBeDisabled(); // те саме значення
 
     await user.clear(field);
@@ -95,6 +101,29 @@ describe('DovedeCityPanel', () => {
     await screen.findByText('Збережено: відповідь свіжа 90 днів.');
     expect(calls).toEqual(['fresh:90']);
     await waitFor(() => expect(field.value).toBe('90'));
+  });
+
+  it('денний ліміт Google: видно, скільки вже витрачено; зберігає новий; «Як на сервері» повертає змінну', async () => {
+    const { calls } = mock({ callsToday: 1536, dailyCap: 2450, dailyCapDefault: 2450, dailyCapFromAdmin: false });
+    const { user } = await open();
+    const cap = screen.getByLabelText('Запитів до Google на день') as HTMLInputElement;
+    const form = within(cap.closest('form')!);
+    expect(cap.value).toBe('2450');
+    expect(form.getByText(/Сьогодні вже 1536\..*Зараз — зі змінної на сервері\./)).toBeInTheDocument();
+    expect(form.queryByRole('button', { name: /Як на сервері/ })).toBeNull();
+
+    await user.clear(cap);
+    await user.type(cap, '6000');
+    expect(form.getByRole('button', { name: 'Зберегти' })).toBeDisabled();
+    expect(form.getByText('Ціле число від 0 до 5000 (квота проєкту в Google Cloud).')).toBeInTheDocument();
+
+    await user.clear(cap);
+    await user.type(cap, '3000');
+    await user.click(form.getByRole('button', { name: 'Зберегти' }));
+    await screen.findByText('Збережено: до 3000 запитів до Google на день.');
+    await user.click(await form.findByRole('button', { name: 'Як на сервері (2450)' }));
+    await screen.findByText('Ліміт — як у змінній на сервері: 2450 на день.');
+    expect(calls).toEqual(['cap:3000', 'cap:null']);
   });
 
   it('скидає лічильник попиту лише після підтвердження; пару без відповіді позначає', async () => {

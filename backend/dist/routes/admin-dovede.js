@@ -303,13 +303,29 @@ function createAdminDovedeRouter(deps) {
     });
     /** Скільки днів збережена відповідь вважається свіжою (далі сервер питає Google знову) */
     r.put('/admin/dovede/city/settings', require_admin_1.requireAdmin, async (req, res) => {
-        const freshDays = req.body?.freshDays;
-        if (!(0, city_route_1.isValidFreshDays)(freshDays)) {
+        const body = (req.body ?? {});
+        const hasFresh = 'freshDays' in body;
+        const hasCap = 'dailyCap' in body;
+        if (!hasFresh && !hasCap) {
+            res.status(400).json({ error: 'потрібне freshDays або dailyCap' });
+            return;
+        }
+        if (hasFresh && !(0, city_route_1.isValidFreshDays)(body.freshDays)) {
             res.status(400).json({ error: `freshDays: ціле число від ${city_route_1.CITY_FRESH_DAYS_MIN} до ${city_route_1.CITY_FRESH_DAYS_MAX}` });
             return;
         }
+        // dailyCap: null — повернути ліміт зі змінної середовища
+        if (hasCap && body.dailyCap !== null && !(0, city_route_1.isValidDailyCap)(body.dailyCap)) {
+            res.status(400).json({ error: `dailyCap: ціле число від ${city_route_1.CITY_DAILY_CAP_MIN} до ${city_route_1.CITY_DAILY_CAP_MAX} або null` });
+            return;
+        }
         try {
-            res.json({ freshDays: await cityRoutes.setFreshDays(freshDays) });
+            const out = {};
+            if (hasFresh)
+                out.freshDays = await cityRoutes.setFreshDays(body.freshDays);
+            if (hasCap)
+                out.dailyCap = await cityRoutes.setDailyCap(body.dailyCap);
+            res.json(out);
         }
         catch (e) {
             console.error('❌ PUT /admin/dovede/city/settings:', e);

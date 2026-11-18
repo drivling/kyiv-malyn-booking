@@ -1410,6 +1410,10 @@ export interface DovedeCityStats {
   freshDays: number;
   /** значення з коду, поки власник не задав свого */
   freshDaysDefault?: number;
+  /** ліміт зі змінної середовища (або з коду), коли в адмінці свого немає */
+  dailyCapDefault?: number;
+  /** власник задав ліміт в адмінці */
+  dailyCapFromAdmin?: boolean;
   /** збережених відповідей з Google, старших за строк свіжості (людям не віддаються) */
   staleRoutes?: number;
   /** фонове навчання оновлює їх саме (DOVEDE_CITY_REFRESH) */

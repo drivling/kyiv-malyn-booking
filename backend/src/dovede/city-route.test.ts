@@ -602,3 +602,29 @@ test('пари видів транспорту: ті самі, що в фікс�
     assert.ok(resolveCityPoint(p.city, p.from) && resolveCityPoint(p.city, p.to), `${p.from} → ${p.to}`);
   }
 });
+
+test('денний ліміт Google з адмінки: сильніший за змінну середовища; null повертає її; межі 0–5000', async () => {
+  const t = make({ dailyCap: () => 2 });
+  let stats = await t.svc.stats();
+  assert.deepEqual([stats.dailyCap, stats.dailyCapDefault, stats.dailyCapFromAdmin], [2, 2, false]);
+  assert.equal((await t.svc.find(Q)).ok, true);
+  assert.equal((await t.svc.find({ ...Q, to: 'Житній ринок' })).ok, true);
+  assert.deepEqual(await t.svc.find({ ...Q, to: 'Корбутівка' }), { ok: false, fallback: 'maps', reason: 'cap' });
+  // власник піднімає ліміт в адмінці — одразу питаємо знову, без перезапуску
+  assert.equal(await t.svc.setDailyCap(3), 3);
+  assert.equal((await t.svc.find({ ...Q, to: 'Корбутівка' })).ok, true);
+  stats = await t.svc.stats();
+  assert.deepEqual([stats.dailyCap, stats.dailyCapDefault, stats.dailyCapFromAdmin], [3, 2, true]);
+  // строк свіжості й ліміт — один рядок налаштувань, не затирають один одного
+  await t.svc.setFreshDays(14);
+  assert.deepEqual(t.dovedeCitySettings.rows.map((r) => [r.freshDays, r.dailyCap]), [[14, 3]]);
+  // 0 — Google не питати зовсім
+  await t.svc.setDailyCap(0);
+  assert.deepEqual(await t.svc.find({ ...Q, to: 'Богунія' }), { ok: false, fallback: 'maps', reason: 'cap' });
+  // null — знову як у змінній
+  assert.equal(await t.svc.setDailyCap(null), 2);
+  assert.equal((await t.svc.stats()).dailyCapFromAdmin, false);
+  await assert.rejects(() => t.svc.setDailyCap(5001));
+  await assert.rejects(() => t.svc.setDailyCap(-1));
+  await assert.rejects(() => t.svc.setDailyCap(1.5));
+});

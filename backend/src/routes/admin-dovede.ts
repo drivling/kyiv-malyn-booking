@@ -27,7 +27,7 @@ import type { RouteLike } from '../dovede/prompt';
 import { buildStopPlaces, type StopLike } from '../dovede/stopPlaces';
 import { DEFAULT_TRANSPORT_CITY } from '../transport-city';
 import { DEFAULT_CAR_MINUTES, driveTimeFromEnv, type DriveTimeFn } from '../drive-time';
-import { CITY_FRESH_DAYS_MAX, CITY_FRESH_DAYS_MIN, cityRoutesFromEnv, isValidFreshDays, type CityCode, type CityRoutes } from '../dovede/city-route';
+import { CITY_DAILY_CAP_MAX, CITY_DAILY_CAP_MIN, CITY_FRESH_DAYS_MAX, CITY_FRESH_DAYS_MIN, cityRoutesFromEnv, isValidDailyCap, isValidFreshDays, type CityCode, type CityRoutes } from '../dovede/city-route';
 import { kyivWallToUtc } from '../viber-listing-expiry';
 
 export const DOVEDE_MAX_TEXT = 300;
@@ -330,13 +330,27 @@ export function createAdminDovedeRouter(deps: {
 
   /** Скільки днів збережена відповідь вважається свіжою (далі сервер питає Google знову) */
   r.put('/admin/dovede/city/settings', requireAdmin, async (req, res) => {
-    const freshDays = req.body?.freshDays;
-    if (!isValidFreshDays(freshDays)) {
+    const body = (req.body ?? {}) as { freshDays?: unknown; dailyCap?: unknown };
+    const hasFresh = 'freshDays' in body;
+    const hasCap = 'dailyCap' in body;
+    if (!hasFresh && !hasCap) {
+      res.status(400).json({ error: 'потрібне freshDays або dailyCap' });
+      return;
+    }
+    if (hasFresh && !isValidFreshDays(body.freshDays)) {
       res.status(400).json({ error: `freshDays: ціле число від ${CITY_FRESH_DAYS_MIN} до ${CITY_FRESH_DAYS_MAX}` });
       return;
     }
+    // dailyCap: null — повернути ліміт зі змінної середовища
+    if (hasCap && body.dailyCap !== null && !isValidDailyCap(body.dailyCap)) {
+      res.status(400).json({ error: `dailyCap: ціле число від ${CITY_DAILY_CAP_MIN} до ${CITY_DAILY_CAP_MAX} або null` });
+      return;
+    }
     try {
-      res.json({ freshDays: await cityRoutes.setFreshDays(freshDays) });
+      const out: { freshDays?: number; dailyCap?: number } = {};
+      if (hasFresh) out.freshDays = await cityRoutes.setFreshDays(body.freshDays as number);
+      if (hasCap) out.dailyCap = await cityRoutes.setDailyCap(body.dailyCap as number | null);
+      res.json(out);
     } catch (e) {
       console.error('❌ PUT /admin/dovede/city/settings:', e);
       res.status(500).json({ error: 'Не вдалося зберегти' });

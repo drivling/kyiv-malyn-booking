@@ -280,7 +280,8 @@ of `dist` in a commit.
   pair, day type and hour ± 1 not older than the fresh window (30 days by default; the owner edits it in the admin
   block — singleton `DovedeCitySettings.freshDays`, 1–365, `PUT /admin/dovede/city/settings`, cached for a minute) is
   served from `DovedeCityRoute` (`source: 'stored'`), otherwise
-  Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`, `DOVEDE_CITY_DAILY_CAP` 150) and the route, its lines
+  Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`; daily cap — the field «Запитів до Google на день» in the admin
+  block, `DovedeCitySettings.dailyCap` 0–5000, else `DOVEDE_CITY_DAILY_CAP`, else 150) and the route, its lines
   (`DovedeCityLine`), stops (`DovedeCityStop`) and the demand (`DovedeCityDemand`) are written to the DB. **Owner's
   decisions (2026-11-17):** Google answers are stored under his own contract with Google (switch `DOVEDE_CITY_STORE=0`,
   `DOVEDE_CITY_ROUTES=off`); the card never credits Google — every answer shows «перевірено N днів тому» (see below); **these tables are never deleted from — only archived** (`archivedAt`,
