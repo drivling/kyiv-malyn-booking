@@ -59,7 +59,7 @@ describe('ролик-вступ «Доведе»', () => {
     expect(document.body.style.backgroundColor).toBe('rgb(255, 255, 255)');
   });
 
-  it('браузер не дав звук без дотику → крапка «Дивитися · 54 с» → дотик запускає ролик', async () => {
+  it('браузер не дав звук без дотику → крапка «Дивитися · N с» → дотик запускає ролик', async () => {
     play.mockRejectedValueOnce(new DOMException('blocked', 'NotAllowedError'));
     renderIntro();
     const start = await screen.findByRole('button', { name: `Дивитися ролик, ${INTRO_SECONDS} с, зі звуком` });
