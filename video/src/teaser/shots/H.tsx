@@ -8,10 +8,12 @@ import type { Placed } from '../timeline';
 
 /**
  * Фінал (script.md, H). H1 — літери «Доведе» встають по черзі, крапка падає й підстрибує, далі пульсує, як «ви тут»
- * на мапі; на третій біт — «Спитайте своїми словами.». H2 — адреса друкується, «Малин · листопад 2026»; на
- * останній біт усе тане, лишається крапка — і зникає разом із ролику.
+ * на мапі; на третій біт — «Спитайте своїми словами.». H2 — адреса друкується, під нею «Зроблено в Малині · грудень
+ * 2026» (підпис, звідки сервіс, а не де він працює: далі — Коростень, область і Київ); на останній біт усе тане,
+ * лишається крапка — і зникає разом із ролику.
  */
-const URL = 'malin.kiev.ua/dovede';
+export const FINAL_URL = 'dovede.online';
+const URL = FINAL_URL;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
@@ -143,7 +145,7 @@ export const H2: React.FC<{ shot: Placed }> = ({ shot }) => {
         {URL.slice(0, typed)}
         <span style={{ display: 'inline-block', width: '0.08em', height: '0.9em', marginLeft: '0.04em', verticalAlign: '-0.1em', background: COLORS.accentInk, opacity: caretOn && frame < end - beats(1) ? 1 : 0 }} />
       </div>
-      <div style={{ ...subStyle(Math.min(date, fade), 380), fontSize: 40, fontWeight: 600, color: COLORS.muted, letterSpacing: '0.04em' }}>Малин · листопад 2026</div>
+      <div style={{ ...subStyle(Math.min(date, fade), 380), fontSize: 40, fontWeight: 600, color: COLORS.muted, letterSpacing: '0.04em' }}>Зроблено в Малині · грудень 2026</div>
     </AbsoluteFill>
   );
 };

@@ -65,7 +65,7 @@ const Shell: React.FC<TeaserProps & { shots: Placed[]; edit: MusicEditName; star
   </AbsoluteFill>
 );
 
-/** Майстер 9:16, 113 бітів (54,28 с) */
+/** Майстер 9:16, 117 бітів (56,2 с) */
 export const Teaser: React.FC<TeaserProps> = (props) => (
   <Shell {...props} shots={MASTER_PLACED} edit="master" startFrame={0}>
     <ShotsPlayer shots={MASTER_PLACED} sound={props.sound ?? true} />

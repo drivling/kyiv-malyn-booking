@@ -1,6 +1,7 @@
 import type { SfxCue, SfxName } from '../audio/Sfx';
 import { beats } from '../brand/beat';
 import { FPS } from '../brand/tokens';
+import { FINAL_URL } from './shots/H';
 import type { Placed } from './timeline';
 
 /**
@@ -89,9 +90,10 @@ const CUES: Record<string, CueFn> = {
   ],
   // H1: крапка падає з 1-го біта — удари на біти 1,5 / 2,5 / 3,5 / 4,5
   H1: () => [1.5, 2.5, 3.5, 4.5].map((b, i) => ({ name: 'tup' as SfxName, at: beats(b), volume: 0.45 - i * 0.08 })),
-  // H2: адреса друкується за два біти; остання доля — фінальний удар треку: дзвіночок, адреса гасне, крапка зникає
+  // H2: адреса друкується за два біти (клавіша на кожен знак); остання доля — фінальний удар треку: дзвіночок, адреса
+  // гасне, крапка зникає
   H2: ({ dur }) => [
-    ...Array.from({ length: 20 }, (_, i) => ({ name: KEYS[i % 3], at: ((i + 1) * beats(2)) / 20, volume: 0.15 })),
+    ...Array.from({ length: FINAL_URL.length }, (_, i) => ({ name: KEYS[i % 3], at: ((i + 1) * beats(2)) / FINAL_URL.length, volume: 0.15 })),
     { name: 'ting', at: dur - beats(1), volume: 0.5 },
   ],
 };

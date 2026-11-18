@@ -123,14 +123,14 @@ npm run master -- out/hint-1.mp4
 ```bash
 npm run studio            # Remotion Studio: перегляд, перемотка, пропси (showSafe, click)
 npm run metronome         # public/audio/metronome-125.wav — клік замість музики для чернеток
-npm run render:teaser     # out/teaser.mp4 — майстер 54,28 с, 1080 × 1920
+npm run render:teaser     # out/teaser.mp4 — майстер 56,2 с, 1080 × 1920
 npm run render:teaser15   # out/teaser-15.mp4 — версія 15 с
 npm run render:draft -- --props='{"showSafe":false,"click":true,"shots":["B1","B2","C1"]}' --output=out/draft-b.mp4
 npm run render:test       # out/studio-test.mp4 — перевірка студії, 5 с
 npm run typecheck
 ```
 
-Хід ролика — `src/teaser/timeline.ts` (кадри з `script.md`, тривалості в бітах; `MASTER` — 113 бітів, `SHORT` —
+Хід ролика — `src/teaser/timeline.ts` (кадри з `script.md`, тривалості в бітах; `MASTER` — 117 бітів, `SHORT` —
 31). Кожен кадр починається на своєму біті; склейка `in: 'iris'` («через крапку») стартує рівно на біті вхідного
 кадру. Готові кадри — у `src/teaser/shots/<розділ>.tsx` і в `READY` у `ShotsPlayer.tsx`; решта показується
 заглушкою, тож майстер рендериться цілим завжди. Титри кадрів (`caption` у таймлайні) малює `ShotsPlayer`.
