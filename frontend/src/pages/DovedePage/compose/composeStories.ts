@@ -22,7 +22,7 @@ import { landmarkById } from '../nlu/landmarks';
 import { streetPrecision } from '../nlu/streets';
 import { addDays, partEndMins, partStartMins } from '../nlu/parseLocal';
 import type { KyivNow, TripIntent, TripMode } from '../nlu/types';
-import { withOwnMetro } from './cityMetro';
+import { splitCityRoute } from './cityTransit';
 import { intercityTrips, type IntercityTrip } from './intercity';
 import { clock, leadFor } from './narrate';
 import type { RouteLike } from '../nlu/routes';
@@ -419,8 +419,8 @@ type CityLeg = Extract<StoryLeg, { kind: 'city' }>;
  * Крок містом між двома точками. Кроки дає сервер: складальник лише каже, що спитати (`ask`), і підставляє
  * відповідь, коли сторінка її принесла (`cityRoutes`). Без відповіді — кнопка Google Maps, час 0.
  * `anchor`: 'from' — людина в першій точці о `mins`; 'until' — має бути в другій до `mins`.
- * Метро у відповіді сервера стає своїм (`withOwnMetro`): `legs` тоді — пішки, картка метро, далі містом; `leg` —
- * той самий крок сервера (що питали, посилання на карту).
+ * Відповідь сервера розбиваємо на кроки за видом транспорту (`splitCityRoute`: пішки, своє метро й кільцева, поїздки
+ * з картками за видом); `leg` — сам крок сервера (що питали, посилання на карту).
  */
 function cityLeg(
   input: Pick<ComposeInput, 'date' | 'cityRoutes'>,
@@ -437,12 +437,15 @@ function cityLeg(
   const dep = anchor === 'from' ? mins : mins - minutes;
   const leg: CityLeg = { kind: 'city', city: far, cityName: CITY_LABEL[far], ask, fromLabel: a.label, toLabel: b.label, route, depMins: route ? dep : null, arrMins: route ? dep + minutes : null, mapsUrl: mapsTransitUrl(a.maps, b.maps) };
   if (!route) return { leg, legs: [leg], minutes, dep: null };
-  // своє метро рахує інтервал за порою дня: для «бути до» уточнюємо вихід, поки хвилини не зійдуться (2–3 кола)
-  let own = withOwnMetro(leg, dep, input.date);
+  // своє метро й кільцева залежать від часу (інтервал, рейс): для «бути до» уточнюємо вихід, поки хвилини не зійдуться
+  let own = splitCityRoute(leg, dep, input.date);
+  // кроки беремо з останнього кола: їхній час рахувався від того самого виходу, що й `dep`
   for (let round = 0; own && anchor === 'until' && round < 3; round++) {
-    const again = withOwnMetro(leg, mins - own.minutes, input.date);
-    if (!again || again.minutes === own.minutes) break;
+    const again = splitCityRoute(leg, mins - own.minutes, input.date);
+    if (!again) break;
+    const same = again.minutes === own.minutes;
     own = again;
+    if (same) break;
   }
   if (!own) return { leg, legs: [leg], minutes, dep };
   return { leg, legs: own.legs, minutes: own.minutes, dep: anchor === 'from' ? mins : mins - own.minutes };
@@ -582,7 +585,7 @@ function intercityLeg(
 }
 
 function busTransfers(legs: StoryLeg[]): number {
-  return legs.filter((l) => l.kind === 'bus' || l.kind === 'intercity' || l.kind === 'ride' || l.kind === 'metro' || l.kind === 'ring').length + legs.reduce((n, l) => n + (l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit').length : 0), 0) - 1;
+  return legs.filter((l) => l.kind === 'bus' || l.kind === 'intercity' || l.kind === 'ride' || l.kind === 'metro' || l.kind === 'ring' || l.kind === 'cityRide').length + legs.reduce((n, l) => n + (l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit').length : 0), 0) - 1;
 }
 
 function makeStory(id: string, mode: Story['mode'], date: string, fromLabel: string, toLabel: string, legs: StoryLeg[], o: {
