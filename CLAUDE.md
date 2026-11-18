@@ -165,9 +165,15 @@ of `dist` in a commit.
   `{ fallback: 'local' }` (503 / 429) and the page falls back to the dictionary parse; a confident dictionary parse
   answers at once and Claude only checks it in the background. `validateIntent` moves place ids outside the gazetteer
   to `unknown`. `src/dovede/gazetteer.ts` is a byte-identical copy of the frontend `nlu/gazetteer.ts` (a frontend
-  test diffs them) — edit both. Calls are logged in `DovedeQuery`; the admin tab `/admin/dovede`
-  (`AdminPage/DovedeLogTab.tsx`, lazy chunk; `GET /admin/dovede/queries`, pure `src/dovede/log.ts`) shows the summary, the
-  words nobody recognised and the latest questions with both parses. The same tab teaches synonyms without a deploy
+  test diffs them) — edit both. Calls are logged in `DovedeQuery`; the admin tab `/admin/dovede` is split into sections
+  with their own addresses (route `/admin/:tab?/:section?`; shell `AdminPage/dovede/DovedeTab.tsx`, lazy chunk; plan and
+  next steps in `Docs/dovede-admin-roadmap.md`): Огляд (no segment — today's tiles, Claude / Google N of cap, «Потребує
+  уваги» linking to the fix), `questions` (`AdminPage/DovedeLogTab.tsx`; `GET /admin/dovede/queries`, pure
+  `src/dovede/log.ts`: summary, words nobody recognised, the latest questions with both parses; period and filter in
+  `?days=&only=`), `dictionary` (synonyms, `?word=` fills the form; drivers' pickup notes) and `city`; an unknown section
+  redirects to Огляд. Shared admin pieces (section nav, header, stat tiles, status pill, empty state, `kit.css` on the
+  `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
+  `data-label` (CSS only). The same tab teaches synonyms without a deploy
   (`DovedeSynonym`, `DovedeSynonymsPanel.tsx`, `/admin/dovede/synonyms`): the page reads `GET /dovede/synonyms` on open
   (`nlu/synonyms.ts`, matched before every other dictionary), and Claude gets the list in the user message, so the
   cached system prompt never changes with them. Tests never reach the API: `vitest.setup.ts`

@@ -7,7 +7,7 @@ import { placeOptions, searchPlaceOptions, type PlaceOption } from './dovedePlac
 /**
  * Синоніми «Доведе» (Docs/dovede-roadmap.md): навчити сторінку слову з журналу — «епіцентр» → місце. Діє одразу,
  * без деплою: сторінка й Claude читають список із сервера. `seed` — слово з таблиці «Чого не впізнали»
- * (`n` міняється з кожним натисканням «навчити», щоб те саме слово можна було взяти вдруге).
+ * (розділ «Словник» бере його з `?word=`; новий обʼєкт `seed` — нове заповнення форми).
  */
 export const DovedeSynonymsPanel: React.FC<{ stops: StopLike[]; seed: { word: string; n: number } | null }> = ({ stops, seed }) => {
   const [rows, setRows] = useState<DovedeSynonymRow[] | null>(null);
@@ -114,7 +114,7 @@ export const DovedeSynonymsPanel: React.FC<{ stops: StopLike[]; seed: { word: st
       {error ? <p className="dovede-log-error">{error}</p> : null}
       {rows && rows.length ? (
         <div className="dovede-log-scroll">
-          <table className="dovede-log-table">
+          <table className="dovede-log-table dovede-log-table--cards">
             <thead>
               <tr>
                 <th>Як кажуть</th>
@@ -127,10 +127,10 @@ export const DovedeSynonymsPanel: React.FC<{ stops: StopLike[]; seed: { word: st
                 const place = byId.get(row.placeId);
                 return (
                   <tr key={row.id}>
-                    <td>
+                    <td data-label="Як кажуть">
                       <strong>{row.phrase}</strong>
                     </td>
-                    <td className="dovede-log-text">{place ? `${place.label} · ${place.hint}` : `${row.placeId} — такого місця вже немає`}</td>
+                    <td className="dovede-log-text" data-label="Місце">{place ? `${place.label} · ${place.hint}` : `${row.placeId} — такого місця вже немає`}</td>
                     <td>
                       <button type="button" className="dovede-syn-del" onClick={() => void remove(row)} aria-label={`Забути синонім «${row.phrase}»`}>
                         ×
@@ -143,7 +143,7 @@ export const DovedeSynonymsPanel: React.FC<{ stops: StopLike[]; seed: { word: st
           </table>
         </div>
       ) : rows ? (
-        <p className="dovede-log-empty">Синонімів ще немає. Натисніть «навчити» біля слова в таблиці вище.</p>
+        <p className="dovede-log-empty">Синонімів ще немає. Слова, яких сторінка не впізнала, — у розділі «Питання людей»: кнопка «навчити» біля слова.</p>
       ) : null}
     </div>
   );

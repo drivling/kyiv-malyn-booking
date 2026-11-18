@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { DovedeCityStats } from '@/types';
 import { DovedeCityPlaces } from './DovedeCityPlaces';
+import { googleErrorLine } from './dovede/googleError';
 
 const CITY: Record<string, string> = { Kyiv: 'Київ', Zhytomyr: 'Житомир' };
 const SOURCE: Record<string, string> = { google: 'з Google', own: 'свої', open: 'відкриті дані' };
@@ -12,17 +13,6 @@ const FRESH_MAX = 365;
 const CAP_MIN = 0;
 const CAP_MAX = 5000;
 
-/** «17 листопада о 23:45» за Києвом */
-const quotaTime = (iso: string) => new Date(iso).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-
-/** Що означає відмова Google — куди дивитись у Google Cloud */
-const googleErrorHint = (status: number) =>
-  status === 429
-    ? 'вичерпано квоту в Google Cloud: вона менша за наш ліміт або її вибрали інші скрипти'
-    : status === 401 || status === 403
-      ? 'немає доступу: обмеження ключа, вимкнений Routes API або білінг'
-      : 'збій на боці Google або запит не прийнято';
-
 const count = (rows: Array<{ city: string; count: number }>, city: string) => rows.filter((r) => r.city === city).reduce((n, r) => n + r.count, 0);
 
 /**
@@ -31,9 +21,10 @@ const count = (rows: Array<{ city: string; count: number }>, city: string) => ro
  * (одне місце з неправильною відповіддю прибирає список «Місця» — `DovedeCityPlaces`),
  * «скинути лічильник попиту» обнуляє список «Що питають найчастіше» (після прогону `npm run dovede:crawl`), а строк
  * свіжості збереженої відповіді й денний ліміт запитів до Google власник задає тут сам.
+ * `defaultOpen` — розділ «Місто» (`/admin/dovede/city`) відкриває панель одразу.
  */
-export const DovedeCityPanel: React.FC = () => {
-  const [open, setOpen] = useState(false);
+export const DovedeCityPanel: React.FC<{ defaultOpen?: boolean }> = ({ defaultOpen = false }) => {
+  const [open, setOpen] = useState(defaultOpen);
   const [data, setData] = useState<DovedeCityStats | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -152,7 +143,7 @@ export const DovedeCityPanel: React.FC = () => {
               data.hasKey ? null : 'немає ключа GOOGLE_MAPS_API_KEY — відповідаємо лише з бази',
               data.store ? null : 'запис у базу вимкнено (DOVEDE_CITY_STORE=0)',
               `запитів до Google сьогодні: ${data.callsToday} з ${data.dailyCap}`,
-              data.googleError ? `Google відмовив (HTTP ${data.googleError.status}) ${quotaTime(data.googleError.at)} — ${googleErrorHint(data.googleError.status)}${data.googleError.message ? `; Google: «${data.googleError.message}»` : ''}` : null,
+              data.googleError ? googleErrorLine(data.googleError) : null,
               data.staleRoutes ? `застаріло доріг: ${data.staleRoutes} — ${data.refresh ? 'сервер оновлює їх сам, потроху щогодини' : 'оновлення вимкнено (DOVEDE_CITY_REFRESH=0)'}` : null,
               data.archivedRoutes ? `в архіві маршрутів: ${data.archivedRoutes}` : null,
             ]
