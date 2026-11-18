@@ -256,11 +256,16 @@ of `dist` in a commit.
   `kyiv.borshch`); when the server has no answer the outcome is `city_link` — a panel with the Google Maps link, never a
   story with zero minutes. Two known Kyiv stations stay shape `kyiv` (own data); a city named without a place stays
   `outside`. The dictionary reads both places only in the form «з Києва з … до Києва на …»; free wording comes from
-  Claude. Metro inside a server answer is ours, as everywhere else: `compose/cityMetro.ts` (`withOwnMetro`, called by
-  `cityLeg` for every city step) finds the Google boarding / alighting stations in `METRO_STATIONS` by name, recomputes
-  that ride with `metroTrip` (two trains with a short walk between = one ride with a transfer) and splits the step into
-  `walk` → `metro` (`MetroCard`) → `city` (the rest from the server); an unknown station, a closed metro or Zhytomyr
-  leave the step as it was. Server `backend/src/dovede/city-route.ts`: a stored answer of the same
+  Claude. Every answered city step is split by mode (`compose/cityTransit.ts`, `splitCityRoute`, called by `cityLeg`):
+  walks become `walk` legs; Kyiv metro becomes our own `metro` leg (Google's boarding / alighting stations found in
+  `METRO_STATIONS` by name, `metroTrip`; two trains with a short walk between = one ride with a transfer); Kyiv City
+  Express (`HEAVY_RAIL`, line «Kyiv City Express» / headsign «E1/E2 (…)») becomes our `ring` leg from the timetable
+  (`nextRingRide` — always ours, the wait at the platform counts; Google names: Latin «i», «Північна» = «Вокзальна»);
+  everything else is a `cityRide` leg drawn by `ui/CityRideCard.tsx` per mode (`rideLook`: bus, minibus = `SHARE_TAXI`,
+  trolleybus — wires over the card, tram — rails, speed tram — stops named «станція "…"» or `LIGHT_RAIL`, own station
+  line, funicular — a slope with our station names from `FUNICULARS`, rail — suburban trains), with «перевірено N днів
+  тому» and the map link only on the last Google ride. Cards are per mode, not per city. Real answers for each mode are
+  test fixtures in `compose/fixtures/kyiv-city-modes.json` (from our DB, with the `ask` that produced them). Server `backend/src/dovede/city-route.ts`: a stored answer of the same
   pair, day type and hour ± 1 not older than the fresh window (30 days by default; the owner edits it in the admin
   block — singleton `DovedeCitySettings.freshDays`, 1–365, `PUT /admin/dovede/city/settings`, cached for a minute) is
   served from `DovedeCityRoute` (`source: 'stored'`), otherwise

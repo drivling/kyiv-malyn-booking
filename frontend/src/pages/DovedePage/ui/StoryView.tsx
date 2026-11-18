@@ -12,6 +12,8 @@ import { durationText, metersText, stopsText } from './format';
 import { METRO_LINE } from '../data/kyivMetroService';
 import { RING_COLOR } from '../data/kyivRing';
 import { CityLegCard } from './CityLegCard';
+import { CityRideCard } from './CityRideCard';
+import { RIDE_COLOR, rideLook } from '../compose/cityTransit';
 import { MetroCard } from './MetroCard';
 import { RingCard } from './RingCard';
 import { RideNote } from './RideBoard';
@@ -161,6 +163,7 @@ function legTime(l: StoryLeg): string {
   if (l.kind === 'bus' || l.kind === 'ride' || l.kind === 'ring') return clock(l.depMins);
   if (l.kind === 'metro') return l.closed ? '' : clock(l.depMins, true);
   if (l.kind === 'city') return l.depMins != null ? clock(l.depMins, true) : '';
+  if (l.kind === 'cityRide') return clock(l.depMins, true);
   return '';
 }
 
@@ -168,6 +171,7 @@ function legStyle(l: StoryLeg): CSSProperties | undefined {
   if (l.kind === 'intercity') return { '--dv-c': l.mode === 'elektrichka' ? 'var(--dv-train)' : 'var(--dv-marsh)' } as CSSProperties;
   if (l.kind === 'ride') return { '--dv-c': 'var(--dv-ride)' } as CSSProperties;
   if (l.kind === 'city' && l.route) return { '--dv-c': 'var(--dv-city)' } as CSSProperties;
+  if (l.kind === 'cityRide') return { '--dv-c': RIDE_COLOR[rideLook(l.step)] } as CSSProperties;
   if (l.kind === 'metro') return { '--dv-c': METRO_LINE[l.segments[0].line].color } as CSSProperties;
   if (l.kind === 'ring') return { '--dv-c': l.ride.extra ? RING_COLOR.extra : RING_COLOR.main } as CSSProperties;
   if (l.kind === 'bus') return { ...routeColorStyleIn(l.city, l.routeId), '--dv-c': 'var(--lt-route-color, var(--dv-ink))' } as CSSProperties;
@@ -186,6 +190,8 @@ function LegBody({ l, date, stopName }: { l: StoryLeg; date: string; stopName: (
       return <RideCard l={l} />;
     case 'city':
       return <CityLegCard l={l} />;
+    case 'cityRide':
+      return <CityRideCard l={l} />;
     case 'bus':
       return <BusCard l={l} date={date} stopName={stopName} />;
     case 'walk':
