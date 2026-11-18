@@ -48,6 +48,7 @@ const HELP = `«Доведе» · обхід у ширину для наповн
   --from <точки>    звідки рахувати дорогу: академ | святошин | житомирська | вокзал | борщагівка | all
                     (типово академ; для Житомира завжди автовокзал)
   --both            ще й зворотний напрям: від місця до точки посадки
+  --reverse         лише зворотний напрям (для поїздок із міста — зручно разом із вечірнім часом у --when)
   --city <місто>    Kyiv | Zhytomyr — для --place і --places (типово Kyiv)
   --place "<слова>" місце без фрази; можна кілька разів
   --places <файл>   місця з файла, по одному в рядку (# — коментар); готові списки:
@@ -71,7 +72,7 @@ VIBER_ADMIN_TOKEN) теж відкриває, показує денний лім
 потрапляють у лічильник попиту людей.`;
 
 function parseArgs(argv) {
-  const o = { phrases: [], places: [], from: '', both: false, city: 'Kyiv', placesFile: '', when: '', depth: 3, budget: 40, reserve: 50, max: Infinity, pause: 1500, headsigns: true, api: API_BASE, dry: false, status: false, help: false, unanswered: false, asPerson: false, freshDays: null };
+  const o = { phrases: [], places: [], from: '', both: false, city: 'Kyiv', placesFile: '', when: '', depth: 3, budget: 40, reserve: 50, max: Infinity, pause: 1500, headsigns: true, api: API_BASE, dry: false, status: false, help: false, unanswered: false, asPerson: false, freshDays: null, reverse: false };
   const num = (name, v) => {
     const n = Number(v);
     if (!Number.isFinite(n) || n < 0) throw new Error(`${name}: потрібне число, а не «${v}»`);
@@ -87,6 +88,7 @@ function parseArgs(argv) {
     if (a === '--help' || a === '-h') o.help = true;
     else if (a === '--from') o.from = val();
     else if (a === '--both') o.both = true;
+    else if (a === '--reverse') o.reverse = true;
     else if (a === '--city') o.city = val();
     else if (a === '--place') o.places.push(val());
     else if (a === '--places') o.placesFile = val();
@@ -230,7 +232,7 @@ async function main() {
   // --- з чого починаємо ---
   const seeds = [];
   const addSeed = (city, place, dir, via) => {
-    const dirs = o.both ? ['to', 'from'] : [dir];
+    const dirs = o.reverse ? ['from'] : o.both ? ['to', 'from'] : [dir];
     for (const origin of resolveOrigins(city, o.from)) for (const d of dirs) seeds.push({ city, origin, dir: d, place, via });
   };
   for (const phrase of o.phrases) {
