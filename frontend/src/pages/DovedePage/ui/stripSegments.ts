@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { routeColorStyle } from '@/pages/LocalTransportPage/routeColors';
+import { routeColorStyleIn } from '@/pages/LocalTransportPage/routeColors';
 import type { Story } from '../compose/types';
 import { METRO_LINE } from '../data/kyivMetroService';
 import { RING_COLOR } from '../data/kyivRing';
@@ -34,7 +34,7 @@ export function stripSegments(story: Story): Segment[] {
       out.push({ start: leg.depMins, end: leg.arrMins, cls: 'poputka' });
       cursor = leg.arrMins;
     } else if (leg.kind === 'bus') {
-      out.push({ start: leg.depMins, end: leg.arrMins, cls: 'bus', style: routeColorStyle(leg.routeId) as CSSProperties });
+      out.push({ start: leg.depMins, end: leg.arrMins, cls: 'bus', style: routeColorStyleIn(leg.city, leg.routeId) as CSSProperties });
       cursor = leg.arrMins;
     } else if (leg.kind === 'walk') {
       // пішка ділянка після останнього транспорту притискається до прибуття

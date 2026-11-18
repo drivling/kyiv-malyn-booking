@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { isoToDateUrl } from '@/pages/LocalTransportPage/dateUrl';
-import { routeColorStyle } from '@/pages/LocalTransportPage/routeColors';
+import { routeColorStyleIn } from '@/pages/LocalTransportPage/routeColors';
 import { ZUBASTYK_MAIN_PHONE, zubastykTelHref } from '@/pages/MizhgorodskiPage/phoneOnlyBooking';
-import { routeNo } from '@/utils/routeNames';
+import { routeNoIn } from '@/utils/routeNames';
+import { transportProfile } from '@/site/transportCity';
 import { clock } from '../compose/narrate';
 import type { Story, StoryLeg } from '../compose/types';
 import { FlapTime } from './FlapTime';
@@ -120,22 +121,37 @@ function busHref(l: BusLeg, date: string): string {
 }
 
 function BusCard({ l, date, stopName }: { l: BusLeg; date: string; stopName: (id: string) => string }) {
-  return (
-    <Link className="dv-card dv-bus" to={busHref(l, date)} aria-label={`Автобус №${routeNo(l.routeId)} о ${clock(l.depMins)}: розклад і зупинки`}>
+  const no = routeNoIn(l.city, l.routeId);
+  const label = `Автобус №${no} о ${clock(l.depMins)}: розклад і зупинки`;
+  const body = (
+    <>
       <span className="dv-card__top">
-        <span className="dv-badge" style={routeColorStyle(l.routeId)}>
-          №{routeNo(l.routeId)}
+        <span className="dv-badge" style={routeColorStyleIn(l.city, l.routeId)}>
+          №{no}
         </span>
-        <span className="dv-card__title">Міський автобус о {clock(l.depMins)}</span>
+        <span className="dv-card__title">{l.city ? `Автобус ${transportProfile(l.city).nameGenitive}` : 'Міський автобус'} о {clock(l.depMins)}</span>
       </span>
       <span className="dv-stops">
-        <b>{stopName(l.fromStopId)}</b> → <b>{stopName(l.toStopId)}</b>
+        <b>{l.fromName ?? stopName(l.fromStopId)}</b> → <b>{l.toName ?? stopName(l.toStopId)}</b>
       </span>
       <span className="dv-meta">
         <span>{stopsText(l.stops)}</span>
         <span>{durationText(l.arrMins - l.depMins)}</span>
       </span>
       {l.note ? <span className="dv-more">{l.note}</span> : null}
+    </>
+  );
+  // автобус іншого міста (Коростень у коридорі) — рейс на сайті того міста: той самий id маршруту в Малині — інший автобус
+  if (l.city) {
+    return (
+      <a className="dv-card dv-bus" href={`${transportProfile(l.city).siteUrl}${busHref(l, date)}`} aria-label={label}>
+        {body}
+      </a>
+    );
+  }
+  return (
+    <Link className="dv-card dv-bus" to={busHref(l, date)} aria-label={label}>
+      {body}
     </Link>
   );
 }
@@ -154,7 +170,7 @@ function legStyle(l: StoryLeg): CSSProperties | undefined {
   if (l.kind === 'city' && l.route) return { '--dv-c': 'var(--dv-city)' } as CSSProperties;
   if (l.kind === 'metro') return { '--dv-c': METRO_LINE[l.segments[0].line].color } as CSSProperties;
   if (l.kind === 'ring') return { '--dv-c': l.ride.extra ? RING_COLOR.extra : RING_COLOR.main } as CSSProperties;
-  if (l.kind === 'bus') return { ...routeColorStyle(l.routeId), '--dv-c': 'var(--lt-route-color, var(--dv-ink))' } as CSSProperties;
+  if (l.kind === 'bus') return { ...routeColorStyleIn(l.city, l.routeId), '--dv-c': 'var(--lt-route-color, var(--dv-ink))' } as CSSProperties;
   return undefined;
 }
 

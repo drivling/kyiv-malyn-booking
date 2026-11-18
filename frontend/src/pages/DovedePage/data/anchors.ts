@@ -10,7 +10,7 @@ export const ANCHORS_VERSION = 2;
 export type Corridor = 'to_malyn' | 'from_malyn';
 export type IntercityMode = 'marshrutka' | 'elektrichka';
 /** Місто на іншому кінці коридору: рідне місто сайту — Малин */
-export type FarCity = 'Kyiv' | 'Zhytomyr';
+export type FarCity = 'Kyiv' | 'Zhytomyr' | 'Korosten';
 
 export interface AnchorStop {
   /** id словника місць */
@@ -112,7 +112,36 @@ export const ANCHORS: IntercityAnchor[] = [
     bufferBeforeBoard: 10,
     bufferAfterAlight: 3,
   },
+  // Коростень ↔ Малин (2026-11-18, слова власника: і електричка, і маршрутка в Коростені — на вокзалі). У розкладі
+  // сайту між містами лише електрички, у Малині — вокзал, як для Києва. Без часу прибуття (20:48) — з розкиду
+  // розкладу: 48–68 хв
+  {
+    far: 'Korosten',
+    corridor: 'to_malyn',
+    mode: 'elektrichka',
+    stops: [VOKZAL],
+    duration: { typical: 66, max: 70 },
+    bufferBeforeBoard: 10,
+    bufferAfterAlight: 3,
+  },
+  {
+    far: 'Korosten',
+    corridor: 'from_malyn',
+    mode: 'elektrichka',
+    stops: [VOKZAL],
+    duration: { typical: 67, max: 70 },
+    bufferBeforeBoard: 10,
+    bufferAfterAlight: 3,
+  },
 ];
+
+/** Вокзал Коростеня: сюди приходять електрички з Малина й маршрутки (слова власника); id зупинки в датасеті Коростеня */
+export const KOROSTEN_STATION = {
+  stopId: 'st_1001',
+  name: 'вокзал',
+  from: 'з вокзалу Коростеня',
+  at: 'на вокзалі Коростеня',
+} as const;
 
 /** Якір коридору; null — такого виду транспорту на цьому коридорі немає (електричка на Житомир) */
 export function findAnchor(corridor: Corridor, mode: IntercityMode, far: FarCity = 'Kyiv'): IntercityAnchor | null {

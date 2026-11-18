@@ -70,4 +70,9 @@ describe('«Доведе» — адреса відповіді', () => {
     const alien = new URLSearchParams('f=city.Malyn&t=malyn.vokzal&td=Польова&d=2026-11-13');
     expect(paramsToIntent(alien, { date: '2026-11-13', mins: 600 })?.to?.detail).toBeUndefined();
   });
+
+  it('зупинка Коростеня в коридорі Малин ↔ Коростень (етап 3) — теж `fd=` / `td=`', () => {
+    const korosten = new URLSearchParams('f=city.Korosten&fd=Пашини&t=malyn.paperova&d=2026-11-13');
+    expect(paramsToIntent(korosten, { date: '2026-11-13', mins: 600 })?.from).toMatchObject({ id: 'city.Korosten', detail: 'Пашини' });
+  });
 });

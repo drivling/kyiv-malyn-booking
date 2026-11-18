@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import { useTransportDataset } from '../dataset/useTransportDataset';
 import { datasetToLocalViewModel } from '../dataset/datasetAdapter';
-import { configureSegmentDurations } from '../segmentDurations';
+import { DEFAULT_SEGMENT_DURATION_SEC, SEGMENT_DURATIONS_SEC, configureSegmentDurations } from '../segmentDurations';
 import { buildRoutesFromData } from '../stopDepartures';
 import { routeChainSources } from '../routeVariants';
 import { displayNameForStopKey, getStopsCatalog } from '../stopCatalog';
@@ -56,19 +56,37 @@ export interface PlannerModel {
   plannerFor(isoDate: string): DayPlanner | null;
 }
 
+const DEFAULT_CITY = 'Malyn';
+
 function serviceDayOfIso(isoDate: string): ServiceDay {
   const [y, m, d] = isoDate.split('-').map(Number);
   return serviceDayForDate(new Date(y, m - 1, d));
 }
 
-export function usePlannerModel(city: string): PlannerModel {
-  const { dataset, loading, error } = useTransportDataset(city);
+export interface PlannerModelOptions {
+  /**
+   * Другий планувальник на сторінці («Доведе»: Коростень поруч із Малином): не перемикає місто номерів і кольорів
+   * сторінки й не лишає своїх тривалостей сегментів глобально — розклад дня будується з ними й одразу повертає
+   * попередні
+   */
+  passive?: boolean;
+}
+
+/**
+ * `city` null — планувальник ще не потрібен (нічого не вантажить, `ready: false`). Розклад дня (`Timetable`) будується
+ * з тривалостями сегментів саме цього міста: на час `buildTimetable` вони стають глобальними, потім повертаються
+ * попередні, тож два планувальники на сторінці не плутають сегменти (id маршрутів у містах повторюються).
+ */
+export function usePlannerModel(city: string | null, opts: PlannerModelOptions = {}): PlannerModel {
+  const passive = opts.passive ?? false;
+  const { dataset: loadedDataset, loading, error } = useTransportDataset(city ?? DEFAULT_CITY, { passive, enabled: city != null });
+  const dataset = city ? loadedDataset : null;
   const viewModel = useMemo(() => {
-    if (!dataset) return null;
+    if (!dataset || !city) return null;
     const vm = datasetToLocalViewModel(dataset, city);
-    configureSegmentDurations(vm.segmentDurations, vm.defaultSec);
+    if (!passive) configureSegmentDurations(vm.segmentDurations, vm.defaultSec);
     return vm;
-  }, [dataset, city]);
+  }, [dataset, city, passive]);
 
   const plannerFor = useMemo(() => {
     const data = viewModel?.data ?? null;
@@ -82,7 +100,14 @@ export function usePlannerModel(city: string): PlannerModel {
       const serviceDay = serviceDayOfIso(isoDate);
       let tt = byDay.get(serviceDay);
       if (!tt) {
-        tt = buildTimetable({ routes, stopsByRoute, variantsByRoute, coords, serviceDay });
+        const prevSegments = SEGMENT_DURATIONS_SEC;
+        const prevDefault = DEFAULT_SEGMENT_DURATION_SEC;
+        configureSegmentDurations(viewModel.segmentDurations, viewModel.defaultSec);
+        try {
+          tt = buildTimetable({ routes, stopsByRoute, variantsByRoute, coords, serviceDay });
+        } finally {
+          if (passive) configureSegmentDurations(prevSegments, prevDefault);
+        }
         byDay.set(serviceDay, tt);
       }
       const timetable = tt;
@@ -107,7 +132,7 @@ export function usePlannerModel(city: string): PlannerModel {
         },
       };
     };
-  }, [viewModel]);
+  }, [viewModel, passive]);
 
   const stops = useMemo(() => (dataset?.stops ?? []).map((s) => ({ id: s.id, name: s.name })), [dataset]);
 

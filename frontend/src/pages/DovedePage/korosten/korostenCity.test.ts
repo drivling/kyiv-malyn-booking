@@ -10,7 +10,9 @@ import malynStopsFile from '../eval/malyn-stops.json';
 import malynRoutesFile from '../eval/malyn-routes.json';
 import {
   buildKorostenPlaces,
+  combineCorridor,
   isKorostenQuestion,
+  korostenStopByLabel,
   isMalynKorostenTrip,
   korostenShape,
   mentionsOtherCity,
@@ -100,7 +102,7 @@ describe('поїздка Малин ↔ Коростень — питання М
   /** те саме рішення, що й на сторінці в Малині: перемкнути на Коростень? */
   const switches = (q: string) => isKorostenQuestion(q) && !isMalynKorostenTrip(q, malyn(q));
 
-  it('малинське місце + «в Коростень» / «з Коростеня» — лишаємось у Малині, відповідь «вчу»', () => {
+  it('малинське місце + «в Коростень» / «з Коростеня» — лишаємось у Малині, поїздка коридором (етап 3)', () => {
     for (const q of [
       'як доїхати з Паперової фабрики в Коростень до міської лікарні',
       'з Коростеня до Паперової фабрики',
@@ -109,7 +111,7 @@ describe('поїздка Малин ↔ Коростень — питання М
       'з вокзалу в Коростень',
     ]) {
       expect(switches(q), q).toBe(false);
-      expect(classify(malyn(q)), q).toEqual({ kind: 'outside', city: 'Korosten' });
+      expect(classify(malyn(q)), q).toMatchObject({ kind: expect.stringMatching(/^(from|to)_malyn$/), far: 'Korosten' });
     }
   });
 
@@ -147,5 +149,44 @@ describe('поїздка Малин ↔ Коростень — питання М
     expect(namesKorostenAsEnd('з центру Коростеня на вокзал')).toBe(false);
     expect(namesKorostenAsEnd('з Пашин до Коростеня-Подільського')).toBe(false);
     expect(namesKorostenAsEnd('Коростень: з Пашин до ринку')).toBe(false);
+  });
+});
+
+describe('combineCorridor: два розбори одного питання → поїздка Малин ↔ Коростень (етап 3)', () => {
+  const malynIndex = buildStopPlaces(malynStopsFile.stops);
+  const malynRoutes = malynRoutesFile.routes as RouteLike[];
+  beforeAll(() => setStopPlaces(malynIndex));
+  afterAll(() => setStopPlaces(index));
+  const combine = (q: string) => combineCorridor(parseLocal(q, now, malynIndex, malynRoutes).intent, parseLocal(q, now, index).intent, index);
+  const ends = (q: string) => {
+    const c = combine(q);
+    return c ? [c.from?.id, c.from?.detail ?? null, c.to?.id, c.to?.detail ?? null, c.unknown] : null;
+  };
+
+  it('місце Малина + зупинка Коростеня — в обидва боки; зупинка — `detail` міста, невідомих слів не лишається', () => {
+    expect(ends('як доїхати з Паперової фабрики в Коростень до міської лікарні')).toEqual(['malyn.paperova', null, 'city.Korosten', 'Міськлікарня', []]);
+    expect(ends('з Пашин до Паперової фабрики')).toEqual(['city.Korosten', 'Пашини', 'malyn.paperova', null, []]);
+    expect(ends('з Паперової фабрики в Коростень на вокзал')).toEqual(['malyn.paperova', null, 'city.Korosten', 'Залізничний вокзал', []]);
+    expect(ends('з міськлікарні Коростеня на автостанцію')).toEqual(['city.Korosten', 'Міськлікарня', 'malyn.avtostantsiya', null, []]);
+    expect(ends('з Пашин до Малина')).toEqual(['city.Korosten', 'Пашини', 'city.Malyn', null, []]);
+    expect(ends('як з Малина доїхати до Коростеня до Грозиного')).toEqual(['city.Malyn', null, 'city.Korosten', 'Грозине', []]);
+  });
+
+  it('«з вокзалу в Коростень» — вокзал малинський; без зупинки Коростеня кінець — місто', () => {
+    expect(ends('з вокзалу в Коростень')).toEqual(['malyn.vokzal', null, 'city.Korosten', null, []]);
+    expect(ends('з Коростеня до Паперової фабрики')).toEqual(['city.Korosten', null, 'malyn.paperova', null, []]);
+  });
+
+  it('обидва кінці в Коростені чи інше місто — не коридор', () => {
+    expect(combine('з Пашин до міськлікарні')).toBeNull();
+    expect(combine('у Коростені з вокзалу до ринку')).toBeNull();
+    expect(combine('з Пашин до ринку')).toBeNull();
+    expect(combine('з Києва до Коростеня')).toBeNull();
+  });
+
+  it('korostenStopByLabel: назва з `detail` → зупинка датасету', () => {
+    expect(korostenStopByLabel(index, 'Міськлікарня')).toBe('st_1079');
+    expect(korostenStopByLabel(index, 'Пашини')).toBe('st_1087');
+    expect(korostenStopByLabel(index, 'Паперова фабрика')).toBeNull();
   });
 });

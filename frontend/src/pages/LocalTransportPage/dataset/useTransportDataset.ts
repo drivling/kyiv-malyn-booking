@@ -13,9 +13,9 @@ import { apiClient } from '@/api/client';
 import type { TransportDataset } from '@/api/transportDataset';
 import { flushOutbox } from '@/pwa/outbox';
 import { useOnline } from '@/pwa/useOnline';
-import { configureRouteNames, setRouteNamesCity } from '@/utils/routeNames';
+import { configureRouteNames, routeNamesCity, setRouteNamesCity } from '@/utils/routeNames';
 import { isDefaultTransportCity, siteTransportCity } from '@/site/transportCity';
-import { configureRouteColors, setRouteColorsCity } from '../routeColors';
+import { configureRouteColors, routeColorsCity, setRouteColorsCity } from '../routeColors';
 import { setVerifiedRoutesCity } from '../routeTiming';
 import { fetchSnapshot, readStored, writeStored } from './datasetStore';
 
@@ -106,14 +106,44 @@ export function broadcastTransportDatasetInvalidate() {
   }
 }
 
+/**
+ * Завантаження, що не змінює місто, чиї номери й кольори зараз на екрані: завантажувач і apiClient роблять його
+ * поточним, а другому датасету на сторінці («Доведе»: Коростень поруч із Малином) цього не треба
+ */
+function keepCurrentCity<T>(passive: boolean, fn: () => T): T {
+  if (!passive) return fn();
+  const names = routeNamesCity();
+  const colors = routeColorsCity();
+  try {
+    return fn();
+  } finally {
+    setRouteNamesCity(names);
+    setRouteColorsCity(colors);
+  }
+}
+
+export interface TransportDatasetOptions {
+  /**
+   * Другий датасет на сторінці: номери, кольори й перевірені маршрути лишаються за містом сторінки (`routeNo(id, city)`
+   * читає цей датасет явно)
+   */
+  passive?: boolean;
+  /** false — нічого не вантажити (датасет ще не потрібен) */
+  enabled?: boolean;
+}
+
 /** city — чий транспорт; без аргументу — місто поточного сайту (сторінки Малина поза /transport називають його явно) */
-export function useTransportDataset(city: string = siteTransportCity()) {
-  // routeNo() у цій сторінці має читати номери саме цього міста
-  setRouteNamesCity(city);
-  setRouteColorsCity(city);
-  setVerifiedRoutesCity(city);
-  const [loaded, setLoaded] = useState<LoadedDataset | null>(() => fromLocalCopy(city));
-  const [loading, setLoading] = useState(() => !cachedByCity.has(city));
+export function useTransportDataset(city: string = siteTransportCity(), opts: TransportDatasetOptions = {}) {
+  const passive = opts.passive ?? false;
+  const enabled = opts.enabled ?? true;
+  if (!passive) {
+    // routeNo() у цій сторінці має читати номери саме цього міста
+    setRouteNamesCity(city);
+    setRouteColorsCity(city);
+    setVerifiedRoutesCity(city);
+  }
+  const [loaded, setLoaded] = useState<LoadedDataset | null>(() => (enabled ? keepCurrentCity(passive, () => fromLocalCopy(city)) : null));
+  const [loading, setLoading] = useState(() => enabled && !cachedByCity.has(city));
   const [error, setError] = useState('');
   const online = useOnline();
   const mounted = useRef(true);
@@ -127,12 +157,25 @@ export function useTransportDataset(city: string = siteTransportCity()) {
 
   /** Мережа; без неї — копія лишається на екрані, а без копії — знімок збірки */
   const reload = useCallback(async () => {
+    if (!enabled) return;
+    // другий датасет вмикають пізніше (коли питання його назвало) — спершу копія з localStorage, як при монтуванні
+    const local = passive ? keepCurrentCity(true, () => fromLocalCopy(city)) : null;
+    if (local && mounted.current) setLoaded(local);
     if (mounted.current) {
       setError('');
       if (!cachedByCity.has(city)) setLoading(true);
     }
+    const names = routeNamesCity();
+    const colors = routeColorsCity();
+    const restore = () => {
+      if (passive) {
+        setRouteNamesCity(names);
+        setRouteColorsCity(colors);
+      }
+    };
     try {
       const fresh = await fetchFromNetwork(city);
+      restore();
       if (mounted.current) setLoaded(fresh);
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Не вдалося завантажити транспорт';
@@ -143,6 +186,7 @@ export function useTransportDataset(city: string = siteTransportCity()) {
         } catch {
           /* знімка теж нема — лишається помилка */
         }
+        restore();
       }
       if (mounted.current) {
         setLoaded(fallback);
@@ -151,7 +195,7 @@ export function useTransportDataset(city: string = siteTransportCity()) {
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [city]);
+  }, [city, enabled, passive]);
 
   useEffect(() => {
     void reload();
