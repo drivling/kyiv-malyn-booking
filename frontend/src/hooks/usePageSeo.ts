@@ -20,6 +20,8 @@ export type PageSeoOptions = {
   jsonLdId?: string;
   /** meta[name=robots], напр. 'noindex, follow' для сторінок-заглушок */
   robots?: string;
+  /** Своя картка посилання замість картки за canonical (scripts/og-images.mjs), напр. «Доведе» (dovede-brand.mjs) */
+  ogImage?: { path: string; alt: string };
 };
 
 function upsertMetaByName(name: string, content: string): () => void {
@@ -94,8 +96,11 @@ export function usePageSeo(titleOrOptions: string | PageSeoOptions, canonicalUrl
     jsonLd,
     jsonLdId = 'page-seo-jsonld',
     robots,
+    ogImage: ownOgImage,
   } = options;
   const jsonLdSerialized = jsonLd ? JSON.stringify(jsonLd) : '';
+  const ogPath = ownOgImage?.path;
+  const ogAlt = ownOgImage?.alt;
 
   useEffect(() => {
     const prevTitle = document.title;
@@ -122,8 +127,8 @@ export function usePageSeo(titleOrOptions: string | PageSeoOptions, canonicalUrl
     restores.push(upsertMetaByProperty('og:type', 'website'));
     restores.push(upsertMetaByProperty('og:locale', 'uk_UA'));
     // Картка для Telegram / LinkedIn (scripts/og-images.mjs) — за шляхом і доменом canonical (транспорт Коростеня має
-    // свою); prerender-spa переносить усі og:* у статичний HTML
-    const ogImage = ogImageForUrl(canonicalAbsolute(canonical));
+    // свою) або своя сторінки; prerender-spa переносить усі og:* у статичний HTML
+    const ogImage = ogPath ? { path: ogPath, alt: ogAlt ?? title } : ogImageForUrl(canonicalAbsolute(canonical));
     restores.push(upsertMetaByProperty('og:image', ogImageUrl(ogImage)));
     restores.push(upsertMetaByProperty('og:image:alt', ogImage.alt));
 
@@ -141,5 +146,5 @@ export function usePageSeo(titleOrOptions: string | PageSeoOptions, canonicalUrl
       for (const restore of restores) restore();
       restoreJsonLd?.();
     };
-  }, [title, canonical, description, jsonLdSerialized, jsonLdId, robots]);
+  }, [title, canonical, description, jsonLdSerialized, jsonLdId, robots, ogPath, ogAlt]);
 }

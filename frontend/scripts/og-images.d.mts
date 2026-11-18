@@ -18,4 +18,4 @@ export declare const OG_IMAGE_HEIGHT: number;
 export declare const OG_IMAGES: { site: OgImage; transport: OgImage; transportKorosten: OgImage };
 export declare function ogImageForPath(pathname: string | undefined | null, siteKey?: string): OgImage;
 export declare function ogImageForUrl(url: string): OgImage;
-export declare function ogImageUrl(image: OgImage): string;
+export declare function ogImageUrl(image: { path: string }): string;

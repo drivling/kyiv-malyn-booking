@@ -30,6 +30,8 @@ import {
 } from './korosten/korostenCity';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
+import { useDovedeIcons } from './brandIcons';
+import { DOVEDE_DESCRIPTION, DOVEDE_OG, DOVEDE_TITLE } from '../../../scripts/dovede-brand.mjs';
 import { DovedeIntro, type IntroEvent } from './intro/DovedeIntro';
 import { INTRO_NAME } from './intro/introMedia';
 import { newViewId, trackAd } from '@/ads/adEvents';
@@ -81,7 +83,15 @@ function kyivNow(): KyivNow {
 }
 
 export default function DovedePage() {
-  usePageSeo({ title: 'Доведе', canonicalUrl: 'https://malin.kiev.ua/dovede', robots: 'noindex, nofollow' });
+  // Назва, опис і картка посилання — як у статичному dist/dovede/index.html (scripts/dovede-brand.mjs)
+  usePageSeo({
+    title: DOVEDE_TITLE,
+    canonicalUrl: 'https://malin.kiev.ua/dovede',
+    robots: 'noindex, nofollow',
+    description: DOVEDE_DESCRIPTION,
+    ogImage: DOVEDE_OG,
+  });
+  useDovedeIcons();
   // Доступ перевіряється вже під час ролика — після нього пароль чи пошук готові без очікування
   const access = useDovedeAccess();
   // video — ролик, сторінки ще немає; ticket — ролик скінчився, сторінка під ним (недоступна); done — лише сторінка
