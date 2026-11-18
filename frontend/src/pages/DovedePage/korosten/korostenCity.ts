@@ -1,49 +1,25 @@
 /**
- * «Доведе» в Коростені, етап 1 (Docs/dovede-roadmap.md, «Коростень»): питання про поїздку містом Коростенем — «з Пашин
- * до міськлікарні», «коли №4 на Грозине», «як від Гастелло до вокзалу». Лише словник (без Claude): той самий
- * `parseLocal`, але місця — зупинки датасету Коростеня й народні назви з них, а відповідь — та сама поїздка містом
- * (`intra` / `route_info` у складальнику) на планувальнику Коростеня.
+ * «Доведе» в Коростені (Docs/dovede-roadmap.md, «Коростень»): питання про поїздку містом Коростенем — «з Пашин
+ * до міськлікарні», «коли №4 на Грозине», «як від Гастелло до вокзалу». Той самий `parseLocal`, але місця — зупинки
+ * датасету Коростеня й народні назви з них (`korostenPlaces.ts`, спільний із промптом Claude), а відповідь — та сама
+ * поїздка містом (`intra` / `route_info` у складальнику) на планувальнику Коростеня. Коли словник не впевнений, сторінка
+ * питає Claude з промптом Коростеня (етап 2).
  *
  * Спільні з бекендом файли (gazetteer, stopPlaces, промпт) не змінюються: місця Коростеня — це записи `StopPlace` з
  * містом `Korosten`; фрази зупинок `parseLocal` перевіряє раніше за кураторський словник Малина, тож «вокзал», «центр»,
  * «ринок» тут — коростенські. Що все ж дійшло з малинського словника, `remapForKorosten` переводить або відкидає.
  */
 import type { GazetteerPlace } from '../nlu/gazetteer';
-import { stopBaseName, type StopLike, type StopPlace } from '../nlu/stopPlaces';
+import type { StopLike, StopPlace } from '../nlu/stopPlaces';
 import { resolvePlace } from '../nlu/places';
 import { tokenize } from '../nlu/normalize';
 import type { ParseSpan, PlaceRef, TripIntent } from '../nlu/types';
 import type { TripShape } from '../compose/composeStories';
+import { KOROSTEN_ALIASES, korostenStopGroups } from './korostenPlaces';
+
+export { KOROSTEN_ALIASES } from './korostenPlaces';
 
 export const KOROSTEN = 'Korosten';
-
-/**
- * Народні й короткі назви зупинок Коростеня → id зупинки. Лише очевидні з назв зупинок і розкладу ради, без
- * вигаданих орієнтирів. Кожна фраза — слова назви в називному відмінку (відмінки ловить `wordMatchesName`: «пашини» →
- * «з Пашин», «грозине» → «на Грозиного»); слово до 4 літер порівнюється цілком, тому «суд» / «суду» — окремо.
- */
-export const KOROSTEN_ALIASES: Array<{ stopId: string; phrases: string[] }> = [
-  { stopId: 'st_1001', phrases: ['вокзал', 'залізничний вокзал', 'жд вокзал'] },
-  { stopId: 'st_1002', phrases: ['ринок', 'ринку', 'ринка', 'базар', 'базару', 'базарі', 'центральний ринок'] },
-  { stopId: 'st_1003', phrases: ['центр', 'центру', 'центрі'] },
-  { stopId: 'st_1069', phrases: ['гастелло', 'шухевича'] },
-  { stopId: 'st_1079', phrases: ['міськлікарня', 'міська лікарня'] },
-  { stopId: 'st_1073', phrases: ['районна лікарня', 'залізнична лікарня'] },
-  { stopId: 'st_1085', phrases: ['поліклініка'] },
-  { stopId: 'st_1010', phrases: ['чолівка', 'переїзд'] },
-  { stopId: 'st_1080', phrases: ['автопарк'] },
-  { stopId: 'st_1049', phrases: ['житомирська станція', 'станція житомирська'] },
-  { stopId: 'st_1031', phrases: ['подільський', 'коростень подільський'] },
-  { stopId: 'st_1015', phrases: ['водосховище', 'поліське'] },
-  { stopId: 'st_1048', phrases: ['білокоровицьке'] },
-  { stopId: 'st_1061', phrases: ['цегельний', 'цегельня'] },
-  { stopId: 'st_1037', phrases: ['швейна'] },
-  { stopId: 'st_1016', phrases: ['парк', 'древлянський', 'островського'] },
-  { stopId: 'st_1055', phrases: ['стадіон', 'локомотив'] },
-  { stopId: 'st_1104', phrases: ['виконком', 'міськвиконком'] },
-  { stopId: 'st_1038', phrases: ['суд', 'суду', 'суді', 'дім правосуддя'] },
-  { stopId: 'st_1043', phrases: ['діагностичний'] },
-];
 
 /**
  * Малинські місця кураторського словника, які в Коростені мають свою пару (слово без коростенської фрази — наприклад,
@@ -56,8 +32,6 @@ const MALYN_TO_KOROSTEN: Record<string, string> = {
   'malyn.likarnia': 'st_1079',
 };
 
-/** Технічні точки геометрії маршруту («№5 т.3») — не зупинки для людей */
-const isPassengerStop = (s: StopLike) => !s.name.trim().startsWith('№');
 const NUMBER_RE = /^\d+$/;
 const SKIP = new Set(['на', 'та', 'до', 'за', 'і', 'й', 'вул', 'вулиця', 'пров', 'провулок', 'ім']);
 
@@ -74,17 +48,10 @@ function phraseWords(text: string): string[] {
 export function buildKorostenPlaces(stops: StopLike[]): StopPlace[] {
   const places = new Map<string, GazetteerPlace>();
   const out: StopPlace[] = [];
-  const byBase = new Map<string, StopLike[]>();
-  for (const s of [...stops].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
-    if (!isPassengerStop(s)) continue;
-    const base = stopBaseName(s.name);
-    if (!base) continue;
-    byBase.set(base, [...(byBase.get(base) ?? []), s]);
-  }
-  for (const [base, list] of byBase) {
-    const place: GazetteerPlace = { id: list[0].id, city: KOROSTEN, label: base, stems: [], stopIds: list.map((s) => s.id) };
-    for (const s of list) places.set(s.id, place);
-    const words = phraseWords(base);
+  for (const g of korostenStopGroups(stops)) {
+    const place: GazetteerPlace = { id: g.id, city: KOROSTEN, label: g.label, stems: [], stopIds: g.stopIds };
+    for (const id of g.stopIds) places.set(id, place);
+    const words = phraseWords(g.label);
     // номер у назві обовʼязковий («Київська, 1-А» — не просто «Київська», «Школа №8» — не будь-яка школа)
     if (words.some((w) => !NUMBER_RE.test(w))) out.push({ place, words, strictNumbers: words.some((w) => NUMBER_RE.test(w)) });
   }

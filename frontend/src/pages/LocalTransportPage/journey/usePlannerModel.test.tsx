@@ -31,6 +31,16 @@ function dataset(city: string, seconds: number): TransportDataset {
 }
 
 const DATASETS: Record<string, TransportDataset> = { Malyn: dataset('Malyn', 240), Korosten: dataset('Korosten', 600) };
+// маршрут «4» не в малинському списку перевірених (routeTiming.VERIFIED_ROUTE_IDS): у Малині він ішов би плоскими
+// 2 хв на крок, а в Коростені — за сегментами
+const k4 = dataset('Korosten', 600);
+DATASETS.Korosten4 = {
+  ...k4,
+  routes: k4.routes.map((r) => ({ ...r, id: '4' })),
+  routeStops: k4.routeStops.map((x) => ({ ...x, routeId: '4' })),
+  trips: k4.trips.map((t) => ({ ...t, routeId: '4' })),
+  segments: k4.segments.map((x) => ({ ...x, routeId: '4' })),
+};
 
 vi.mock('../dataset/useTransportDataset', () => ({
   useTransportDataset: (city: string, opts: { passive?: boolean; enabled?: boolean } = {}) => {
@@ -64,6 +74,16 @@ describe('usePlannerModel: два міста на одній сторінці', 
     expect(SEGMENT_DURATIONS_SEC['2|st_a|st_b']).toBe(240);
     expect(korostenDay.stopName('st_a')).toBe('Korosten A');
     expect(malynDay.stopName('st_a')).toBe('Malyn A');
+  });
+
+  it('маршрут, неперевірений у Малині, у пасивному планувальнику іншого міста їде за сегментами, а не по 2 хв на крок', () => {
+    const { result } = renderHook(() => {
+      const malyn = usePlannerModel('Malyn');
+      const far = usePlannerModel('Korosten4', { passive: true });
+      return { malyn, far };
+    });
+    const j = result.current.far.plannerFor('2026-11-18')!.plan(A, B).journeys[0];
+    expect(j.arriveMins - j.departMins).toBe(10);
   });
 
   it('пасивний не перемикає номери сторінки; routeNoIn читає місто явно', () => {

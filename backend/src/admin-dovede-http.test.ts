@@ -74,7 +74,11 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
     },
     transportStop: {
       findMany: async ({ where }: { where: { cityCode: string } }) =>
-        where.cityCode === 'Malyn' ? [{ id: 'st_0071', name: 'Поворот на Коновальця' }, { id: 'st_0160', name: '№5 т.3' }] : [],
+        where.cityCode === 'Malyn'
+          ? [{ id: 'st_0071', name: 'Поворот на Коновальця' }, { id: 'st_0160', name: '№5 т.3' }]
+          : where.cityCode === 'Korosten'
+            ? [{ id: 'st_1079', name: 'Міськлікарня' }, { id: 'st_1087', name: 'Пашини' }, { id: 'st_1088', name: 'Пашини (навпроти)' }]
+            : [],
     },
     transportRoute: {
       findMany: async ({ where }: { where: { cityCode: string; unreliable: boolean } }) =>
@@ -83,7 +87,9 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
               { id: '11', shortName: '11/1', fromName: 'Паперова фабрика', toName: 'Залізничний вокзал ' },
               { id: '5', shortName: '', fromName: 'Лікарня', toName: 'Залізничний вокзал' },
             ]
-          : [],
+          : where.cityCode === 'Korosten' && where.unreliable === false
+            ? [{ id: '2b', shortName: '2-Б', fromName: 'Мельника', toName: 'Пашини' }]
+            : [],
     },
   } as unknown as PrismaClient;
   return { prisma, rows, countWhere, synonymRows };
@@ -595,4 +601,31 @@ test('місто в адмінці: лише адмін; зведення, кр�
     assert.equal((await request(app).put('/admin/dovede/city/settings').set('Authorization', AUTH).send({ freshDays: bad })).status, 400);
   }
   assert.deepEqual(done, ['learn:5', 'archive', 'restore', 'reset', 'fresh:14']);
+});
+
+test('Коростень (етап 2): city=Korosten — зупинки й маршрути Коростеня, без малинських синонімів; місцевий намір з id Коростеня не відкидається', async () => {
+  const { prisma, rows, synonymRows } = fakePrisma();
+  synonymRows.push({ id: 1, phrase: 'епіцентр', placeId: 'st_0071' });
+  const seen: Array<{ stops: unknown; routes: unknown; synonyms: unknown; city: unknown }> = [];
+  const korostenIntent: TripIntent = { ...INTENT, from: { id: 'st_1087', text: 'з Пашин' }, to: { id: 'st_1079', text: 'до міськлікарні' } };
+  const app = appWith({
+    prisma,
+    understand: async (_text, _now, stops, routes, synonyms, city) => {
+      seen.push({ stops, routes, synonyms, city });
+      return { ...okResult(korostenIntent), promptVersion: 'dovede-understand-korosten-v1' };
+    },
+  });
+  const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Пашин до міськлікарні', local: korostenIntent, city: 'Korosten' });
+  assert.equal(res.status, 200);
+  assert.equal(res.body.intent.from.id, 'st_1087');
+  assert.equal(seen[0].city, 'Korosten');
+  assert.deepEqual((seen[0].stops as Array<{ id: string }>).map((s) => s.id), ['st_1079', 'st_1087', 'st_1088']);
+  assert.deepEqual((seen[0].routes as Array<{ id: string; no: string }>).map((r) => [r.id, r.no]), [['2b', '2-Б']]);
+  assert.deepEqual(seen[0].synonyms, []);
+  assert.equal((rows[0].localIntent as TripIntent).from?.id, 'st_1087', 'місцевий намір перевірено зупинками Коростеня');
+  assert.equal(rows[0].promptVersion, 'dovede-understand-korosten-v1');
+  // без city — Малин, як і раніше
+  await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
+  assert.equal(seen[1].city, 'Malyn');
+  assert.deepEqual((seen[1].stops as Array<{ id: string }>).map((s) => s.id), ['st_0071', 'st_0160']);
 });

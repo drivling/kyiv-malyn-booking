@@ -341,14 +341,20 @@ of `dist` in a commit.
   Korosten city questions (stage 1, `DovedePage/korosten/korostenCity.ts`): the page holds a city (`Malyn` / `Korosten`,
   URL `c=Korosten`) and remounts the search per city (one planner on screen); Korosten words in a question switch it.
   Places are `StopPlace` entries of Korosten stops plus folk names (`KOROSTEN_ALIASES`), answers are `intra` /
-  `route_info` on the Korosten planner, and Claude is not called there yet; shared mirrored files are untouched.
+  `route_info` on the Korosten planner. Stage 2: `POST /dovede/understand` takes `city: 'Korosten'` — its own system prompt
+  (`backend/src/dovede/korosten-prompt.ts`, `KOROSTEN_PROMPT_VERSION`; the Malyn prompt is unchanged) built from the
+  Korosten stops / routes in the DB; Korosten places and folk names are one file `korosten/korostenPlaces.ts`, byte-identical
+  in `backend/src/dovede/` (a frontend test diffs them); golden `eval/korosten-golden.json` (`DOVEDE_EVAL_CITY=Korosten`).
   Korosten ↔ Malyn door to door (stage 3): anchor = Korosten railway station for elektrichka and marshrutka (owner,
   2026-11-18; `KOROSTEN_STATION` st_1001, `FarCity 'Korosten'`); only elektrichkas are in the timetable. The Malyn page
   loads the Korosten dataset as a second, passive planner (`usePlannerModel(city | null, { passive })` — keeps the page's
   route numbers / colours and its own segment durations; `routeNoIn` / `routeColorStyleIn` print another city's route),
   `combineCorridor` merges the Malyn and Korosten parses into `city.Korosten` + `detail` = Korosten stop name, and the
   composer plans the Korosten part with `farPlanner` (`korostenLeg`); Korosten bus legs carry `city` and link to
-  korosten.kiev.ua. No Claude call for the corridor.
+  korosten.kiev.ua. No Claude call for the corridor. A second planner builds its day timetable with its own city's segment
+  durations **and** verified-route list (`verifiedRoutesCity`), then restores the page's — otherwise Korosten routes outside
+  Malyn's verified list ran 2 min per chain hop. Planner vs Google: manual `journey/google.oracle.test.ts`
+  (`GOOGLE_ORACLE=1`, report `data/korosten-transport/google/planner-check.md`).
   Rides among the variants: when no transport is named (or «попутка» is named together with another), driver
   listings with a time become stories `mode: 'poputka'` next to marshrutka and elektrichka (`rideStories`, leg kind
   `ride`, up to three; «попутка» alone stays the board). Arrival = driver's departure + car time, always «≈». Car time:

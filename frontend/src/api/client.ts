@@ -1072,6 +1072,8 @@ class ApiClient {
     text: string,
     local: import('@/pages/DovedePage/nlu/types').TripIntent,
     timeoutMs = 9000,
+    /** Коростень (етап 2) — свій промпт і зупинки на сервері; без міста — Малин */
+    city?: 'Korosten',
   ): Promise<import('@/pages/DovedePage/nlu/types').DovedeUnderstanding | null> {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -1079,7 +1081,7 @@ class ApiClient {
       return await this.request('/dovede/understand', {
         method: 'POST',
         headers: this.dovedeHeaders(),
-        body: JSON.stringify({ text, local }),
+        body: JSON.stringify(city ? { text, local, city } : { text, local }),
         signal: ctrl.signal,
       });
     } catch {

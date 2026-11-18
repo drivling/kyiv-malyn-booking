@@ -21,7 +21,8 @@ import { aiCallsToday, dovedeDailyCap, isDovedeEnabled, kyivDayStart } from '../
 import { DOVEDE_LOG_ROWS, DOVEDE_LOG_SCAN, parseLogDays, summarizeQueries, toLogItem, type DovedeLogFlag } from '../dovede/log';
 import { IntentShapeError, isKnownPlaceId, validateIntent, type TripIntent } from '../dovede/intent';
 import { SYNONYM_LIMIT, normalizePhrase, phraseProblem, type DovedeSynonymEntry } from '../dovede/synonyms';
-import { understandFromEnv, type UnderstandFn } from '../dovede/understand';
+import { understandFromEnv, type UnderstandCity, type UnderstandFn } from '../dovede/understand';
+import { korostenPlaceIds } from '../dovede/korosten-prompt';
 import type { RouteLike } from '../dovede/prompt';
 import { buildStopPlaces, type StopLike } from '../dovede/stopPlaces';
 import { DEFAULT_TRANSPORT_CITY } from '../transport-city';
@@ -124,26 +125,33 @@ export function createAdminDovedeRouter(deps: {
    * Усі зупинки й маршрути міського транспорту з бази — Claude має знати кожну, а не лише кураторський словник.
    * Той самий масив повертається до закінчення TTL (і після нього, якщо назви не змінились): промпт стабільний.
    */
-  let cityCache: { at: number; key: string; stops: StopLike[]; ids: Set<string>; routes: RouteLike[]; routeIds: Set<string> } | null = null;
-  const cityData = async (at: Date): Promise<{ stops: StopLike[]; ids: Set<string>; routes: RouteLike[]; routeIds: Set<string> }> => {
+  type CityData = { at: number; key: string; stops: StopLike[]; ids: Set<string>; routes: RouteLike[]; routeIds: Set<string> };
+  // окремо для кожного міста питань: Малин (з коридорами) і Коростень (етап 2)
+  const cityCaches = new Map<UnderstandCity, CityData>();
+  const cityData = async (at: Date, city: UnderstandCity = 'Malyn'): Promise<{ stops: StopLike[]; ids: Set<string>; routes: RouteLike[]; routeIds: Set<string> }> => {
+    const cityCache = cityCaches.get(city) ?? null;
     if (cityCache && at.getTime() - cityCache.at < STOPS_TTL_MS) return cityCache;
+    const cityCode = city === 'Korosten' ? 'Korosten' : DEFAULT_TRANSPORT_CITY;
     try {
       const [stopRows, routeRows] = await Promise.all([
-        prisma.transportStop.findMany({ where: { cityCode: DEFAULT_TRANSPORT_CITY }, select: { id: true, name: true }, orderBy: { id: 'asc' } }),
+        prisma.transportStop.findMany({ where: { cityCode }, select: { id: true, name: true }, orderBy: { id: 'asc' } }),
         // «ненадійні» маршрути сайт не показує — і Claude про них не знає
         prisma.transportRoute.findMany({
-          where: { cityCode: DEFAULT_TRANSPORT_CITY, unreliable: false },
+          where: { cityCode, unreliable: false },
           select: { id: true, shortName: true, fromName: true, toName: true },
           orderBy: { id: 'asc' },
         }),
       ]);
       const routes: RouteLike[] = routeRows.map((r) => ({ id: r.id, no: r.shortName.trim() || r.id, fromName: r.fromName.trim(), toName: r.toName.trim() }));
       const key = JSON.stringify([stopRows, routes]);
-      if (cityCache && cityCache.key === key) cityCache.at = at.getTime();
-      else {
-        cityCache = { at: at.getTime(), key, stops: stopRows, ids: new Set(buildStopPlaces(stopRows).map((e) => e.place.id)), routes, routeIds: new Set(routes.map((r) => r.id)) };
+      if (cityCache && cityCache.key === key) {
+        cityCache.at = at.getTime();
+        return cityCache;
       }
-      return cityCache;
+      const ids = city === 'Korosten' ? korostenPlaceIds(stopRows) : new Set(buildStopPlaces(stopRows).map((e) => e.place.id));
+      const next: CityData = { at: at.getTime(), key, stops: stopRows, ids, routes, routeIds: new Set(routes.map((r) => r.id)) };
+      cityCaches.set(city, next);
+      return next;
     } catch (e) {
       // без даних міста Claude знає лише кураторський словник — гірше, але відповідь буде
       console.error('❌ Dovede: не вдалося прочитати зупинки й маршрути міста:', e);
@@ -432,7 +440,9 @@ export function createAdminDovedeRouter(deps: {
   };
 
   r.post('/dovede/understand', requireDovedeAccess(access), async (req, res) => {
-    const body = (req.body ?? {}) as { text?: unknown; local?: unknown };
+    const body = (req.body ?? {}) as { text?: unknown; local?: unknown; city?: unknown };
+    // Коростень (етап 2): свій промпт і свої зупинки; будь-що інше — Малин, як і раніше
+    const askCity: UnderstandCity = body.city === 'Korosten' ? 'Korosten' : 'Malyn';
     const text = typeof body.text === 'string' ? body.text.trim() : '';
     if (!text) {
       res.status(400).json({ error: 'Порожнє питання' });
@@ -443,7 +453,7 @@ export function createAdminDovedeRouter(deps: {
       return;
     }
     const at = clock();
-    const city = await cityData(at);
+    const city = await cityData(at, askCity);
     let local: TripIntent | null = null;
     if (body.local != null) {
       try {
@@ -471,7 +481,8 @@ export function createAdminDovedeRouter(deps: {
         return;
       }
 
-      const result = await understand(text, kyivClock(at), city.stops, city.routes, await synonyms(at));
+      // синоніми з адмінки ведуть до місць Малина — Коростеню вони не потрібні
+      const result = await understand(text, kyivClock(at), city.stops, city.routes, askCity === 'Korosten' ? [] : await synonyms(at), askCity);
       const agree = result.ok && local ? intentsAgree(local, result.intent) : null;
       await log({
         text,
