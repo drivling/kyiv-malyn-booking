@@ -178,6 +178,17 @@ export function mergeKorostenSpans(malyn: ParseSpan[], korosten: ParseSpan[]): P
   return [...kept, ...added].sort((a, b) => a.start - b.start);
 }
 
+/**
+ * Розбір питання в режимі Коростеня знайшов місце, яке є лише в Малині: кураторське місце Малина без коростенської пари
+ * (Царське село, автостанція, Паперова фабрика), вулицю чи орієнтир Малина. Таке питання без коростенських слів —
+ * про Малин, і сторінка повертається туди (окремої кнопки «до Малина» нема).
+ */
+export function hasMalynOnlyPlace(intent: TripIntent): boolean {
+  return [intent.from, intent.to].some(
+    (r) => r != null && !MALYN_TO_KOROSTEN[r.id] && (r.id.startsWith('malyn.') || r.id.startsWith('street.') || r.id.startsWith('lm.')),
+  );
+}
+
 /** Питання називає інше місто (Малин, Київ…) — у режимі Коростеня це вже не питання про місто Коростень */
 export function mentionsOtherCity(text: string): boolean {
   return hasStem(text, OTHER_CITY_STEMS);
