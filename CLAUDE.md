@@ -255,8 +255,11 @@ of `dist` in a commit.
   step, asked with the person's words at both ends (an id only where the server knows it — metro, `kyiv.pas`,
   `kyiv.borshch`); when the server has no answer the outcome is `city_link` — a panel with the Google Maps link, never a
   story with zero minutes. Two known Kyiv stations stay shape `kyiv` (own data); a city named without a place stays
-  `outside`. The dictionary reads both places only in the form «з Києва з … до Києва на …»; free wording comes from
-  Claude. Every answered city step is split by mode (`compose/cityTransit.ts`, `splitCityRoute`, called by `cityLeg`):
+  `outside`. The dictionary reads in-city questions itself (`inCityTrip` in `nlu/parseLocal.ts`): the city named as
+  «where» — «у Києві / в Житомирі», «по Києву», «Києвом» or the bare name first («Київ предславинська 28
+  севастопільська площа»: split at the house number) — with no other city in the question; «з …» / «на / до …»
+  phrases become `detail` of that city on each side, a known point (metro «з метро Хрещатик», «з вокзалу») stays itself,
+  and «з Києва з … до Києва на …» still goes through `farDetails`. Golden `ct-19…25` (tag `incity`) must all pass. Every answered city step is split by mode (`compose/cityTransit.ts`, `splitCityRoute`, called by `cityLeg`):
   walks become `walk` legs; Kyiv metro becomes our own `metro` leg (Google's boarding / alighting stations found in
   `METRO_STATIONS` by name, `metroTrip`; two trains with a short walk between = one ride with a transfer); Kyiv City
   Express (`HEAVY_RAIL`, line «Kyiv City Express» / headsign «E1/E2 (…)») becomes our `ring` leg from the timetable
