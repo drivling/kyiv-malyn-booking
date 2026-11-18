@@ -10,6 +10,7 @@ import { datasetToLocalViewModel } from '../dataset/datasetAdapter';
 import { DEFAULT_SEGMENT_DURATION_SEC, SEGMENT_DURATIONS_SEC, configureSegmentDurations } from '../segmentDurations';
 import { buildRoutesFromData } from '../stopDepartures';
 import { routeChainSources } from '../routeVariants';
+import { setVerifiedRoutesCity, verifiedRoutesCity } from '../routeTiming';
 import { displayNameForStopKey, getStopsCatalog } from '../stopCatalog';
 import { buildTimetable, serviceDayForDate, type ServiceDay } from './buildTimetable';
 import { planDay } from './plan';
@@ -100,13 +101,18 @@ export function usePlannerModel(city: string | null, opts: PlannerModelOptions =
       const serviceDay = serviceDayOfIso(isoDate);
       let tt = byDay.get(serviceDay);
       if (!tt) {
+        // час рейсів рахується зі «своїми» сегментами й списком перевірених маршрутів свого міста (у Малина
+        // неперевірені маршрути йдуть плоскими 2 хв на крок, в іншого міста — усі за сегментами)
         const prevSegments = SEGMENT_DURATIONS_SEC;
         const prevDefault = DEFAULT_SEGMENT_DURATION_SEC;
+        const prevVerified = verifiedRoutesCity();
         configureSegmentDurations(viewModel.segmentDurations, viewModel.defaultSec);
+        setVerifiedRoutesCity(city ?? DEFAULT_CITY);
         try {
           tt = buildTimetable({ routes, stopsByRoute, variantsByRoute, coords, serviceDay });
         } finally {
           if (passive) configureSegmentDurations(prevSegments, prevDefault);
+          setVerifiedRoutesCity(prevVerified);
         }
         byDay.set(serviceDay, tt);
       }
@@ -132,7 +138,7 @@ export function usePlannerModel(city: string | null, opts: PlannerModelOptions =
         },
       };
     };
-  }, [viewModel, passive]);
+  }, [viewModel, passive, city]);
 
   const stops = useMemo(() => (dataset?.stops ?? []).map((s) => ({ id: s.id, name: s.name })), [dataset]);
 

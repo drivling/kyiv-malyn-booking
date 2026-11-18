@@ -6,6 +6,7 @@
  *   DOVEDE_EVAL=1 DOVEDE_EVAL_SCOPE=all DOVEDE_MODEL=claude-haiku-5-5 …   # усі питання, інша модель
  *   DOVEDE_EVAL_STOPS=dataset.json …                                       # свіжі зупинки (GET /transport/dataset) замість знімка
  *   DOVEDE_EVAL_REPORT=/tmp/dovede-eval.txt …                              # звіт ще й у файл
+ *   DOVEDE_EVAL_CITY=Korosten …                                            # еталони Коростеня (korosten-golden.json, промпт Коростеня)
  *
  * Критерії фази: ≥ 90% слотів на питаннях усіх зон, крім `"later"`, медіана < 3 с, з другого виклику кеш читається.
  */
@@ -17,7 +18,9 @@ import type { TripIntent } from './intent';
 import { understandFromEnv, type UnderstandResult } from './understand';
 
 const ENABLED = process.env.DOVEDE_EVAL === '1';
-const GOLDEN = path.resolve(__dirname, '../../../frontend/src/pages/DovedePage/eval/golden.json');
+const KOROSTEN = process.env.DOVEDE_EVAL_CITY === 'Korosten';
+const GOLDEN = path.resolve(__dirname, `../../../frontend/src/pages/DovedePage/eval/${KOROSTEN ? 'korosten-golden' : 'golden'}.json`);
+const SNAPSHOT_PREFIX = KOROSTEN ? 'korosten' : 'malyn';
 /** п'ятниця 13.11.2026, 14:20 за Києвом — `defaultNow` у golden.json */
 const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
 
@@ -25,7 +28,7 @@ interface GoldenCase {
   id: string;
   text: string;
   expect: { intent?: string; from?: string | null; to?: string | null; fromDetail?: boolean; toDetail?: boolean; when?: Partial<TripIntent['when']>; modes?: string[]; routes?: string[]; avoidRoutes?: string[]; unknown?: string[]; confidence?: string };
-  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'ring' | 'zhytomyr' | 'city' | 'later';
+  scope: 'mvp' | 'stops' | 'routes' | 'streets' | 'landmarks' | 'kyiv' | 'ring' | 'zhytomyr' | 'city' | 'korosten' | 'later';
 }
 
 /**
@@ -65,9 +68,9 @@ test.skipIf(!ENABLED)(
   async () => {
     const understand = understandFromEnv();
     // Зупинки міста — як на сервері з бази; за замовчуванням знімок поруч з еталонами, DOVEDE_EVAL_STOPS — свій файл
-    const stopsFile = process.env.DOVEDE_EVAL_STOPS ?? path.resolve(path.dirname(GOLDEN), 'malyn-stops.json');
+    const stopsFile = process.env.DOVEDE_EVAL_STOPS ?? path.resolve(path.dirname(GOLDEN), `${SNAPSHOT_PREFIX}-stops.json`);
     const stops = (JSON.parse(fs.readFileSync(stopsFile, 'utf8')) as { stops: Array<{ id: string; name: string }> }).stops.map((x) => ({ id: x.id, name: x.name }));
-    const routes = (JSON.parse(fs.readFileSync(path.resolve(path.dirname(GOLDEN), 'malyn-routes.json'), 'utf8')) as { routes: Array<{ id: string; no: string; fromName: string; toName: string }> }).routes;
+    const routes = (JSON.parse(fs.readFileSync(path.resolve(path.dirname(GOLDEN), `${SNAPSHOT_PREFIX}-routes.json`), 'utf8')) as { routes: Array<{ id: string; no: string; fromName: string; toName: string }> }).routes;
     const all = (JSON.parse(fs.readFileSync(GOLDEN, 'utf8')) as { cases: GoldenCase[] }).cases;
     const cases = process.env.DOVEDE_EVAL_SCOPE === 'all' ? all : all.filter((c) => c.scope !== 'later');
 
@@ -77,7 +80,7 @@ test.skipIf(!ENABLED)(
     const results: UnderstandResult[] = [];
     // послідовно: перший виклик пише кеш промпту, решта мають його читати
     for (const c of cases) {
-      const r = await understand(c.text, NOW, stops, routes);
+      const r = await understand(c.text, NOW, stops, routes, [], KOROSTEN ? 'Korosten' : 'Malyn');
       results.push(r);
       if (!r.ok) {
         const slots = gradeIntent({ intent: 'other', from: null, to: null, when: { day: '', kind: 'any' }, modes: [], unknown: [], confidence: 'low' }, c.expect).total;

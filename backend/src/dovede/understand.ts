@@ -9,6 +9,7 @@ import { INTENT_SCHEMA, IntentShapeError, validateIntent, type TripIntent } from
 import type { DovedeSynonymEntry } from './synonyms';
 import { PROMPT_VERSION, buildSystemPrompt, buildUserText, type KyivNow, type RouteLike } from './prompt';
 import { buildStopPlaces, type StopLike } from './stopPlaces';
+import { KOROSTEN_PROMPT_VERSION, buildKorostenSystemPrompt, korostenPlaceIds } from './korosten-prompt';
 
 export const DEFAULT_DOVEDE_MODEL = 'claude-opus-5-5';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
@@ -28,8 +29,21 @@ export type UnderstandResult =
   | { ok: true; intent: TripIntent; model: string; latencyMs: number; usage: UnderstandUsage; promptVersion: string }
   | { ok: false; failure: UnderstandFailure; message: string; model: string; latencyMs: number; usage?: UnderstandUsage; promptVersion: string };
 
-/** `stops` — зупинки міста з бази: Claude бачить їх усі, а `validateIntent` дозволяє їхні id */
-export type UnderstandFn = (text: string, now: KyivNow, stops?: StopLike[], routes?: RouteLike[], synonyms?: DovedeSynonymEntry[]) => Promise<UnderstandResult>;
+/** Місто питання: Малин (за замовчуванням, з коридорами) чи Коростень (етап 2 — поїздки містом Коростенем) */
+export type UnderstandCity = 'Malyn' | 'Korosten';
+
+/**
+ * `stops` — зупинки міста з бази: Claude бачить їх усі, а `validateIntent` дозволяє їхні id. `city` — чий промпт:
+ * у Коростеня свій (`korosten-prompt.ts`), зі своїми зупинками й маршрутами.
+ */
+export type UnderstandFn = (
+  text: string,
+  now: KyivNow,
+  stops?: StopLike[],
+  routes?: RouteLike[],
+  synonyms?: DovedeSynonymEntry[],
+  city?: UnderstandCity,
+) => Promise<UnderstandResult>;
 
 /** Лише claude-*: значення з env не має відкривати довільну модель */
 export function dovedeModelName(raw: string | undefined | null): string {
@@ -63,25 +77,29 @@ function usageOf(u: { input_tokens: number; output_tokens: number; cache_read_in
 export function createUnderstand(deps: { client: DovedeMessagesClient; model?: string | null; clock?: () => number }): UnderstandFn {
   const model = dovedeModelName(deps.model);
   const clock = deps.clock ?? Date.now;
-  // Промпт будується один раз на список зупинок: той самий масив — той самий рядок, кеш Claude не збивається
-  let built: { stops: StopLike[] | undefined; routes: RouteLike[] | undefined; system: string; stopIds: Set<string>; routeIds: Set<string> } | null = null;
-  const promptFor = (stops: StopLike[] | undefined, routes: RouteLike[] | undefined) => {
-    if (!built || built.stops !== stops || built.routes !== routes) {
-      built = {
-        stops,
-        routes,
-        system: buildSystemPrompt(stops ?? [], routes ?? []),
-        stopIds: new Set(buildStopPlaces(stops ?? []).map((e) => e.place.id)),
-        routeIds: new Set((routes ?? []).map((r) => r.id)),
-      };
-    }
-    return built;
+  // Промпт будується один раз на список зупинок (окремо для кожного міста): той самий масив — той самий рядок,
+  // кеш Claude не збивається
+  type Built = { stops: StopLike[] | undefined; routes: RouteLike[] | undefined; system: string; stopIds: Set<string>; routeIds: Set<string> };
+  const built = new Map<UnderstandCity, Built>();
+  const promptFor = (city: UnderstandCity, stops: StopLike[] | undefined, routes: RouteLike[] | undefined): Built => {
+    const was = built.get(city);
+    if (was && was.stops === stops && was.routes === routes) return was;
+    const korosten = city === 'Korosten';
+    const next: Built = {
+      stops,
+      routes,
+      system: korosten ? buildKorostenSystemPrompt(stops ?? [], routes ?? []) : buildSystemPrompt(stops ?? [], routes ?? []),
+      stopIds: korosten ? korostenPlaceIds(stops ?? []) : new Set(buildStopPlaces(stops ?? []).map((e) => e.place.id)),
+      routeIds: new Set((routes ?? []).map((r) => r.id)),
+    };
+    built.set(city, next);
+    return next;
   };
 
-  return async (text, now, stops, routes, synonyms) => {
-    const { system, stopIds, routeIds } = promptFor(stops, routes);
+  return async (text, now, stops, routes, synonyms, city = 'Malyn') => {
+    const { system, stopIds, routeIds } = promptFor(city, stops, routes);
     const started = clock();
-    const base = { model, promptVersion: PROMPT_VERSION };
+    const base = { model, promptVersion: city === 'Korosten' ? KOROSTEN_PROMPT_VERSION : PROMPT_VERSION };
     const fail = (failure: UnderstandFailure, message: string, usage?: UnderstandUsage): UnderstandResult => ({
       ok: false,
       failure,

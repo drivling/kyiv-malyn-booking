@@ -11,6 +11,7 @@ import { RING_STATIONS } from './kyivRingData';
 import { PROMPT_VERSION, buildSystemPrompt, buildUserText, weekdayUk } from './prompt';
 import { DEFAULT_DOVEDE_MODEL, createUnderstand, dovedeModelName, understandFromEnv, type DovedeMessagesClient } from './understand';
 import { dovedeDailyCap, isDovedeEnabled, kyivDayStart } from './guard';
+import { KOROSTEN_PROMPT_VERSION, buildKorostenSystemPrompt, korostenPlaceIds } from './korosten-prompt';
 
 const NOW = { date: '2026-11-13', mins: 14 * 60 + 20 };
 
@@ -337,4 +338,46 @@ test('синоніми йдуть у повідомлення з питання�
   assert.ok(taught.includes('- епіцентр → malyn.tsentr'));
   assert.ok(taught.indexOf('Місцеві назви') < taught.indexOf('<question>'));
   assert.ok(!buildSystemPrompt().includes('епіцентр'));
+});
+
+// ─── Коростень (етап 2) ───────────────────────────────────────────────────────────────────────
+
+const K_STOPS = [
+  { id: 'st_1001', name: 'Залізничний вокзал' },
+  { id: 'st_1079', name: 'Міськлікарня' },
+  { id: 'st_1087', name: 'Пашини' },
+  { id: 'st_1088', name: 'Пашини (навпроти)' },
+  { id: 'st_1150', name: '№2 т.4' },
+];
+const K_ROUTES = [
+  { id: '2', no: '2', fromName: 'Залізничний вокзал', toName: 'Пашини' },
+  { id: '2b', no: '2-Б', fromName: 'Мельника', toName: 'Пашини' },
+];
+
+test('промпт Коростеня: зупинки одним місцем на назву, народні назви, маршрути; стабільний; малинський не змінився', () => {
+  const p = buildKorostenSystemPrompt(K_STOPS, K_ROUTES);
+  assert.ok(p.startsWith(`[${KOROSTEN_PROMPT_VERSION}]`));
+  assert.ok(p.includes('- st_1001 — Залізничний вокзал (кажуть: вокзал, залізничний вокзал, жд вокзал)'));
+  assert.ok(p.includes('- st_1087 — Пашини'));
+  assert.ok(!p.includes('st_1088'), 'обидва боки дороги — одне місце з найменшим id');
+  assert.ok(!p.includes('№2 т.4'), 'технічні точки Claude не потрібні');
+  assert.ok(p.includes('- 2b — автобус №2-Б: Мельника — Пашини'));
+  assert.ok(p.includes('- city.Malyn — '), 'інші міста — щоб питання про них повертало сторінку до Малина');
+  assert.ok(!p.includes('malyn.paperova') && !p.includes('kyiv.m.'), 'малинських місць і метро в коростенському промпті нема');
+  assert.equal(p, buildKorostenSystemPrompt([...K_STOPS].reverse(), [...K_ROUTES].reverse()));
+  assert.deepEqual([...korostenPlaceIds(K_STOPS)].sort(), ['st_1001', 'st_1079', 'st_1087']);
+});
+
+test('understand для Коростеня: свій промпт і версія, id зупинок Коростеня проходять перевірку, малинський кеш окремо', async () => {
+  const reply = { ...GOOD, from: { id: 'st_1087', text: 'з Пашин' }, to: { id: 'st_1079', text: 'до міськлікарні' } };
+  const { client, calls } = stubClient(message({ content: [{ type: 'text', text: JSON.stringify(reply) }] }));
+  const understand = createUnderstand({ client });
+  const r = await understand('з Пашин до міськлікарні', NOW, K_STOPS, K_ROUTES, [], 'Korosten');
+  assert.ok(r.ok);
+  assert.deepEqual(r.ok && [r.intent.from?.id, r.intent.to?.id, r.promptVersion], ['st_1087', 'st_1079', KOROSTEN_PROMPT_VERSION]);
+  assert.equal((calls[0].body.system as Array<{ text: string }>)[0].text, buildKorostenSystemPrompt(K_STOPS, K_ROUTES));
+  // той самий намір у малинському промпті: id Коростеня там невідомі
+  const malyn = await understand('з Пашин до міськлікарні', NOW, STOPS, ROUTES);
+  assert.deepEqual(malyn.ok && [malyn.intent.from, malyn.promptVersion], [null, PROMPT_VERSION]);
+  assert.equal((calls[1].body.system as Array<{ text: string }>)[0].text, buildSystemPrompt(STOPS, ROUTES));
 });

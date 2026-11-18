@@ -26,6 +26,11 @@ export function setVerifiedRoutesCity(city: string): void {
   verifiedCity = city || VERIFIED_LIST_CITY;
 }
 
+/** Місто, чий список перевірених маршрутів зараз діє (другий планувальник на сторінці його повертає) */
+export function verifiedRoutesCity(): string {
+  return verifiedCity;
+}
+
 /** Маршрути, для яких малюємо лінії на загальній карті: у Малина — перевірені, в іншого міста — усі */
 export function verifiedRouteIds(allRouteIds: readonly string[]): readonly string[] {
   return verifiedCity === VERIFIED_LIST_CITY ? VERIFIED_ROUTE_IDS : allRouteIds;

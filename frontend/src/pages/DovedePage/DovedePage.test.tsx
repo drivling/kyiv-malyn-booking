@@ -46,6 +46,65 @@ const understood = (intent: Partial<TripIntent>): DovedeUnderstanding => ({
   latencyMs: 900,
 });
 
+describe('«Доведе» — Коростень (етап 2: Claude з промптом Коростеня)', () => {
+  // маленький датасет Коростеня: №2 Пашини → Міськлікарня о 08:00 щодня, 3 хв на перегін
+  const korostenDataset = {
+    stops: [
+      { id: 'st_1087', name: 'Пашини', lat: 50.95, lng: 28.6 },
+      { id: 'st_1079', name: 'Міськлікарня', lat: 50.96, lng: 28.61 },
+    ],
+    routes: [{ id: '2', fromName: 'Пашини', toName: 'Міськлікарня', shortName: '' }],
+    routeStops: [
+      { routeId: '2', stopId: 'st_1087', orderThere: 1, orderBack: 2 },
+      { routeId: '2', stopId: 'st_1079', orderThere: 2, orderBack: 1 },
+    ],
+    trips: [{ id: 'k2-1', routeId: '2', serviceId: 'everyday', headsign: 'Міськлікарня', directionId: '1', departureTime: '16:00' }],
+    segments: [{ routeId: '2', fromStopId: 'st_1087', toStopId: 'st_1079', seconds: 180 }],
+    meta: {},
+    revision: 'k-1',
+  };
+
+  beforeEach(() => {
+    markIntroSeen();
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-13T12:20:00Z'));
+    vi.spyOn(apiClient, 'dovedeAccess').mockResolvedValue({ open: false, allowed: true });
+    server.use(
+      http.get(`${TEST_API_URL}/transport/dataset`, ({ request }) =>
+        new URL(request.url).searchParams.get('city') === 'Korosten' ? HttpResponse.json(korostenDataset) : undefined,
+      ),
+    );
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('словник упевнений → відповідь одразу, Claude перевіряє у фоні з містом Korosten', async () => {
+    const ask = vi.spyOn(apiClient, 'dovedeUnderstand').mockResolvedValue(null);
+    const user = userEvent.setup();
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede?c=Korosten'] });
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'з Пашин до міськлікарні{Enter}');
+    expect(await screen.findByText(/Автобус №2 о 16:00/)).toBeInTheDocument();
+    await waitFor(() => expect(ask).toHaveBeenCalled());
+    expect(ask.mock.calls[0][3]).toBe('Korosten');
+    expect((ask.mock.calls[0][1] as TripIntent).from?.id).toBe('st_1087');
+  });
+
+  it('словник не впевнений → чекаємо Claude з промптом Коростеня; його місця Коростеня йдуть у відповідь', async () => {
+    const ask = vi.spyOn(apiClient, 'dovedeUnderstand').mockResolvedValue(
+      understood({ from: { id: 'st_1087', text: 'від мікрорайону' }, to: { id: 'st_1079', text: 'туди де лікують' } }),
+    );
+    const user = userEvent.setup();
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede?c=Korosten'] });
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'мені від мікрорайону туди де лікують у коростені{Enter}');
+    expect(await screen.findByText(/Автобус №2 о 16:00/)).toBeInTheDocument();
+    expect(ask).toHaveBeenCalledTimes(1);
+    expect(ask.mock.calls[0][3]).toBe('Korosten');
+    expect(screen.getByLabelText('Як зрозуміло питання')).toHaveTextContent('Пашини');
+  });
+});
+
 describe('«Доведе» — сторінка', () => {
   beforeEach(() => {
     // ролик-вступ уже бачили (його — окремий describe нижче)

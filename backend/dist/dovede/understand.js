@@ -18,6 +18,7 @@ const sdk_1 = __importDefault(require("@anthropic-ai/sdk"));
 const intent_1 = require("./intent");
 const prompt_1 = require("./prompt");
 const stopPlaces_1 = require("./stopPlaces");
+const korosten_prompt_1 = require("./korosten-prompt");
 exports.DEFAULT_DOVEDE_MODEL = 'claude-opus-5-5';
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 const MAX_TOKENS = 4000;
@@ -46,24 +47,26 @@ function usageOf(u) {
 function createUnderstand(deps) {
     const model = dovedeModelName(deps.model);
     const clock = deps.clock ?? Date.now;
-    // Промпт будується один раз на список зупинок: той самий масив — той самий рядок, кеш Claude не збивається
-    let built = null;
-    const promptFor = (stops, routes) => {
-        if (!built || built.stops !== stops || built.routes !== routes) {
-            built = {
-                stops,
-                routes,
-                system: (0, prompt_1.buildSystemPrompt)(stops ?? [], routes ?? []),
-                stopIds: new Set((0, stopPlaces_1.buildStopPlaces)(stops ?? []).map((e) => e.place.id)),
-                routeIds: new Set((routes ?? []).map((r) => r.id)),
-            };
-        }
-        return built;
+    const built = new Map();
+    const promptFor = (city, stops, routes) => {
+        const was = built.get(city);
+        if (was && was.stops === stops && was.routes === routes)
+            return was;
+        const korosten = city === 'Korosten';
+        const next = {
+            stops,
+            routes,
+            system: korosten ? (0, korosten_prompt_1.buildKorostenSystemPrompt)(stops ?? [], routes ?? []) : (0, prompt_1.buildSystemPrompt)(stops ?? [], routes ?? []),
+            stopIds: korosten ? (0, korosten_prompt_1.korostenPlaceIds)(stops ?? []) : new Set((0, stopPlaces_1.buildStopPlaces)(stops ?? []).map((e) => e.place.id)),
+            routeIds: new Set((routes ?? []).map((r) => r.id)),
+        };
+        built.set(city, next);
+        return next;
     };
-    return async (text, now, stops, routes, synonyms) => {
-        const { system, stopIds, routeIds } = promptFor(stops, routes);
+    return async (text, now, stops, routes, synonyms, city = 'Malyn') => {
+        const { system, stopIds, routeIds } = promptFor(city, stops, routes);
         const started = clock();
-        const base = { model, promptVersion: prompt_1.PROMPT_VERSION };
+        const base = { model, promptVersion: city === 'Korosten' ? korosten_prompt_1.KOROSTEN_PROMPT_VERSION : prompt_1.PROMPT_VERSION };
         const fail = (failure, message, usage) => ({
             ok: false,
             failure,

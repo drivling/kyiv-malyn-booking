@@ -6,6 +6,7 @@ import { buildStopPlaces } from '../nlu/stopPlaces';
 import { classify } from '../compose/composeStories';
 import stopsFile from '../eval/korosten-stops.json';
 import routesFile from '../eval/korosten-routes.json';
+import goldenFile from '../eval/korosten-golden.json';
 import malynStopsFile from '../eval/malyn-stops.json';
 import malynRoutesFile from '../eval/malyn-routes.json';
 import {
@@ -213,6 +214,28 @@ describe('mergeKorostenSpans: підсвічування коростенськ�
     for (const q of ['з вокзалу в Коростень', 'як з Малина доїхати до Коростеня до Грозиного', 'з міськлікарні Коростеня на автостанцію о 9']) {
       const spans = mergeKorostenSpans(parseLocal(q, now, malynIndex, malynRoutes).spans, parseLocal(q, now, index).spans);
       for (let i = 1; i < spans.length; i++) expect(spans[i].start, q).toBeGreaterThanOrEqual(spans[i - 1].end);
+    }
+  });
+});
+
+describe('korostenPlaces.ts — спільний із бекендом', () => {
+  it('байт-у-байт однаковий із backend/src/dovede/korostenPlaces.ts', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const here = path.resolve(__dirname, 'korostenPlaces.ts');
+    const mirror = path.resolve(__dirname, '../../../../../backend/src/dovede/korostenPlaces.ts');
+    expect(fs.readFileSync(here, 'utf8')).toBe(fs.readFileSync(mirror, 'utf8'));
+  });
+});
+
+describe('еталони Коростеня для Claude (eval/korosten-golden.json)', () => {
+  it('id місць і маршрутів — ті, що бачить Claude (місця Коростеня, міста, маршрути зі знімка)', () => {
+    const places = new Set(index.map((e) => e.place.id));
+    const routeIds = new Set(routes.map((r) => r.id));
+    for (const c of goldenFile.cases) {
+      const e = c.expect as { from?: string | null; to?: string | null; routes?: string[]; avoidRoutes?: string[] };
+      for (const id of [e.from, e.to]) if (id) expect(places.has(id) || id.startsWith('city.'), `${c.id}: ${id}`).toBe(true);
+      for (const id of [...(e.routes ?? []), ...(e.avoidRoutes ?? [])]) expect(routeIds.has(id), `${c.id}: №${id}`).toBe(true);
     }
   });
 });

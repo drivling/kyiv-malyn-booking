@@ -991,7 +991,21 @@ maps/dir/?api=1&origin=…&destination=…&travelmode=transit`, без ключ�
   (`routes` з датасету); «№2-Б» тепер не плутається з №2 (`nlu/routes.ts`: дефіс і латинська «b» у номері).
 - Тести: `korosten/korostenCity.test.ts` на знімках `eval/korosten-stops.json` / `korosten-routes.json`.
 
-Далі (етап 2): `city` у `/dovede/understand`, зупинки й маршрути Коростеня в промпті, еталони `scope: korosten`.
+### Коростень: Claude розуміє питання ✅ (2026-11-18, етап 2)
+
+- `POST /dovede/understand` приймає `city: 'Korosten'`: свій системний промпт `backend/src/dovede/korosten-prompt.ts`
+  (`KOROSTEN_PROMPT_VERSION`, у журналі видно, що питання коростенське) — зупинки Коростеня з бази одним місцем на назву,
+  народні назви, маршрути Коростеня, міста (питання про Малин / Київ повертає сторінку до Малина), правила без малинських
+  вулиць, орієнтирів і метро. Кеш даних міста й промпту — окремо для кожного міста; синоніми з адмінки (малинські) Коростеню
+  не йдуть. Малинський промпт не змінився (`PROMPT_VERSION` той самий).
+- Місця Коростеня для браузера й для промпту — один файл `korosten/korostenPlaces.ts`, байт-у-байт однаковий у
+  `backend/src/dovede/` (тест порівнює): `KOROSTEN_ALIASES`, `korostenStopGroups` (id місця — найменший id його зупинок).
+- Сторінка в режимі Коростеня — як у Малині: упевнений словник відповідає одразу, Claude перевіряє у фоні («Можливо, ви
+  мали на увазі…»); неупевнений — чекаємо Claude (`apiClient.dovedeUnderstand(…, 'Korosten')`). Будь-який розбір іде через
+  `remapForKorosten`.
+- Еталони — `eval/korosten-golden.json` (24 питання, `scope: korosten`); прогін через справжній Claude —
+  `DOVEDE_EVAL=1 DOVEDE_EVAL_CITY=Korosten npx vitest run src/dovede/eval.test.ts` (бекенд).
+
 
 ### Коростень ↔ Малин від дверей до дверей ✅ (2026-11-18, етап 3)
 

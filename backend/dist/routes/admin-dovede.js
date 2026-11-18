@@ -23,6 +23,7 @@ const log_1 = require("../dovede/log");
 const intent_1 = require("../dovede/intent");
 const synonyms_1 = require("../dovede/synonyms");
 const understand_1 = require("../dovede/understand");
+const korosten_prompt_1 = require("../dovede/korosten-prompt");
 const stopPlaces_1 = require("../dovede/stopPlaces");
 const transport_city_1 = require("../transport-city");
 const drive_time_1 = require("../drive-time");
@@ -98,32 +99,33 @@ function createAdminDovedeRouter(deps) {
         }
         res.json({ token: (0, access_1.dovedeAccessToken)(password) });
     });
-    /**
-     * Усі зупинки й маршрути міського транспорту з бази — Claude має знати кожну, а не лише кураторський словник.
-     * Той самий масив повертається до закінчення TTL (і після нього, якщо назви не змінились): промпт стабільний.
-     */
-    let cityCache = null;
-    const cityData = async (at) => {
+    // окремо для кожного міста питань: Малин (з коридорами) і Коростень (етап 2)
+    const cityCaches = new Map();
+    const cityData = async (at, city = 'Malyn') => {
+        const cityCache = cityCaches.get(city) ?? null;
         if (cityCache && at.getTime() - cityCache.at < STOPS_TTL_MS)
             return cityCache;
+        const cityCode = city === 'Korosten' ? 'Korosten' : transport_city_1.DEFAULT_TRANSPORT_CITY;
         try {
             const [stopRows, routeRows] = await Promise.all([
-                prisma.transportStop.findMany({ where: { cityCode: transport_city_1.DEFAULT_TRANSPORT_CITY }, select: { id: true, name: true }, orderBy: { id: 'asc' } }),
+                prisma.transportStop.findMany({ where: { cityCode }, select: { id: true, name: true }, orderBy: { id: 'asc' } }),
                 // «ненадійні» маршрути сайт не показує — і Claude про них не знає
                 prisma.transportRoute.findMany({
-                    where: { cityCode: transport_city_1.DEFAULT_TRANSPORT_CITY, unreliable: false },
+                    where: { cityCode, unreliable: false },
                     select: { id: true, shortName: true, fromName: true, toName: true },
                     orderBy: { id: 'asc' },
                 }),
             ]);
             const routes = routeRows.map((r) => ({ id: r.id, no: r.shortName.trim() || r.id, fromName: r.fromName.trim(), toName: r.toName.trim() }));
             const key = JSON.stringify([stopRows, routes]);
-            if (cityCache && cityCache.key === key)
+            if (cityCache && cityCache.key === key) {
                 cityCache.at = at.getTime();
-            else {
-                cityCache = { at: at.getTime(), key, stops: stopRows, ids: new Set((0, stopPlaces_1.buildStopPlaces)(stopRows).map((e) => e.place.id)), routes, routeIds: new Set(routes.map((r) => r.id)) };
+                return cityCache;
             }
-            return cityCache;
+            const ids = city === 'Korosten' ? (0, korosten_prompt_1.korostenPlaceIds)(stopRows) : new Set((0, stopPlaces_1.buildStopPlaces)(stopRows).map((e) => e.place.id));
+            const next = { at: at.getTime(), key, stops: stopRows, ids, routes, routeIds: new Set(routes.map((r) => r.id)) };
+            cityCaches.set(city, next);
+            return next;
         }
         catch (e) {
             // без даних міста Claude знає лише кураторський словник — гірше, але відповідь буде
@@ -416,6 +418,8 @@ function createAdminDovedeRouter(deps) {
     };
     r.post('/dovede/understand', (0, access_1.requireDovedeAccess)(access), async (req, res) => {
         const body = (req.body ?? {});
+        // Коростень (етап 2): свій промпт і свої зупинки; будь-що інше — Малин, як і раніше
+        const askCity = body.city === 'Korosten' ? 'Korosten' : 'Malyn';
         const text = typeof body.text === 'string' ? body.text.trim() : '';
         if (!text) {
             res.status(400).json({ error: 'Порожнє питання' });
@@ -426,7 +430,7 @@ function createAdminDovedeRouter(deps) {
             return;
         }
         const at = clock();
-        const city = await cityData(at);
+        const city = await cityData(at, askCity);
         let local = null;
         if (body.local != null) {
             try {
@@ -454,7 +458,8 @@ function createAdminDovedeRouter(deps) {
                 res.status(429).json({ fallback: 'local', reason: 'cap' });
                 return;
             }
-            const result = await understand(text, (0, arrival_reports_1.kyivClock)(at), city.stops, city.routes, await synonyms(at));
+            // синоніми з адмінки ведуть до місць Малина — Коростеню вони не потрібні
+            const result = await understand(text, (0, arrival_reports_1.kyivClock)(at), city.stops, city.routes, askCity === 'Korosten' ? [] : await synonyms(at), askCity);
             const agree = result.ok && local ? intentsAgree(local, result.intent) : null;
             await log({
                 text,

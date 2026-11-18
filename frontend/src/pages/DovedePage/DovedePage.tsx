@@ -438,9 +438,28 @@ function DovedeSearch({
         await answer(id, q, withIntent(parse, corridor), corridor, now);
         return;
       }
-      // Коростень (етап 1): лише словник — місця й маршрути Коростеня; Claude ще не знає цього міста
+      // Коростень (етап 2): словник Коростеня, а коли він не впевнений — Claude з промптом Коростеня. Будь-який
+      // розбір проходить remapForKorosten: малинські id → коростенські або невідомі слова, «в Коростені» — не місце
       if (korosten) {
-        const intent = chosen ?? remapForKorosten(parse.intent);
+        if (chosen) {
+          await answer(id, q, withIntent(parse, chosen), chosen, now);
+          return;
+        }
+        const local = remapForKorosten(parse.intent);
+        const fromAi = (ai: TripIntent | undefined | null) => (usableAiIntent(ai) ? remapForKorosten(ai) : null);
+        if (localIsSure(parse)) {
+          void apiClient.dovedeUnderstand(q, local, undefined, KOROSTEN).then((r) => {
+            const ai = fromAi(r?.intent);
+            if (id !== seq.current || !ai) return;
+            if (ai.confidence !== 'low' && !sameAnswer(local, ai)) setSuggestion(ai);
+          });
+          await answer(id, q, withIntent(parse, local), local, now);
+          return;
+        }
+        setView({ kind: 'loading', parse, now, thinking: true });
+        const r = await apiClient.dovedeUnderstand(q, local, undefined, KOROSTEN);
+        if (id !== seq.current) return;
+        const intent = pickIntent(local, fromAi(r?.intent));
         await answer(id, q, withIntent(parse, intent), intent, now);
         return;
       }
