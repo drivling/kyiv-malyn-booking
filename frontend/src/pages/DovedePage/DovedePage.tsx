@@ -818,6 +818,20 @@ function Result({
           напрямки — далі.
         </Panel>
       );
+    case 'city_link':
+      // сервер дороги містом не дав (місця не знайшов, туди нічого не ходить або вичерпано ліміт) — чесно кажемо й даємо карту
+      return (
+        <Panel title="Цієї дороги містом я ще не знаю">
+          <p>
+            {outcome.cityName}: {outcome.fromLabel} → {outcome.toLabel}.
+          </p>
+          <p>
+            <a href={outcome.mapsUrl} target="_blank" rel="noopener noreferrer">
+              Маршрут у Google Maps ↗
+            </a>
+          </p>
+        </Panel>
+      );
     case 'poputky':
       return (
         <>
