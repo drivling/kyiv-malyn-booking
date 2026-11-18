@@ -129,7 +129,7 @@ function AppContent() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin/wall" element={<StickerWallPage />} />
           <Route
-            path="/admin/:tab?"
+            path="/admin/:tab?/:section?"
             element={
               <ProtectedRoute>
                 <AdminPage />

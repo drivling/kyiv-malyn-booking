@@ -1429,6 +1429,8 @@ export interface DovedeCityStats {
   lines: Array<{ city: string; count: number }>;
   stops: Array<{ city: string; count: number }>;
   demand: Array<{ city: string; from: string; to: string; asked: number; answered: boolean; lastAskedAt: string }>;
+  /** пари, які люди питали, а відповіді немає (до 100 найчастіших; ключі — для повторної спроби обходом) */
+  unanswered?: Array<{ city: string; fromKey: string; toKey: string; from: string; to: string; asked: number }>;
 }
 
 /** «Доведе» · місце словами зі збереженими дорогами містом (GET /admin/dovede/city/places) */

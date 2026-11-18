@@ -1,18 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
-import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
-import { getRouteLabel } from '@/utils/constants';
 import { resolvePlace } from '@/pages/DovedePage/nlu/places';
 import type { PlaceRef } from '@/pages/DovedePage/nlu/types';
 import type { DovedeLog, DovedeLogDays, DovedeLogFlag, DovedeLogItem } from '@/types';
 import { intentLine } from './dovedeLogText';
-import { DovedeSynonymsPanel } from './DovedeSynonymsPanel';
-import { DovedePickupsPanel } from './DovedePickupsPanel';
-import { DovedeCityPanel } from './DovedeCityPanel';
+import { AdminSectionHeader } from './kit';
+import { dovedePath } from './dovede/sections';
+import { useMalynStops } from './dovede/useMalynStops';
 import './DovedeLogTab.css';
 
 const PERIODS: DovedeLogDays[] = [1, 7, 30, 90];
+const DEFAULT_DAYS: DovedeLogDays = 7;
 const periodChip = (d: DovedeLogDays) => (d === 1 ? 'Сьогодні' : `${d} днів`);
 
 type Only = '' | 'problems' | DovedeLogFlag;
@@ -47,6 +46,11 @@ const STATUS_LABEL: Record<string, string> = {
   api_error: 'збій API',
 };
 
+/** `?days=` з адреси: лише 1 / 7 / 30 / 90, інакше 7 */
+const daysFrom = (raw: string | null): DovedeLogDays => PERIODS.find((d) => String(d) === raw) ?? DEFAULT_DAYS;
+/** `?only=` з адреси: лише фільтри зі списку, інакше «Усі» */
+const onlyFrom = (raw: string | null): Only => FILTERS.find((f) => f.only === raw)?.only ?? '';
+
 const KYIV_DT = new Intl.DateTimeFormat('uk-UA', {
   timeZone: 'Europe/Kyiv',
   day: '2-digit',
@@ -55,43 +59,47 @@ const KYIV_DT = new Intl.DateTimeFormat('uk-UA', {
   minute: '2-digit',
 });
 
-/** Напрямок оголошень для панелі «Звідки забирають»: «Малин → Київ» */
-const pickupRouteLabel = (slug: string) => getRouteLabel(slug);
-
 const num = (n: number) => n.toLocaleString('uk-UA');
 
 /** «2,3 с» */
 const sec = (ms: number) => `${(ms / 1000).toFixed(1).replace('.', ',')} с`;
 
 /**
- * Журнал «Доведе» (/admin/dovede, Docs/dovede-roadmap.md, фаза 4): що люди питали і що з цього зрозуміли
- * браузер та Claude. Головне тут — «Чого не впізнали»: слова, які треба додати до словника місць.
+ * Журнал «Доведе», розділ «Питання людей» (/admin/dovede/questions, Docs/dovede-roadmap.md, фаза 4): що люди питали
+ * і що з цього зрозуміли браузер та Claude. Головне тут — «Чого не впізнали»: «навчити» веде слово до розділу
+ * «Словник». Період і фільтр живуть в адресі (`?days=30&only=disagree`), тож «Огляд» може послати сюди одразу
+ * з потрібним фільтром.
  */
 const DovedeLogTab: React.FC = () => {
-  const [days, setDays] = useState<DovedeLogDays>(7);
-  const [only, setOnly] = useState<Only>('');
+  const [params, setParams] = useSearchParams();
+  const days = daysFrom(params.get('days'));
+  const only = onlyFrom(params.get('only'));
   const [log, setLog] = useState<DovedeLog | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [stopNames, setStopNames] = useState<Map<string, string>>(new Map());
-  const [stops, setStops] = useState<Array<{ id: string; name: string }>>([]);
-  /** слово з «Чого не впізнали», яке власник узяв навчити */
-  const [seed, setSeed] = useState<{ word: string; n: number } | null>(null);
+  const stops = useMalynStops();
+  const stopNames = useMemo(() => new Map(stops.map((s) => [s.id, s.name])), [stops]);
 
-  useEffect(() => {
-    let alive = true;
-    apiClient
-      .getTransportDataset({ city: DEFAULT_TRANSPORT_CITY })
-      .then((d) => {
-        if (!alive) return;
-        setStopNames(new Map(d.stops.map((s) => [s.id, s.name])));
-        setStops(d.stops.map((s) => ({ id: s.id, name: s.name })));
-      })
-      .catch(() => undefined);
-    return () => {
-      alive = false;
-    };
-  }, []);
+  /** міняє `?days=` / `?only=` без нового запису в історії; типові значення з адреси прибирає */
+  const setQuery = useCallback(
+    (next: { days?: DovedeLogDays; only?: Only }) =>
+      setParams(
+        (prev) => {
+          const p = new URLSearchParams(prev);
+          if (next.days !== undefined) {
+            if (next.days === DEFAULT_DAYS) p.delete('days');
+            else p.set('days', String(next.days));
+          }
+          if (next.only !== undefined) {
+            if (next.only) p.set('only', next.only);
+            else p.delete('only');
+          }
+          return p;
+        },
+        { replace: true },
+      ),
+    [setParams],
+  );
 
   const load = useCallback(() => {
     setLoading(true);
@@ -134,23 +142,27 @@ const DovedeLogTab: React.FC = () => {
 
   return (
     <div className="dovede-log">
-      <div className="dovede-log-head">
-        <h2>Доведе · журнал питань</h2>
-        <div className="dovede-log-chips" role="group" aria-label="Період">
-          {PERIODS.map((d) => (
-            <button key={d} type="button" className={`dovede-log-chip ${d === days ? 'active' : ''}`} aria-pressed={d === days} onClick={() => setDays(d)}>
-              {periodChip(d)}
+      <AdminSectionHeader
+        title="Питання людей"
+        purpose={
+          <>
+            Кожне питання зі сторінки <Link to="/dovede">«Доведе»</Link>: що зрозумів браузер за словником і що — Claude.
+            Часи, маршрути й ціни ШІ не називає, тож тут лише розуміння тексту.
+          </>
+        }
+        actions={
+          <div className="dovede-log-chips" role="group" aria-label="Період">
+            {PERIODS.map((d) => (
+              <button key={d} type="button" className={`dovede-log-chip ${d === days ? 'active' : ''}`} aria-pressed={d === days} onClick={() => setQuery({ days: d })}>
+                {periodChip(d)}
+              </button>
+            ))}
+            <button type="button" className="dovede-log-chip" onClick={load}>
+              Оновити
             </button>
-          ))}
-          <button type="button" className="dovede-log-chip" onClick={load}>
-            Оновити
-          </button>
-        </div>
-      </div>
-      <p className="dovede-log-note">
-        Кожне питання зі сторінки <Link to="/dovede">«Доведе»</Link>: що зрозумів браузер за словником і що — Claude.
-        Часи, маршрути й ціни ШІ не називає, тож тут лише розуміння тексту.
-      </p>
+          </div>
+        }
+      />
       {error ? <p className="dovede-log-error">{error}</p> : null}
       {loading && !log ? <p>Завантаження…</p> : null}
       {log && s ? (
@@ -209,7 +221,7 @@ const DovedeLogTab: React.FC = () => {
             <p className="dovede-log-empty">За цей період усі слова про місця впізнано.</p>
           ) : (
             <div className="dovede-log-scroll">
-              <table className="dovede-log-table">
+              <table className="dovede-log-table dovede-log-table--cards">
                 <thead>
                   <tr>
                     <th>Слово</th>
@@ -221,15 +233,19 @@ const DovedeLogTab: React.FC = () => {
                 <tbody>
                   {s.topUnknown.map((u) => (
                     <tr key={u.word}>
-                      <td>
+                      <td data-label="Слово">
                         <strong>{u.word}</strong>
                       </td>
-                      <td className="dovede-log-num">{u.count}</td>
-                      <td className="dovede-log-text">{u.example}</td>
+                      <td className="dovede-log-num" data-label="Разів">
+                        {u.count}
+                      </td>
+                      <td className="dovede-log-text" data-label="Приклад">
+                        {u.example}
+                      </td>
                       <td>
-                        <button type="button" className="dovede-log-chip" onClick={() => setSeed((prev) => ({ word: u.word, n: (prev?.n ?? 0) + 1 }))}>
+                        <Link to={dovedePath('dictionary', { word: u.word })} className="dovede-log-chip">
                           навчити
-                        </button>
+                        </Link>
                       </td>
                     </tr>
                   ))}
@@ -238,17 +254,11 @@ const DovedeLogTab: React.FC = () => {
             </div>
           )}
 
-          <DovedeSynonymsPanel stops={stops} seed={seed} />
-
-          <DovedePickupsPanel stops={stops} routeLabel={pickupRouteLabel} />
-
-          <DovedeCityPanel />
-
           <div className="dovede-log-head">
             <h3>Питання</h3>
             <div className="dovede-log-chips" role="group" aria-label="Фільтр">
               {FILTERS.map((f) => (
-                <button key={f.only} type="button" className={`dovede-log-chip ${f.only === only ? 'active' : ''}`} aria-pressed={f.only === only} onClick={() => setOnly(f.only)}>
+                <button key={f.only} type="button" className={`dovede-log-chip ${f.only === only ? 'active' : ''}`} aria-pressed={f.only === only} onClick={() => setQuery({ only: f.only })}>
                   {f.label}
                 </button>
               ))}
@@ -258,7 +268,7 @@ const DovedeLogTab: React.FC = () => {
             <p className="dovede-log-empty">{only ? 'Таких питань за цей період немає.' : 'За цей період питань ще не було.'}</p>
           ) : (
             <div className="dovede-log-scroll">
-              <table className="dovede-log-table">
+              <table className="dovede-log-table dovede-log-table--cards">
                 <thead>
                   <tr>
                     <th>Коли</th>
@@ -273,20 +283,24 @@ const DovedeLogTab: React.FC = () => {
                     const unknown = (it.ai ?? it.local)?.unknown ?? [];
                     return (
                       <tr key={it.id} className={it.flags.length ? 'dovede-log-row--flagged' : undefined}>
-                        <td className="dovede-log-num">{KYIV_DT.format(new Date(it.createdAt))}</td>
-                        <td className="dovede-log-text">{it.text}</td>
-                        <td className="dovede-log-text">
+                        <td className="dovede-log-num" data-label="Коли">
+                          {KYIV_DT.format(new Date(it.createdAt))}
+                        </td>
+                        <td className="dovede-log-text" data-label="Питання">
+                          {it.text}
+                        </td>
+                        <td className="dovede-log-text" data-label="Як зрозуміли">
                           {understanding(it)}
                           {unknown.length ? <div className="dovede-log-unknown">не впізнано: {unknown.join(', ')}</div> : null}
                         </td>
-                        <td>
+                        <td data-label={it.flags.length ? 'Позначки' : undefined}>
                           {it.flags.map((f) => (
                             <span key={f} className={`dovede-log-flag dovede-log-flag--${f}`}>
                               {FLAG_LABEL[f]}
                             </span>
                           ))}
                         </td>
-                        <td className="dovede-log-num" title={[it.model, it.promptVersion, it.error].filter(Boolean).join(' · ') || undefined}>
+                        <td className="dovede-log-num" data-label="ШІ" title={[it.model, it.promptVersion, it.error].filter(Boolean).join(' · ') || undefined}>
                           {it.status === 'ok' && it.latencyMs != null ? sec(it.latencyMs) : STATUS_LABEL[it.status] ?? it.status}
                         </td>
                       </tr>

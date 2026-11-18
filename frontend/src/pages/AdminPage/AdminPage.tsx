@@ -23,8 +23,8 @@ import { PersonArchiveTab } from './PersonArchiveTab';
 import { PERSONS_FILTER_OPTIONS, filterPersons, type PersonsFilterMode } from './personsFilter';
 import './AdminPage.css';
 
-// журнал «Доведе» тягне словник місць і вулиці міста — окремим чанком, лише коли вкладку відкрито
-const DovedeLogTab = lazy(() => import('./DovedeLogTab'));
+// «Доведе» (розділи /admin/dovede/<розділ>) тягне словник місць і вулиці міста — окремим чанком, лише коли вкладку відкрито
+const DovedeTab = lazy(() => import('./dovede/DovedeTab'));
 
 type Tab = 'bookings' | 'schedules' | 'routes' | 'viber' | 'promo' | 'data' | 'personArchive' | 'mapEditor' | 'scheduleEditor' | 'stickers' | 'arrivals' | 'userSenderErrors' | 'referrals' | 'lunch' | 'dzhura' | 'dovede' | 'notifications';
 
@@ -70,7 +70,8 @@ function eltrainPageLabel(url: string): string {
 
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
-  const { tab: tabSlug } = useParams<{ tab?: string }>();
+  // `section` — другий сегмент адреси (/admin/dovede/questions); його читає лише вкладка «Доведе»
+  const { tab: tabSlug, section } = useParams<{ tab?: string; section?: string }>();
   const activeTab: Tab = (tabSlug && SLUG_TO_TAB[tabSlug]) || DEFAULT_TAB;
   // Місто транспортних вкладок (?city=); між ними переходить разом із вкладкою
   const { city: transportCity, setCity: setTransportCity } = useAdminTransportCity();
@@ -3117,7 +3118,7 @@ export const AdminPage: React.FC = () => {
 
         {activeTab === 'dovede' && (
           <Suspense fallback={<p>Завантаження…</p>}>
-            <DovedeLogTab />
+            <DovedeTab section={section} />
           </Suspense>
         )}
 

@@ -1,0 +1,112 @@
+/* Вкладка «Доведе» з розділами (AdminPage/dovede/). Спільні деталі — у kit/kit.css, старі класи — у DovedeLogTab.css */
+
+.dovede-tab {
+  min-width: 0;
+}
+
+/* «навчити» тепер посилання на «Словник», а виглядає як і раніше */
+a.dovede-log-chip {
+  display: inline-block;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+/* таблиця «Місто» була без власної обгортки з прокруткою */
+.dovede-log-table-wrap {
+  overflow-x: auto;
+}
+
+/* «Огляд» */
+.dovede-overview-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.dovede-overview-attention {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+/*
+ * Телефон: таблиці «Доведе» стають картками (лише CSS — розмітка лишається таблицею). Підпис клітинки — з
+ * `data-label`; таблиці без підписів просто гортаються в своїй обгортці, сторінка вбік не їде.
+ */
+@media (max-width: 639px) {
+  .dovede-tab .dovede-log-table--cards thead {
+    display: none;
+  }
+
+  .dovede-tab .dovede-log-table--cards,
+  .dovede-tab .dovede-log-table--cards tbody,
+  .dovede-tab .dovede-log-table--cards tr,
+  .dovede-tab .dovede-log-table--cards td {
+    display: block;
+    width: 100%;
+  }
+
+  .dovede-tab .dovede-log-table--cards tr {
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid #e8ecee;
+    border-radius: 10px;
+    background: #fff;
+  }
+
+  .dovede-tab .dovede-log-table--cards td,
+  .dovede-tab .dovede-log-table--cards td.dovede-log-text {
+    min-width: 0;
+    padding: 3px 0;
+    border-bottom: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .dovede-tab .dovede-log-table--cards td:empty {
+    display: none;
+  }
+
+  /* підпис ліворуч, значення праворуч — картка вдвічі нижча, ніж підпис над значенням */
+  .dovede-tab .dovede-log-table--cards td[data-label] {
+    position: relative;
+    padding-left: 7.5em;
+  }
+
+  .dovede-tab .dovede-log-table--cards td[data-label]::before {
+    content: attr(data-label);
+    position: absolute;
+    top: 4px;
+    left: 0;
+    width: 7em;
+    color: #708c91;
+    font-size: 0.75rem;
+  }
+
+  /* позначка «є проблема» — лівим краєм картки, а не першої клітинки */
+  .dovede-tab .dovede-log-row--flagged td:first-child {
+    box-shadow: none;
+  }
+
+  .dovede-tab .dovede-log-table--cards .dovede-log-row--flagged {
+    box-shadow: inset 3px 0 0 #f59e0b;
+  }
+
+  .dovede-tab .dovede-log-table--cards a.dovede-log-chip {
+    margin-top: 4px;
+  }
+
+  .dovede-tab .dovede-log-scroll,
+  .dovede-tab .dovede-log-table-wrap {
+    max-width: 100%;
+  }
+
+  .dovede-tab .dovede-syn {
+    padding: 10px;
+  }
+
+  .dovede-tab .dovede-city-fresh input {
+    flex: 0 0 84px;
+  }
+}
