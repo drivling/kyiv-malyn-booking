@@ -1,11 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SEED_PAIRS = exports.MODE_PAIRS = exports.CITY_NAME = exports.isValidDailyCap = exports.CITY_DAILY_CAP_MAX = exports.CITY_DAILY_CAP_MIN = exports.DEFAULT_CITY_DAILY_CAP = exports.isValidFreshDays = exports.QUOTA_BACKOFF_MS = exports.REFRESH_RETRY_DAYS = exports.refreshLeadDays = exports.CITY_FRESH_DAYS_MAX = exports.CITY_FRESH_DAYS_MIN = exports.CITY_FRESH_DAYS = void 0;
-exports.normalizeKey = normalizeKey;
+exports.SEED_PAIRS = exports.MODE_PAIRS = exports.CITY_NAME = exports.isValidDailyCap = exports.CITY_DAILY_CAP_MAX = exports.CITY_DAILY_CAP_MIN = exports.DEFAULT_CITY_DAILY_CAP = exports.isValidFreshDays = exports.QUOTA_BACKOFF_MS = exports.REFRESH_RETRY_DAYS = exports.refreshLeadDays = exports.CITY_FRESH_DAYS_MAX = exports.CITY_FRESH_DAYS_MIN = exports.CITY_FRESH_DAYS = exports.normalizeKey = exports.dayTypeOf = void 0;
 exports.resolveCityPoint = resolveCityPoint;
 exports.storedPoint = storedPoint;
 exports.nextSlot = nextSlot;
-exports.dayTypeOf = dayTypeOf;
 exports.parseGoogleRoute = parseGoogleRoute;
 exports.cityRoutesEnabled = cityRoutesEnabled;
 exports.cityStoreEnabled = cityStoreEnabled;
@@ -14,6 +12,10 @@ exports.cityDailyCap = cityDailyCap;
 exports.createCityRoutes = createCityRoutes;
 exports.nextWeekdayMorning = nextWeekdayMorning;
 exports.cityRoutesFromEnv = cityRoutesFromEnv;
+// ключ пари й тип дня — спільні з обходом (`crawl-core.ts`): журнал обходу й база рахують їх однаково
+const crawl_core_1 = require("./crawl-core");
+Object.defineProperty(exports, "dayTypeOf", { enumerable: true, get: function () { return crawl_core_1.dayTypeOf; } });
+Object.defineProperty(exports, "normalizeKey", { enumerable: true, get: function () { return crawl_core_1.normalizeKey; } });
 const kyivMetroData_1 = require("./kyivMetroData");
 const guard_1 = require("./guard");
 const viber_listing_expiry_1 = require("../viber-listing-expiry");
@@ -72,14 +74,6 @@ const KNOWN_POINTS = {
     'kyiv.pas': { label: 'вокзал Київ-Пасажирський', address: 'Приміський вокзал, Київ, Україна', city: 'Kyiv' },
     'kyiv.borshch': { label: 'платформа «Борщагівка»', address: 'зупинний пункт Борщагівка, Київ, Україна', city: 'Kyiv' },
 };
-function normalizeKey(text) {
-    return text
-        .toLowerCase()
-        .replace(/[’ʼ`]/g, "'")
-        .replace(/[«»"().,;:!?]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
 /** Точка за id (автовокзал, станція метро) або словами людини («Польова 12», «Охматдит»); null — порожньо чи сміття */
 function resolveCityPoint(city, raw) {
     const value = raw.trim();
@@ -94,7 +88,7 @@ function resolveCityPoint(city, raw) {
     // id якогось іншого словника сюди не має потрапляти
     if (/^[a-z]+\.[a-z0-9.:-]+$/i.test(value) || /^st_\d+$/.test(value))
         return null;
-    const key = normalizeKey(value);
+    const key = (0, crawl_core_1.normalizeKey)(value);
     if (key.length < 2)
         return null;
     return { key, label: value.replace(/\s+/g, ' '), address: `${value}, ${exports.CITY_NAME[city]}, Україна` };
@@ -103,7 +97,7 @@ function resolveCityPoint(city, raw) {
 const isKnownPointId = (value) => Boolean(KNOWN_POINTS[value]) || kyivMetroData_1.METRO_STATIONS.some((s) => s.id === value);
 /** Що питати для збереженої пари: id лишається id, слова — як їх написала людина (підпис), а не ключ малими літерами */
 function storedPoint(key, label) {
-    return isKnownPointId(key) || normalizeKey(label) !== key ? key : label;
+    return isKnownPointId(key) || (0, crawl_core_1.normalizeKey)(label) !== key ? key : label;
 }
 /** Найближча (не раніше ніж завтра за Києвом) дата потрібного типу дня й година — коли оновлювати збережену відповідь */
 function nextSlot(now, dayType, hour) {
@@ -111,17 +105,12 @@ function nextSlot(now, dayType, hour) {
     const [y, m, d] = today.split('-').map(Number);
     for (let i = 1; i <= 7; i++) {
         const date = new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10);
-        if (dayTypeOf(date) !== dayType)
+        if ((0, crawl_core_1.dayTypeOf)(date) !== dayType)
             continue;
         const [yy, mm, dd] = date.split('-').map(Number);
         return { date, time: `${String(hour).padStart(2, '0')}:00`, utc: (0, viber_listing_expiry_1.kyivWallToUtc)(yy, mm - 1, dd, hour, 0) };
     }
     throw new Error(`Невідомий тип дня: ${dayType}`);
-}
-function dayTypeOf(isoDate) {
-    const [y, m, d] = isoDate.split('-').map(Number);
-    const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-    return wd === 0 ? 'sunday' : wd === 6 ? 'saturday' : 'weekday';
 }
 const seconds = (v) => Number(String(v ?? '').replace(/s$/, '')) || 0;
 /** Відповідь Google → наші кроки: сусідні піші відрізки зливаються, дрібні (< 1 хв і < 60 м) відкидаються */
@@ -382,7 +371,7 @@ function createCityRoutes(deps) {
     async function findStored(q, from, to, hour) {
         const freshFrom = await freshSince();
         const rows = await prisma.dovedeCityRoute.findMany({
-            where: { cityCode: q.city, fromKey: from.key, toKey: to.key, dayType: dayTypeOf(q.date), hour: { in: [hour - 1, hour, hour + 1] }, archivedAt: null, fetchedAt: { gte: freshFrom } },
+            where: { cityCode: q.city, fromKey: from.key, toKey: to.key, dayType: (0, crawl_core_1.dayTypeOf)(q.date), hour: { in: [hour - 1, hour, hour + 1] }, archivedAt: null, fetchedAt: { gte: freshFrom } },
         });
         if (!rows.length)
             return null;
@@ -408,7 +397,7 @@ function createCityRoutes(deps) {
     }
     async function remember(q, from, to, hour, parsed) {
         const at = now();
-        const dayType = dayTypeOf(q.date);
+        const dayType = (0, crawl_core_1.dayTypeOf)(q.date);
         await prisma.dovedeCityRoute.upsert({
             where: { cityCode_fromKey_toKey_dayType_hour_source: { cityCode: q.city, fromKey: from.key, toKey: to.key, dayType, hour, source: 'google' } },
             create: { cityCode: q.city, fromKey: from.key, toKey: to.key, fromLabel: from.label, toLabel: to.label, dayType, hour, steps: parsed.steps, minutes: parsed.minutes, source: 'google', fetchedAt: at },
@@ -744,7 +733,7 @@ function createCityRoutes(deps) {
         const value = raw.trim();
         if (!value || value.length > 120 || isKnownPointId(value))
             return null;
-        const key = normalizeKey(value);
+        const key = (0, crawl_core_1.normalizeKey)(value);
         return key.length >= 2 ? key : null;
     }
     const placeRoutes = (city, key) => ({ cityCode: city, source: 'google', OR: [{ toKey: key }, { fromKey: key }] });
