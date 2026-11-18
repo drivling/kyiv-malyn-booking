@@ -1143,6 +1143,16 @@ class ApiClient {
     return this.request('/admin/dovede/city/archive', { method: 'POST', body: JSON.stringify({ action }) });
   }
 
+  /** Адмін: усі налаштування «Доведе» — що діє, типове, що задано в адмінці */
+  async getDovedeSettings(): Promise<{ items: import('@/types').DovedeSettingView[]; groups: Record<string, string> }> {
+    return this.request('/admin/dovede/settings');
+  }
+
+  /** Адмін: одне налаштування; null — повернути типове */
+  async setDovedeSetting(key: string, value: number | boolean | null): Promise<import('@/types').DovedeSettingView> {
+    return this.request('/admin/dovede/settings', { method: 'PUT', body: JSON.stringify({ key, value }) });
+  }
+
   /** Адмін: місця словами зі збереженими дорогами й місця в архіві */
   async getDovedeCityPlaces(): Promise<{ places: import('@/types').DovedeCityPlace[] }> {
     return this.request('/admin/dovede/city/places');

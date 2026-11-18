@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSupportPhoneForRoute = exports.getRegisteredRoutes = exports.createApp = exports.CODE_VERSION = void 0;
 const city_route_1 = require("./dovede/city-route");
+const settings_1 = require("./dovede/settings");
 const client_1 = require("@prisma/client");
 const create_app_1 = require("./create-app");
 const lunch_listener_1 = require("./lunch-listener");
@@ -34,8 +35,10 @@ function main() {
     let cityLearnJob = null;
     let eltrainJob = null;
     // «Доведе»: одна «дорога містом» на весь процес — для людей (роутер) і для фонового навчання нижче
-    const cityRoutes = (0, city_route_1.cityRoutesFromEnv)(prisma);
-    const app = (0, create_app_1.createApp)({ prisma, cityRoutes });
+    // …і одні налаштування з адмінки (розділ «Налаштування») — спільні для роутера й фонового навчання
+    const dovedeSettings = (0, settings_1.createDovedeSettings)({ prisma });
+    const cityRoutes = (0, city_route_1.cityRoutesFromEnv)(prisma, dovedeSettings);
+    const app = (0, create_app_1.createApp)({ prisma, cityRoutes, dovedeSettings });
     // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
     void (0, transport_revisions_1.ensureInitialTransportRevision)(prisma).then((row) => {
         if (row)

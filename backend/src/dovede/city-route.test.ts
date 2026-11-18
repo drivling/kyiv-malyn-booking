@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
+import { createDovedeSettings } from './settings';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import { MODE_PAIRS, SEED_PAIRS, createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, type CityRouteQuery } from './city-route';
@@ -76,10 +77,11 @@ function fakeDb() {
   const dovedeCityStop = table(['cityCode', 'name']);
   const dovedeCityDemand = table(['cityCode', 'fromKey', 'toKey']);
   const dovedeCitySettings = table(['id']);
+  const dovedeSetting = table(['key']);
   const dovedeCityPlace = table(['cityCode', 'key']);
   const dovedeCityGoogleDay = table(['day']);
-  const prisma = { dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeCityPlace, dovedeCityGoogleDay, $transaction: async (ops: Array<Promise<unknown>>) => Promise.all(ops) } as unknown as PrismaClient;
-  return { prisma, dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeCityPlace, dovedeCityGoogleDay };
+  const prisma = { dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeSetting, dovedeCityPlace, dovedeCityGoogleDay, $transaction: async (ops: Array<Promise<unknown>>) => Promise.all(ops) } as unknown as PrismaClient;
+  return { prisma, dovedeCityRoute, dovedeCityLine, dovedeCityStop, dovedeCityDemand, dovedeCitySettings, dovedeSetting, dovedeCityPlace, dovedeCityGoogleDay };
 }
 
 const GOOGLE = {
@@ -206,12 +208,12 @@ test('строк свіжості з адмінки: 7 днів — на вос�
   assert.equal(kept.ok && kept.source, 'stored');
   assert.equal(long.calls.length, 1);
   // значення лежить у базі одним рядком — інший екземпляр сервера його бачить
-  assert.deepEqual(long.dovedeCitySettings.rows.map((r) => [r.id, r.freshDays]), [[1, 90]]);
+  assert.deepEqual(long.dovedeSetting.rows.map((r) => [r.key, r.value]), [['city.freshDays', 90]]);
   assert.equal((await createCityRoutes({ prisma: long.prisma, key: () => 'k', now: () => NOW }).stats()).freshDays, 90);
 
   for (const bad of [0, 366, 2.5, Number.NaN]) await assert.rejects(long.svc.setFreshDays(bad), RangeError);
   // сміття в базі не ламає відповіді: діє типове
-  long.dovedeCitySettings.rows[0].freshDays = 0;
+  long.dovedeSetting.rows[0].value = 0;
   assert.equal((await createCityRoutes({ prisma: long.prisma, key: () => 'k', now: () => NOW }).stats()).freshDays, 30);
 });
 
@@ -617,9 +619,9 @@ test('денний ліміт Google з адмінки: сильніший за 
   assert.equal((await t.svc.find({ ...Q, to: 'Корбутівка' })).ok, true);
   stats = await t.svc.stats();
   assert.deepEqual([stats.dailyCap, stats.dailyCapDefault, stats.dailyCapFromAdmin], [3, 2, true]);
-  // строк свіжості й ліміт — один рядок налаштувань, не затирають один одного
+  // строк свіжості й ліміт — окремі ключі налаштувань, не затирають один одного
   await t.svc.setFreshDays(14);
-  assert.deepEqual(t.dovedeCitySettings.rows.map((r) => [r.freshDays, r.dailyCap]), [[14, 3]]);
+  assert.deepEqual(t.dovedeSetting.rows.map((r) => [r.key, r.value]).sort(), [['city.dailyCap', 3], ['city.freshDays', 14]]);
   // 0 — Google не питати зовсім
   await t.svc.setDailyCap(0);
   assert.deepEqual(await t.svc.find({ ...Q, to: 'Богунія' }), { ok: false, fallback: 'maps', reason: 'cap' });
@@ -660,4 +662,31 @@ test('облік Google — у базі й спільний: другий екз
   const st2 = await fresh.stats();
   assert.deepEqual([st2.googleError?.status, st2.googleError?.message, st2.blocked?.reason, st2.callsToday, st2.today.refused], [429, 'Quota exceeded', 'quota', 0, 2]);
   assert.equal(st2.blocked?.until, new Date(NOW.getTime() + 10 * 60_000).toISOString());
+});
+
+test('навчання слухає налаштування: частка ліміту, пар за крок, пауза після відмови, вмикачі з адмінки', async () => {
+  const db = fakeDb();
+  const settings = createDovedeSettings({ prisma: db.prisma, env: {}, now: () => NOW });
+  const net = fakeFetch();
+  const svc = createCityRoutes({ prisma: db.prisma, key: () => 'k', fetchImpl: net.fetchImpl, now: () => NOW, store: () => true, dailyCap: () => 100, ownRoute: () => null, settings });
+  // частка 0 % — фонове навчання не питає нічого
+  await settings.set('learn.sharePct', 0);
+  assert.deepEqual(await svc.learnTick(), { asked: 0, learned: 0 });
+  // частка назад, 1 пара за крок
+  await settings.set('learn.sharePct', null);
+  await settings.set('learn.batch', 1);
+  assert.deepEqual(await svc.learnTick(), { asked: 1, learned: 1 });
+  // дорогу містом вимкнено в адмінці — ні людям, ні навчанню
+  await settings.set('city.enabled', false);
+  assert.deepEqual(await svc.find({ ...Q, to: 'Житній ринок' }), { ok: false, fallback: 'maps', reason: 'disabled' });
+  assert.deepEqual(await svc.learnTick(), { asked: 0, learned: 0 });
+  await settings.set('city.enabled', null);
+
+  // пауза після 429 — з налаштувань (3 хв замість 10)
+  const db2 = fakeDb();
+  const s2 = createDovedeSettings({ prisma: db2.prisma, env: {}, now: () => NOW });
+  await s2.set('google.backoffMin', 3);
+  const quota = createCityRoutes({ prisma: db2.prisma, key: () => 'k', fetchImpl: fakeFetch({ error: { message: 'Quota' } }, false, 429).fetchImpl, now: () => NOW, store: () => true, dailyCap: () => 100, ownRoute: () => null, settings: s2 });
+  await quota.find(Q);
+  assert.equal((await quota.stats()).blocked?.until, new Date(NOW.getTime() + 3 * 60_000).toISOString());
 });

@@ -46,6 +46,7 @@ const isValidDailyCap = (v) => typeof v === 'number' && Number.isInteger(v) && v
 exports.isValidDailyCap = isValidDailyCap;
 const TIMEOUT_MS = 4000;
 const zhytomyr_own_1 = require("./zhytomyr-own");
+const settings_1 = require("./settings");
 const zhytomyr_own_data_1 = require("./zhytomyr-own-data");
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 const FIELD_MASK = [
@@ -231,12 +232,13 @@ function createCityRoutes(deps) {
     const { prisma } = deps;
     const fetchImpl = deps.fetchImpl ?? fetch;
     const now = deps.now ?? (() => new Date());
-    const enabled = deps.enabled ?? (() => cityRoutesEnabled());
+    const settingsStore = deps.settings ?? (0, settings_1.createDovedeSettings)({ prisma, now });
+    // Вмикачі й числа — з налаштувань адмінки (там же головний вимикач зі змінної середовища); у тестах — заглушки
+    const enabled = async () => (deps.enabled ? deps.enabled() : settingsStore.bool('city.enabled'));
     const store = deps.store ?? (() => cityStoreEnabled());
-    const dailyCap = deps.dailyCap ?? (() => cityDailyCap());
     const ownRoute = deps.ownRoute ?? zhytomyr_own_1.ownZhytomyrRoute;
-    // Власні дані Житомира: маршрути й зупинки із сайту власника, хвилини виправлено за Google; `DOVEDE_CITY_OWN=0` вимикає
-    const ownEnabled = deps.ownEnabled ?? (() => (process.env.DOVEDE_CITY_OWN ?? '1').trim() !== '0');
+    // Власні дані Житомира: маршрути й зупинки із сайту власника, хвилини виправлено за Google
+    const ownEnabled = async () => (deps.ownEnabled ? deps.ownEnabled() : settingsStore.bool('city.own'));
     // Лічильник і пауза — у базі (`DovedeCityGoogleDay`), спільні для всіх контейнерів. Памʼять — лише запас, коли база
     // не відповідає: тоді рахуємо в цьому процесі, як раніше
     let memoDay = '';
@@ -248,51 +250,40 @@ function createCityRoutes(deps) {
      * причину відмови в доступі — за ним видно, що лагодити в Google Cloud. Ключа в тексті Google не повторює.
      */
     let googleError = null;
-    // налаштування з адмінки (`DovedeCitySettings`): строк свіжості й денний ліміт; памʼять на хвилину
-    let settingsMemo = null;
-    const refresh = deps.refresh ?? (() => cityRefreshEnabled());
+    const refresh = async () => (deps.refresh ? deps.refresh() : settingsStore.bool('learn.refresh'));
     // стартові пари, які Google не знайшов: рядка в базі для позначки в них немає, тож памʼятаємо тут (до перезапуску)
     const seedFailed = new Map();
-    async function settings() {
-        const at = now().getTime();
-        if (settingsMemo && at - settingsMemo.at >= 0 && at - settingsMemo.at < SETTINGS_TTL_MS)
-            return settingsMemo;
-        try {
-            const row = await prisma.dovedeCitySettings.findUnique({ where: { id: 1 } });
-            settingsMemo = {
-                at,
-                days: row && (0, exports.isValidFreshDays)(row.freshDays) ? row.freshDays : exports.CITY_FRESH_DAYS,
-                cap: row && (0, exports.isValidDailyCap)(row.dailyCap) ? row.dailyCap : null,
-            };
-            return settingsMemo;
-        }
-        catch (e) {
-            console.error('❌ city-route: налаштування не прочитано, беру попередні:', e instanceof Error ? e.message : e);
-            return settingsMemo ?? { days: exports.CITY_FRESH_DAYS, cap: null };
-        }
-    }
-    /** Строк свіжості збереженої відповіді, днів: з адмінки (`DovedeCitySettings`), інакше типовий */
+    /** Строк свіжості збереженої відповіді, днів: з адмінки, інакше типовий (30) */
     async function freshDays() {
-        return (await settings()).days;
+        return settingsStore.int('city.freshDays');
+    }
+    /** Ліміт без адмінки: заглушка тесту або змінна `DOVEDE_CITY_DAILY_CAP`, інакше 150 */
+    async function defaultCap() {
+        return deps.dailyCap ? deps.dailyCap() : (await settingsStore.view('city.dailyCap')).default;
     }
     /** Денний ліміт запитів до Google: з адмінки, інакше змінна середовища (`DOVEDE_CITY_DAILY_CAP`), інакше 150 */
     async function capNow() {
-        return (await settings()).cap ?? dailyCap();
+        const v = await settingsStore.view('city.dailyCap');
+        return v.stored ?? (await defaultCap());
     }
+    /** Скільки з денного ліміту може взяти фонове навчання (типово половину) */
+    async function learnCap() {
+        return Math.floor(((await capNow()) * (await settingsStore.int('learn.sharePct'))) / 100);
+    }
+    const retryMs = async () => (await settingsStore.int('learn.retryDays')) * 24 * 3600000;
+    const backoffMs = async () => (await settingsStore.int('google.backoffMin')) * 60000;
     async function setFreshDays(days) {
         if (!(0, exports.isValidFreshDays)(days))
             throw new RangeError(`freshDays: ціле від ${exports.CITY_FRESH_DAYS_MIN} до ${exports.CITY_FRESH_DAYS_MAX}`);
-        await prisma.dovedeCitySettings.upsert({ where: { id: 1 }, create: { id: 1, freshDays: days }, update: { freshDays: days } });
-        settingsMemo = null;
+        await settingsStore.set('city.freshDays', days);
         return days;
     }
     /** null — повернути ліміт зі змінної середовища */
     async function setDailyCap(cap) {
         if (cap !== null && !(0, exports.isValidDailyCap)(cap))
             throw new RangeError(`dailyCap: ціле від ${exports.CITY_DAILY_CAP_MIN} до ${exports.CITY_DAILY_CAP_MAX} або null`);
-        await prisma.dovedeCitySettings.upsert({ where: { id: 1 }, create: { id: 1, dailyCap: cap }, update: { dailyCap: cap } });
-        settingsMemo = null;
-        return cap ?? dailyCap();
+        await settingsStore.set('city.dailyCap', cap);
+        return capNow();
     }
     // Місця в архіві («місто|ключ»): власник прибрав їх із відповідей. Памʼять на хвилину; архів і повернення скидають її
     let archivedMemo = null;
@@ -365,7 +356,7 @@ function createCityRoutes(deps) {
             lastErrorStatus: status,
             lastErrorMessage: message || null,
             lastErrorAt: at,
-            ...(block ? { blockedUntil: new Date(at.getTime() + exports.QUOTA_BACKOFF_MS), blockedReason: block } : {}),
+            ...(block ? { blockedUntil: new Date(at.getTime() + (await backoffMs())), blockedReason: block } : {}),
         };
         await prisma.dovedeCityGoogleDay.upsert({ where: { day }, create: { day, ...data }, update: data }).catch((e) => console.error('❌ city-route: відмову Google не записано:', e instanceof Error ? e.message : e));
     }
@@ -471,7 +462,7 @@ function createCityRoutes(deps) {
                 // 429 — квота в Google Cloud менша за наш денний ліміт або її вибрали інші скрипти з тим самим ключем;
                 // 401 / 403 — ключ, вимкнений API або білінг. Не вина пари й не наш ліміт: спроба не рахується
                 await countCall(purpose, -1);
-                blockedUntil = now().getTime() + exports.QUOTA_BACKOFF_MS;
+                blockedUntil = now().getTime() + (await backoffMs());
                 blockedReason = res.status === 429 ? 'cap' : 'denied';
                 await noteGoogleError(res.status, message, res.status === 429 ? 'quota' : 'denied');
                 console.error(`⛔ city-route: Google Routes ${res.status} — ${res.status === 429 ? 'квоту вичерпано' : 'відмовлено в доступі'}, 10 хв не питаємо${tail}`);
@@ -495,7 +486,7 @@ function createCityRoutes(deps) {
     const find = (q, background = false) => answer(q, background, false);
     /** `force` — оновлення збереженої відповіді: базу не читаємо, одразу питаємо Google */
     async function answer(q, background, force) {
-        if (!enabled())
+        if (!(await enabled()))
             return { ok: false, fallback: 'maps', reason: 'disabled' };
         const from = resolveCityPoint(q.city, q.from);
         const to = resolveCityPoint(q.city, q.to);
@@ -503,7 +494,7 @@ function createCityRoutes(deps) {
         if (!from || !to || from.key === to.key || !Number.isInteger(hour))
             return { ok: false, fallback: 'maps', reason: 'no_route' };
         // Житомир: спершу пряма поїздка за власним розкладом (zt.rozklad.in.ua), звіреним з Google, — без запитів назовні
-        if (q.city === 'Zhytomyr' && ownEnabled()) {
+        if (q.city === 'Zhytomyr' && (await ownEnabled())) {
             const own = ownRoute({ from: q.from.trim(), to: q.to.trim(), date: q.date, time: q.time }, { from: from.label, to: to.label });
             if (own) {
                 if (background)
@@ -556,12 +547,14 @@ function createCityRoutes(deps) {
      * далі — збережені відповіді, що застаріли або застаріють за `refreshLeadDays` (спершу ті, які віддавали людям).
      * Не більше `batch` за раз і лише поки денний ліміт використано менше ніж наполовину — решта для людей.
      */
-    async function learnTick(batch = 3) {
-        if (!enabled() || !store() || !deps.key())
+    async function learnTick(batchArg) {
+        if (!(await enabled()) || !store() || !deps.key())
             return { asked: 0, learned: 0 };
+        // скільки пар за крок — з налаштувань (кнопка «Оновити зараз» в адмінці задає своє)
+        const batch = batchArg ?? (await settingsStore.int('learn.batch'));
         // обнулені кнопкою «Скинути лічильник попиту» пари навчання не бере, поки їх знову не спитає людина
         // …і пари, на які навчання вже питало Google без успіху, — тиждень (інакше кілька «мертвих» пар зʼїдали б кожен крок)
-        const retryFrom = new Date(now().getTime() - exports.REFRESH_RETRY_DAYS * 24 * 3600000);
+        const retryFrom = new Date(now().getTime() - (await retryMs()));
         const demand = await prisma.dovedeCityDemand.findMany({
             where: { asked: { gt: 0 }, OR: [{ learnFailedAt: null }, { learnFailedAt: { lt: retryFrom } }] },
             orderBy: [{ asked: 'desc' }, { lastAskedAt: 'desc' }],
@@ -583,7 +576,7 @@ function createCityRoutes(deps) {
         for (const pair of queue) {
             if (asked >= batch)
                 break;
-            if ((await callsToday()) >= Math.floor((await capNow()) / 2))
+            if ((await callsToday()) >= (await learnCap()))
                 break;
             const from = resolveCityPoint(pair.city, pair.from);
             const to = resolveCityPoint(pair.city, pair.to);
@@ -620,10 +613,10 @@ function createCityRoutes(deps) {
         }
         // Оновлення збереженого: той самий тип дня й година, що в рядку, — людина з тим самим питанням і далі отримає
         // відповідь із бази. Архів не чіпаємо (рішення власника); власні дані оновлює їхній генератор.
-        if (refresh() && !halted) {
+        if ((await refresh()) && !halted) {
             const days = await freshDays();
             const edge = new Date(now().getTime() - (days - (0, exports.refreshLeadDays)(days)) * 24 * 3600000);
-            const retryFrom = new Date(now().getTime() - exports.REFRESH_RETRY_DAYS * 24 * 3600000);
+            const retryFrom = new Date(now().getTime() - (await retryMs()));
             const rows = await prisma.dovedeCityRoute.findMany({
                 where: { source: 'google', archivedAt: null, fetchedAt: { lt: edge }, OR: [{ refreshFailedAt: null }, { refreshFailedAt: { lt: retryFrom } }] },
                 orderBy: [{ hits: 'desc' }, { fetchedAt: 'asc' }],
@@ -634,7 +627,7 @@ function createCityRoutes(deps) {
             for (const row of rows) {
                 if (asked >= batch)
                     break;
-                if ((await callsToday()) >= Math.floor((await capNow()) / 2))
+                if ((await callsToday()) >= (await learnCap()))
                     break;
                 if ((row.cityCode !== 'Kyiv' && row.cityCode !== 'Zhytomyr') || !DAY_TYPES.includes(row.dayType)) {
                     await giveUp(row.id);
@@ -684,7 +677,7 @@ function createCityRoutes(deps) {
         const lastRefusal = [fromDb, googleError].filter((x) => x != null).sort((a, b) => b.at.getTime() - a.at.getTime())[0] ?? null;
         const blockedTill = day?.blockedUntil && day.blockedUntil.getTime() > now().getTime() ? day.blockedUntil : null;
         return {
-            enabled: enabled(),
+            enabled: await enabled(),
             store: store(),
             hasKey: Boolean(deps.key()),
             // остання відмова Google (статус і його власний текст); null — не відмовляв
@@ -696,13 +689,13 @@ function createCityRoutes(deps) {
             blocked: blockedTill ? { until: blockedTill.toISOString(), reason: day?.blockedReason === 'denied' ? 'denied' : 'quota' } : null,
             dailyCap: await capNow(),
             // без значення з адмінки — ліміт зі змінної середовища (або 150 з коду); `dailyCapFromAdmin` — власник задав свій
-            dailyCapDefault: dailyCap(),
-            dailyCapFromAdmin: (await settings()).cap != null,
+            dailyCapDefault: await defaultCap(),
+            dailyCapFromAdmin: (await settingsStore.view('city.dailyCap')).stored != null,
             freshDays: fresh,
             freshDaysDefault: exports.CITY_FRESH_DAYS,
             // збережені відповіді з Google, старші за строк свіжості: людям їх не віддаємо; `refresh` — навчання оновлює їх саме
             staleRoutes: stale,
-            refresh: refresh(),
+            refresh: await refresh(),
             archivedRoutes: archived,
             routes: routes.map((r) => ({ city: r.cityCode, source: r.source, count: r._count._all })),
             lines: lines.map((r) => ({ city: r.cityCode, count: r._count._all })),
@@ -830,6 +823,6 @@ function nextWeekdayMorning(now) {
         d.setUTCDate(d.getUTCDate() + 1);
     return { date: d.toISOString().slice(0, 10), utc: d };
 }
-function cityRoutesFromEnv(prisma) {
-    return createCityRoutes({ prisma, key: () => (process.env.GOOGLE_MAPS_API_KEY ?? '').trim() || null });
+function cityRoutesFromEnv(prisma, settings) {
+    return createCityRoutes({ prisma, key: () => (process.env.GOOGLE_MAPS_API_KEY ?? '').trim() || null, ...(settings ? { settings } : {}) });
 }

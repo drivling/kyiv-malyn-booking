@@ -17,7 +17,8 @@ import {
   type DovedeAccessConfig,
 } from '../dovede/access';
 import { kyivClock } from '../arrival-reports';
-import { aiCallsToday, dovedeDailyCap, isDovedeEnabled, kyivDayStart } from '../dovede/guard';
+import { aiCallsToday, kyivDayStart } from '../dovede/guard';
+import { DOVEDE_SETTINGS, SETTING_GROUP_LABEL, createDovedeSettings, validSettingValue, type DovedeSettings } from '../dovede/settings';
 import { DOVEDE_LOG_ROWS, DOVEDE_LOG_SCAN, parseLogDays, summarizeQueries, toLogItem, type DovedeLogFlag } from '../dovede/log';
 import { IntentShapeError, isKnownPlaceId, validateIntent, type TripIntent } from '../dovede/intent';
 import { SYNONYM_LIMIT, normalizePhrase, phraseProblem, type DovedeSynonymEntry } from '../dovede/synonyms';
@@ -26,7 +27,7 @@ import { korostenPlaceIds } from '../dovede/korosten-prompt';
 import type { RouteLike } from '../dovede/prompt';
 import { buildStopPlaces, type StopLike } from '../dovede/stopPlaces';
 import { DEFAULT_TRANSPORT_CITY } from '../transport-city';
-import { DEFAULT_CAR_MINUTES, driveTimeFromEnv, type DriveTimeFn } from '../drive-time';
+import { DEFAULT_CAR_MINUTES, createDriveTime, type DriveTimeFn } from '../drive-time';
 import { CITY_DAILY_CAP_MAX, CITY_DAILY_CAP_MIN, CITY_FRESH_DAYS_MAX, CITY_FRESH_DAYS_MIN, cityRoutesFromEnv, isValidDailyCap, isValidFreshDays, type CityCode, type CityRoutes } from '../dovede/city-route';
 import { kyivWallToUtc } from '../viber-listing-expiry';
 
@@ -83,16 +84,20 @@ export function createAdminDovedeRouter(deps: {
   driveTime?: DriveTimeFn;
   /** Дорога містом (Київ, Житомир) з памʼяттю в базі; типово — з середовища */
   cityRoutes?: CityRoutes;
+  /** Налаштування з адмінки (розділ «Налаштування»); той самий обʼєкт, що в `cityRoutes` (index.ts) */
+  settings?: DovedeSettings;
 }): Router {
   const { prisma } = deps;
   const understand = deps.understand === undefined ? understandFromEnv() : deps.understand;
-  const enabled = deps.enabled ?? (() => isDovedeEnabled());
-  const dailyCap = deps.dailyCap ?? (() => dovedeDailyCap());
   const clock = deps.now ?? (() => new Date());
+  const settings = deps.settings ?? createDovedeSettings({ prisma, now: clock });
+  // ШІ-розбір і його денний ліміт — з налаштувань адмінки (головний вимикач DOVEDE_ENABLED — там же); у тестах — заглушки
+  const enabled = async (): Promise<boolean> => (deps.enabled ? deps.enabled() : settings.bool('ai.enabled'));
+  const dailyCap = async (): Promise<number> => (deps.dailyCap ? deps.dailyCap() : settings.int('ai.dailyCap'));
   const access = deps.access ?? dovedeAccessFromEnv();
   const loginFailures = createLoginFailures(() => clock().getTime());
-  const driveTime = deps.driveTime ?? driveTimeFromEnv();
-  const cityRoutes = deps.cityRoutes ?? cityRoutesFromEnv(prisma);
+  const driveTime = deps.driveTime ?? createDriveTime({ key: () => (process.env.GOOGLE_MAPS_API_KEY ?? '').trim() || null, dailyCap: () => settings.int('drive.dailyCap') });
+  const cityRoutes = deps.cityRoutes ?? cityRoutesFromEnv(prisma, settings);
   const r = express.Router();
 
   /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
@@ -357,6 +362,40 @@ export function createAdminDovedeRouter(deps: {
     }
   });
 
+  /**
+   * Розділ «Налаштування»: усі налаштування «Доведе» з тим, що діє зараз, типовим (змінна середовища чи код), що задав
+   * власник і чи вимкнено вмикач на сервері. Ключів і паролів тут немає.
+   */
+  r.get('/admin/dovede/settings', requireAdmin, async (_req, res) => {
+    try {
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ items: await settings.all(), groups: SETTING_GROUP_LABEL });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/settings:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати налаштування' });
+    }
+  });
+
+  /** Одне налаштування: `{ key, value }`; `value: null` — повернути типове. Межі — з переліку `DOVEDE_SETTINGS` */
+  r.put('/admin/dovede/settings', requireAdmin, async (req, res) => {
+    const body = (req.body ?? {}) as { key?: unknown; value?: unknown };
+    const def = typeof body.key === 'string' ? DOVEDE_SETTINGS.find((d) => d.key === body.key) : undefined;
+    if (!def) {
+      res.status(400).json({ error: 'key: невідоме налаштування' });
+      return;
+    }
+    if (!('value' in body) || (body.value !== null && !validSettingValue(def, body.value))) {
+      res.status(400).json({ error: def.kind === 'bool' ? 'value: true, false або null' : `value: ціле від ${def.min} до ${def.max} або null` });
+      return;
+    }
+    try {
+      res.json(await settings.set(def.key, body.value as number | boolean | null));
+    } catch (e) {
+      console.error('❌ PUT /admin/dovede/settings:', e);
+      res.status(500).json({ error: 'Не вдалося зберегти' });
+    }
+  });
+
   /** Архівує все, що з Google, або повертає з архіву. Нічого не видаляє; дані власника не чіпає */
   r.post('/admin/dovede/city/archive', requireAdmin, async (req, res) => {
     const action = String(req.body?.action ?? '');
@@ -479,7 +518,7 @@ export function createAdminDovedeRouter(deps: {
     const localIntent = local ? (local as unknown as Prisma.InputJsonValue) : undefined;
 
     try {
-      if (!enabled()) {
+      if (!(await enabled())) {
         await log({ text, localIntent, status: 'disabled' });
         res.status(503).json({ fallback: 'local', reason: 'disabled' });
         return;
@@ -489,7 +528,7 @@ export function createAdminDovedeRouter(deps: {
         res.status(503).json({ fallback: 'local', reason: 'no_key' });
         return;
       }
-      if ((await aiCallsToday(prisma, at)) >= dailyCap()) {
+      if ((await aiCallsToday(prisma, at)) >= (await dailyCap())) {
         await log({ text, localIntent, status: 'cap' });
         res.status(429).json({ fallback: 'local', reason: 'cap' });
         return;
@@ -549,9 +588,9 @@ export function createAdminDovedeRouter(deps: {
       res.json({
         days,
         since: since.toISOString(),
-        enabled: enabled(),
+        enabled: await enabled(),
         hasKey: understand != null,
-        dailyCap: dailyCap(),
+        dailyCap: await dailyCap(),
         callsToday,
         truncated: rows.length >= DOVEDE_LOG_SCAN,
         summary: summarizeQueries(rows),

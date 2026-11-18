@@ -167,7 +167,7 @@ describe('DovedeTab', () => {
   it('«Місто» відкрите одразу', async () => {
     mock();
     renderAt('/admin/dovede/city');
-    expect(await screen.findByLabelText('Запитів до Google на день')).toHaveValue(150);
+    expect(await screen.findByRole('button', { name: 'Скинути лічильник попиту' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Згорнути' })).toBeInTheDocument();
   });
 });

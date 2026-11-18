@@ -19,6 +19,7 @@ const require_admin_1 = require("../middleware/require-admin");
 const access_1 = require("../dovede/access");
 const arrival_reports_1 = require("../arrival-reports");
 const guard_1 = require("../dovede/guard");
+const settings_1 = require("../dovede/settings");
 const log_1 = require("../dovede/log");
 const intent_1 = require("../dovede/intent");
 const synonyms_1 = require("../dovede/synonyms");
@@ -67,13 +68,15 @@ function pickupNote(raw) {
 function createAdminDovedeRouter(deps) {
     const { prisma } = deps;
     const understand = deps.understand === undefined ? (0, understand_1.understandFromEnv)() : deps.understand;
-    const enabled = deps.enabled ?? (() => (0, guard_1.isDovedeEnabled)());
-    const dailyCap = deps.dailyCap ?? (() => (0, guard_1.dovedeDailyCap)());
     const clock = deps.now ?? (() => new Date());
+    const settings = deps.settings ?? (0, settings_1.createDovedeSettings)({ prisma, now: clock });
+    // ШІ-розбір і його денний ліміт — з налаштувань адмінки (головний вимикач DOVEDE_ENABLED — там же); у тестах — заглушки
+    const enabled = async () => (deps.enabled ? deps.enabled() : settings.bool('ai.enabled'));
+    const dailyCap = async () => (deps.dailyCap ? deps.dailyCap() : settings.int('ai.dailyCap'));
     const access = deps.access ?? (0, access_1.dovedeAccessFromEnv)();
     const loginFailures = (0, access_1.createLoginFailures)(() => clock().getTime());
-    const driveTime = deps.driveTime ?? (0, drive_time_1.driveTimeFromEnv)();
-    const cityRoutes = deps.cityRoutes ?? (0, city_route_1.cityRoutesFromEnv)(prisma);
+    const driveTime = deps.driveTime ?? (0, drive_time_1.createDriveTime)({ key: () => (process.env.GOOGLE_MAPS_API_KEY ?? '').trim() || null, dailyCap: () => settings.int('drive.dailyCap') });
+    const cityRoutes = deps.cityRoutes ?? (0, city_route_1.cityRoutesFromEnv)(prisma, settings);
     const r = express_1.default.Router();
     /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
     r.get('/dovede/access', (req, res) => {
@@ -332,6 +335,40 @@ function createAdminDovedeRouter(deps) {
             res.status(500).json({ error: 'Не вдалося зберегти' });
         }
     });
+    /**
+     * Розділ «Налаштування»: усі налаштування «Доведе» з тим, що діє зараз, типовим (змінна середовища чи код), що задав
+     * власник і чи вимкнено вмикач на сервері. Ключів і паролів тут немає.
+     */
+    r.get('/admin/dovede/settings', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            res.set('Cache-Control', 'private, no-store');
+            res.json({ items: await settings.all(), groups: settings_1.SETTING_GROUP_LABEL });
+        }
+        catch (e) {
+            console.error('❌ GET /admin/dovede/settings:', e);
+            res.status(500).json({ error: 'Не вдалося прочитати налаштування' });
+        }
+    });
+    /** Одне налаштування: `{ key, value }`; `value: null` — повернути типове. Межі — з переліку `DOVEDE_SETTINGS` */
+    r.put('/admin/dovede/settings', require_admin_1.requireAdmin, async (req, res) => {
+        const body = (req.body ?? {});
+        const def = typeof body.key === 'string' ? settings_1.DOVEDE_SETTINGS.find((d) => d.key === body.key) : undefined;
+        if (!def) {
+            res.status(400).json({ error: 'key: невідоме налаштування' });
+            return;
+        }
+        if (!('value' in body) || (body.value !== null && !(0, settings_1.validSettingValue)(def, body.value))) {
+            res.status(400).json({ error: def.kind === 'bool' ? 'value: true, false або null' : `value: ціле від ${def.min} до ${def.max} або null` });
+            return;
+        }
+        try {
+            res.json(await settings.set(def.key, body.value));
+        }
+        catch (e) {
+            console.error('❌ PUT /admin/dovede/settings:', e);
+            res.status(500).json({ error: 'Не вдалося зберегти' });
+        }
+    });
     /** Архівує все, що з Google, або повертає з архіву. Нічого не видаляє; дані власника не чіпає */
     r.post('/admin/dovede/city/archive', require_admin_1.requireAdmin, async (req, res) => {
         const action = String(req.body?.action ?? '');
@@ -459,7 +496,7 @@ function createAdminDovedeRouter(deps) {
         }
         const localIntent = local ? local : undefined;
         try {
-            if (!enabled()) {
+            if (!(await enabled())) {
                 await log({ text, localIntent, status: 'disabled' });
                 res.status(503).json({ fallback: 'local', reason: 'disabled' });
                 return;
@@ -469,7 +506,7 @@ function createAdminDovedeRouter(deps) {
                 res.status(503).json({ fallback: 'local', reason: 'no_key' });
                 return;
             }
-            if ((await (0, guard_1.aiCallsToday)(prisma, at)) >= dailyCap()) {
+            if ((await (0, guard_1.aiCallsToday)(prisma, at)) >= (await dailyCap())) {
                 await log({ text, localIntent, status: 'cap' });
                 res.status(429).json({ fallback: 'local', reason: 'cap' });
                 return;
@@ -530,9 +567,9 @@ function createAdminDovedeRouter(deps) {
             res.json({
                 days,
                 since: since.toISOString(),
-                enabled: enabled(),
+                enabled: await enabled(),
                 hasKey: understand != null,
-                dailyCap: dailyCap(),
+                dailyCap: await dailyCap(),
                 callsToday,
                 truncated: rows.length >= log_1.DOVEDE_LOG_SCAN,
                 summary: (0, log_1.summarizeQueries)(rows),
