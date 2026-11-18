@@ -820,6 +820,14 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   and `/transport/scheme` (→ `/transport`), and orders board lines by number, not by the Malyn legend.
   Stop articles, the scheme legend colours and legacy stop names belong to Malyn (`transportProfile`); another city's
   line colours come from `dataset.meta.routeColors`. `sendOrQueue` stamps `city` on writes from a non-default site.
+- **dovede.online** (the owner's domain for «Доведе», bought 2026-11-18 at GoDaddy, DNS in Cloudflare) is not a site of
+  its own yet and **not attached to Railway**: the Hobby plan allows 2 custom domains per service and the frontend service
+  already has malin.kiev.ua and korosten.kiev.ua. A Cloudflare Redirect Rule answers `dovede.online` and `www.` (proxied
+  dummy `A 192.0.2.1` records) with **302** → `https://malin.kiev.ua/dovede`, query kept, path dropped — nothing in this
+  repository. 302, not 301, because the page will move to that domain later; until then the guests' password, the intro
+  flag and the admin token stay in the primary domain's `localStorage`. Moving it means Railway Pro (or a separate
+  service) and a host rule in `serve-dist` before the domain is attached — otherwise `resolveSite` would serve the whole
+  Malyn site there. It is not in `site-hosts.mjs` / `site-domains.ts`.
 - Locally both sites run off one dev server: `localhost:5173` and `korosten.localhost:5173`
   (or `?site=korosten`).
 - Shared pages that name the service (`/about`) read the current domain via
