@@ -5,7 +5,7 @@
  * Києва — до 1 год 40 хв; на маршрутку в Київ — бути щонайменше за 10 хв. Хвилини між точками — із
  * сегментів міських №7/№8. `confirmed: false` → історія каже «зазвичай».
  */
-export const ANCHORS_VERSION = 2;
+export const ANCHORS_VERSION = 3;
 
 export type Corridor = 'to_malyn' | 'from_malyn';
 export type IntercityMode = 'marshrutka' | 'elektrichka';
@@ -15,11 +15,16 @@ export type FarCity = 'Kyiv' | 'Zhytomyr' | 'Korosten';
 export interface AnchorStop {
   /** id словника місць */
   placeId: string;
-  /** зупинка, від якої (до якої) рахує планувальник */
-  stopId: string;
-  /** де виходити / сідати: «біля ПТЛ», «у центрі, біля «Промінь»» */
+  /** зупинка, від якої (до якої) рахує планувальник; немає — місце без міської зупинки, тоді є `latLng` */
+  stopId?: string;
+  /**
+   * Місце, де маршрутка бере людей, а міські автобуси не стають (навпроти музичної школи): планувальник веде туди
+   * пішки від найближчих зупинок. Лише разом із відсутнім `stopId`
+   */
+  latLng?: [number, number];
+  /** де виходити / сідати: «біля ПТЛ», «у центрі, біля РБК» */
   label: string;
-  /** назва на картці: «ПТЛ», «Автостанція» */
+  /** назва на картці й у кроці «пішки до …»: «ПТЛ», «Автостанція» */
   name: string;
   /** звідки відправлення: «з автостанції» */
   from: string;
@@ -41,13 +46,24 @@ export interface IntercityAnchor {
 }
 
 const PTL: AnchorStop = { placeId: 'malyn.ptl', stopId: 'st_0079', label: 'біля ПТЛ', name: 'ПТЛ', from: 'від ПТЛ', offsetMin: -8, confirmed: true };
-// Слова власника (2026-11-17): з Києва в центрі висаджують на зупинці біля РБК (пл. Соборна), а сідають на Київ —
-// від «Промінь». Зупинки сусідні (≈ 120 м), але міські автобуси від них різні
+// Слова власника (2026-11-17): з Києва в центрі висаджують на зупинці біля РБК (пл. Соборна)
 const CENTRE_IN: AnchorStop = { placeId: 'malyn.tsentr', stopId: 'st_0070', label: 'у центрі, біля РБК', name: 'Центр, пл. Соборна (РБК)', from: 'з центру, від РБК', offsetMin: 0, confirmed: true };
 const STATION_IN: AnchorStop = { placeId: 'malyn.avtostantsiya', stopId: 'st_0004', label: 'на автостанції', name: 'Автостанція', from: 'з автостанції', offsetMin: 4, confirmed: false };
 const VOKZAL: AnchorStop = { placeId: 'malyn.vokzal', stopId: 'st_0019', label: 'на вокзалі', name: 'Залізничний вокзал', from: 'з вокзалу', offsetMin: 0, confirmed: true };
 const STATION_OUT: AnchorStop = { placeId: 'malyn.avtostantsiya', stopId: 'st_0004', label: 'на автостанції', name: 'Автостанція', from: 'з автостанції', offsetMin: 0, confirmed: true };
-const CENTRE_OUT: AnchorStop = { placeId: 'malyn.tsentr', stopId: 'st_0049', label: 'у центрі, біля «Промінь»', name: 'Центр, «Промінь»', from: 'з центру, від «Промінь»', offsetMin: 5, confirmed: false };
+// Слова власника (2026-11-18): маршрутка на Київ іде з автостанції й у центрі бере людей не біля «Промінь», а навпроти
+// музичної школи (пл. Соборна, 6 — у OSM «Малинська дитяча школа мистецтв»), на боці площі. Міські автобуси там не
+// стають, тож це точка, а не зупинка: найближчі — «маркет «Соборний»» (≈ 35 м, через дорогу), біля РБК (≈ 95 м),
+// «Промінь» (≈ 150 м). Хвилини від автостанції — оцінка (≈)
+const CENTRE_OUT: AnchorStop = {
+  placeId: 'malyn.tsentr',
+  latLng: [50.768095, 29.241325],
+  label: 'у центрі, навпроти музичної школи (на боці площі)',
+  name: 'пл. Соборна, навпроти музичної школи',
+  from: 'з центру, навпроти музичної школи',
+  offsetMin: 5,
+  confirmed: true,
+};
 
 // Житомирські рейси в Малині: вʼїзд з півдня через Іршу → вул. Чорновола → центр (РБК) → автостанція, і назад
 const ZT_ENTRY_IN: AnchorStop = { placeId: 'st_0092', stopId: 'st_0092', label: 'на вул. Чорновола, одразу за мостом через Іршу', name: 'вул. Чорновола', from: 'з вул. Чорновола', offsetMin: -8, confirmed: false };

@@ -6,6 +6,8 @@ import type { KyivNow, TripIntent } from '../nlu/types';
 import { KYIV_POINTS, metroTrip } from '../data/kyiv';
 import { minsToClock as clockOf } from './intercity';
 import { placesInNote } from '../nlu/notePlaces';
+import { setStopPlaces } from '../nlu/places';
+import { buildStopPlaces } from '../nlu/stopPlaces';
 import { cityAsks, classify, composeStories, corridorCities, resolveDate, rideDepartures, ridesWanted } from './composeStories';
 import { shareText } from './narrate';
 import { cityAskKey, type CityRoute, type LocalPlanner, type Story, type StoryLeg } from './types';
@@ -59,6 +61,16 @@ function bus(routeId: string, from: string, to: string, dep: number, arr: number
     waitMins: 0,
   };
 }
+
+/** Автобус до зупинки, далі пішки до точки (місце без зупинки — напр., навпроти музичної школи) */
+function busThenWalk(routeId: string, from: string, to: string, dep: number, arr: number, point: [number, number], meters: number, minutes: number): Journey {
+  const j = bus(routeId, from, to, dep, arr);
+  j.legs.push({ kind: 'walk', from: { stopId: to }, to: { lat: point[0], lng: point[1] }, depMins: arr, arrMins: arr + minutes, meters });
+  return { ...j, arriveMins: arr + minutes, walkMeters: meters };
+}
+
+/** Посадка на Київ у центрі Малина: навпроти музичної школи (data/anchors.ts) */
+const MUSIC_SCHOOL = '50.768095,29.241325';
 
 function planner(table: Record<string, Journey[]>, walks: Record<string, DirectWalk> = {}): LocalPlanner {
   const key = (e: Endpoint) => (e.kind === 'stop' ? e.stopId : `${e.lat},${e.lng}`);
@@ -148,23 +160,26 @@ describe('Малин, Царське село → Київ — завтра зр
     sched({ id: 12, route: 'Malyn-Kyiv-Irpin', departureTime: '08:30', boardingPlace: 'Автостанція Малин' }),
     sched({ id: 13, route: 'Malyn-Kyiv', departureTime: '09:48', vehicleType: 'elektrichka', boardingPlace: 'Малин', alightingPlace: 'Святошин', arrivalTime: '11:47', tripNumber: '6614', priceUah: 60 }),
   ];
+  const point: [number, number] = [50.768095, 29.241325];
   const p = planner({
-    'st_0090>st_0049': [bus('9', 'st_0090', 'st_0049', hm(7, 9), hm(7, 16)), bus('9', 'st_0090', 'st_0049', hm(8, 34), hm(8, 41))],
+    [`st_0090>${MUSIC_SCHOOL}`]: [busThenWalk('9', 'st_0090', 'st_0070', hm(7, 9), hm(7, 15), point, 140, 2), busThenWalk('9', 'st_0090', 'st_0070', hm(8, 34), hm(8, 40), point, 140, 2)],
     'st_0090>st_0019': [bus('9', 'st_0090', 'st_0019', hm(8, 34), hm(8, 56))],
   });
   const out = composeStories({ intent, now: NOW, date, schedules, planner: p });
 
-  it('маршрутка 07:30: №9 до «Промінь», посадка в центрі «зазвичай» ≈07:35, із запасом ≥ 10 хв', () => {
+  it('маршрутка 07:30: №9 до центру й пішки навпроти музичної школи, посадка ≈07:35, із запасом ≥ 10 хв', () => {
     expect(date).toBe('2026-11-14');
     if (out.kind !== 'stories') throw new Error(out.kind);
     const s = out.stories[0];
     expect(s.mode).toBe('marshrutka');
-    expect(kinds(s)).toEqual(['bus', 'wait', 'intercity', 'kyiv']);
+    expect(kinds(s)).toEqual(['bus', 'walk', 'wait', 'intercity', 'kyiv']);
     expect(busLeg(s).depMins).toBe(hm(7, 9));
+    expect(s.legs[1]).toMatchObject({ kind: 'walk', meters: 140, toLabel: 'пл. Соборна, навпроти музичної школи' });
+    expect(s.legs[2]).toEqual({ kind: 'wait', text: 'Чекайте у центрі, навпроти музичної школи (на боці площі): до відправлення 18 хв.' });
     const ic = intercity(s);
-    expect([ic.boardLabel, ic.boardMins, ic.boardApprox, ic.usual]).toEqual(['з центру, від «Промінь»', hm(7, 35), true, true]);
+    expect([ic.boardLabel, ic.boardMins, ic.boardApprox, ic.usual]).toEqual(['з центру, навпроти музичної школи', hm(7, 35), true, false]);
     expect([s.leaveMins, s.arriveMins, s.arriveApprox, s.endLabel]).toEqual([hm(7, 9), hm(9, 0), true, 'Київ, метро «Академмістечко»']);
-    const k = s.legs[3] as Extract<StoryLeg, { kind: 'kyiv' }>;
+    const k = s.legs.find((l): l is Extract<StoryLeg, { kind: 'kyiv' }> => l.kind === 'kyiv')!;
     expect(k.mapsUrl).toContain('travelmode=transit');
   });
 
@@ -497,7 +512,7 @@ describe('кінцева точка в Києві — та, яку просил�
   });
 });
 
-describe('центр Малина: висадка біля РБК, посадка від «Промінь»', () => {
+describe('центр Малина: висадка біля РБК, посадка навпроти музичної школи', () => {
   it('з Києва «в Малин» — маршрутка довозить до центру: зупинка біля РБК', () => {
     const intent = parseLocal('з Києва в Малин сьогодні маршруткою', NOW).intent;
     const out = composeStories({ intent, now: NOW, date: NOW.date, schedules: [sched({ id: 31, route: 'Kyiv-Malyn-Irpin', departureTime: '16:00', boardingPlace: 'м. Академмістечко' })], planner: null });
@@ -506,11 +521,37 @@ describe('центр Малина: висадка біля РБК, посадк�
     expect(out.stories[0].endLabel).toBe('Малин, Центр, пл. Соборна (РБК)');
   });
 
-  it('з Малина в Київ — посадка в центрі лишається від «Промінь»', () => {
+  it('з Малина в Київ — у центрі маршрутка бере навпроти музичної школи (слова власника, 2026-11-18)', () => {
     const intent = parseLocal('з центру до Києва завтра зранку маршруткою', NOW).intent;
     const out = composeStories({ intent, now: NOW, date: '2026-11-14', schedules: [sched({ id: 32, route: 'Malyn-Kyiv-Irpin', departureTime: '07:30', boardingPlace: 'Автостанція Малин' })], planner: planner({}) });
     if (out.kind !== 'stories') throw new Error(out.kind);
-    expect(intercity(out.stories[0]).boardLabel).toBe('з центру, від «Промінь»');
+    expect(out.stories[0].legs[0].kind).toBe('intercity');
+    expect(intercity(out.stories[0]).boardLabel).toBe('з центру, навпроти музичної школи');
+  });
+
+  it('від зупинки поруч — пішки до місця навпроти музичної школи: міської зупинки там немає', () => {
+    setStopPlaces(buildStopPlaces([{ id: 'st_0031', name: 'Кооперативний ринок' }]));
+    const base = parseLocal('з центру до Києва завтра зранку маршруткою', NOW).intent;
+    const intent: TripIntent = { ...base, from: { id: 'st_0031', text: 'з Кооперативного ринку' } };
+    const p = planner({}, { [`st_0031>${MUSIC_SCHOOL}`]: { meters: 210, minutes: 3 } });
+    const out = composeStories({ intent, now: NOW, date: '2026-11-14', schedules: [sched({ id: 33, route: 'Malyn-Kyiv-Irpin', departureTime: '07:30', boardingPlace: 'Автостанція Малин' })], planner: p });
+    setStopPlaces([]);
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    const s = out.stories[0];
+    expect(kinds(s)).toEqual(['walk', 'wait', 'intercity', 'kyiv']);
+    expect(s.legs[0]).toMatchObject({ kind: 'walk', meters: 210, toLabel: 'пл. Соборна, навпроти музичної школи' });
+    expect([s.leaveMins, intercity(s).boardMins]).toEqual([hm(7, 22), hm(7, 35)]);
+  });
+
+  it('попутка без місця в примітці лишається від «Промінь» — про попутки власник не казав', () => {
+    const intent = parseLocal('з Царського села до Києва завтра зранку', NOW).intent;
+    const listing = { id: 5, senderName: 'Олег', listingType: 'driver', route: 'Malyn-Kyiv', date: '2026-11-14', departureTime: '07:30', seats: 2, notes: null, priceUah: 250, isActive: true, createdAt: '', updatedAt: '' } as ViberListing;
+    const p = planner({ 'st_0090>st_0049': [bus('9', 'st_0090', 'st_0049', hm(7, 9), hm(7, 16))] });
+    const out = composeStories({ intent, now: NOW, date: '2026-11-14', schedules: [], planner: p, listings: [listing] });
+    if (out.kind !== 'stories') throw new Error(out.kind);
+    const s = out.stories.find((x) => x.mode === 'poputka')!;
+    expect(s.legs.find((l) => l.kind === 'ride')).toMatchObject({ boardLabel: 'з центру, від «Промінь»', boardAssumed: true });
+    expect(busLeg(s).toStopId).toBe('st_0049');
   });
 });
 

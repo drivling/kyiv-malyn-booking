@@ -55,11 +55,13 @@ export type CityEndRef = { id: string } | { words: string };
 
 const MALYN = placeById('city.Malyn')!;
 const CENTRE = placeById('malyn.tsentr')!;
-/** Якір попуток у Малині, коли водій місця не назвав: центр — ті самі зупинки, що в маршруток */
-const centreOf = (corridor: 'to_malyn' | 'from_malyn') => anchorFor(corridor, 'marshrutka').stops.find((s) => s.placeId === 'malyn.tsentr')!;
-/** висадка з Києва — біля РБК; посадка на Київ — від «Промінь» (як у маршруток) */
-const RIDE_DROP = centreOf('to_malyn');
-const RIDE_PICKUP = centreOf('from_malyn');
+/** Якір попуток у Малині, коли водій місця не назвав. Висадка з Києва — та сама зупинка, що в маршруток (біля РБК) */
+const RIDE_DROP = anchorFor('to_malyn', 'marshrutka').stops.find((s) => s.placeId === 'malyn.tsentr' && s.stopId) as AnchorStop & { stopId: string };
+/**
+ * Посадка на Київ — «Промінь». Маршрутка з 2026-11-18 бере навпроти музичної школи, де міських зупинок немає
+ * (data/anchors.ts), а про попутки власник цього не казав
+ */
+const RIDE_PICKUP = { stopId: 'st_0049', from: 'з центру, від «Промінь»' } as const;
 
 /** Місто без уточнення кінцем поїздки містом бути не може: null */
 function cityEnd(place: GazetteerPlace, detail: string | null | undefined): CityEndRef | null {
@@ -206,6 +208,17 @@ function stopSpot(planner: LocalPlanner, stopId: string): Spot {
   return { ep: { kind: 'stop', stopId }, label: planner.stopName(stopId), coords: planner.stopCoords(stopId) };
 }
 
+/** Де маршрутка торкається Малина: зупинка або місце без міської зупинки (навпроти музичної школи) */
+function anchorSpot(planner: LocalPlanner, a: AnchorStop): Spot {
+  if (a.latLng) return { ep: { kind: 'point', lat: a.latLng[0], lng: a.latLng[1] }, label: a.name, coords: a.latLng };
+  return stopSpot(planner, a.stopId!);
+}
+
+/** Людина вже там, де маршрутка зупиняється: те саме місце словника або та сама зупинка */
+function atAnchor(place: GazetteerPlace, a: AnchorStop): boolean {
+  return place.id === a.placeId || (a.stopId != null && Boolean(place.stopIds?.includes(a.stopId)));
+}
+
 /** Примітка під відповіддю, коли адреса приблизна: будинку немає в даних, точка — середина вулиці чи сусідній номер */
 function approxNote(place: GazetteerPlace): string | null {
   const lm = landmarkById(place.id);
@@ -269,10 +282,10 @@ function firstBus(j: Journey) {
   return j.legs.find((l) => l.kind === 'transit');
 }
 
-/** Після висадки з маршрутки / електрички — до місця призначення */
+/** Після висадки з маршрутки / електрички (`from` — зупинка чи місце висадки) — до місця призначення */
 function afterAlight(
   planner: LocalPlanner,
-  stopId: string,
+  from: Spot,
   dest: Spot,
   at: number,
   atMax: number,
@@ -280,7 +293,7 @@ function afterAlight(
   approx: boolean,
   city: string | null = null,
 ): LocalPick | null {
-  const plan = planner.plan({ kind: 'stop', stopId }, dest.ep);
+  const plan = planner.plan(from.ep, dest.ep);
   const destPoint = dest.ep.kind === 'point' ? dest.label : null;
   const readyMax = atMax + buffer;
   const readyTyp = at + buffer;
@@ -306,7 +319,7 @@ function afterAlight(
     }
     return { legs, departMins: j.departMins, arriveMins: j.arriveMins, approx: false, worst: j.arriveMins, transfers: j.transfers };
   }
-  const lw = longWalk(stopSpot(planner, stopId), dest);
+  const lw = longWalk(from, dest);
   if (!lw) return null;
   return {
     legs: [{ kind: 'walk', meters: lw.meters, minutes: lw.minutes, toLabel: dest.label, late: true }],
@@ -318,15 +331,15 @@ function afterAlight(
   };
 }
 
-/** До посадки на маршрутку / електричку: виїхати якомога пізніше, але бути на зупинці до deadline */
-function beforeBoard(planner: LocalPlanner, origin: Spot, stopId: string, deadline: number): LocalPick | null {
-  const plan = planner.plan(origin.ep, { kind: 'stop', stopId });
+/** До посадки на маршрутку / електричку (`board` — зупинка чи місце посадки): виїхати якомога пізніше, але бути там до deadline */
+function beforeBoard(planner: LocalPlanner, origin: Spot, board: Spot, deadline: number): LocalPick | null {
+  const plan = planner.plan(origin.ep, board.ep);
   const fit = plan.journeys.filter((x) => x.arriveMins <= deadline);
   const j = fit.reduce<Journey | null>((best, x) => (!best || x.departMins > best.departMins ? x : best), null);
   const walk = plan.directWalk;
   if (walk && (!j || deadline - walk.minutes >= j.departMins - 2)) {
     return {
-      legs: [{ kind: 'walk', meters: Math.round(walk.meters / 10) * 10, minutes: walk.minutes, toLabel: planner.stopName(stopId), late: false }],
+      legs: [{ kind: 'walk', meters: Math.round(walk.meters / 10) * 10, minutes: walk.minutes, toLabel: board.label, late: false }],
       departMins: deadline - walk.minutes,
       arriveMins: deadline,
       approx: false,
@@ -334,11 +347,11 @@ function beforeBoard(planner: LocalPlanner, origin: Spot, stopId: string, deadli
       transfers: 0,
     };
   }
-  if (j) return { legs: journeyLegs(j, planner), departMins: j.departMins, arriveMins: j.arriveMins, approx: false, worst: j.arriveMins, transfers: j.transfers };
-  const lw = longWalk(origin, stopSpot(planner, stopId));
+  if (j) return { legs: journeyLegs(j, planner, board.ep.kind === 'point' ? board.label : null), departMins: j.departMins, arriveMins: j.arriveMins, approx: false, worst: j.arriveMins, transfers: j.transfers };
+  const lw = longWalk(origin, board);
   if (!lw || lw.minutes > 50) return null;
   return {
-    legs: [{ kind: 'walk', meters: lw.meters, minutes: lw.minutes, toLabel: planner.stopName(stopId), late: false }],
+    legs: [{ kind: 'walk', meters: lw.meters, minutes: lw.minutes, toLabel: board.label, late: false }],
     departMins: deadline - lw.minutes,
     arriveMins: deadline,
     approx: false,
@@ -497,14 +510,14 @@ function korostenLeg(input: ComposeInput, detail: string | null | undefined, anc
   const station = KOROSTEN_STATION.stopId;
   if (stopId === station) return { kind: 'legs', legs: [], label, depart: mins, arrive: mins, approx, worst: minsMax };
   if (anchor === 'from') {
-    const pick = afterAlight(fp, station, stopSpot(fp, stopId), mins, minsMax, KOROSTEN_ALIGHT_BUFFER, approx, 'Korosten');
+    const pick = afterAlight(fp, stopSpot(fp, station), stopSpot(fp, stopId), mins, minsMax, KOROSTEN_ALIGHT_BUFFER, approx, 'Korosten');
     if (!pick) return { kind: 'missing' };
     const walk = pick.legs[0]?.kind === 'walk';
     const wait: StoryLeg = { kind: 'wait', text: `Вийдіть ${KOROSTEN_STATION.at} (${clock(mins, approx)}) і ${walk ? 'йдіть пішки' : 'пересядьте на міський автобус Коростеня'}.` };
     return { kind: 'legs', legs: [wait, ...inKorosten(fp, pick.legs)], label, depart: pick.departMins, arrive: pick.arriveMins, approx: pick.approx, worst: pick.worst };
   }
   const deadline = mins - KOROSTEN_BOARD_BUFFER;
-  const pick = beforeBoard(fp, stopSpot(fp, stopId), station, deadline);
+  const pick = beforeBoard(fp, stopSpot(fp, stopId), stopSpot(fp, station), deadline);
   if (!pick) return { kind: 'missing' };
   const wait: StoryLeg = { kind: 'wait', text: `Чекайте ${KOROSTEN_STATION.at}: до відправлення ${mins - pick.arriveMins} хв.` };
   return { kind: 'legs', legs: [...inKorosten(fp, pick.legs), wait], label, depart: pick.departMins, arrive: pick.arriveMins, approx: false, worst: pick.arriveMins };
@@ -667,10 +680,10 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
       if (!destSpot || dest.isCity) {
         if (a.offsetMin !== 0) continue; // «у Малин» — до головної зупинки
         cand = { a, legs: [], arrive: at, approx, worst: atMax };
-      } else if (dest.id === a.placeId || dest.stopIds?.includes(a.stopId)) {
+      } else if (atAnchor(dest, a)) {
         cand = { a, legs: [], arrive: at, approx, worst: atMax };
       } else if (planner) {
-        const pick = afterAlight(planner, a.stopId, destSpot, at, atMax, anchor.bufferAfterAlight, approx);
+        const pick = afterAlight(planner, anchorSpot(planner, a), destSpot, at, atMax, anchor.bufferAfterAlight, approx);
         if (!pick) continue;
         const wait: StoryLeg = {
           kind: 'wait',
@@ -726,10 +739,10 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
       if (!originSpot) {
         if (a.offsetMin !== 0) continue;
         cand = { a, legs: [], leave: deadline, board: boardAt };
-      } else if (origin.id === a.placeId || origin.stopIds?.includes(a.stopId)) {
+      } else if (atAnchor(origin, a)) {
         cand = { a, legs: [], leave: deadline, board: boardAt };
       } else if (planner) {
-        const pick = beforeBoard(planner, originSpot, a.stopId, deadline);
+        const pick = beforeBoard(planner, originSpot, anchorSpot(planner, a), deadline);
         if (!pick) continue;
         const spare = boardAt - pick.arriveMins;
         const wait: StoryLeg = { kind: 'wait', text: `Чекайте ${a.label}: до відправлення ${spare} хв.` };
@@ -1173,7 +1186,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     let before: StoryLeg[] = [];
     let leave = dep;
     if (originSpot && !door && !sameMalyn(origin)) {
-      const pick = planner ? beforeBoard(planner, originSpot, malyn.stopId, dep - RIDE_BOARD_BUFFER) : null;
+      const pick = planner ? beforeBoard(planner, originSpot, stopSpot(planner, malyn.stopId), dep - RIDE_BOARD_BUFFER) : null;
       if (pick) {
         before = [...pick.legs, { kind: 'wait', text: `Будьте на місці о ${clock(dep - RIDE_BOARD_BUFFER)} — водій виїжджає о ${clock(dep)}.` }];
         leave = pick.departMins;
@@ -1227,7 +1240,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
   let worst = arr + RIDE_LATE;
   let endNote: string | null = null;
   if (destSpot && !dest.isCity && !sameMalyn(dest)) {
-    const pick = planner ? afterAlight(planner, malyn.stopId, destSpot, arr, arr + RIDE_LATE, 3, true) : null;
+    const pick = planner ? afterAlight(planner, stopSpot(planner, malyn.stopId), destSpot, arr, arr + RIDE_LATE, 3, true) : null;
     const lateWalk = pick?.legs.find((x) => x.kind === 'walk' && x.late);
     if (lateWalk && lateWalk.kind === 'walk' && lateWalk.minutes > 25) {
       // автобуси вже не ходять, а пішки далеко: на відміну від маршрутки, водія можна попросити довезти

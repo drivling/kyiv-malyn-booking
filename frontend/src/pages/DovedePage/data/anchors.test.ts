@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { getStopArticle } from '@/content/stops';
+import { haversineDistance } from '@/pages/LocalTransportPage/geo';
 import { ANCHORS, anchorFor, isPeak, findAnchor } from './anchors';
 import { kyivPointForPlace, metroHint, mapsTransitUrl } from './kyiv';
 import { PLACES, placeById } from '../nlu/gazetteer';
@@ -8,12 +9,36 @@ describe('якорі й словник указують на справжні з
   it('кожна зупинка якоря — зупинка датасету, а місце — у словнику', () => {
     for (const a of ANCHORS) {
       for (const s of a.stops) {
-        expect(getStopArticle(s.stopId), `${a.corridor}/${a.mode}: ${s.stopId}`).toBeTruthy();
+        // місце без міської зупинки (навпроти музшколи) перевіряє наступний тест
+        if (s.latLng) continue;
+        expect(getStopArticle(s.stopId!), `${a.corridor}/${a.mode}: ${s.stopId}`).toBeTruthy();
         // місце — із кураторського словника або сама зупинка (`st_…`), якщо району для неї в словнику немає
         if (s.placeId === s.stopId) expect(s.placeId).toMatch(/^st_\d{4}$/);
         else expect(placeById(s.placeId)?.stopIds, s.placeId).toContain(s.stopId);
       }
     }
+  });
+
+  it('місце без зупинки — точка поруч із зупинками свого місця словника, і лише одне з двох', () => {
+    for (const a of ANCHORS) {
+      for (const s of a.stops) {
+        expect(Boolean(s.latLng) !== Boolean(s.stopId), `${a.corridor}/${a.mode}: ${s.name}`).toBe(true);
+        if (!s.latLng) continue;
+        const near = (placeById(s.placeId)?.stopIds ?? []).map((id) => {
+          const [lat, lng] = getStopArticle(id)!.coords;
+          return haversineDistance(s.latLng![0], s.latLng![1], lat, lng);
+        });
+        expect(Math.min(...near), s.name).toBeLessThan(200);
+      }
+    }
+  });
+
+  it('з Малина в Київ маршрутка — з автостанції, у центрі — навпроти музичної школи (слова власника, 2026-11-18)', () => {
+    const [station, centre] = anchorFor('from_malyn', 'marshrutka').stops;
+    expect([station.stopId, station.offsetMin, station.confirmed]).toEqual(['st_0004', 0, true]);
+    expect(centre.stopId).toBeUndefined();
+    expect(centre.latLng).toEqual([50.768095, 29.241325]);
+    expect([centre.placeId, centre.from, centre.confirmed]).toEqual(['malyn.tsentr', 'з центру, навпроти музичної школи', true]);
   });
 
   it('усі stopIds словника існують', () => {
