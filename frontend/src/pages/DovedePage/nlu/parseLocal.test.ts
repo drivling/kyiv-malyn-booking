@@ -171,6 +171,40 @@ describe('parseLocal на еталонах (Docs/dovede-roadmap.md)', () => {
     expect(ok / total).toBeGreaterThanOrEqual(0.8);
   });
 
+  it('поїздка всередині міста (tag incity): словник розуміє кожне питання повністю, без Claude', () => {
+    const misses: string[] = [];
+    for (const c of cases.filter((x) => x.tags.includes('incity'))) {
+      const [, , why] = grade(c);
+      if (why.length) misses.push(`${c.id} «${c.text}»: ${why.join('; ')}`);
+    }
+    expect(misses).toEqual([]);
+  });
+
+  it('поїздка всередині міста: обидва кінці — місто з місцем словами; відоме місце лишається собою; між містами — як було', () => {
+    const p = (q: string) => parseLocal(q, NOW, STOP_INDEX).intent;
+    expect(p('у Києві з Предславинської 28 на Севастопольську площу')).toMatchObject({
+      from: { id: 'city.Kyiv', detail: 'Предславинська 28' },
+      to: { id: 'city.Kyiv', detail: 'Севастопольська площа' },
+      confidence: 'high',
+    });
+    // без прийменників: до номера будинку — звідки, далі — куди; слова як написала людина
+    expect(p('Київ предславинська 28 севастопільська площа')).toMatchObject({ from: { id: 'city.Kyiv', detail: 'предславинська 28' }, to: { id: 'city.Kyiv', detail: 'севастопільська площа' } });
+    // станція метро — своя точка, словами лише другий кінець
+    expect(p('у Києві з метро Хрещатик на Предславинську 28')).toMatchObject({ from: { id: 'kyiv.m.khreshchatyk' }, to: { id: 'city.Kyiv', detail: 'Предславинська 28' } });
+    // лише «куди» в місті: звідки не вигадуємо
+    const one = p('у Києві на Предславинську 28 завтра о 9');
+    expect([one.from, one.to?.detail, one.when.time]).toEqual([null, 'Предславинська 28', '09:00']);
+    // інше місто в питанні — це поїздка між містами, уточнення — як і раніше
+    expect(p('з Малина до Києва на Предславинську 28')).toMatchObject({ from: { id: 'city.Malyn' }, to: { id: 'city.Kyiv', detail: 'Предславинська 28' } });
+    expect(p('з Малина в Київ').to?.detail).toBeUndefined();
+    // дві відомі точки, «вокзал у Києві» — без змін
+    expect(p('у Києві з Академмістечка на Хрещатик')).toMatchObject({ from: { id: 'kyiv.akadem' }, to: { id: 'kyiv.m.khreshchatyk' } });
+    expect(p('вокзал у Києві').to?.id).toBe('kyiv.pas');
+    expect(p('з вокзалу в Києві на Предславинську 28')).toMatchObject({ from: { id: 'kyiv.pas' }, to: { id: 'city.Kyiv', detail: 'Предславинська 28' } });
+    // «на площу», «до площі» — у називному
+    expect(p('по Києву від вулиці Січових Стрільців 12 до Севастопольської площі').to?.detail).toBe('Севастопольська площа');
+  });
+
   it('місце в далекому місті: у називному, з номером будинку; час, транспорт і відомі місця ним не стають', () => {
     const to = (q: string) => parseLocal(q, NOW, STOP_INDEX).intent.to;
     expect(to('з Малина в Житомир на Польову 12')).toMatchObject({ id: 'city.Zhytomyr', detail: 'Польова 12' });

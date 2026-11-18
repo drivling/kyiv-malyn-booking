@@ -103,6 +103,8 @@ function nominative(word: string): string {
   if (/(ську|цьку|зьку|[вн]у)$/i.test(word)) return `${word.slice(0, -1)}а`;
   if (/[цн]ю$/i.test(word)) return `${word.slice(0, -1)}я`;
   if (/[цн]і$/i.test(word)) return `${word.slice(0, -1)}я`;
+  // «на площу», «до площі» → «площа»
+  if (/щ[уі]$/i.test(word)) return `${word.slice(0, -1)}а`;
   return word;
 }
 
@@ -167,6 +169,118 @@ function farDetails(text: string, toks: Token[], known: (i: number, cityId: FarD
   return out;
 }
 
+// ─── Поїздка всередині далекого міста ─────────────────────────────────────────────────────────
+
+/** Місто як місце, де людина вже є: «у Києві», «в Житомирі», «по Києву», «Києвом» або назва на початку («Київ, …») */
+const IN_CITY_RE: Array<[RegExp, 'city.Kyiv' | 'city.Zhytomyr', 'locative' | 'bare']> = [
+  [/^(києві|киеве|києвом|киевом)$/, 'city.Kyiv', 'locative'],
+  [/^(житомирі|житомире|житомиром)$/, 'city.Zhytomyr', 'locative'],
+  [/^(київ|киев)$/, 'city.Kyiv', 'bare'],
+  [/^(житомир)$/, 'city.Zhytomyr', 'bare'],
+];
+const BY_PREPS = new Set(['по']);
+const STATION_FILLERS = new Set(['метро', 'м', 'ст', 'станції', 'станція', 'станции', 'станция', 'платформи', 'платформа']);
+/** Інше місто в питанні — це вже поїздка між містами, не всередині одного */
+const OTHER_CITY_RE = /^(малин|коростен|korosten|malyn|київ|києв|киев|kyiv|житомир|zhytomyr)/;
+
+interface InCity {
+  cityId: 'city.Kyiv' | 'city.Zhytomyr';
+  /** індекс назви міста серед слів */
+  cityIndex: number;
+  details: FarDetail[];
+}
+
+/** Слова місця від `first`: до п'яти слів, номер будинку закінчує; прийменник, час, транспорт чи відоме місце — межа */
+function placeWords(toks: Token[], first: number, known: (i: number) => boolean, stopAt: Set<number>): number {
+  let j = first;
+  let words = 0;
+  while (j < toks.length && j - first < 6 && !stopAt.has(j)) {
+    const t = toks[j];
+    if (/^\d/.test(t.n)) {
+      if (!words || /[:.]/.test(t.n) || (toks[j + 1] && /^(ранку|вечора|годин|утра|вечера|дня|ночі|ночи)/.test(toks[j + 1].n))) break;
+      j++;
+      break;
+    }
+    if (FROM_PREPS.has(t.n) || TO_PREPS.has(t.n) || DETAIL_TO_PREPS.has(t.n) || HOUR_PREPS.has(t.n) || BY_PREPS.has(t.n)) break;
+    if (NOT_DETAIL_RE.test(t.n)) break;
+    // «з метро Хрещатик», «від станції Почайна» — це станція, її знає звичайний розбір
+    if (STATION_FILLERS.has(t.n)) break;
+    if (!STREET_WORDS.has(t.n)) {
+      if (known(j)) break;
+      words++;
+    }
+    j++;
+  }
+  return words ? j : first;
+}
+
+/**
+ * «У Києві з Предславинської 28 на Севастопольську площу», «по Житомиру від Польової 12 до Житнього ринку»,
+ * «Київ предславинська 28 севастопільська площа»: обидва кінці — місця всередині одного далекого міста.
+ * Лише коли місто названо як «де» (а не «куди / звідки»), іншого міста в питанні немає і хоча б одне місце словами є.
+ * Без прийменників («Київ предславинська 28 севастопільська площа») ділимо за номером будинку: до нього — звідки.
+ * Відоме місце (метро, вокзал) лишається звичайному розбору — тоді словами лише другий кінець.
+ */
+function inCityTrip(text: string, toks: Token[], known: (i: number) => boolean): InCity | null {
+  let found: { index: number; cityId: InCity['cityId']; kind: 'locative' | 'bare' } | null = null;
+  for (let i = 0; i < toks.length; i++) {
+    const hit = IN_CITY_RE.find(([re]) => re.test(toks[i].n));
+    if (hit) {
+      const prev = toks[i - 1];
+      // «до Києва», «в Київ», «з Житомира» — це між містами (farDetails); «по Києву» — у місті
+      const byPrep = prev && BY_PREPS.has(prev.n);
+      const corridor = prev && (FROM_PREPS.has(prev.n) || TO_PREPS.has(prev.n)) && hit[2] === 'bare';
+      if (corridor) return null;
+      if (found) return null;
+      found = { index: i, cityId: hit[1], kind: byPrep ? 'locative' : hit[2] };
+      continue;
+    }
+    if (/^(києву|киеву|житомиру)$/.test(toks[i].n) && toks[i - 1] && BY_PREPS.has(toks[i - 1].n)) {
+      if (found) return null;
+      found = { index: i, cityId: toks[i].n.startsWith('житомир') ? 'city.Zhytomyr' : 'city.Kyiv', kind: 'locative' };
+      continue;
+    }
+    if (OTHER_CITY_RE.test(toks[i].n)) return null;
+  }
+  if (!found) return null;
+  const city = found;
+  const blocked = new Set([city.index, city.index - 1]);
+  const details: FarDetail[] = [];
+  const take = (role: 'from' | 'to', first: number, end: number, withPrep: boolean) => {
+    const said = text.slice(toks[first].start, toks[end - 1].end).replace(/\s+/g, ' ').trim();
+    const body = withPrep ? said.replace(/[\p{L}'’ʼ]+/gu, nominative) : said;
+    const skip = new Set<number>();
+    for (let k = withPrep ? first - 1 : first; k < end; k++) skip.add(k);
+    details.push({ role, cityId: city.cityId, text: body, start: toks[first].start, end: toks[end - 1].end, skip });
+  };
+  // з прийменниками: «з …» — звідки, «на / до / в …» — куди
+  for (let i = 0; i < toks.length; i++) {
+    if (blocked.has(i) || blocked.has(i + 1)) continue;
+    const t = toks[i];
+    const role = FROM_PREPS.has(t.n) ? 'from' : TO_PREPS.has(t.n) || DETAIL_TO_PREPS.has(t.n) ? 'to' : null;
+    if (!role || details.some((d) => d.role === role)) continue;
+    const end = placeWords(toks, i + 1, known, blocked);
+    if (end > i + 1) {
+      take(role, i + 1, end, true);
+      i = end - 1;
+    }
+  }
+  // без прийменників — лише одразу після назви міста на початку питання: до номера будинку — звідки, далі — куди
+  if (!details.length && city.kind === 'bare' && city.index === 0) {
+    const a = placeWords(toks, 1, known, blocked);
+    if (a > 1) {
+      const numbered = /^\d/.test(toks[a - 1].n);
+      const b = numbered ? placeWords(toks, a, known, blocked) : a;
+      if (numbered && b > a) {
+        take('from', 1, a, false);
+        take('to', a, b, false);
+      } else take('to', 1, a, false);
+    }
+  }
+  if (!details.length) return null;
+  return { cityId: city.cityId, cityIndex: city.index, details };
+}
+
 /** `stops` — зупинки з розкладу міста (`buildStopPlaces`): «Поворот на Коновальця», «Чорновола 36»… */
 export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], routes: RouteLike[] = []): LocalParse {
   const allToks = tokenize(text);
@@ -178,7 +292,18 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     const place = findPlaceByToken(t.n);
     return Boolean(place && (place.city === 'Kyiv' || place.id === 'malyn.vokzal')) || Boolean(matchMetro(allToks, i)) || Boolean(matchRing(allToks, i)) || Boolean(matchSynonym(allToks, i));
   });
-  const hidden = new Set<number>();
+  // «У Києві з Предславинської 28 на Севастопольську площу» — обидва кінці в одному місті (лише Київ знає свої місця)
+  const inCity = details.length
+    ? null
+    : inCityTrip(text, allToks, (i) => {
+        const t = allToks[i];
+        const place = findPlaceByToken(t.n);
+        // «з вокзалу в Києві» — вокзал знає звичайний розбір (у Києві це Київ-Пасажирський)
+        if (STATION_WORD_RE.test(t.n)) return true;
+        return Boolean(place && place.city === 'Kyiv' && !place.isCity) || Boolean(matchMetro(allToks, i)) || Boolean(matchRing(allToks, i)) || Boolean(matchSynonym(allToks, i));
+      });
+  if (inCity) details.push(...inCity.details);
+  const hidden = new Set<number>(inCity ? [inCity.cityIndex] : []);
   for (const d of details) d.skip.forEach((k) => hidden.add(k));
   const toks = hidden.size ? allToks.filter((_, k) => !hidden.has(k)) : allToks;
   // «автобус №5», «9-ка» — раніше за все інше: цифра маршруту не має стати часом, а «маршрутка 7» — маршруткою на Київ
@@ -448,6 +573,21 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     if (!st.to) { give('to'); return; }
     if (!st.from) give('from');
   });
+  // поїздка всередині міста: кінці, названі словами, — це місто з уточненням; відоме місце (метро) лишається собою
+  if (inCity) {
+    const cityPlace = placeById(inCity.cityId)!;
+    // «з вокзалу в Києві»: назву міста розбір не бачив, тож вокзал вийшов малинським — у Києві це Київ-Пасажирський
+    for (const role of ['from', 'to'] as const) {
+      if (inCity.cityId === 'city.Kyiv' && st[role]?.id === 'malyn.vokzal') st[role] = placeById('kyiv.pas') ?? st[role];
+    }
+    for (const d of inCity.details) {
+      const cur = st[d.role];
+      if (!cur || cur.isCity) st[d.role] = cityPlace;
+    }
+    const cityTok = allToks[inCity.cityIndex];
+    const lead = allToks[inCity.cityIndex - 1];
+    spans.push({ start: lead && (BY_PREPS.has(lead.n) || TO_PREPS.has(lead.n)) ? lead.start : cityTok.start, end: cityTok.end, kind: inCity.details.some((d) => d.role === 'from') ? 'from' : 'to' });
+  }
   for (const h of hits) if (h.role) spans.push({ start: h.spanStart, end: h.token.end, kind: h.role });
   // місце словами в далекому місті чинне, лише коли це місто й лишилося «звідки» чи «куди»
   const detailOf = (role: 'from' | 'to'): string | null => {
