@@ -1,5 +1,6 @@
 import { routeNoIn } from '@/utils/routeNames';
 import { cityModeName, clock } from '../compose/narrate';
+import { ridePhrase } from '../compose/cityTransit';
 import { maskSenderNameForDisplay } from '@/utils/nameMask';
 import type { Story, StoryLeg } from '../compose/types';
 
@@ -33,7 +34,15 @@ export function storySummary(story: Story): { title: string; sub: string; time: 
     // у межах міста до місця словами: чим їхати — з кроків сервера
     // метро — своє (картка метро), решта — з кроків сервера
     const lines = story.legs.flatMap((l) =>
-      l.kind === 'metro' ? ['метро'] : l.kind === 'city' && l.route ? l.route.steps.filter((x) => x.kind === 'transit').map((x) => `${cityModeName(x.mode)} ${x.line ?? ''}`.trim()) : [],
+      l.kind === 'metro'
+        ? ['метро']
+        : l.kind === 'ring'
+          ? [`електричка ${l.ride.train}`]
+          : l.kind === 'cityRide'
+            ? [ridePhrase(l.city, l.step)]
+            : l.kind === 'city' && l.route
+              ? l.route.steps.filter((x) => x.kind === 'transit').map((x) => `${cityModeName(x.mode)} ${x.line ?? ''}`.trim())
+              : [],
     );
     return { title: 'Містом', sub: [lines.join(' → ') || 'пішки', `≈ ${durationText(story.arriveMins - story.leaveMins)}`].join(' · '), time: clock(story.arriveMins, true) };
   }

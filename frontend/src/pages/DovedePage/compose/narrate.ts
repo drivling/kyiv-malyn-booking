@@ -3,6 +3,7 @@
  */
 import { routeNoIn } from '@/utils/routeNames';
 import { minsToClock } from './intercity';
+import { ridePhrase, rideStopName } from './cityTransit';
 import type { Story, StoryLeg } from './types';
 
 export function clock(mins: number, approx = false): string {
@@ -43,6 +44,7 @@ function legPhrase(l: StoryLeg): string | null {
   if (l.kind === 'metro') return l.closed ? null : metroPhrase(l);
   if (l.kind === 'ring') return `міська електричка ${l.ride.train} о ${clock(l.depMins)} з платформи «${l.ride.from.name}»`;
   if (l.kind === 'ride') return `попутка о ${clock(l.depMins)} ${l.boardLabel}`;
+  if (l.kind === 'cityRide') return ridePhrase(l.city, l.step);
   if (l.kind === 'city' && l.route) {
     const rides = l.route.steps.filter((x) => x.kind === 'transit');
     return rides.length ? `${l.cityName === 'Київ' ? 'Києвом' : 'містом'} — ${rides.map((x) => `${cityModeName(x.mode)} ${x.line ?? ''}`.trim()).join(', ')}` : `пішки до «${l.toLabel}»`;
@@ -89,6 +91,8 @@ export function shareText(story: Story, stopName: (id: string) => string, header
     } else if (l.kind === 'ride') {
       // телефону тут немає: номер людина відриває сама на сторінці
       lines.push(`${clock(l.depMins)} — попутка ${l.boardLabel}${l.ride.priceUah ? `, ${l.ride.priceUah} ₴` : ''} (місце уточніть у водія)`);
+    } else if (l.kind === 'cityRide') {
+      lines.push(`${clock(l.depMins, true)} — ${ridePhrase(l.city, l.step)}: «${rideStopName(l.city, l.step, 'from') ?? '?'}» → «${rideStopName(l.city, l.step, 'to') ?? '?'}», ≈ ${l.step.minutes} хв`);
     } else if (l.kind === 'city') {
       if (!l.route) lines.push(`далі містом (${l.cityName}): ${l.fromLabel} → ${l.toLabel}`);
       else {

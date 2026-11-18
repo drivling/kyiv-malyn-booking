@@ -590,11 +590,11 @@ describe('Житомир ↔ Малин — між містами', () => {
       const ask = cityLeg(first.stories[0]).ask;
       const out = run('з Малина в Житомир на Польову 12 завтра зранку', fromMalyn.slice(0, 1), { cityRoutes: new Map([[cityAskKey(ask), route]]) });
       const st = out.stories[0];
-      const leg = cityLeg(st);
       const ic = intercity(st);
-      expect(leg.route).toBe(route);
-      expect(leg.depMins).toBe(ic.alightMins);
-      expect(leg.arrMins).toBe(ic.alightMins + 21);
+      // відповідь сервера — кроками за видом: пішки, картка автобуса, пішки; очікування (21 − 18 хв) — перед автобусом
+      expect(kinds(st).slice(-3)).toEqual(['walk', 'cityRide', 'walk']);
+      const ride = st.legs.find((l): l is Extract<StoryLeg, { kind: 'cityRide' }> => l.kind === 'cityRide')!;
+      expect([ride.step.line, ride.depMins, ride.arrMins, ride.checkedAt]).toEqual(['110', ic.alightMins + 6, ic.alightMins + 20, route.fetchedAt]);
       expect(st.arriveMins).toBe(ic.alightMins + 21);
       expect(st.arriveApprox).toBe(true);
       expect(st.endNote).toBeNull();
@@ -615,7 +615,9 @@ describe('Житомир ↔ Малин — між містами', () => {
       const out = run(q, toMalyn.slice(0, 1), { cityRoutes: new Map([[cityAskKey(ask), route]]) });
       const st = out.stories[0];
       expect(st.leaveMins).toBe(hm(15, 50) - 7 - 21);
-      expect(cityLeg(st)).toMatchObject({ depMins: hm(15, 50) - 7 - 21, arrMins: hm(15, 50) - 7 });
+      expect(kinds(st).slice(0, 3)).toEqual(['walk', 'cityRide', 'walk']);
+      // вихід − 21 хв: пішки 3, очікування 3, автобус 14, пішки 1
+      expect(st.legs[1]).toMatchObject({ kind: 'cityRide', depMins: hm(15, 50) - 7 - 15, arrMins: hm(15, 50) - 7 - 1 });
       expect(st.fromLabel).toBe('Житомир, вулиця Покровська');
     });
 
@@ -765,21 +767,22 @@ describe('У межах одного міста: місце словами — �
     if (out.kind !== 'stories') throw new Error(out.kind);
     const st = out.stories[0];
     expect(out.stories).toHaveLength(1);
-    // пішки до станції → наше метро «Палац «Україна»» → «Контрактова площа» → далі містом автобусом 368
-    expect(kinds(st)).toEqual(['walk', 'metro', 'city']);
+    // пішки до станції → наше метро «Палац «Україна»» → «Контрактова площа» → автобус 368 своєю карткою → пішки
+    expect(kinds(st)).toEqual(['walk', 'metro', 'cityRide', 'walk']);
     const metro = st.legs[1] as Extract<StoryLeg, { kind: 'metro' }>;
     const own = metroTrip('kyiv.m.palats-ukraina', 'kyiv.m.kontraktova', { mins: hm(14, 29), date: NOW.date })!;
     expect([metro.depMins, metro.minutes, metro.segments[0].from.name, metro.segments.at(-1)!.to.name]).toEqual([hm(14, 29), own.minutes, 'Палац «Україна»', 'Контрактова площа']);
-    const rest = st.legs[2] as Extract<StoryLeg, { kind: 'city' }>;
-    expect([rest.fromLabel, rest.toLabel, rest.route!.minutes, rest.route!.steps.map((x) => x.line ?? x.kind)]).toEqual(['метро «Контрактова площа»', 'Севастопольська площа', 21, ['368', 'walk']]);
+    const bus = st.legs[2] as Extract<StoryLeg, { kind: 'cityRide' }>;
+    expect([bus.step.line, bus.depMins, bus.arrMins, bus.checkedAt]).toEqual(['368', hm(14, 29) + own.minutes, hm(14, 29) + own.minutes + 16, route.fetchedAt]);
+    expect(st.legs[3]).toMatchObject({ kind: 'walk', minutes: 5, toLabel: 'Севастопольська площа' });
     expect([st.mode, st.leaveMins, st.arriveMins, st.arriveApprox]).toEqual(['city', hm(14, 20), hm(14, 29) + own.minutes + 21, true]);
     expect([st.fromLabel, st.toLabel, st.endLabel]).toEqual(['Київ, Предславинська 28', 'Київ, Севастопольська площа', 'Київ, Севастопольська площа']);
     expect(st.transfers).toBe(1);
-    expect(st.lead).toBe(`Метро до «Контрактова площа», далі Києвом — автобус 368. Київ, Севастопольська площа — приблизно о ${clockOf(st.arriveMins)}.`);
+    expect(st.lead).toBe(`Метро до «Контрактова площа», далі автобус 368. Київ, Севастопольська площа — приблизно о ${clockOf(st.arriveMins)}.`);
     expect(cityAsks(out)).toEqual([]);
     const text = shareText(st, (id) => id, 'x');
     expect(text).toContain('метро «Палац «Україна»» → «Контрактова площа»');
-    expect(text).toContain('автобус 368: «ст. м. Контрактова площа» → «пл. Севастопольська», ≈ 16 хв');
+    expect(text).toContain(`≈${clockOf(bus.depMins)} — автобус 368: «ст. м. Контрактова площа» → «пл. Севастопольська», ≈ 16 хв`);
   });
 
   it('спитали, а відповіді немає — не історія з нулем хвилин, а посилання на карту', () => {
@@ -799,7 +802,8 @@ describe('У межах одного міста: місце словами — �
     if (out.kind !== 'stories') throw new Error(out.kind);
     // своє метро: вихід — за нашими хвилинами, прибуття — рівно до строку
     expect(out.stories[0].arriveMins).toBe(hm(18, 0));
-    expect(out.stories[0].leaveMins).toBe(hm(18, 0) - out.stories[0].legs.reduce((n, l) => n + (l.kind === 'city' ? l.route!.minutes : 'minutes' in l ? l.minutes : 0), 0));
+    const metroLeg = out.stories[0].legs.find((l) => l.kind === 'metro') as Extract<StoryLeg, { kind: 'metro' }>;
+    expect(out.stories[0].leaveMins).toBe(metroLeg.depMins - 9);
     const soon = intentOf(kyiv('Предславинська 28'), kyiv('Севастопольська площа'), { day: 'today', kind: 'arrive', time: '14:40' });
     const askSoon = cityLeg((compose(soon) as Extract<ReturnType<typeof compose>, { kind: 'stories' }>).stories[0]).ask;
     expect(compose(soon, new Map([[cityAskKey(askSoon), route]]))).toEqual({ kind: 'empty', reason: 'too_late' });

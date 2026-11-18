@@ -2561,6 +2561,310 @@ button.dv-tear__slip:active {
   }
 }
 
+/* ─── Поїздка з відповіді сервера за видом транспорту: ui/CityRideCard.tsx ───────────────────
+   Одна основа (табличка, зупинки, подробиці) і акцент виду: тролейбус — дроти над карткою, трамвай — рейки під
+   табличкою, швидкісний трамвай — своя лінія зі станціями, фунікулер — схил із вагончиком. */
+.dv-strip__seg--cityRide {
+  background: var(--dv-rc, var(--dv-city));
+}
+.dv-ride {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--dv-line);
+  border-radius: var(--dv-r);
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 38px),
+    var(--dv-surface);
+  box-shadow: 0 6px 14px rgba(5, 71, 82, 0.08);
+  overflow: hidden;
+}
+.dv-ride__top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 12px;
+}
+/* табличка: світлий пластик у рамці, смуга кольору виду знизу; у кожного виду — свій силует */
+.dv-ride__sign {
+  display: grid;
+  grid-template-columns: auto auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 6px;
+  min-width: 66px;
+  padding: 5px 9px 8px;
+  border: 2px solid #1b2a2f;
+  border-radius: 7px;
+  color: #10201f;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.07)),
+    #fdf6d8;
+  box-shadow:
+    inset 0 -5px 0 var(--dv-rc),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.6),
+    0 2px 5px rgba(5, 71, 82, 0.22);
+  transform: rotate(-1.2deg);
+}
+.dv-ride__sign svg {
+  grid-row: 1 / span 2;
+  color: var(--dv-rc);
+}
+.dv-ride__kind {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4a5a5c;
+}
+.dv-ride__sign b {
+  font-size: 24px;
+  line-height: 1.05;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.dv-ride__stops {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.dv-ride__facts,
+.dv-ride__agency {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--dv-muted);
+  overflow-wrap: anywhere;
+}
+.dv-ride__agency {
+  font-size: 12px;
+}
+.dv-ride__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  margin: 2px -12px -12px;
+  padding: 10px 12px 12px;
+  border-top: 2px dashed var(--dv-line);
+  font-size: 13px;
+  color: var(--dv-muted);
+}
+
+/* маршрутка: жовта табличка за склом, як на маршрутних таксі */
+.dv-ride--minibus .dv-ride__sign {
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.08)),
+    #ffd84d;
+}
+.dv-ride--minibus .dv-ride__kind {
+  color: #5b4300;
+}
+
+/* тролейбус: два контактні дроти над карткою (тягнуться через увесь верх) */
+.dv-ride--trolleybus {
+  padding-top: 20px;
+}
+.dv-ride--trolleybus::before,
+.dv-ride--trolleybus::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1.5px;
+  background: #3b4a4f;
+  opacity: 0.55;
+}
+.dv-ride--trolleybus::before {
+  top: 6px;
+}
+.dv-ride--trolleybus::after {
+  top: 11px;
+}
+.dv-ride--trolleybus .dv-ride__sign {
+  border-radius: 12px 12px 7px 7px;
+}
+
+/* трамвай: рейки зі шпалами під табличкою й зупинками */
+.dv-ride--tram .dv-ride__top,
+.dv-ride--speedTram .dv-ride__top {
+  padding-bottom: 12px;
+  background:
+    linear-gradient(#5d6a6e, #5d6a6e) left calc(100% - 7px) / 100% 1.5px no-repeat,
+    linear-gradient(#5d6a6e, #5d6a6e) left calc(100% - 1px) / 100% 1.5px no-repeat,
+    repeating-linear-gradient(to right, #b39b7b 0 4px, transparent 4px 11px) left calc(100% - 0px) / 100% 9px no-repeat;
+}
+.dv-ride--tram .dv-ride__sign {
+  border-radius: 4px;
+}
+
+/* швидкісний трамвай: своя лінія — табличка з рамкою кольору лінії, станції схемою, як у вагоні */
+.dv-ride--speedTram .dv-ride__sign {
+  border-color: var(--dv-rc);
+  border-radius: 10px;
+  background:
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.06)),
+    #f4ecf2;
+}
+.dv-ride__line {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 6px 4px;
+  padding: 0;
+  list-style: none;
+  position: relative;
+}
+.dv-ride__line::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: 6px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--dv-rc);
+}
+.dv-ride__line li {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  min-width: 0;
+}
+.dv-ride__dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--dv-rc);
+}
+.dv-ride__line li.is-end .dv-ride__dot {
+  width: 14px;
+  height: 14px;
+  margin-top: 1px;
+  border-width: 3px;
+}
+.dv-ride__st {
+  position: absolute;
+  top: 18px;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dv-muted);
+}
+.dv-ride__line li:first-child .dv-ride__st {
+  left: 0;
+}
+.dv-ride__line li:last-child .dv-ride__st {
+  right: 0;
+}
+.dv-ride--speedTram .dv-ride__line {
+  margin-bottom: 22px;
+}
+
+/* фунікулер: схил, рейка, дві станції й вагончик, що їде вгору чи вниз */
+.dv-ride__hill svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 120px;
+}
+.dv-ride__slope {
+  fill: #e8efe6;
+}
+.dv-ride__track {
+  stroke: #6f5a43;
+  stroke-width: 2;
+}
+.dv-ride__track--rail {
+  stroke-dasharray: 2 6;
+  stroke-width: 5;
+  opacity: 0.55;
+}
+.dv-ride__house {
+  fill: #fff;
+  stroke: var(--dv-rc);
+  stroke-width: 2;
+}
+.dv-ride__cab rect {
+  fill: var(--dv-rc);
+}
+.dv-ride__cab .dv-ride__win {
+  fill: #fff7e0;
+}
+.dv-ride__cab {
+  transform: translate(64px, 78px);
+}
+.dv-ride__hill.is-down .dv-ride__cab {
+  transform: translate(176px, 36px);
+}
+.dv-out--in .dv-ride__cab {
+  animation: dv-funi-up 2.4s ease-in-out 0.9s both;
+}
+.dv-out--in .dv-ride__hill.is-down .dv-ride__cab {
+  animation-name: dv-funi-down;
+}
+@keyframes dv-funi-up {
+  from {
+    transform: translate(64px, 78px);
+  }
+  to {
+    transform: translate(176px, 36px);
+  }
+}
+@keyframes dv-funi-down {
+  from {
+    transform: translate(176px, 36px);
+  }
+  to {
+    transform: translate(64px, 78px);
+  }
+}
+.dv-ride__ends {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.dv-ride__ends span:last-child {
+  text-align: right;
+}
+.dv-ride__ends small {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dv-muted);
+}
+.dv-ride__arrow {
+  font-size: 22px;
+  color: var(--dv-rc);
+}
+
+/* табличка «встає» за скло, коли картка лягає */
+.dv-out--in .dv-ride__sign {
+  animation: dv-city-plate 0.4s cubic-bezier(0.3, 1.4, 0.5, 1) both;
+  animation-delay: 760ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dv-out--in .dv-ride__sign,
+  .dv-out--in .dv-ride__cab,
+  .dv-out--in .dv-ride__hill.is-down .dv-ride__cab {
+    animation: none;
+  }
+}
+
 /* ─── Міська електричка Києва (Kyiv City Express): ui/RingCard.tsx ───────────────────────────
    Станційний годинник: замість цифр — 20 станцій кільця, дуга поїздки, стрілка в бік руху, Дніпро під склом.
    Кольори — як на схемі перевізника: кільце помаранчеве, додаткові рейси між берегами сині (--dv-ring-c). */

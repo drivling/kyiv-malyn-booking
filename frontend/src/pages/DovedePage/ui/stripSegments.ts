@@ -3,6 +3,7 @@ import { routeColorStyleIn } from '@/pages/LocalTransportPage/routeColors';
 import type { Story } from '../compose/types';
 import { METRO_LINE } from '../data/kyivMetroService';
 import { RING_COLOR } from '../data/kyivRing';
+import { RIDE_COLOR, rideLook } from '../compose/cityTransit';
 
 export interface Segment {
   start: number;
@@ -30,6 +31,9 @@ export function stripSegments(story: Story): Segment[] {
         out.push({ start: leg.depMins, end: leg.arrMins, cls: leg.route.steps.some((x) => x.kind === 'transit') ? 'city' : 'walk' });
         cursor = Math.max(cursor, leg.arrMins);
       }
+    } else if (leg.kind === 'cityRide') {
+      out.push({ start: leg.depMins, end: leg.arrMins, cls: 'cityRide', style: { background: RIDE_COLOR[rideLook(leg.step)] } });
+      cursor = leg.arrMins;
     } else if (leg.kind === 'ride') {
       out.push({ start: leg.depMins, end: leg.arrMins, cls: 'poputka' });
       cursor = leg.arrMins;
