@@ -1,5 +1,5 @@
 /**
- * «Факт прибуття» на спільних деталях адмінки (крок 12): плитки, зведення по рейсах і останні позначки таблицями,
+ * «Факт прибуття» на спільних деталях адмінки (крок 12): плитки, рейси на зупинках і останні позначки щільними списками,
  * період у запиті, видалення хибного звіту лише після підтвердження, порожній період.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -41,28 +41,51 @@ function mock(stats: ArrivalReportStats = STATS) {
 afterEach(() => vi.restoreAllMocks());
 
 describe('ArrivalReportsTab', () => {
-  it('плитки, зведення й останні позначки; «не було» — окремим рядком', async () => {
+  it('плитки: позначок, середнє відхилення, «не було» з часткою', async () => {
     mock();
     render(<ArrivalReportsTab />);
     const tiles = await screen.findByRole('group', { name: 'За період' });
-    expect(within(tiles).getByText('Усього позначок').parentElement).toHaveTextContent('8');
+    expect(within(tiles).getByText('Позначок').parentElement).toHaveTextContent('8');
+    expect(within(tiles).getByText('Середнє відхилення').parentElement).toHaveTextContent('+4 хв');
     // 2 з 8 = 25 % — плитка жовтіє
     expect(within(tiles).getByText('Не було').closest('.admin-kit-tile')).toHaveClass('admin-kit-tile--warn');
     expect(within(tiles).getByText('Не було').parentElement).toHaveTextContent('25 %');
+  });
 
-    const [summary, recent] = screen.getAllByRole('table');
-    const row = within(summary).getAllByRole('row')[1];
-    expect(row).toHaveTextContent('туди');
-    expect(within(row).getByText('+4')).toBeInTheDocument();
-    expect(within(row).getByText('−2 … +9')).toBeInTheDocument();
-    expect(within(row).getAllByRole('cell')[2]).toHaveAttribute('data-label', 'Зупинка');
+  it('рейси на зупинках: проблемні вгорі, відхилення кольором, розкид смужкою', async () => {
+    mock({
+      ...STATS,
+      summary: [
+        STATS.summary[0],
+        { ...STATS.summary[0], routeId: '7', scheduledTime: '09:00', arrived: 4, missed: 0, avgDelay: 1, minDelay: 0, maxDelay: 2 },
+        { ...STATS.summary[0], routeId: '3', scheduledTime: '10:00', arrived: 2, missed: 2, avgDelay: 12, minDelay: 10, maxDelay: 14 },
+      ],
+    });
+    render(<ArrivalReportsTab />);
+    const list = await screen.findByRole('list', { name: 'Рейси на зупинках' });
+    const items = within(list).getAllByRole('listitem');
+    // спершу найбільше «не було», далі — найбільше запізнення
+    expect(items.map((li) => li.querySelector('strong')?.textContent)).toEqual(['10:00', '08:10', '09:00']);
+    expect(within(items[0]).getByText('+12 хв')).toHaveClass('arr-pill--bad');
+    expect(within(items[0]).getByText('не було ×2')).toBeInTheDocument();
+    expect(within(items[1]).getByText('+4 хв')).toHaveClass('arr-pill--warn');
+    expect(within(items[1]).getByRole('img', { name: 'від −2 до +9 хв' })).toBeInTheDocument();
+    expect(items[1]).toHaveTextContent('туди · позначок 4 за 3 дні');
+    expect(within(items[2]).getByText('вчасно')).toHaveClass('arr-pill--ok');
+  });
 
-    const rows = within(recent).getAllByRole('row');
-    expect(rows[1]).toHaveTextContent('08:16');
-    expect(rows[1]).toHaveTextContent('табло');
-    expect(rows[1]).toHaveTextContent('abcdef');
-    expect(rows[2]).toHaveClass('arrival-tab-row--missed');
-    expect(rows[2]).toHaveTextContent('не було (чекав 15 хв)');
+  it('останні позначки — одним рядком: відхилення, номер, час і зупинка, звідки й пристрій', async () => {
+    mock();
+    render(<ArrivalReportsTab />);
+    const list = await screen.findByRole('list', { name: 'Останні позначки' });
+    const [first, second] = within(list).getAllByRole('listitem');
+    expect(within(first).getByText('+6 хв')).toHaveClass('arr-pill--warn');
+    expect(first).toHaveTextContent('08:10 → 08:16 · st_0004');
+    expect(first).toHaveTextContent('табло');
+    expect(first).toHaveTextContent('abcdef');
+    expect(second).toHaveClass('arr-mark--missed');
+    expect(within(second).getByText('не було')).toBeInTheDocument();
+    expect(second).toHaveTextContent('09:00 — чекав 15 хв');
   });
 
   it('період — у запиті; «Оновити» перепитує', async () => {
@@ -95,6 +118,6 @@ describe('ArrivalReportsTab', () => {
     mock({ ...STATS, total: 0, arrived: 0, missed: 0, summary: [], recent: [] });
     render(<ArrivalReportsTab />);
     expect(await screen.findByText('За цей період позначок ще немає.')).toBeInTheDocument();
-    expect(screen.queryByRole('table')).toBeNull();
+    expect(screen.queryByRole('list', { name: 'Рейси на зупинках' })).toBeNull();
   });
 });

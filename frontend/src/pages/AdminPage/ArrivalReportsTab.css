@@ -1,4 +1,7 @@
-/* «Факт прибуття» — спільні деталі в kit/kit.css; тут лише своє */
+/*
+ * «Факт прибуття» — щільні списки замість таблиць: головне (рейс, наскільки запізнився) видно одразу, на компʼютері
+ * — рядок, на телефоні — два рядки, без підписів до кожної клітинки. Спільне — у kit/kit.css.
+ */
 .arrival-tab {
   display: flex;
   flex-direction: column;
@@ -20,11 +23,174 @@
   color: var(--pb-danger, #c0392b);
 }
 
-.arrival-tab .arrival-tab-row--missed td {
-  color: #b45309;
-}
-
 .arrival-tab-client {
   font-family: ui-monospace, monospace;
+}
+
+/* номер маршруту кольором лінії (як на сторінках транспорту) */
+.arr-route {
+  display: inline-grid;
+  place-items: center;
+  min-width: 30px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--lt-route-color, #54606a);
+  color: var(--lt-route-fg, #fff);
+  font-weight: 700;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.arr-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef0f1;
+  color: #3c4a52;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.arr-pill--ok { background: #e7f6ec; color: #166534; }
+.arr-pill--warn { background: #fef3c7; color: #92400e; }
+.arr-pill--bad,
+.arr-pill--missed { background: #fee2e2; color: #991b1b; }
+
+.arr-trips,
+.arr-recent {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  background: var(--pb-card-bg, #fff);
+}
+
+.arr-trips > li,
+.arr-recent > li {
+  border-top: 1px solid var(--pb-border-light, #f0f0f0);
+}
+.arr-trips > li:first-child,
+.arr-recent > li:first-child {
+  border-top: 0;
+}
+
+/* рейс на зупинці: номер · час і зупинка · шкала відхилень · підсумок */
+.arr-trip {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(160px, 260px) auto;
+  align-items: center;
+  gap: 6px 14px;
+  padding: 8px 12px;
+}
+
+.arr-trip-what,
+.arr-mark-what {
+  min-width: 0;
+  font-size: var(--pb-font-size-sm, 13px);
+}
+.arr-trip-what small,
+.arr-mark-what small {
+  display: block;
   color: var(--pb-text-hint, #737373);
+  font-size: 0.75rem;
+}
+
+.arr-trip-result {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.arr-range {
+  position: relative;
+  display: block;
+  height: 26px;
+}
+.arr-range::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  border-radius: 2px;
+  background: #eef0f1;
+}
+.arr-range-zero {
+  position: absolute;
+  top: 3px;
+  width: 1px;
+  height: 12px;
+  background: #9aa5ab;
+}
+.arr-range-bar {
+  position: absolute;
+  top: 7px;
+  height: 4px;
+  border-radius: 2px;
+  background: #22a35a;
+}
+.arr-range-bar--warn { background: #e0a100; }
+.arr-range-bar--bad { background: #d14343; }
+.arr-range-dot {
+  position: absolute;
+  top: 4px;
+  width: 10px;
+  height: 10px;
+  margin-left: -3px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #166534;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+.arr-range-dot--warn { background: #92400e; }
+.arr-range-dot--bad { background: #991b1b; }
+.arr-range small {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* позначка: відхилення · номер · що й де · × */
+.arr-mark {
+  display: grid;
+  grid-template-columns: 74px auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 12px;
+}
+.arr-mark > .arr-pill {
+  justify-self: start;
+}
+.arr-mark--missed .arr-mark-what {
+  color: #991b1b;
+}
+
+@media (max-width: 639px) {
+  /* рейс: номер і текст зверху, шкала й підсумок — другим рядком */
+  .arr-trip {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .arr-trip .arr-range {
+    grid-column: 1 / 3;
+    grid-row: 2;
+  }
+  .arr-trip-result {
+    grid-row: 1;
+    grid-column: 3;
+  }
+  .arr-mark {
+    grid-template-columns: 66px auto minmax(0, 1fr) auto;
+    gap: 4px 8px;
+    padding: 6px 10px;
+  }
 }

@@ -188,7 +188,7 @@ of `dist` in a commit.
   `GET /admin/dovede/city/demand?city=&only=unanswered`, «Місця» in pages of 30 with each place's roads from
   `GET /admin/dovede/city/place/routes?city=&key=`, whole-base actions in a folded «Небезпечна зона»), `learning`
   (learning campaigns, see below) and `settings`; an unknown section redirects to Огляд. Shared admin pieces (section nav, header, stat tiles, status pill, empty state, setting row, `ChipGroup` for filters
-  and periods, `ResponsiveTable` — a table that becomes cards under 640 px; used by «Доведе» and «Факт прибуття», `kit.css` on the
+  and periods; used by «Доведе» and «Факт прибуття», `kit.css` on the
   `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
   `data-label` (CSS only). The same tab teaches synonyms without a deploy
   (`DovedeSynonym`, `DovedeSynonymsPanel.tsx`, `/admin/dovede/synonyms`): the page reads `GET /dovede/synonyms` on open
