@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
-import type { DovedeCampaign, DovedeCampaignList, DovedeCityStats, DovedeLog } from '@/types';
+import type { DovedeCampaign, DovedeCampaignList, DovedeCityStats, DovedeLog, DovedeQualityReport } from '@/types';
 import { AdminSectionHeader, EmptyState, StatTile, StatTiles, StatusPill, type StatusTone } from '../kit';
 import { googleErrorLine } from './googleError';
 import { WAIT_REASON, isOpen } from './learn/campaignText';
@@ -50,6 +50,7 @@ export const DovedeOverview: React.FC = () => {
   const [week, setWeek] = useState<Part<DovedeLog>>(empty);
   const [city, setCity] = useState<Part<DovedeCityStats>>(empty);
   const [learn, setLearn] = useState<Part<DovedeCampaignList>>(empty);
+  const [quality, setQuality] = useState<Part<DovedeQualityReport>>(empty);
 
   const load = useCallback(() => {
     apiClient
@@ -68,6 +69,10 @@ export const DovedeOverview: React.FC = () => {
       .getDovedeCampaigns()
       .then((data) => setLearn({ data, error: '' }))
       .catch((e) => setLearn({ data: null, error: failed(e, 'Не вдалося завантажити кампанії навчання') }));
+    apiClient
+      .getDovedeCityQuality()
+      .then((data) => setQuality({ data, error: '' }))
+      .catch((e) => setQuality({ data: null, error: failed(e, 'Не вдалося зібрати звіт якості') }));
   }, []);
 
   useEffect(load, [load]);
@@ -119,6 +124,12 @@ export const DovedeOverview: React.FC = () => {
         <span className="dovede-log-dim">— місця, куди Google дороги не знайшов або ліміт не дав спитати</span>
       </li>
     ) : null,
+    quality.data?.items.length ? (
+      <li key="quality">
+        <Link to={`${dovedePath('learning')}#quality`}>Підозрілі дороги в місті: {num(quality.data.items.length)}</Link>{' '}
+        <span className="dovede-log-dim">— Google, мабуть, знайшов не те місце; перевірте й приберіть в архів</span>
+      </li>
+    ) : null,
     ...outOfBudget.map((x) => (
       <li key={`budget-${x.id}`}>
         <Link to={dovedePath('learning')}>
@@ -137,7 +148,7 @@ export const DovedeOverview: React.FC = () => {
     ) : null,
   ].filter(Boolean);
 
-  const errors = [today.error, week.error, city.error, learn.error].filter(Boolean);
+  const errors = [today.error, week.error, city.error, learn.error, quality.error].filter(Boolean);
   const loaded = week.data && city.data;
 
   return (

@@ -1,5 +1,6 @@
 import { cityRoutesFromEnv } from './dovede/city-route';
 import { createCityCampaigns } from './dovede/city-campaign';
+import { createCityQuality } from './dovede/city-quality';
 import { createDovedeSettings } from './dovede/settings';
 import { PrismaClient } from '@prisma/client';
 import { CODE_VERSION, createApp, getRegisteredRoutes } from './create-app';
@@ -44,7 +45,15 @@ function main(): void {
   // …і одні налаштування з адмінки (розділ «Налаштування») — спільні для роутера й фонового навчання
   const dovedeSettings = createDovedeSettings({ prisma });
   const cityRoutes = cityRoutesFromEnv(prisma, dovedeSettings);
-  const cityCampaigns = createCityCampaigns({ prisma, cityRoutes, settings: dovedeSettings });
+  const cityQuality = createCityQuality(prisma);
+  const cityCampaigns = createCityCampaigns({
+    prisma,
+    cityRoutes,
+    settings: dovedeSettings,
+    // кампанія завершилась / Google відмовив у доступі — власнику в адмін-чат; там же — скільки підозрілих доріг
+    notify: sendAdminAlertHtml,
+    suspicious: async (city) => (await cityQuality.report(city)).items.length,
+  });
   const app = createApp({ prisma, cityRoutes, dovedeSettings, cityCampaigns });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {

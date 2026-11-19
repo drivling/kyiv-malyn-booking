@@ -1393,6 +1393,8 @@ model DovedeCityPlace {
   key        String
   label      String
   archivedAt DateTime?
+  /// власник переглянув у звіті якості й сказав «нормально» — серед підозрілих не показуємо
+  okAt       DateTime?
   updatedAt  DateTime  @updatedAt
 
   @@unique([cityCode, key], map: "DovedeCityPlace_key")
@@ -1453,6 +1455,8 @@ model DovedeCityCampaign {
   spentToday  Int       @default(0)
   errorsInRow Int       @default(0)
   lastError   String?
+  /// про яку причину очікування (denied) уже написали в адмін-чат; успішне питання скидає
+  alertedReason String?
   report      Json?
   /// хто з контейнерів зараз веде кампанію (два під час деплою); до `leaseUntil`
   leaseHolder String?
@@ -1504,6 +1508,8 @@ model DovedeCityCampaignAsk {
   claimedAt    DateTime?
   doneAt       DateTime?
   error        String?
+  /// назви з відповіді, які обхід відкинув як сміття (`rejectedNames`) — для звіту якості
+  filtered     Json?
 
   @@unique([placeId, dayType, hour], map: "DovedeCityCampaignAsk_key")
   @@index([campaignId, status, phase, id], map: "DovedeCityCampaignAsk_queue_idx")

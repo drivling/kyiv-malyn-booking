@@ -31,6 +31,7 @@ import { DEFAULT_CAR_MINUTES, createDriveTime, type DriveTimeFn } from '../drive
 import { CITY_DAILY_CAP_MAX, CITY_DAILY_CAP_MIN, CITY_FRESH_DAYS_MAX, CITY_FRESH_DAYS_MIN, cityRoutesFromEnv, isValidDailyCap, isValidFreshDays, type CityCode, type CityRoutes } from '../dovede/city-route';
 import { kyivWallToUtc } from '../viber-listing-expiry';
 import { CampaignInputError, createCityCampaigns, type CampaignInput, type CityCampaigns } from '../dovede/city-campaign';
+import { createCityQuality, type CityQuality } from '../dovede/city-quality';
 
 export const DOVEDE_MAX_TEXT = 300;
 /** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
@@ -89,6 +90,8 @@ export function createAdminDovedeRouter(deps: {
   settings?: DovedeSettings;
   /** Кампанії навчання міста; той самий обʼєкт, що веде фонова задача (index.ts) */
   campaigns?: CityCampaigns;
+  /** Звіт якості навчання (підозрілі дороги) */
+  quality?: CityQuality;
 }): Router {
   const { prisma } = deps;
   const understand = deps.understand === undefined ? understandFromEnv() : deps.understand;
@@ -102,6 +105,7 @@ export function createAdminDovedeRouter(deps: {
   const driveTime = deps.driveTime ?? createDriveTime({ key: () => (process.env.GOOGLE_MAPS_API_KEY ?? '').trim() || null, dailyCap: () => settings.int('drive.dailyCap') });
   const cityRoutes = deps.cityRoutes ?? cityRoutesFromEnv(prisma, settings);
   const campaigns = deps.campaigns ?? createCityCampaigns({ prisma, cityRoutes, settings, now: clock });
+  const quality = deps.quality ?? createCityQuality(prisma);
   const r = express.Router();
 
   /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
@@ -415,6 +419,41 @@ export function createAdminDovedeRouter(deps: {
       else res.json(r2);
     } catch (e) {
       console.error('❌ POST /admin/dovede/city/campaigns/:id/action:', e);
+      res.status(500).json({ error: 'Не вдалося' });
+    }
+  });
+
+  /** Звіт якості (крок 8): підозрілі дороги в базі; `?city=Kyiv|Zhytomyr`, без нього — обидва міста */
+  r.get('/admin/dovede/city/quality', requireAdmin, async (req, res) => {
+    const raw = String(req.query.city ?? '');
+    if (raw && raw !== 'Kyiv' && raw !== 'Zhytomyr') {
+      res.status(400).json({ error: 'city: Kyiv або Zhytomyr' });
+      return;
+    }
+    try {
+      res.json(await quality.report(raw ? (raw as 'Kyiv' | 'Zhytomyr') : undefined));
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/city/quality:', e);
+      res.status(500).json({ error: 'Не вдалося зібрати звіт' });
+    }
+  });
+
+  /** «Нормально» у звіті якості: `{ city, key, ok }` — місце більше не показується серед підозрілих (ok: false — знову) */
+  r.post('/admin/dovede/city/place/ok', requireAdmin, async (req, res) => {
+    const b = (req.body ?? {}) as { city?: unknown; key?: unknown; ok?: unknown };
+    if ((b.city !== 'Kyiv' && b.city !== 'Zhytomyr') || typeof b.key !== 'string' || !b.key.trim() || typeof b.ok !== 'boolean') {
+      res.status(400).json({ error: 'city (Kyiv | Zhytomyr), key і ok (true | false) обовʼязкові' });
+      return;
+    }
+    try {
+      const done = await quality.markOk(b.city, b.key.trim(), b.ok);
+      if (!done) {
+        res.status(404).json({ error: 'Такого місця серед збережених доріг немає' });
+        return;
+      }
+      res.json({ city: b.city, key: b.key.trim(), ok: b.ok });
+    } catch (e) {
+      console.error('❌ POST /admin/dovede/city/place/ok:', e);
       res.status(500).json({ error: 'Не вдалося' });
     }
   });

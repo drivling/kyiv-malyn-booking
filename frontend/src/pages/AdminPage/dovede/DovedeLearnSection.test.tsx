@@ -9,9 +9,37 @@ import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import type { DovedeCampaign, DovedeCampaignPreset, DovedeCampaignPreview } from '@/types';
+import type { DovedeCampaign, DovedeCampaignPreset, DovedeCampaignPreview, DovedeQualityReport } from '@/types';
 import { DovedeLearnSection } from './DovedeLearnSection';
 import { formatHours, hoursText, parseHours } from './learn/hours';
+import { humanLink } from './learn/campaignText';
+
+const QUALITY: DovedeQualityReport = {
+  places: 120,
+  okPlaces: 2,
+  items: [
+    {
+      city: 'Kyiv',
+      key: 'теу',
+      label: 'Торговельно-економічний університет',
+      reasons: [
+        { code: 'next_to_point', text: '5 хв від метро «Академмістечко» — можливо, Google знайшов саму точку або щось поруч' },
+        { code: 'near_far_points', text: '5 хв від метро «Академмістечко» і 8 хв від вокзалу — так близько до обох не буває' },
+      ],
+      routes: [
+        { origin: 'kyiv.pas', originLabel: 'вокзал Київ-Пасажирський', dir: 'to', dayType: 'weekday', hour: 9, minutes: 8, rides: 1 },
+        { origin: 'kyiv.akadem', originLabel: 'метро «Академмістечко»', dir: 'to', dayType: 'weekday', hour: 9, minutes: 5, rides: 1 },
+      ],
+    },
+    {
+      city: 'Zhytomyr',
+      key: 'польова 12',
+      label: 'Польова 12',
+      reasons: [{ code: 'walk_only', text: 'лише пішки 30 хв від: автовокзал Житомир-1 — транспорту Google не знайшов' }],
+      routes: [{ origin: 'zhytomyr.avtovokzal', originLabel: 'автовокзал Житомир-1', dir: 'from', dayType: 'saturday', hour: 11, minutes: 30, rides: 0 }],
+    },
+  ],
+};
 
 const ZT_POINTS = [{ id: 'zhytomyr.avtovokzal', label: 'автовокзал Житомир-1' }];
 const KYIV_POINTS = [
@@ -87,6 +115,21 @@ function mock(campaigns: DovedeCampaign[] = []) {
   const calls: Array<{ path: string; body: unknown }> = [];
   let list = [...campaigns];
   server.use(
+    http.get(`${TEST_API_URL}/admin/dovede/city/quality`, ({ request }) => {
+      const city = new URL(request.url).searchParams.get('city');
+      calls.push({ path: `quality:${city ?? ''}`, body: null });
+      return HttpResponse.json(city ? { ...QUALITY, items: QUALITY.items.filter((i) => i.city === city) } : QUALITY);
+    }),
+    http.post(`${TEST_API_URL}/admin/dovede/city/place/ok`, async ({ request }) => {
+      const body = await request.json();
+      calls.push({ path: 'ok', body });
+      return HttpResponse.json(body);
+    }),
+    http.post(`${TEST_API_URL}/admin/dovede/city/place/archive`, async ({ request }) => {
+      const body = await request.json();
+      calls.push({ path: 'archive', body });
+      return HttpResponse.json({ ...(body as object), routes: 4 });
+    }),
     http.get(`${TEST_API_URL}/admin/dovede/city/campaigns/presets`, () => HttpResponse.json({ presets: PRESETS })),
     http.get(`${TEST_API_URL}/admin/dovede/city/campaigns`, () => HttpResponse.json({ campaigns: list, google: { calls: 140, cap: 500, reserve: 100 } })),
     http.post(`${TEST_API_URL}/admin/dovede/city/campaigns/preview`, async ({ request }) => {
@@ -111,6 +154,11 @@ function mock(campaigns: DovedeCampaign[] = []) {
   );
   return calls;
 }
+
+/** запити без звіту якості (його розділ питає сам при відкритті) */
+const actions = (calls: Array<{ path: string; body: unknown }>) => calls.filter((c) => !c.path.startsWith('quality:'));
+
+const cityRadio = (name: string) => within(screen.getByRole('radiogroup', { name: 'Місто' })).getByRole('radio', { name });
 
 const mainRow = (day: string) => within(screen.getByRole('group', { name: `Години для кожного місця: ${day}` }));
 
@@ -166,13 +214,13 @@ describe('DovedeLearnSection', () => {
     renderSection();
     expect(await screen.findByText(/Кампаній ще не було/)).toBeInTheDocument();
     await screen.findByRole('radio', { name: /Навчити місто/ });
-    expect(screen.getByRole('radio', { name: 'Житомир' })).toHaveAttribute('aria-checked', 'true');
+    expect(cityRadio('Житомир')).toHaveAttribute('aria-checked', 'true');
     expect(screen.queryByRole('radio', { name: /Види транспорту/ })).toBeNull();
     expect(mainRow('Будні').getByRole('button', { name: 'Будні 9:00' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('button', { name: /Почати/ })).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Оцінити' }));
-    expect(calls[0]).toEqual({
+    expect(actions(calls)[0]).toEqual({
       path: 'preview',
       body: { preset: 'learn', city: 'Zhytomyr', options: { origins: ['zhytomyr.avtovokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 } },
     });
@@ -188,7 +236,7 @@ describe('DovedeLearnSection', () => {
     expect(screen.getByText(/Менше за нижню оцінку/)).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Почати: до 150 запитів до Google' }));
     await screen.findByText(/Почато: «Навчити місто — Житомир»/);
-    expect(calls[1]).toEqual({ path: 'create', body: { preset: 'learn', city: 'Zhytomyr', options: { origins: ['zhytomyr.avtovokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 }, budget: 150, dailyBudget: 200 } });
+    expect(actions(calls)[1]).toEqual({ path: 'create', body: { preset: 'learn', city: 'Zhytomyr', options: { origins: ['zhytomyr.avtovokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 }, budget: 150, dailyBudget: 200 } });
     expect(await screen.findByRole('article', { name: 'Навчити місто — Житомир' })).toBeInTheDocument();
     // оцінку використано — почати вдруге те саме не можна, поки не оцінено знову
     expect(screen.queryByRole('button', { name: /Почати/ })).toBeNull();
@@ -209,7 +257,7 @@ describe('DovedeLearnSection', () => {
     const extra = screen.getByRole('group', { name: 'Ще години — лише для місць, куди дорогу знайдено: Будні' });
     expect(within(extra).getByRole('button', { name: 'Будні 9:00' })).toBeDisabled();
 
-    await user.click(screen.getByRole('radio', { name: 'Київ' }));
+    await user.click(cityRadio('Київ'));
     expect(screen.getByRole('radio', { name: /Види транспорту/ })).toBeInTheDocument();
     expect(screen.getByLabelText('метро «Академмістечко»')).toBeChecked();
     await user.click(screen.getByLabelText('метро «Академмістечко»'));
@@ -217,7 +265,7 @@ describe('DovedeLearnSection', () => {
     expect(screen.getByRole('button', { name: 'Оцінити' })).toBeDisabled();
     expect(screen.getByText(/Виберіть хоч одну точку/)).toBeInTheDocument();
 
-    await user.click(screen.getByRole('radio', { name: 'Житомир' }));
+    await user.click(cityRadio('Житомир'));
     await user.click(screen.getByRole('radio', { name: /Свій список/ }));
     expect(screen.getByRole('button', { name: 'Оцінити' })).toBeDisabled();
     await user.type(screen.getByRole('textbox'), 'Житній ринок');
@@ -234,11 +282,11 @@ describe('DovedeLearnSection', () => {
     expect(within(running).getByText('Іде')).toBeInTheDocument();
 
     await user.click(within(running).getByRole('button', { name: 'Скасувати' }));
-    expect(calls).toEqual([]);
+    expect(actions(calls)).toEqual([]);
     expect(confirm).toHaveBeenCalledTimes(1);
 
     await user.click(within(running).getByRole('button', { name: 'Пауза' }));
-    await waitFor(() => expect(calls).toEqual([{ path: 'action:5', body: { action: 'pause' } }]));
+    await waitFor(() => expect(actions(calls)).toEqual([{ path: 'action:5', body: { action: 'pause' } }]));
     expect(await within(running).findByText('На паузі')).toBeInTheDocument();
 
     const out = screen.getByRole('article', { name: 'Дообучити: вечір — Київ' });
@@ -253,5 +301,62 @@ describe('DovedeLearnSection', () => {
     // знову відкрита — переїхала до відкритих
     await waitFor(() => expect(within(screen.getByRole('article', { name: 'Дообучити: вечір — Київ' })).getByText('Іде')).toBeInTheDocument());
     expect(screen.queryByRole('heading', { name: 'Завершені' })).toBeNull();
+  });
+
+  it('«Освіжити застаріле»: годин і глибини не вибирають — як у застарілих відповідях', async () => {
+    mock();
+    server.use(
+      http.get(`${TEST_API_URL}/admin/dovede/city/campaigns/presets`, () =>
+        HttpResponse.json({
+          presets: [
+            ...PRESETS,
+            { id: 'refresh', title: 'Освіжити застаріле', help: 'Старі відповіді Google — знову.', custom: false, ownSlots: true, cities: [{ ...PRESETS[0].cities[1], extra: '', maxDepth: 0 }] },
+          ],
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderSection();
+    await user.click(await screen.findByRole('radio', { name: /Освіжити застаріле/ }));
+    expect(screen.queryByRole('group', { name: /Години для кожного місця/ })).toBeNull();
+    expect(screen.queryByLabelText(/Нові місця з відповідей/)).toBeNull();
+    expect(screen.getByText(/Точки, напрямки й години — ті самі, що в застарілих відповідях/)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Напрямок' })).toBeNull();
+    expect(screen.queryByText('Від яких точок')).toBeNull();
+  });
+
+  it('якість: підозрілі місця з причинами; «Відкрити як людина», «Нормально», «В архів» (з підтвердженням); фільтр міста', async () => {
+    const calls = mock();
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    renderSection();
+    const panel = await screen.findByRole('region', { name: 'Якість: підозрілі дороги' });
+    expect(await within(panel).findByText('Перевірено місць: 120 · підозрілих: 2 · визнано нормальними раніше: 2')).toBeInTheDocument();
+    expect(within(panel).getByText(/так близько до обох не буває/)).toBeInTheDocument();
+    expect(within(panel).getByText(/вокзал Київ-Пасажирський → 8 хв \(будні 09:00\); метро «Академмістечко» → 5 хв/)).toBeInTheDocument();
+    // найкоротша дорога — та, яку відкриваємо як людина
+    expect(within(panel).getAllByRole('link', { name: 'Відкрити як людина' })[0]).toHaveAttribute('href', '/dovede?f=kyiv.akadem&t=city.Kyiv&td=%D0%A2%D0%BE%D1%80%D0%B3%D0%BE%D0%B2%D0%B5%D0%BB%D1%8C%D0%BD%D0%BE-%D0%B5%D0%BA%D0%BE%D0%BD%D0%BE%D0%BC%D1%96%D1%87%D0%BD%D0%B8%D0%B9+%D1%83%D0%BD%D1%96%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%82%D0%B5%D1%82');
+
+    await user.click(within(panel).getByRole('button', { name: 'Нормально: Торговельно-економічний університет' }));
+    await within(panel).findByText('«Торговельно-економічний університет» (Київ) — нормально, більше не показуємо.');
+    expect(actions(calls)).toEqual([{ path: 'ok', body: { city: 'Kyiv', key: 'теу', ok: true } }]);
+    expect(within(panel).queryByText('Торговельно-економічний університет')).toBeNull();
+
+    await user.click(within(panel).getByRole('button', { name: 'В архів: Польова 12' }));
+    expect(confirm).toHaveBeenCalledTimes(1);
+    await within(panel).findByText('«Польова 12» (Житомир) — в архіві, доріг: 4.');
+    expect(actions(calls)[1]).toEqual({ path: 'archive', body: { city: 'Zhytomyr', key: 'польова 12', action: 'archive' } });
+    expect(await within(panel).findByText('Підозрілих доріг немає.')).toBeInTheDocument();
+
+    await user.click(within(panel).getByRole('radio', { name: 'Київ' }));
+    await waitFor(() => expect(calls.map((c) => c.path)).toContain('quality:Kyiv'));
+  });
+});
+
+describe('«Відкрити як людина»', () => {
+  it('Київ — точка своїм id, місце словами; Житомир — поїздка з Малина; назад — місце першим', () => {
+    expect(humanLink({ city: 'Kyiv', label: 'Охматдит' }, { origin: 'kyiv.pas', dir: 'to' })).toBe('/dovede?f=kyiv.pas&t=city.Kyiv&td=%D0%9E%D1%85%D0%BC%D0%B0%D1%82%D0%B4%D0%B8%D1%82');
+    expect(humanLink({ city: 'Kyiv', label: 'Охматдит' }, { origin: 'kyiv.akadem', dir: 'from' })).toBe('/dovede?f=city.Kyiv&fd=%D0%9E%D1%85%D0%BC%D0%B0%D1%82%D0%B4%D0%B8%D1%82&t=kyiv.akadem');
+    expect(humanLink({ city: 'Zhytomyr', label: 'Польова 12' }, { origin: 'zhytomyr.avtovokzal', dir: 'to' })).toBe('/dovede?f=malyn.avtostantsiya&t=city.Zhytomyr&td=%D0%9F%D0%BE%D0%BB%D1%8C%D0%BE%D0%B2%D0%B0+12');
   });
 });

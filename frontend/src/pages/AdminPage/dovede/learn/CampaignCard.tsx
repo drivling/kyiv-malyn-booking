@@ -75,10 +75,31 @@ const CampaignDetails: React.FC<{ id: number; version: string }> = ({ id, versio
       ) : (
         <p className="dovede-log-empty">Ще нічого не питали.</p>
       )}
-      {d.report?.noRoute.length ? (
-        <p className="dv-learn-hint">
-          Без дороги ({num(d.report.noRoute.length)}): {d.report.noRoute.join(', ')}. Якщо серед них є не місця — їх можна прибрати в розділі «Місто» → «Місця».
-        </p>
+      {d.report ? (
+        <div className="dv-learn-report">
+          <h5>Звіт</h5>
+          <p className="dv-learn-hint">
+            Без дороги: {num(d.noRoute)} з {num(d.asked)}
+            {d.report.noRoutePct != null ? ` (${d.report.noRoutePct} %)` : ''}
+            {d.report.suspicious ? (
+              <>
+                {' '}
+                · підозрілих доріг у місті: {num(d.report.suspicious)} — <a href="#quality">перевірити</a>
+              </>
+            ) : null}
+            .
+          </p>
+          {d.report.noRoute.length ? (
+            <p className="dv-learn-hint">
+              Без дороги: {d.report.noRoute.join(', ')}. Якщо серед них є не місця — їх можна прибрати в розділі «Місто» → «Місця».
+            </p>
+          ) : null}
+          {d.report.filtered?.length ? (
+            <p className="dv-learn-hint">
+              Відкинуто як сміття (загальні слова, не місце для сторінки): {d.report.filtered.map((f) => (f.count > 1 ? `${f.name} ×${f.count}` : f.name)).join(', ')}.
+            </p>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
