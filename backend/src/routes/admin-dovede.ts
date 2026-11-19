@@ -546,6 +546,40 @@ export function createAdminDovedeRouter(deps: {
   });
 
   /** Місця словами зі збереженими дорогами й місця в архіві — щоб прибрати одне місце з неправильною відповіддю */
+  /** Дороги одного місця: `?city=Kyiv|Zhytomyr&key=<ключ місця>` (розгортка в «Місця») */
+  r.get('/admin/dovede/city/place/routes', requireAdmin, async (req, res) => {
+    const city = String(req.query.city ?? '');
+    const key = String(req.query.key ?? '').trim();
+    if ((city !== 'Kyiv' && city !== 'Zhytomyr') || !key || key.length > 200) {
+      res.status(400).json({ error: 'city (Kyiv | Zhytomyr) і key обовʼязкові' });
+      return;
+    }
+    try {
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ routes: await cityRoutes.placeRouteList(city, key) });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/city/place/routes:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати дороги місця' });
+    }
+  });
+
+  /** Що питають люди: `?city=Kyiv|Zhytomyr&only=unanswered` — усі пари (до 500), найчастіші першими */
+  r.get('/admin/dovede/city/demand', requireAdmin, async (req, res) => {
+    const city = String(req.query.city ?? '');
+    const only = String(req.query.only ?? '');
+    if ((city && city !== 'Kyiv' && city !== 'Zhytomyr') || (only && only !== 'unanswered')) {
+      res.status(400).json({ error: 'city: Kyiv | Zhytomyr; only: unanswered' });
+      return;
+    }
+    try {
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ demand: await cityRoutes.demandList(city ? (city as CityCode) : null, only === 'unanswered') });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/city/demand:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати попит' });
+    }
+  });
+
   r.get('/admin/dovede/city/places', requireAdmin, async (_req, res) => {
     try {
       res.set('Cache-Control', 'private, no-store');

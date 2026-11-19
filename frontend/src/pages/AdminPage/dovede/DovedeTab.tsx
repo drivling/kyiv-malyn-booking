@@ -27,8 +27,8 @@ const DovedeTab: React.FC<{ section?: string }> = ({ section = '' }) => {
       {section === 'dictionary' ? <DovedeDictionarySection /> : null}
       {section === 'city' ? (
         <>
-          <AdminSectionHeader title="Місто" purpose="Дороги містом у Києві й Житомирі: що вже знаємо, що питають і архів." />
-          <DovedeCityPanel defaultOpen />
+          <AdminSectionHeader title="Місто" purpose="Дороги містом у Києві й Житомирі: що вже знаємо, що питають, місця і їхні дороги, архів." />
+          <DovedeCityPanel />
         </>
       ) : null}
       {section === 'learning' ? <DovedeLearnSection /> : null}

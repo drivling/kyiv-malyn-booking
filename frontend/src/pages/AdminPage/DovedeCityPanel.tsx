@@ -1,30 +1,107 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
-import type { DovedeCityStats } from '@/types';
+import type { DovedeCityDemandRow, DovedeCityStats } from '@/types';
 import { DovedeCityPlaces } from './DovedeCityPlaces';
+import { StatTile, StatTiles } from './kit';
 import { googleErrorLine, quotaTime } from './dovede/googleError';
 import { dovedePath } from './dovede/sections';
+import './dovede/learn/learn.css';
 
-const CITY: Record<string, string> = { Kyiv: 'Київ', Zhytomyr: 'Житомир' };
+type CityTab = 'Kyiv' | 'Zhytomyr';
+const CITIES: Array<{ id: CityTab; name: string }> = [
+  { id: 'Kyiv', name: 'Київ' },
+  { id: 'Zhytomyr', name: 'Житомир' },
+];
+/** `?misto=` з адреси: Житомир, інакше Київ */
+const cityFrom = (raw: string | null): CityTab => (raw === 'Zhytomyr' ? 'Zhytomyr' : 'Kyiv');
+
 const SOURCE: Record<string, string> = { google: 'з Google', own: 'свої', open: 'відкриті дані' };
+/** скільки пар попиту показати одразу */
+const DEMAND_SHOWN = 15;
 
+const num = (n: number) => n.toLocaleString('uk-UA');
 const count = (rows: Array<{ city: string; count: number }>, city: string) => rows.filter((r) => r.city === city).reduce((n, r) => n + r.count, 0);
 
+/** «Що питають»: пари людей у місті, найчастіші першими; «Без відповіді» — усі такі, а не лише перші */
+const CityDemand: React.FC<{ city: CityTab; version: number }> = ({ city, version }) => {
+  const [only, setOnly] = useState(false);
+  const [rows, setRows] = useState<DovedeCityDemandRow[] | null>(null);
+  const [all, setAll] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setRows(null);
+    setAll(false);
+    apiClient
+      .getDovedeCityDemand(city, only)
+      .then((r) => {
+        setRows(r.demand);
+        setError('');
+      })
+      .catch((e) => setError(e instanceof Error ? e.message : 'Не вдалося завантажити попит'));
+  }, [city, only, version]);
+
+  const shown = rows ? (all ? rows : rows.slice(0, DEMAND_SHOWN)) : [];
+  return (
+    <section aria-labelledby="dovede-city-demand-title">
+      <div className="dovede-log-head">
+        <h4 id="dovede-city-demand-title">Що питають</h4>
+        <div className="dovede-log-chips" role="group" aria-label="Які пари">
+          <button type="button" className={`dovede-log-chip ${only ? '' : 'active'}`} aria-pressed={!only} onClick={() => setOnly(false)}>
+            Усі
+          </button>
+          <button type="button" className={`dovede-log-chip ${only ? 'active' : ''}`} aria-pressed={only} onClick={() => setOnly(true)}>
+            Без відповіді
+          </button>
+        </div>
+      </div>
+      {error ? <p className="dovede-log-error">{error}</p> : null}
+      {!rows && !error ? <p className="dovede-log-empty">Завантажую…</p> : null}
+      {rows && !rows.length ? <p className="dovede-log-empty">{only ? 'На всі питання про це місто є відповідь.' : 'Запитів про дорогу цим містом ще не було.'}</p> : null}
+      {shown.length ? (
+        <ul className="dovede-city-demand">
+          {shown.map((d) => (
+            <li key={`${d.fromKey}|${d.toKey}`}>
+              {d.from} → {d.to}{' '}
+              <span className="dovede-log-dim">
+                — {d.asked} разів{d.answered ? '' : ', відповіді немає'}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {rows && rows.length > DEMAND_SHOWN ? (
+        <button type="button" className="admin-kit-linkbtn" onClick={() => setAll((v) => !v)}>
+          {all ? 'Показати менше' : `Показати всі ${num(rows.length)}`}
+        </button>
+      ) : null}
+      {only && rows?.length ? (
+        <p className="dovede-log-dim">
+          Таке місце Google не знайшов, туди не ходить транспорт або ліміт не дав спитати — людині показано кнопку Google Maps. Спитати ще раз можна кампанією
+          «Питання людей без відповіді» в розділі <Link to={dovedePath('learning')}>«Навчання»</Link>.
+        </p>
+      ) : null}
+    </section>
+  );
+};
+
 /**
- * «Місто: що вже знаємо» — транспорт Києва й Житомира, який «Доведе» зібрала із запитів людей (Docs/dovede-roadmap.md,
- * «Місто»). Нічого не видаляється: «заархівувати» ховає дані з Google від відповідей і навчання, «відновити» повертає
- * (одне місце з неправильною відповіддю прибирає список «Місця» — `DovedeCityPlaces`),
- * «скинути лічильник попиту» обнуляє список «Що питають найчастіше» (після прогону `npm run dovede:crawl`). Строк
- * свіжості й денний ліміт Google — у розділі «Налаштування» (`dovede/DovedeSettingsSection.tsx`).
- * `defaultOpen` — розділ «Місто» (`/admin/dovede/city`) відкриває панель одразу.
+ * Розділ «Місто» (/admin/dovede/city, Docs/dovede-admin-roadmap.md, крок 10): транспорт Києва й Житомира, який
+ * «Доведе» зібрала із запитів людей і навчання. Місто — у адресі (`?misto=Zhytomyr`, типово Київ): плитки, «Що
+ * питають» (усі пари без відповіді — окремим фільтром), «Місця» (сторінками, з дорогами кожного й архівом одного
+ * місця — `DovedeCityPlaces`). Те, що зачіпає всю базу (заархівувати все з Google, скинути лічильник попиту), — у
+ * згорнутій «Небезпечній зоні». Нічого не видаляється. Строк свіжості й ліміт Google — у «Налаштуваннях», крок навчання
+ * — у «Навчанні».
  */
-export const DovedeCityPanel: React.FC<{ defaultOpen?: boolean }> = ({ defaultOpen = false }) => {
-  const [open, setOpen] = useState(defaultOpen);
+export const DovedeCityPanel: React.FC = () => {
+  const [params, setParams] = useSearchParams();
+  const city = cityFrom(params.get('misto'));
   const [data, setData] = useState<DovedeCityStats | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [version, setVersion] = useState(0);
 
   const load = useCallback(() => {
     apiClient
@@ -34,16 +111,26 @@ export const DovedeCityPanel: React.FC<{ defaultOpen?: boolean }> = ({ defaultOp
         setError('');
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Не вдалося завантажити'));
+    setVersion((v) => v + 1);
   }, []);
 
-  useEffect(() => {
-    if (open && !data) load();
-  }, [open, data, load]);
+  useEffect(() => load(), [load]);
 
-  const act = async (what: 'learn' | 'archive' | 'restore' | 'reset') => {
+  const setCity = (next: CityTab) =>
+    setParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (next === 'Kyiv') p.delete('misto');
+        else p.set('misto', next);
+        return p;
+      },
+      { replace: true },
+    );
+
+  const act = async (what: 'archive' | 'restore' | 'reset') => {
     if (
       what === 'reset' &&
-      !window.confirm('Обнулити лічильник «Що питають найчастіше»? Збережені дороги, лінії й зупинки лишаються. Список почне рахувати заново — з питань людей.')
+      !window.confirm('Обнулити лічильник «Що питають»? Збережені дороги, лінії й зупинки лишаються. Список почне рахувати заново — з питань людей.')
     )
       return;
     if (what === 'archive' && !window.confirm('Заархівувати все, що прийшло з Google? Дані лишаться в базі, але у відповіді не підуть. Повернути можна кнопкою «Відновити з архіву».')) return;
@@ -51,10 +138,7 @@ export const DovedeCityPanel: React.FC<{ defaultOpen?: boolean }> = ({ defaultOp
     setBusy(true);
     setNote('');
     try {
-      if (what === 'learn') {
-        const r = await apiClient.dovedeCityLearn();
-        setNote(r.asked ? `Спитано пар: ${r.asked}, отримано відповідей: ${r.learned}.` : 'Оновлювати нічого: усе свіже або вичерпано денний ліміт.');
-      } else if (what === 'reset') {
+      if (what === 'reset') {
         const r = await apiClient.dovedeCityResetDemand();
         setNote(r.reset ? `Лічильник скинуто: пар — ${r.reset}.` : 'Лічильник уже порожній.');
       } else {
@@ -69,24 +153,14 @@ export const DovedeCityPanel: React.FC<{ defaultOpen?: boolean }> = ({ defaultOp
     }
   };
 
-  const cities = data ? [...new Set([...data.routes.map((r) => r.city), ...data.lines.map((r) => r.city), ...data.stops.map((r) => r.city), 'Kyiv', 'Zhytomyr'])].sort() : [];
-  const unanswered = data ? data.demand.filter((d) => !d.answered) : [];
+  const byCity = data ? data.routes.filter((r) => r.city === city) : [];
+  const unanswered = data?.unanswered?.filter((u) => u.city === city).length ?? 0;
 
   return (
     <div className="dovede-syn dovede-city">
-      <div className="dovede-log-head">
-        <h3>Місто: що вже знаємо</h3>
-        <button type="button" className="dovede-log-chip" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-          {open ? 'Згорнути' : 'Показати'}
-        </button>
-      </div>
-      <p className="dovede-log-note">
-        Коли людина питає дорогу до місця в Києві чи Житомирі, «Доведе» шукає її у своїй базі, а якщо там немає — питає Google і запамʼятовує. Чим більше
-        запитів, тим рідше потрібен Google.
-      </p>
       {error ? <p className="dovede-log-error">{error}</p> : null}
-      {open && !data && !error ? <p className="dovede-log-empty">Завантажую…</p> : null}
-      {open && data ? (
+      {!data && !error ? <p className="dovede-log-empty">Завантажую…</p> : null}
+      {data ? (
         <>
           <p className="dovede-log-dim">
             {[
@@ -104,65 +178,48 @@ export const DovedeCityPanel: React.FC<{ defaultOpen?: boolean }> = ({ defaultOp
               .join(' · ')}
           </p>
           <p className="dovede-log-dim">
-            Відповідь свіжа {data.freshDays} днів · ліміт Google {data.dailyCap} на день — змінити в розділі{' '}
-            <Link to={dovedePath('settings')}>«Налаштування»</Link>.
+            Відповідь свіжа {data.freshDays} днів · ліміт Google {data.dailyCap} на день — змінити в розділі <Link to={dovedePath('settings')}>«Налаштування»</Link>; навчити
+            місто — у розділі <Link to={dovedePath('learning')}>«Навчання»</Link>.
           </p>
-          <div className="dovede-log-table-wrap">
-            <table className="dovede-log-table">
-              <thead>
-                <tr>
-                  <th>Місто</th>
-                  <th>Дорог у базі</th>
-                  <th>Ліній</th>
-                  <th>Зупинок</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cities.map((c) => {
-                  const bySource = data.routes.filter((r) => r.city === c);
-                  return (
-                    <tr key={c}>
-                      <td>{CITY[c] ?? c}</td>
-                      <td>{bySource.length ? bySource.map((r) => `${r.count} ${SOURCE[r.source] ?? r.source}`).join(', ') : '0'}</td>
-                      <td>{count(data.lines, c)}</td>
-                      <td>{count(data.stops, c)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+
+          <div className="dv-learn-seg dovede-city-switch" role="radiogroup" aria-label="Місто">
+            {CITIES.map((c) => (
+              <button key={c.id} type="button" role="radio" aria-checked={city === c.id} className={city === c.id ? 'is-on' : ''} onClick={() => setCity(c.id)}>
+                {c.name}
+              </button>
+            ))}
           </div>
-          {data.demand.length ? (
-            <>
-              <h4>Що питають найчастіше</h4>
-              <ul className="dovede-city-demand">
-                {data.demand.slice(0, 12).map((d, i) => (
-                  <li key={i}>
-                    {CITY[d.city] ?? d.city}: {d.from} → {d.to} <span className="dovede-log-dim">— {d.asked} разів{d.answered ? '' : ', відповіді немає'}</span>
-                  </li>
-                ))}
-              </ul>
-              {unanswered.length ? <p className="dovede-log-dim">Без відповіді: {unanswered.length}. Таке місце Google не знайшов або туди не ходить транспорт — людині показано кнопку Google Maps.</p> : null}
-            </>
-          ) : (
-            <p className="dovede-log-empty">Запитів про дорогу містом ще не було.</p>
-          )}
-          <div className="dovede-log-chips" role="group" aria-label="Дії">
-            <button type="button" className="dovede-log-chip" disabled={busy} onClick={() => void act('learn')}>
-              Оновити зараз
-            </button>
-            <button type="button" className="dovede-log-chip" disabled={busy || data.demand.length === 0} onClick={() => void act('reset')}>
-              Скинути лічильник попиту
-            </button>
-            <button type="button" className="dovede-log-chip" disabled={busy} onClick={() => void act('archive')}>
-              Заархівувати все, що з Google
-            </button>
-            <button type="button" className="dovede-log-chip" disabled={busy || data.archivedRoutes === 0} onClick={() => void act('restore')}>
-              Відновити з архіву
-            </button>
-          </div>
-          {note ? <p className="dovede-log-note">{note}</p> : null}
-          <DovedeCityPlaces onChange={load} />
+
+          <StatTiles label={`Що знаємо: ${CITIES.find((c) => c.id === city)?.name}`}>
+            <StatTile label="Дорог у базі" value={num(byCity.reduce((n, r) => n + r.count, 0))} sub={byCity.length ? byCity.map((r) => `${num(r.count)} ${SOURCE[r.source] ?? r.source}`).join(', ') : undefined} />
+            <StatTile label="Ліній" value={num(count(data.lines, city))} />
+            <StatTile label="Зупинок" value={num(count(data.stops, city))} />
+            <StatTile label="Пар без відповіді" value={unanswered >= 100 ? '100+' : num(unanswered)} tone={unanswered ? 'warn' : 'default'} />
+          </StatTiles>
+
+          <CityDemand city={city} version={version} />
+          <DovedeCityPlaces city={city} onChange={load} />
+
+          <details className="dovede-city-danger">
+            <summary>Небезпечна зона</summary>
+            <p className="dovede-log-dim">Дії над усією базою обох міст. Нічого не видаляється: архів ховає дані з Google від відповідей і навчання, «Відновити» повертає.</p>
+            <div className="dovede-log-chips" role="group" aria-label="Дії над усією базою">
+              <button type="button" className="dovede-log-chip" disabled={busy} onClick={() => void act('reset')}>
+                Скинути лічильник попиту
+              </button>
+              <button type="button" className="dovede-log-chip" disabled={busy} onClick={() => void act('archive')}>
+                Заархівувати все, що з Google
+              </button>
+              <button type="button" className="dovede-log-chip" disabled={busy || data.archivedRoutes === 0} onClick={() => void act('restore')}>
+                Відновити з архіву
+              </button>
+            </div>
+          </details>
+          {note ? (
+            <p className="dovede-log-note" role="status">
+              {note}
+            </p>
+          ) : null}
         </>
       ) : null}
     </div>
