@@ -67,6 +67,8 @@ export type CreateAppDeps = {
   zubastykPhones?: ZubastykPhonesStore;
   /** Стеження за джерелами розкладу (transport-source-watch.ts): тести підміняють мережу й сповіщення */
   sourceWatch?: Partial<SourceWatchDeps>;
+  /** Годинник «Факту прибуття» (arrival-reports.ts): вікна прийому, доба рейсу, відсів повторів. Не задано — `new Date()`; тести фіксують час */
+  now?: () => Date;
 };
 
 // Маркер версії коду — змінити при оновленні, щоб у логах Railway було видно новий деплой
@@ -166,6 +168,7 @@ app.use(
     prisma,
     adminPassword: ADMIN_PASSWORD,
     sourceWatch: { notify: sendAdminAlertHtml, ...deps.sourceWatch },
+    ...(deps.now ? { now: deps.now } : {}),
   }),
 );
 

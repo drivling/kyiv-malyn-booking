@@ -21,6 +21,7 @@ const transport_city_1 = require("../transport-city");
 const transport_source_watch_1 = require("../transport-source-watch");
 function createTransportRouter(deps) {
     const { prisma } = deps;
+    const now = deps.now ?? (() => new Date());
     const sourceWatchDeps = {
         fetchText: transport_source_watch_1.fetchSourceText,
         notify: async () => false,
@@ -624,7 +625,8 @@ function createTransportRouter(deps) {
                 res.status(404).json({ error: 'Unknown trip or stop' });
                 return;
             }
-            const built = (0, arrival_reports_1.buildArrivalRow)(input, new Date());
+            const at = now();
+            const built = (0, arrival_reports_1.buildArrivalRow)(input, at);
             if ('error' in built) {
                 res.status(422).json({
                     error: built.error === 'too_old' ? 'Report is too old' : 'Report time is too far from the schedule',
@@ -644,7 +646,7 @@ function createTransportRouter(deps) {
                 }
             }
             const dedupeKey = `${cityCode}|${(0, sticker_scans_1.clientKey)(req.headers, req.ip)}|${row.tripId}|${row.stopId}|${row.serviceDate}|${row.kind}`;
-            if (isRepeatArrival(dedupeKey)) {
+            if (isRepeatArrival(dedupeKey, at.getTime())) {
                 res.json({ ok: true, counted: false, actualTime: row.actualTime, delayMin: row.delayMin });
                 return;
             }
@@ -671,7 +673,7 @@ function createTransportRouter(deps) {
             const cityCode = adminCity(res, req.query.city);
             if (!cityCode)
                 return;
-            res.json(await (0, arrival_reports_1.arrivalReportStats)(prisma, { days: (0, arrival_reports_1.parseReportDays)(req.query.days), cityCode }));
+            res.json(await (0, arrival_reports_1.arrivalReportStats)(prisma, { days: (0, arrival_reports_1.parseReportDays)(req.query.days), cityCode, now: now() }));
         }
         catch (e) {
             console.error('[GET /admin/transport/arrival-reports]', e);

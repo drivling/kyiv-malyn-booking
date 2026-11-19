@@ -41,8 +41,11 @@ export function createTransportRouter(deps: {
   adminPassword?: string;
   /** Стеження за джерелами розкладу: куди слати сповіщення і чим ходити в мережу (тести підміняють) */
   sourceWatch?: Partial<SourceWatchDeps>;
+  /** Годинник «Факту прибуття»: вікна прийому, доба рейсу, відсів повторів (тести фіксують час) */
+  now?: () => Date;
 }): Router {
   const { prisma } = deps;
+  const now = deps.now ?? (() => new Date());
   const sourceWatchDeps: SourceWatchDeps = {
     fetchText: fetchSourceText,
     notify: async () => false,
@@ -624,7 +627,8 @@ export function createTransportRouter(deps: {
         res.status(404).json({ error: 'Unknown trip or stop' });
         return;
       }
-      const built = buildArrivalRow(input, new Date());
+      const at = now();
+      const built = buildArrivalRow(input, at);
       if ('error' in built) {
         res.status(422).json({
           error: built.error === 'too_old' ? 'Report is too old' : 'Report time is too far from the schedule',
@@ -644,7 +648,7 @@ export function createTransportRouter(deps: {
         }
       }
       const dedupeKey = `${cityCode}|${clientKey(req.headers, req.ip)}|${row.tripId}|${row.stopId}|${row.serviceDate}|${row.kind}`;
-      if (isRepeatArrival(dedupeKey)) {
+      if (isRepeatArrival(dedupeKey, at.getTime())) {
         res.json({ ok: true, counted: false, actualTime: row.actualTime, delayMin: row.delayMin });
         return;
       }
@@ -668,7 +672,7 @@ export function createTransportRouter(deps: {
     try {
       const cityCode = adminCity(res, req.query.city);
       if (!cityCode) return;
-      res.json(await arrivalReportStats(prisma, { days: parseReportDays(req.query.days), cityCode }));
+      res.json(await arrivalReportStats(prisma, { days: parseReportDays(req.query.days), cityCode, now: now() }));
     } catch (e) {
       console.error('[GET /admin/transport/arrival-reports]', e);
       res.status(500).json({ error: 'Failed to load arrival reports' });
