@@ -376,12 +376,51 @@
   line-height: 1.4;
 }
 .dovede-city-places li {
+  padding: 6px 0;
+  border-top: 1px solid #eef1f3;
+}
+.dovede-city-place-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 6px 0;
-  border-top: 1px solid #eef1f3;
+}
+.dovede-city-place-actions {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 10px;
+}
+.dovede-city-routes {
+  margin: 6px 0 4px;
+  font-size: 13px;
+}
+.dovede-city-routes tr.is-archived td {
+  color: #6b777e;
+}
+.dovede-city-pages {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 8px;
+}
+.dovede-city-switch {
+  margin: 10px 0;
+}
+.dovede-city .admin-kit-tiles {
+  margin-bottom: 6px;
+}
+.dovede-city-danger {
+  margin-top: 18px;
+  padding: 10px 12px;
+  border: 1px solid #f2c4c4;
+  border-radius: 10px;
+  background: #fffafa;
+}
+.dovede-city-danger summary {
+  color: #991b1b;
+  font-weight: 600;
+  cursor: pointer;
 }
 .dovede-city-places li.is-archived strong {
   font-weight: 500;

@@ -104,6 +104,23 @@ export interface CityStep {
   departs?: string;
 }
 
+/** Одна збережена дорога місця (адмінка «Місто» → «Місця» → розгортка) */
+export interface CityPlaceRoute {
+  from: string;
+  to: string;
+  /** to — від точки до місця, from — від місця */
+  dir: 'to' | 'from';
+  dayType: string;
+  hour: number;
+  minutes: number;
+  source: string;
+  hits: number;
+  fetchedAt: string;
+  archived: boolean;
+  /** «BUS 37», «TRAM 12» */
+  lines: string[];
+}
+
 /** Що відповів би сервер без Google (оцінка кампанії, `peekMany`) */
 export type CityPeek = 'own' | 'fresh' | 'archived' | 'invalid' | 'none';
 
@@ -973,12 +990,47 @@ export function createCityRoutes(deps: CityRoutesDeps) {
    * Обнуляє лічильник попиту (після прогону самонавчання, щоб його пари не стояли поруч із питаннями людей).
    * Рядки лишаються: ці таблиці не видаляються. Збережені дороги, лінії й зупинки не зачеплено.
    */
+  /**
+   * Дороги одного місця (розгортка в адмінці «Місто» → «Місця»): усі збережені — з Google і власні, і в архіві —
+   * від точки й до точки, з типом дня, годиною, хвилинами, лініями й датою; нічого не міняє.
+   */
+  async function placeRouteList(city: CityCode, key: string): Promise<CityPlaceRoute[]> {
+    const rows = await prisma.dovedeCityRoute.findMany({
+      where: { cityCode: city, OR: [{ fromKey: key }, { toKey: key }] },
+      orderBy: [{ archivedAt: 'asc' }, { hits: 'desc' }, { fetchedAt: 'desc' }],
+      take: 200,
+    });
+    return rows.map((r) => ({
+      from: r.fromLabel,
+      to: r.toLabel,
+      dir: r.toKey === key ? 'to' : 'from',
+      dayType: r.dayType,
+      hour: r.hour,
+      minutes: r.minutes,
+      source: r.source,
+      hits: r.hits,
+      fetchedAt: r.fetchedAt.toISOString(),
+      archived: r.archivedAt != null,
+      lines: (Array.isArray(r.steps) ? (r.steps as unknown as CityStep[]) : []).filter((s) => s.kind === 'transit').map((s) => [s.mode ?? '', s.line ?? ''].filter(Boolean).join(' ')),
+    }));
+  }
+
+  /** Що питають люди в місті: усі пари з лічильником > 0 (або лише без відповіді), найчастіші першими */
+  async function demandList(city: CityCode | null, onlyUnanswered: boolean, limit = 500) {
+    const rows = await prisma.dovedeCityDemand.findMany({
+      where: { asked: { gt: 0 }, ...(city ? { cityCode: city } : {}), ...(onlyUnanswered ? { answered: false } : {}) },
+      orderBy: [{ asked: 'desc' }, { lastAskedAt: 'desc' }],
+      take: limit,
+    });
+    return rows.map((d) => ({ city: d.cityCode, fromKey: d.fromKey, toKey: d.toKey, from: d.fromLabel, to: d.toLabel, asked: d.asked, answered: d.answered, lastAskedAt: d.lastAskedAt.toISOString() }));
+  }
+
   async function resetDemand(): Promise<{ reset: number }> {
     const r = await prisma.dovedeCityDemand.updateMany({ where: { asked: { gt: 0 } }, data: { asked: 0 } });
     return { reset: r.count };
   }
 
-  return { find, campaignAsk, peekMany, googleBudget, learnTick, stats, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays, setDailyCap };
+  return { find, campaignAsk, peekMany, googleBudget, learnTick, stats, placeRouteList, demandList, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays, setDailyCap };
 }
 
 export type CityRoutes = ReturnType<typeof createCityRoutes>;

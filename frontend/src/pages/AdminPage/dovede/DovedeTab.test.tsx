@@ -217,10 +217,11 @@ describe('DovedeTab', () => {
     expect(screen.getByRole('button', { name: '30 днів' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('«Місто» відкрите одразу', async () => {
+  it('«Місто»: місто з адреси, дані одразу', async () => {
     mock();
-    renderAt('/admin/dovede/city');
-    expect(await screen.findByRole('button', { name: 'Скинути лічильник попиту' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Згорнути' })).toBeInTheDocument();
+    server.use(http.get(`${TEST_API_URL}/admin/dovede/city/demand`, () => HttpResponse.json({ demand: [] })));
+    renderAt('/admin/dovede/city?misto=Zhytomyr');
+    expect(await screen.findByRole('group', { name: 'Що знаємо: Житомир' })).toBeInTheDocument();
+    expect(screen.getByText('Небезпечна зона')).toBeInTheDocument();
   });
 });

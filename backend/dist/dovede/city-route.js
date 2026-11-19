@@ -856,11 +856,44 @@ function createCityRoutes(deps) {
      * Обнуляє лічильник попиту (після прогону самонавчання, щоб його пари не стояли поруч із питаннями людей).
      * Рядки лишаються: ці таблиці не видаляються. Збережені дороги, лінії й зупинки не зачеплено.
      */
+    /**
+     * Дороги одного місця (розгортка в адмінці «Місто» → «Місця»): усі збережені — з Google і власні, і в архіві —
+     * від точки й до точки, з типом дня, годиною, хвилинами, лініями й датою; нічого не міняє.
+     */
+    async function placeRouteList(city, key) {
+        const rows = await prisma.dovedeCityRoute.findMany({
+            where: { cityCode: city, OR: [{ fromKey: key }, { toKey: key }] },
+            orderBy: [{ archivedAt: 'asc' }, { hits: 'desc' }, { fetchedAt: 'desc' }],
+            take: 200,
+        });
+        return rows.map((r) => ({
+            from: r.fromLabel,
+            to: r.toLabel,
+            dir: r.toKey === key ? 'to' : 'from',
+            dayType: r.dayType,
+            hour: r.hour,
+            minutes: r.minutes,
+            source: r.source,
+            hits: r.hits,
+            fetchedAt: r.fetchedAt.toISOString(),
+            archived: r.archivedAt != null,
+            lines: (Array.isArray(r.steps) ? r.steps : []).filter((s) => s.kind === 'transit').map((s) => [s.mode ?? '', s.line ?? ''].filter(Boolean).join(' ')),
+        }));
+    }
+    /** Що питають люди в місті: усі пари з лічильником > 0 (або лише без відповіді), найчастіші першими */
+    async function demandList(city, onlyUnanswered, limit = 500) {
+        const rows = await prisma.dovedeCityDemand.findMany({
+            where: { asked: { gt: 0 }, ...(city ? { cityCode: city } : {}), ...(onlyUnanswered ? { answered: false } : {}) },
+            orderBy: [{ asked: 'desc' }, { lastAskedAt: 'desc' }],
+            take: limit,
+        });
+        return rows.map((d) => ({ city: d.cityCode, fromKey: d.fromKey, toKey: d.toKey, from: d.fromLabel, to: d.toLabel, asked: d.asked, answered: d.answered, lastAskedAt: d.lastAskedAt.toISOString() }));
+    }
     async function resetDemand() {
         const r = await prisma.dovedeCityDemand.updateMany({ where: { asked: { gt: 0 } }, data: { asked: 0 } });
         return { reset: r.count };
     }
-    return { find, campaignAsk, peekMany, googleBudget, learnTick, stats, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays, setDailyCap };
+    return { find, campaignAsk, peekMany, googleBudget, learnTick, stats, placeRouteList, demandList, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays, setDailyCap };
 }
 /** Найближчий будень о 09:00 за Києвом (взимку UTC+2, влітку UTC+3 — похибка в годину для навчання неважлива) */
 function nextWeekdayMorning(now) {

@@ -1433,6 +1433,35 @@ export interface DovedeCityStats {
   unanswered?: Array<{ city: string; fromKey: string; toKey: string; from: string; to: string; asked: number }>;
 }
 
+/** «Доведе» · одна збережена дорога місця (GET /admin/dovede/city/place/routes) */
+export interface DovedeCityPlaceRoute {
+  from: string;
+  to: string;
+  /** to — від точки до місця, from — від місця */
+  dir: 'to' | 'from';
+  dayType: string;
+  hour: number;
+  minutes: number;
+  source: string;
+  hits: number;
+  fetchedAt: string;
+  archived: boolean;
+  /** «BUS 37», «TRAM 12» */
+  lines: string[];
+}
+
+/** «Доведе» · пара, яку питали люди (GET /admin/dovede/city/demand) */
+export interface DovedeCityDemandRow {
+  city: string;
+  fromKey: string;
+  toKey: string;
+  from: string;
+  to: string;
+  asked: number;
+  answered: boolean;
+  lastAskedAt: string;
+}
+
 /** «Доведе» · одне налаштування з розділу «Налаштування» (GET /admin/dovede/settings) */
 export interface DovedeSettingView {
   key: string;

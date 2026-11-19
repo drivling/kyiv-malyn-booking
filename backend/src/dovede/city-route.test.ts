@@ -730,3 +730,47 @@ test('кампанія: peekMany — свіже в базі, власні дан
   const b = await t.svc.googleBudget();
   assert.deepEqual({ calls: b.calls, cap: b.cap, hasKey: b.hasKey, enabled: b.enabled, blocked: b.blocked }, { calls: 1, cap: 10, hasKey: true, enabled: true, blocked: null });
 });
+
+test('адмінка «Місто»: дороги одного місця (і в архіві) й список попиту по місту', async () => {
+  const t = make();
+  await t.svc.find(Q);
+  await t.svc.find({ ...Q, from: 'Польова 12', to: 'zhytomyr.avtovokzal' });
+  t.dovedeCityRoute.rows[1].archivedAt = new Date('2026-11-16T00:00:00.000Z');
+  const routes = await t.svc.placeRouteList('Zhytomyr', 'польова 12');
+  assert.equal(routes.length, 2);
+  assert.deepEqual(
+    routes.map((r) => [r.dir, r.from, r.to, r.minutes, r.archived, r.lines]),
+    [
+      ['to', 'автовокзал Житомир-1', 'Польова 12', 22, false, ['BUS 121']],
+      ['from', 'Польова 12', 'автовокзал Житомир-1', 22, true, ['BUS 121']],
+    ],
+  );
+  assert.deepEqual(await t.svc.placeRouteList('Kyiv', 'польова 12'), []);
+
+  t.dovedeCityDemand.rows.push({ id: 99, cityCode: 'Kyiv', fromKey: 'kyiv.akadem', toKey: 'охматдит', fromLabel: 'Академмістечко', toLabel: 'Охматдит', asked: 4, answered: false, lastAskedAt: new Date('2026-11-17T09:00:00.000Z') });
+  const zt = await t.svc.demandList('Zhytomyr', false);
+  assert.deepEqual(zt.map((d) => [d.city, d.to, d.answered]), [['Zhytomyr', 'Польова 12', true], ['Zhytomyr', 'автовокзал Житомир-1', true]]);
+  assert.deepEqual((await t.svc.demandList(null, true)).map((d) => d.to), ['Охматдит']);
+});
+
+test('HTTP адмінки «Місто»: дороги місця й попит — лише адміну, з перевіркою параметрів', async () => {
+  const { default: express } = await import('express');
+  const { default: request } = await import('supertest');
+  const { createAdminDovedeRouter } = await import('../routes/admin-dovede');
+  const { adminAuthToken, setAdminPassword } = await import('../middleware/require-admin');
+  const t = make();
+  await t.svc.find(Q);
+  const app = express();
+  app.use(express.json());
+  setAdminPassword(app, 'city-http');
+  app.use(createAdminDovedeRouter({ prisma: t.prisma, understand: null, settings: createDovedeSettings({ prisma: t.prisma, env: {} }), cityRoutes: t.svc, driveTime: async () => ({ minutes: 95, source: 'fixed' }) }));
+  const AUTH = adminAuthToken('city-http');
+  assert.equal((await request(app).get('/admin/dovede/city/place/routes?city=Zhytomyr&key=x')).status, 401);
+  assert.equal((await request(app).get('/admin/dovede/city/place/routes?city=Lviv&key=x').set('Authorization', AUTH)).status, 400);
+  const r = await request(app).get(`/admin/dovede/city/place/routes?city=Zhytomyr&key=${encodeURIComponent('польова 12')}`).set('Authorization', AUTH);
+  assert.equal(r.status, 200);
+  assert.equal(r.body.routes[0].to, 'Польова 12');
+  assert.equal((await request(app).get('/admin/dovede/city/demand?only=all').set('Authorization', AUTH)).status, 400);
+  const d = await request(app).get('/admin/dovede/city/demand?city=Zhytomyr').set('Authorization', AUTH);
+  assert.equal(d.body.demand[0].to, 'Польова 12');
+});

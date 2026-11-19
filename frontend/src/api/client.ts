@@ -1153,6 +1153,16 @@ class ApiClient {
     return this.request('/admin/dovede/settings', { method: 'PUT', body: JSON.stringify({ key, value }) });
   }
 
+  /** Адмін: усі збережені дороги одного місця (і в архіві) */
+  async getDovedeCityPlaceRoutes(city: string, key: string): Promise<{ routes: import('@/types').DovedeCityPlaceRoute[] }> {
+    return this.request(`/admin/dovede/city/place/routes?city=${encodeURIComponent(city)}&key=${encodeURIComponent(key)}`);
+  }
+
+  /** Адмін: що питають люди в місті (до 500 пар); `onlyUnanswered` — лише без відповіді */
+  async getDovedeCityDemand(city: string, onlyUnanswered = false): Promise<{ demand: import('@/types').DovedeCityDemandRow[] }> {
+    return this.request(`/admin/dovede/city/demand?city=${encodeURIComponent(city)}${onlyUnanswered ? '&only=unanswered' : ''}`);
+  }
+
   /** Адмін: місця словами зі збереженими дорогами й місця в архіві */
   async getDovedeCityPlaces(): Promise<{ places: import('@/types').DovedeCityPlace[] }> {
     return this.request('/admin/dovede/city/places');
