@@ -246,7 +246,7 @@ of `dist` in a commit.
   only what was changed (`DovedeSetting` keys `page.<key>`, value `{ v }`, so «changed to null» ≠ «default»;
   `GET` / `PUT /admin/dovede/page-data`), the page reads `GET /dovede/page-data` once per open
   (`DovedePage/data/pageData.ts` → `applyMetroData`) and an answer waits for it at most 1.5 s. New page data = a
-  registry entry with its check + where the page applies it. A metro step that is only that bus is never worded as metro: `metroPhrase` in
+  registry entry with its check + where the page applies it (now: `metro.shuttle`, `metro.service`, `ring.extra`). A metro step that is only that bus is never worded as metro: `metroPhrase` in
   `compose/narrate.ts` says «автобус №318 замість метро до…», and `MetroCard` opens with «Поїзди метро тут не ходять» and
   drops the token, turnstile and train-headway lines. Golden sets: `eval/kyiv-metro.json`
   (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in
@@ -255,7 +255,8 @@ of `dist` in a commit.
   `scripts/kyiv-ring-snapshot.mjs` + pure `kyiv-ring-parser.mjs`) keeps `data/kyiv-city-express/source/trains.json` (the
   carrier's timetable pages: 20 stations, trains «А» clockwise, «Б» counter-clockwise, «Д» extra half-ring Почайна —
   Дарниця — Видубичі) and, with the manual `config.json` (`extra`: dates the «Д» trains run — 17–20 Nov 2026, they
-  disappear from answers by themselves after `to`; `arrivals`: arrival at Дарниця), writes
+  disappear from answers by themselves after `to`; the owner extends or cancels them in the admin without a deploy —
+  page data `ring.extra`, `applyRingData` / `ringTrainWindow` in `data/kyivRing.ts`; `arrivals`: arrival at Дарниця), writes
   `DovedePage/data/kyivRingTimetable.json` — never edit it by hand, a test keeps it equal to the generator. Stations:
   `nlu/kyivRingData.ts` (byte-identical copy in `backend/src/dovede/`, ids `kyiv.e.<slug>`, `kyiv.borshch` kept): the
   seven next to a metro station (`metro`, `walkMin`) stay metro places in a question, the other 13 are places of their

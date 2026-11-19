@@ -4,6 +4,7 @@
  * типовою з коду. Відповідь чекає на них не довше `READY_WAIT_MS`: повільна мережа не тримає людину.
  */
 import { applyMetroData } from './kyivMetroService';
+import { applyRingData } from './kyivRing';
 
 export const READY_WAIT_MS = 1500;
 
@@ -12,6 +13,7 @@ let ready: Promise<void> | null = null;
 /** Розкласти дані з адмінки по модулях сторінки */
 export function applyPageData(values: Record<string, unknown>): void {
   applyMetroData(values);
+  applyRingData(values);
 }
 
 /** Прочитати один раз на сторінку (повторний виклик — той самий запит); помилка — лишаються типові */
