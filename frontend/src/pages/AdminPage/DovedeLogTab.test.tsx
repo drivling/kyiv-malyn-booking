@@ -12,7 +12,7 @@ import { TEST_API_URL } from '@/test/msw/handlers';
 import type { TripIntent } from '@/pages/DovedePage/nlu/types';
 import type { DovedeLog, DovedeLogItem } from '@/types';
 import DovedeLogTab from './DovedeLogTab';
-import { intentLine } from './dovedeLogText';
+import { intentLine, questionLink } from './dovedeLogText';
 
 const INTENT: TripIntent = {
   intent: 'trip',
@@ -105,7 +105,10 @@ describe('DovedeLogTab', () => {
 
     const rows = within(screen.getAllByRole('table')[1]).getAllByRole('row');
     expect(rows).toHaveLength(4);
-    expect(within(rows[1]).getByText('не впізнано: епіцентру')).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/не впізнано:/)).toHaveTextContent('не впізнано: епіцентру');
+    // невпізнане слово — одразу в «Словник»; питання — відкрити як людина
+    expect(within(rows[1]).getByRole('link', { name: 'епіцентру' })).toHaveAttribute('href', '/admin/dovede/dictionary?word=%D0%B5%D0%BF%D1%96%D1%86%D0%B5%D0%BD%D1%82%D1%80%D1%83');
+    expect(within(rows[1]).getByRole('link', { name: 'Відкрити як людина: як доїхати до епіцентру' })).toHaveAttribute('target', '_blank');
     expect(within(rows[1]).getByText('ШІ не відповів')).toBeInTheDocument();
     expect(within(rows[1]).getByText('не встиг')).toBeInTheDocument();
     // розбіжність — обидва розбори
@@ -114,13 +117,18 @@ describe('DovedeLogTab', () => {
     expect(within(rows[3]).getByText('2,1 с')).toBeInTheDocument();
   });
 
-  it('період і фільтр ідуть у запит', async () => {
+  it('період і фільтр — одна панель над списком і йдуть у запит', async () => {
     const seen = mock();
     renderTab();
     await screen.findByText('75%');
+    const period = screen.getByRole('group', { name: 'Період' });
+    const filter = screen.getByRole('group', { name: 'Фільтр' });
+    expect(period.parentElement).toBe(filter.parentElement);
+    expect(screen.getByRole('heading', { name: 'Питання · 7 днів' })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: '30 днів' }));
     await userEvent.click(screen.getByRole('button', { name: 'Невпізнані слова' }));
     await waitFor(() => expect(seen).toEqual(['?days=7', '?days=30', '?days=30&only=unknown']));
+    expect(await screen.findByRole('heading', { name: 'Питання · невпізнані слова · 30 днів' })).toBeInTheDocument();
   });
 
   it('без ключа на сервері — попередження', async () => {
@@ -138,5 +146,22 @@ describe('intentLine', () => {
     expect(intentLine({ ...INTENT, intent: 'route', from: null, to: null, when: { day: 'today', kind: 'any' }, modes: [], routes: ['5'] }, label)).toBe('маршрут · №5');
     expect(intentLine({ ...INTENT, when: { day: 'today', kind: 'any' }, modes: [], avoidRoutes: ['7'] }, label)).toBe('city.Kyiv → malyn.vokzal · крім №7');
     expect(intentLine({ ...INTENT, when: { day: 'today', time: '17:00', kind: 'arrive' }, modes: [] }, label)).toBe('city.Kyiv → malyn.vokzal · сьогодні бути о 17:00');
+  });
+});
+
+describe('questionLink — «Відкрити як людина»', () => {
+  const today = '2026-11-19';
+  it('відповідь з розбору: місця, день від сьогодні, час, транспорт, слова питання', () => {
+    const url = new URL(questionLink({ text: 'з Києва на вокзал завтра о 8', ai: INTENT, local: null }, today), 'https://x');
+    expect(url.pathname).toBe('/dovede');
+    expect(Object.fromEntries(url.searchParams)).toEqual({ f: 'city.Kyiv', t: 'malyn.vokzal', d: '2026-11-20', h: '08:00', m: 'marshrutka', q: 'з Києва на вокзал завтра о 8' });
+  });
+  it('браузерний розбір, коли Claude не відповів; минула дата — сьогодні', () => {
+    const url = new URL(questionLink({ text: 'питання', ai: null, local: { ...INTENT, when: { day: '2026-11-01', kind: 'any' } } }, today), 'https://x');
+    expect(url.searchParams.get('d')).toBe(today);
+  });
+  it('ціна, контакти, без місць — лише слова питання', () => {
+    expect(questionLink({ text: 'скільки коштує', ai: { ...INTENT, intent: 'price' }, local: null }, today)).toBe('/dovede?q=%D1%81%D0%BA%D1%96%D0%BB%D1%8C%D0%BA%D0%B8+%D0%BA%D0%BE%D1%88%D1%82%D1%83%D1%94');
+    expect(questionLink({ text: '   ', ai: null, local: null }, today)).toBe('/dovede');
   });
 });
