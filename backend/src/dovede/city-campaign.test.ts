@@ -156,7 +156,7 @@ const fail = (reason: 'no_route' | 'cap' | 'denied' | 'error' | 'archived' | 'di
 
 /** Дорога містом-заглушка: відповідь за питанням; Google «рахує» лише відповіді з `google: true` */
 function stubRoutes(reply: (q: CityRouteQuery) => { answer: CityRouteAnswer; google: boolean }, peek: (q: CityRouteQuery) => CityPeek = () => 'none') {
-  const budget = { calls: 0, cap: 1000, refused: 0, blocked: null as 'cap' | 'denied' | null, hasKey: true, enabled: true };
+  const budget = { calls: 0, cap: 1000, refused: 0, blocked: null as 'cap' | 'denied' | null, hasKey: true, enabled: true, lastError: null as { status: number; message: string } | null };
   const asks: CityRouteQuery[] = [];
   const routes = {
     campaignAsk: async (q: CityRouteQuery) => {
@@ -174,12 +174,21 @@ function stubRoutes(reply: (q: CityRouteQuery) => { answer: CityRouteAnswer; goo
 // середа 19 листопада 2026, 12:00 за Києвом
 const NOW = new Date('2026-11-19T10:00:00.000Z');
 
-function make(reply: Parameters<typeof stubRoutes>[0], over: { peek?: (q: CityRouteQuery) => CityPeek; holder?: string } = {}) {
+function make(reply: Parameters<typeof stubRoutes>[0], over: { peek?: (q: CityRouteQuery) => CityPeek; holder?: string; suspicious?: number } = {}) {
   const db = fakeDb();
   const stub = stubRoutes(reply, over.peek);
   let now = NOW;
-  const svc = createCityCampaigns({ prisma: db.prisma, cityRoutes: stub.routes, now: () => now, holder: over.holder ?? 'test', log: () => undefined });
-  return { ...db, ...stub, svc, setNow: (d: Date) => (now = d), getNow: () => now };
+  const sent: string[] = [];
+  const svc = createCityCampaigns({
+    prisma: db.prisma,
+    cityRoutes: stub.routes,
+    now: () => now,
+    holder: over.holder ?? 'test',
+    log: () => undefined,
+    notify: async (html) => sent.push(html),
+    ...(over.suspicious !== undefined ? { suspicious: async () => over.suspicious! } : {}),
+  });
+  return { ...db, ...stub, svc, sent, setNow: (d: Date) => (now = d), getNow: () => now };
 }
 
 const CUSTOM = { preset: 'custom', city: 'Zhytomyr', options: { places: 'Житній ринок\nОбласна лікарня', dirs: ['to' as const], extra: 'weekday@17', maxDepth: 1 }, budget: 100, dailyBudget: 100 };
@@ -435,7 +444,7 @@ test('HTTP: лише адмін; заготовки, оцінка, запуск,
   const presets = await request(app).get('/admin/dovede/city/campaigns/presets').set('Authorization', AUTH);
   assert.deepEqual(
     presets.body.presets.map((p: { id: string }) => p.id),
-    ['learn', 'refill-evening', 'refill-weekend', 'refill-morning', 'unanswered', 'modes', 'custom'],
+    ['learn', 'refill-evening', 'refill-weekend', 'refill-morning', 'refresh', 'unanswered', 'modes', 'custom'],
   );
   const zt = presets.body.presets[0].cities.find((c: { city: string }) => c.city === 'Zhytomyr');
   assert.deepEqual({ main: zt.main, extra: zt.extra, maxDepth: zt.maxDepth }, { main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 });
@@ -457,4 +466,80 @@ test('HTTP: лише адмін; заготовки, оцінка, запуск,
   assert.equal((await request(app).post(`/admin/dovede/city/campaigns/${made.body.id}/action`).set('Authorization', AUTH).send({ action: 'archive' })).status, 409);
   const paused = await request(app).post(`/admin/dovede/city/campaigns/${made.body.id}/action`).set('Authorization', AUTH).send({ action: 'pause' });
   assert.equal(paused.body.status, 'paused');
+});
+
+test('«Освіжити застаріле»: лише відповіді Google, старші за строк свіжості, — на їхній тип дня й годину; без нових місць', async () => {
+  const t = make(() => ({ answer: ok([ride('Автовокзал', 'Житній ринок', 'Площа Перемоги')]), google: true }));
+  const old = new Date('2026-10-01T00:00:00.000Z');
+  const base = { cityCode: 'Zhytomyr', source: 'google', archivedAt: null, hits: 0, fromKey: 'zhytomyr.avtovokzal', fromLabel: 'автовокзал', toKey: 'житній ринок', toLabel: 'Житній ринок' };
+  t.dovedeCityRoute.rows.push(
+    { id: 1, ...base, dayType: 'weekday', hour: 9, fetchedAt: old },
+    { id: 2, ...base, dayType: 'saturday', hour: 17, fetchedAt: old },
+    // назад, від місця до точки
+    { id: 3, ...base, fromKey: 'житній ринок', fromLabel: 'Житній ринок', toKey: 'zhytomyr.avtovokzal', toLabel: 'автовокзал', dayType: 'weekday', hour: 18, fetchedAt: old },
+    // свіже, в архіві, свої дані — ні
+    { id: 4, ...base, toKey: 'польова 12', toLabel: 'Польова 12', dayType: 'weekday', hour: 9, fetchedAt: new Date('2026-11-18T00:00:00.000Z') },
+    { id: 5, ...base, toKey: 'музична школа', toLabel: 'Музична школа', dayType: 'weekday', hour: 9, fetchedAt: old, archivedAt: old },
+    { id: 6, ...base, toKey: 'кінотеатр', toLabel: 'Кінотеатр', dayType: 'weekday', hour: 9, fetchedAt: old, source: 'own' },
+  );
+  const pv = await t.svc.preview({ preset: 'refresh', city: 'Zhytomyr' });
+  assert.deepEqual([pv.estimate.places, pv.estimate.asks, pv.estimate.maxDepth, pv.estimate.extraSlots, pv.plan.ownSlots], [2, 3, 0, 0, true]);
+  await t.svc.create({ preset: 'refresh', city: 'Zhytomyr', budget: 10, dailyBudget: 10 });
+  await untilIdle(t.svc);
+  assert.deepEqual(t.asks.map((q) => `${q.from}→${q.to}@${q.date}T${q.time}`).sort(), [
+    'zhytomyr.avtovokzal→Житній ринок@2026-11-20T09:00',
+    'zhytomyr.avtovokzal→Житній ринок@2026-11-21T17:00',
+    'Житній ринок→zhytomyr.avtovokzal@2026-11-20T18:00',
+  ].sort());
+  assert.equal(t.dovedeCityCampaignPlace.rows.length, 2);
+});
+
+test('звіт після завершення: без дороги %, відкинуті як сміття назви, підозрілі; повідомлення в адмін-чат', async () => {
+  const t = make(
+    (q) =>
+      q.to === 'Житній ринок'
+        ? { answer: ok([ride('Автовокзал', 'Супермаркет', 'Площа Перемоги'), ride('Супермаркет', 'Житній ринок', 'Кінцева')]), google: true }
+        : { answer: fail('no_route'), google: true },
+    { suspicious: 3 },
+  );
+  const c = await t.svc.create({ ...CUSTOM, options: { ...CUSTOM.options, extra: '', maxDepth: 1 } });
+  await untilIdle(t.svc);
+  const v = (await t.svc.get(c.id))!;
+  assert.equal(v.status, 'done');
+  assert.deepEqual(v.report?.filtered, [
+    { name: 'Кінцева', count: 1 },
+    { name: 'Супермаркет', count: 1 },
+  ]);
+  assert.equal(v.report?.suspicious, 3);
+  assert.equal(v.report?.noRoutePct, Math.round((v.noRoute / v.asked) * 100));
+  assert.equal(t.sent.length, 1);
+  assert.match(t.sent[0], /🎓 <b>Навчання «Свій список — Житомир» завершено<\/b>/);
+  assert.match(t.sent[0], /Підозрілих доріг у місті: 3/);
+  assert.match(t.sent[0], /https:\/\/malin\.kiev\.ua\/admin\/dovede\/learning/);
+});
+
+test('Google відмовив у доступі (403): власнику пишемо один раз з текстом Google; після вдалої відповіді — знову можна', async () => {
+  let deny = true;
+  const t = make(() => {
+    if (deny) {
+      t.budget.lastError = { status: 403, message: 'Requests to this API are blocked.' };
+      return { answer: fail('denied'), google: false };
+    }
+    return { answer: fail('no_route'), google: true };
+  });
+  const c = await t.svc.create({ ...CUSTOM, options: { ...CUSTOM.options, places: 'А1 місце\nБ2 місце\nВ3 місце', extra: '', maxDepth: 0 } });
+  await t.svc.tick();
+  assert.equal((await t.svc.get(c.id))!.waitReason, 'denied');
+  assert.equal(t.sent.length, 1);
+  assert.match(t.sent[0], /Google відмовив у доступі/);
+  assert.match(t.sent[0], /HTTP 403\): «Requests to this API are blocked\.»/);
+  // через пів години — та сама відмова: не пишемо вдруге
+  t.setNow(new Date(NOW.getTime() + 31 * 60_000));
+  await t.svc.tick();
+  assert.equal(t.sent.length, 1);
+  // Google знову відповідає — позначку скинуто, наступна відмова — нове повідомлення
+  deny = false;
+  t.setNow(new Date(NOW.getTime() + 62 * 60_000));
+  await t.svc.tick();
+  assert.equal(t.dovedeCityCampaign.rows[0].alertedReason, null);
 });

@@ -345,8 +345,21 @@ of `dist` in a commit.
   spent of budget, pause / resume / cancel / add budget / hide and the latest answers; «Нова кампанія» — city, preset,
   points, directions, hours as a day × hour grid (`learn/hours.ts` ↔ `weekday@09`), depth → «Оцінити» → the approved
   budget and daily share → «Почати» (only what was estimated; any change clears the estimate); «Крок зараз» of the
-  background learning. Огляд shows the learning pill and tile and, under «Потребує уваги», a campaign out of budget and
-  the last finished run.
+  background learning. Огляд shows the learning pill and tile and, under «Потребує уваги», a campaign out of budget, the
+  last finished run and the count of suspicious roads.
+  **Quality report** (step 8, `src/dovede/city-quality.ts`, pure `findSuspicious`): Google answers (not archived) of
+  «arrival point ↔ place in words» pairs flagged as `next_to_point` (≤ 5 min), `near_far_points` (Kyiv: from the west
+  metro points and from the station together < 20 min), `asymmetric` (there and back on one day type ≥ 2× and ≥ 20 min
+  apart) and `walk_only` (no ride, ≥ 25 min). `GET /admin/dovede/city/quality?city=`; «Нормально»
+  (`POST /admin/dovede/city/place/ok { city, key, ok }`) sets `DovedeCityPlace.okAt`, which hides the place from the
+  report and archives nothing; «В архів» is the per-place archive. Block «Якість» at the bottom of «Навчання» (`#quality`,
+  `learn/QualityPanel.tsx`; «Відкрити як людина» = `humanLink` in `learn/campaignText.ts`: Kyiv — the point id plus the
+  place in words, Zhytomyr — a trip from `malyn.avtostantsiya`, so the page asks exactly the stored pair). A finished
+  campaign's `report` adds the no-route share, the names the walk dropped as rubbish (`rejectedNames` in `crawl-core.ts`,
+  stored per ask in `DovedeCityCampaignAsk.filtered`) and the city's suspicious count; the owner gets an admin-chat
+  message when a campaign finishes or runs out of budget, and once (`alertedReason`, reset by the next answered Google
+  ask) when Google refuses access (403). Preset «Освіжити застаріле» (`refresh`) re-asks Google answers older than
+  `city.freshDays` on their own day type and hour (`CampaignSeed.slots`, `plan.ownSlots`), no new places.
   The same block has «Скинути лічильник попиту» (`POST /admin/dovede/city/demand/reset`): it sets `asked = 0` and
   deletes nothing; a row with `asked = 0` is in neither the list nor the learning queue until a person asks again.
   `GET /dovede/city-route?…&learn=1` with the admin token is the learning mode (`find(q, true)`): same answer, same

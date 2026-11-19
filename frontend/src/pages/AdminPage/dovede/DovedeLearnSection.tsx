@@ -5,6 +5,7 @@ import type { DovedeCampaign, DovedeCampaignList } from '@/types';
 import { AdminSectionHeader, EmptyState } from '../kit';
 import { CampaignCard } from './learn/CampaignCard';
 import { NewCampaign } from './learn/NewCampaign';
+import { QualityPanel } from './learn/QualityPanel';
 import { isActive, isOpen, num } from './learn/campaignText';
 import { dovedePath } from './sections';
 import './learn/learn.css';
@@ -129,6 +130,7 @@ export const DovedeLearnSection: React.FC = () => {
         </div>
         <NewCampaign onStarted={started} />
       </div>
+      <QualityPanel />
     </section>
   );
 };

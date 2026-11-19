@@ -802,9 +802,19 @@ export function createCityRoutes(deps: CityRoutesDeps) {
   }
 
   /** Стан денного обліку Google для кампаній: скільки питали, ліміт, скільки людям відмовили, чи пауза після відмови */
-  async function googleBudget(): Promise<{ calls: number; cap: number; refused: number; blocked: 'cap' | 'denied' | null; hasKey: boolean; enabled: boolean }> {
+  async function googleBudget(): Promise<{
+    calls: number;
+    cap: number;
+    refused: number;
+    blocked: 'cap' | 'denied' | null;
+    hasKey: boolean;
+    enabled: boolean;
+    /** остання відмова Google за сьогодні з її текстом (для сповіщення власнику) */
+    lastError: { status: number; message: string } | null;
+  }> {
     const [calls, cap, row, blocked, on] = await Promise.all([callsToday(), capNow(), dayRow(), blockedNow(), enabled()]);
-    return { calls, cap, refused: row?.refused ?? 0, blocked, hasKey: Boolean(deps.key()), enabled: on && store() };
+    const lastError = row?.lastErrorStatus ? { status: row.lastErrorStatus, message: row.lastErrorMessage ?? '' } : googleError ? { status: googleError.status, message: googleError.message } : null;
+    return { calls, cap, refused: row?.refused ?? 0, blocked, hasKey: Boolean(deps.key()), enabled: on && store(), lastError };
   }
 
   /** Зведення для адмінки */

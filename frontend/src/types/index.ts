@@ -1471,6 +1471,8 @@ export interface DovedeCampaignPreset {
   help: string;
   /** власник пише свій список місць */
   custom: boolean;
+  /** години — свої в кожного місця («Освіжити застаріле»), власник їх не вибирає */
+  ownSlots?: boolean;
   cities: Array<{
     city: DovedeCampaignCity;
     name: string;
@@ -1492,6 +1494,34 @@ export interface DovedeCampaignPlanView {
   extra: string;
   maxDepth: number;
   seeds: number;
+  ownSlots?: boolean;
+}
+
+/** Звіт після завершення кампанії */
+export interface DovedeCampaignReport {
+  byDepth: Array<{ depth: number; places: number }>;
+  noRoute: string[];
+  noRoutePct?: number;
+  /** назви з відповідей, які обхід відкинув як сміття */
+  filtered?: Array<{ name: string; count: number }>;
+  /** підозрілих доріг у місті на момент завершення */
+  suspicious?: number | null;
+}
+
+/** «Доведе» · підозріле місце у звіті якості (GET /admin/dovede/city/quality) */
+export interface DovedeQualityItem {
+  city: DovedeCampaignCity;
+  key: string;
+  label: string;
+  reasons: Array<{ code: 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only'; text: string }>;
+  routes: Array<{ origin: string; originLabel: string; dir: DovedeCampaignDir; dayType: string; hour: number; minutes: number; rides: number }>;
+}
+
+export interface DovedeQualityReport {
+  items: DovedeQualityItem[];
+  /** скільки місць перевірено й скільки власник визнав нормальними */
+  places: number;
+  okPlaces: number;
 }
 
 /** Оцінка до старту (POST /admin/dovede/city/campaigns/preview) */
@@ -1549,7 +1579,7 @@ export interface DovedeCampaign {
   left: number;
   lastError: string | null;
   plan: DovedeCampaignPlanView;
-  report: { byDepth: Array<{ depth: number; places: number }>; noRoute: string[] } | null;
+  report: DovedeCampaignReport | null;
   createdAt: string;
   startedAt: string | null;
   finishedAt: string | null;

@@ -347,6 +347,38 @@ interface UnansweredRow {
 }
 
 /**
+ * Назви з відповіді, які обхід відкинув би як сміття (загальні слова, обрізані сторінкою, не місце для сторінки), — для
+ * звіту якості кампанії. Ті самі правила, що в `candidates`; зупинку посадки біля точки не рахуємо (її беруть не як
+ * сміття, а як саму точку), залізницю й метро — теж.
+ */
+export function rejectedNames(
+  steps: CrawlStep[],
+  { dir = 'to', siteForm = plainForm, exclude = [] }: { dir?: CrawlDir; siteForm?: (name: string) => string | null; exclude?: string[] } = {},
+): string[] {
+  const rides = steps.filter((s): s is Extract<CrawlStep, { mode: string }> => s.walk == null);
+  const seen = new Set(exclude.map(normalizeKey));
+  const out: string[] = [];
+  const check = (name: string | undefined) => {
+    const clean = String(name ?? '').replace(/\s+/g, ' ').trim();
+    if (!clean) return;
+    const key = normalizeKey(clean);
+    if (seen.has(key)) return;
+    seen.add(key);
+    // станцію метро «Доведе» знає сама — це не сміття
+    if (looksLikeMetro(clean)) return;
+    const form = usableName(clean) ? siteForm(clean) : null;
+    if (!form || !usableName(form) || CUT_TAIL.test(normalizeKey(form))) out.push(clean);
+  };
+  rides.forEach((s, i) => {
+    if (RAIL_MODES.test(s.mode ?? '')) return;
+    if (!(dir === 'to' && i === 0)) check(s.from);
+    if (!(dir === 'from' && i === rides.length - 1)) check(s.to);
+    check(s.head);
+  });
+  return out;
+}
+
+/**
  * Питання людей, на які сервер не знайшов відповіді (`unanswered` з GET /admin/dovede/city), → з чого почати:
  * один кінець пари — id точки, другий — слова людини. Пари «слова — слова» і «точка — точка» сторінка не шле.
  */

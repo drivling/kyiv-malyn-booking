@@ -33,10 +33,11 @@ const DIRS: Record<string, string> = { to: 'туди', from: 'назад' };
 
 /** «від автовокзал Житомир-1 · туди й назад · будні 09:00; для знайдених ще будні 17:00 · глибина 2» */
 export function planText(p: DovedeCampaignPlanView): string {
+  if (p.ownSlots) return `застарілих відповідей: місць ${num(p.seeds)} · години — як у застарілих відповідях · без нових місць`;
   return [
     p.origins.length ? `від: ${p.origins.map((o) => o.label).join(', ')}` : null,
     p.dirs.length === 2 ? 'туди й назад' : p.dirs.map((d) => DIRS[d] ?? d).join(', '),
-    `${hoursText(p.main)}${p.extra ? `; для знайдених ще ${hoursText(p.extra)}` : ''}`,
+    p.ownSlots ? 'години — як у застарілих відповідях' : `${hoursText(p.main)}${p.extra ? `; для знайдених ще ${hoursText(p.extra)}` : ''}`,
     p.maxDepth ? `нові місця з відповідей: ${p.maxDepth} ${p.maxDepth === 1 ? 'крок' : 'кроки'}` : 'без нових місць',
   ]
     .filter(Boolean)
@@ -44,3 +45,24 @@ export function planText(p: DovedeCampaignPlanView): string {
 }
 
 export const num = (n: number) => n.toLocaleString('uk-UA');
+
+/**
+ * Посилання «Відкрити як людина»: та сама пара, що в базі, — сторінка спитає сервер так само, як людина.
+ * Київ: точка (метро, вокзал) — своїм id, місце словами (`f=` / `t=city.Kyiv&td=`); Житомир: поїздка з Малина, бо
+ * сторінка питає дорогу містом від автовокзалу Житомир-1 саме так.
+ */
+export function humanLink(item: { city: string; label: string }, route: { origin: string; dir: string }): string {
+  const q = new URLSearchParams();
+  const point = item.city === 'Zhytomyr' ? 'malyn.avtostantsiya' : route.origin;
+  const place = `city.${item.city}`;
+  if (route.dir === 'from') {
+    q.set('f', place);
+    q.set('fd', item.label);
+    q.set('t', point);
+  } else {
+    q.set('f', point);
+    q.set('t', place);
+    q.set('td', item.label);
+  }
+  return `/dovede?${q.toString()}`;
+}

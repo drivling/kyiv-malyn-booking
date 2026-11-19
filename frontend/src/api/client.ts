@@ -1183,6 +1183,16 @@ class ApiClient {
     return this.request('/admin/dovede/city/campaigns', { method: 'POST', body: JSON.stringify(input) });
   }
 
+  /** Адмін: звіт якості — підозрілі дороги в базі (місто або обидва) */
+  async getDovedeCityQuality(city?: 'Kyiv' | 'Zhytomyr'): Promise<import('@/types').DovedeQualityReport> {
+    return this.request(`/admin/dovede/city/quality${city ? `?city=${city}` : ''}`);
+  }
+
+  /** Адмін: «Нормально» у звіті якості — місце більше не показується серед підозрілих (false — знову показувати) */
+  async dovedeCityPlaceOk(city: string, key: string, ok: boolean): Promise<{ city: string; key: string; ok: boolean }> {
+    return this.request('/admin/dovede/city/place/ok', { method: 'POST', body: JSON.stringify({ city, key, ok }) });
+  }
+
   /** Адмін: кампанії (новіші вгорі) і облік Google за сьогодні */
   async getDovedeCampaigns(): Promise<import('@/types').DovedeCampaignList> {
     return this.request('/admin/dovede/city/campaigns');

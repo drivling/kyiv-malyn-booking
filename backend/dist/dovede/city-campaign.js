@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.CAMPAIGN_PRESETS = exports.reserveFor = exports.ASKS_PER_TICK = exports.MAX_PLACES = exports.MAX_SEED_PLACES = exports.MAX_DAILY_BUDGET = exports.MAX_BUDGET = exports.MAX_DEPTH = exports.CampaignInputError = void 0;
+exports.placeSlots = exports.CAMPAIGN_PRESETS = exports.reserveFor = exports.ASKS_PER_TICK = exports.MAX_PLACES = exports.MAX_SEED_PLACES = exports.MAX_DAILY_BUDGET = exports.MAX_BUDGET = exports.MAX_DEPTH = exports.CampaignInputError = void 0;
 exports.buildPlan = buildPlan;
 exports.expandSeeds = expandSeeds;
 exports.campaignQuery = campaignQuery;
@@ -29,6 +29,7 @@ const crawl_core_1 = require("./crawl-core");
 const learn_places_1 = require("./learn-places");
 const city_route_1 = require("./city-route");
 const zhytomyr_own_data_1 = require("./zhytomyr-own-data");
+const site_domains_1 = require("../site-domains");
 const guard_1 = require("./guard");
 class CampaignInputError extends Error {
 }
@@ -57,7 +58,36 @@ const ACTIVE = ['running', 'waiting'];
 /** Кінцеві всіх маршрутів Житомира з власних даних */
 const zhytomyrTerminals = () => [...new Set(zhytomyr_own_data_1.ZT_OWN.dirs.map((d) => d.stops[d.stops.length - 1][0]))].sort();
 const DEFAULT_ORIGINS = { Kyiv: ['kyiv.akadem', 'kyiv.pas'], Zhytomyr: ['zhytomyr.avtovokzal'] };
-const isPointKey = (city, key) => crawl_core_1.ARRIVAL_POINTS[city].includes(key);
+/** Точка висадки або станція метро (`MODE_PAIRS`) — кінець пари, від якого навчаємось */
+const isPointKey = (city, key) => crawl_core_1.ARRIVAL_POINTS[city].includes(key) || key.startsWith('kyiv.m.');
+/** Скільки застарілих відповідей бере «Освіжити застаріле» за раз */
+const STALE_LIMIT = 2000;
+/** Відповіді Google, старші за строк свіжості, — місце з точкою, напрямком і своїми годинами (тип дня й година рядка) */
+async function staleSeeds(prisma, city, now, freshDays) {
+    const rows = await prisma.dovedeCityRoute.findMany({
+        where: { cityCode: city, source: 'google', archivedAt: null, fetchedAt: { lt: new Date(now.getTime() - freshDays * 24 * 3600000) } },
+        select: { fromKey: true, toKey: true, fromLabel: true, toLabel: true, dayType: true, hour: true },
+        orderBy: { hits: 'desc' },
+        take: STALE_LIMIT,
+    });
+    const byPlace = new Map();
+    for (const r of rows) {
+        const fromPoint = isPointKey(city, r.fromKey);
+        if (fromPoint === isPointKey(city, r.toKey))
+            continue;
+        if (!crawl_core_1.DAY_TYPES.includes(r.dayType) || !Number.isInteger(r.hour))
+            continue;
+        const seed = fromPoint
+            ? { place: (0, city_route_1.storedPoint)(r.toKey, r.toLabel), origin: r.fromKey, dir: 'to' }
+            : { place: (0, city_route_1.storedPoint)(r.fromKey, r.fromLabel), origin: r.toKey, dir: 'from' };
+        const id = `${seed.origin}|${seed.dir}|${(0, crawl_core_1.normalizeKey)(seed.place)}`;
+        const cur = byPlace.get(id) ?? { ...seed, via: 'stale', slots: [] };
+        if (!cur.slots.some((x) => x.dayType === r.dayType && x.hour === r.hour))
+            cur.slots.push({ dayType: r.dayType, hour: r.hour });
+        byPlace.set(id, cur);
+    }
+    return [...byPlace.values()];
+}
 /** Питання людей без відповіді — місце з точкою й напрямком, як питали */
 async function unansweredSeeds(prisma, city) {
     const rows = await prisma.dovedeCityDemand.findMany({ where: { cityCode: city, answered: false, asked: { gt: 0 } }, orderBy: [{ asked: 'desc' }], take: 500 });
@@ -103,6 +133,15 @@ exports.CAMPAIGN_PRESETS = [
     refill('refill-evening', 'Дообучити: вечір', 'Місця, які вже знаємо, — на вечірні години буднього дня (дорога додому).', 'weekday@18,weekday@21'),
     refill('refill-weekend', 'Дообучити: вихідні', 'Місця, які вже знаємо, — на суботу й неділю.', 'saturday@11,saturday@17,sunday@11,sunday@17'),
     refill('refill-morning', 'Дообучити: ранок', 'Місця, які вже знаємо, — на ранок буднього дня.', 'weekday@07'),
+    {
+        id: 'refresh',
+        title: 'Освіжити застаріле',
+        help: 'Відповіді Google, старші за строк свіжості, — питаємо знову на той самий тип дня й годину. Нових місць не додає.',
+        cities: ['Kyiv', 'Zhytomyr'],
+        ownSlots: true,
+        defaults: (city) => ({ origins: crawl_core_1.ARRIVAL_POINTS[city], dirs: ['to', 'from'], main: 'weekday@09', extra: '', maxDepth: 0 }),
+        seeds: ({ prisma, city, now, freshDays }) => staleSeeds(prisma, city, now, freshDays),
+    },
     {
         id: 'unanswered',
         title: 'Питання людей без відповіді',
@@ -152,7 +191,7 @@ function toSlots(spec, label) {
 }
 const slotSpec = (slots) => slots.map((s) => `${s.dayType}@${String(s.hour).padStart(2, '0')}`).join(',');
 /** План кампанії із заготовки й змін власника; кидає `CampaignInputError` */
-async function buildPlan(prisma, input) {
+async function buildPlan(prisma, input, ctx = {}) {
     const preset = PRESET_BY_ID.get(String(input.preset ?? ''));
     if (!preset)
         throw new CampaignInputError(`Невідома заготовка: ${input.preset}`);
@@ -174,16 +213,23 @@ async function buildPlan(prisma, input) {
     const maxDepth = options.maxDepth ?? d.maxDepth;
     if (!Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > exports.MAX_DEPTH)
         throw new CampaignInputError(`Глибина: від 0 до ${exports.MAX_DEPTH}`);
-    const seeds = await preset.seeds({ prisma, city, options });
+    const seeds = await preset.seeds({ prisma, city, options, now: ctx.now ?? new Date(), freshDays: ctx.freshDays ?? 30 });
     if (!seeds.length)
         throw new CampaignInputError(preset.custom ? 'Напишіть хоч одне місце' : 'Для цієї заготовки зараз немає місць');
-    return { preset, plan: { city, origins: [...new Set(origins)], dirs: [...new Set(dirs)], main, extra, maxDepth, seeds } };
+    const own = Boolean(preset.ownSlots);
+    return {
+        preset,
+        plan: { city, origins: [...new Set(origins)], dirs: [...new Set(dirs)], main, extra: own ? [] : extra, maxDepth: own ? 0 : maxDepth, seeds, ...(own ? { ownSlots: true } : {}) },
+    };
 }
+/** Години, які питаємо про місце рівня 0 */
+const placeSlots = (plan, p) => (plan.ownSlots && p.slots?.length ? p.slots : plan.main);
+exports.placeSlots = placeSlots;
 /** Місця рівня 0: кожне місце без своєї точки — на кожну точку й напрямок; повтори відкидаємо */
 function expandSeeds(plan) {
     const out = [];
     const seen = new Set();
-    const add = (origin, dir, place, via) => {
+    const add = (origin, dir, place, via, slots) => {
         const placeKey = (0, crawl_core_1.normalizeKey)(place);
         if (!placeKey || placeKey === (0, crawl_core_1.normalizeKey)(origin))
             return;
@@ -191,15 +237,15 @@ function expandSeeds(plan) {
         if (seen.has(k))
             return;
         seen.add(k);
-        out.push({ origin, dir, place, placeKey, via });
+        out.push({ origin, dir, place, placeKey, via, ...(slots?.length ? { slots } : {}) });
     };
     for (const s of plan.seeds) {
         if (s.origin)
-            add(s.origin, s.dir ?? 'to', s.place, s.via);
+            add(s.origin, s.dir ?? 'to', s.place, s.via, s.slots);
         else
             for (const origin of plan.origins)
                 for (const dir of plan.dirs)
-                    add(origin, dir, s.place, s.via);
+                    add(origin, dir, s.place, s.via, s.slots);
     }
     return out;
 }
@@ -232,6 +278,9 @@ function estimateCost(plan, level0) {
     const high = level0.google + extraHigh + Math.ceil(deeper(GROWTH_HIGH));
     return { low, high: Math.max(low, high) };
 }
+const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const LEARN_URL = (0, site_domains_1.siteUrl)(site_domains_1.PRIMARY_SITE, '/admin/dovede/learning');
+const pct = (part, all) => (all ? Math.round((part / all) * 100) : 0);
 function createCityCampaigns(deps) {
     const { prisma, cityRoutes } = deps;
     const now = deps.now ?? (() => new Date());
@@ -242,14 +291,15 @@ function createCityCampaigns(deps) {
     async function sharePct() {
         return deps.settings ? deps.settings.int('learn.sharePct') : 50;
     }
+    const planCtx = async () => ({ now: now(), freshDays: deps.settings ? await deps.settings.int('city.freshDays') : 30 });
     /** Оцінка без запису: рівень 0 — за базою (`peekMany`), глибше — від і до; пропонований бюджет і денна частка */
     async function preview(input) {
-        const { preset, plan } = await buildPlan(prisma, input);
+        const { preset, plan } = await buildPlan(prisma, input, await planCtx());
         const places = expandSeeds(plan);
         if (places.length > exports.MAX_SEED_PLACES)
             throw new CampaignInputError(`Забагато місць: ${places.length} (можна до ${exports.MAX_SEED_PLACES}) — менше точок чи напрямків`);
         const at = now();
-        const qs = places.flatMap((p) => plan.main.map((slot) => campaignQuery(plan.city, p, slot, at)));
+        const qs = places.flatMap((p) => (0, exports.placeSlots)(plan, p).map((slot) => campaignQuery(plan.city, p, slot, at)));
         const peeks = await cityRoutes.peekMany(qs);
         const google = peeks.filter((p) => p === 'none').length;
         const free = peeks.filter((p) => p === 'fresh' || p === 'own').length;
@@ -290,7 +340,7 @@ function createCityCampaigns(deps) {
             throw new CampaignInputError(`Бюджет: ціле від 1 до ${exports.MAX_BUDGET} запитів до Google`);
         if (!Number.isInteger(dailyBudget) || dailyBudget < 1 || dailyBudget > exports.MAX_DAILY_BUDGET)
             throw new CampaignInputError(`На добу: ціле від 1 до ${exports.MAX_DAILY_BUDGET}`);
-        const { preset, plan } = await buildPlan(prisma, input);
+        const { preset, plan } = await buildPlan(prisma, input, await planCtx());
         const places = expandSeeds(plan);
         if (places.length > exports.MAX_SEED_PLACES)
             throw new CampaignInputError(`Забагато місць: ${places.length} (можна до ${exports.MAX_SEED_PLACES})`);
@@ -313,9 +363,10 @@ function createCityCampaigns(deps) {
             data: places.map((p) => ({ campaignId: campaign.id, cityCode: plan.city, origin: p.origin, dir: p.dir, place: p.place, placeKey: p.placeKey, depth: 0, via: p.via })),
             skipDuplicates: true,
         });
-        const rows = await prisma.dovedeCityCampaignPlace.findMany({ where: { campaignId: campaign.id }, select: { id: true }, orderBy: { id: 'asc' } });
+        const rows = await prisma.dovedeCityCampaignPlace.findMany({ where: { campaignId: campaign.id }, select: { id: true, origin: true, dir: true, placeKey: true }, orderBy: { id: 'asc' } });
+        const planned = new Map(places.map((p) => [`${p.origin}|${p.dir}|${p.placeKey}`, p]));
         const queued = await prisma.dovedeCityCampaignAsk.createMany({
-            data: rows.flatMap((r) => plan.main.map((s) => ({ campaignId: campaign.id, placeId: r.id, dayType: s.dayType, hour: s.hour, phase: 0 }))),
+            data: rows.flatMap((r) => (0, exports.placeSlots)(plan, planned.get(`${r.origin}|${r.dir}|${r.placeKey}`) ?? {}).map((s) => ({ campaignId: campaign.id, placeId: r.id, dayType: s.dayType, hour: s.hour, phase: 0 }))),
             skipDuplicates: true,
         });
         log(`🎓 Доведе · кампанія #${campaign.id} «${campaign.title}»: місць ${places.length}, бюджет ${budget} (на добу ${campaign.dailyBudget})`);
@@ -330,18 +381,21 @@ function createCityCampaigns(deps) {
             });
         }
         if (place.depth >= plan.maxDepth || c.places >= exports.MAX_PLACES)
-            return 0;
+            return { added: 0, filtered: [] };
         const dir = place.dir === 'from' ? 'from' : 'to';
-        const found = (0, crawl_core_1.candidates)((0, crawl_core_1.compactSteps)(steps), { dir, siteForm: (n) => (0, crawl_core_1.siteForm)(plan.city, n), exclude: [place.place, crawl_core_1.POINT_LABEL[place.origin] ?? place.origin] }).slice(0, exports.MAX_PLACES - c.places);
+        const opts = { dir, siteForm: (n) => (0, crawl_core_1.siteForm)(plan.city, n), exclude: [place.place, crawl_core_1.POINT_LABEL[place.origin] ?? place.origin] };
+        const compact = (0, crawl_core_1.compactSteps)(steps);
+        const filtered = (0, crawl_core_1.rejectedNames)(compact, opts);
+        const found = (0, crawl_core_1.candidates)(compact, opts).slice(0, exports.MAX_PLACES - c.places);
         if (!found.length)
-            return 0;
+            return { added: 0, filtered };
         const depth = place.depth + 1;
         const made = await prisma.dovedeCityCampaignPlace.createMany({
             data: found.map((f) => ({ campaignId: c.id, cityCode: plan.city, origin: place.origin, dir, place: f.name, placeKey: (0, crawl_core_1.normalizeKey)(f.name), depth, via: f.via })),
             skipDuplicates: true,
         });
         if (!made.count)
-            return 0;
+            return { added: 0, filtered };
         const fresh = await prisma.dovedeCityCampaignPlace.findMany({
             where: { campaignId: c.id, origin: place.origin, dir, depth, placeKey: { in: found.map((f) => (0, crawl_core_1.normalizeKey)(f.name)) } },
             select: { id: true },
@@ -350,13 +404,22 @@ function createCityCampaigns(deps) {
             data: fresh.flatMap((r) => plan.main.map((s) => ({ campaignId: c.id, placeId: r.id, dayType: s.dayType, hour: s.hour, phase: 0 }))),
             skipDuplicates: true,
         });
-        return made.count;
+        return { added: made.count, filtered };
     }
     async function wait(c, reason, until, error) {
-        await prisma.dovedeCityCampaign.updateMany({
+        // Google відмовив у доступі (ключ, API, білінг) — само не минеться: пишемо власнику один раз, до першої вдалої відповіді
+        const alert = reason === 'denied' && c.alertedReason !== reason;
+        const r = await prisma.dovedeCityCampaign.updateMany({
             where: { id: c.id, status: { in: ACTIVE } },
-            data: { status: 'waiting', waitReason: reason, waitUntil: until, ...(error !== undefined ? { lastError: error } : {}) },
+            data: { status: 'waiting', waitReason: reason, waitUntil: until, ...(error !== undefined ? { lastError: error } : {}), ...(alert ? { alertedReason: reason } : {}) },
         });
+        if (alert && r.count && deps.notify) {
+            const g = await cityRoutes.googleBudget().catch(() => null);
+            const said = g?.lastError ? `\nGoogle (HTTP ${g.lastError.status}): «${esc(g.lastError.message)}»` : '';
+            await deps
+                .notify(`⛔ <b>Навчання «${esc(c.title)}» чекає</b>: Google відмовив у доступі — ключ, Routes API або білінг у Google Cloud.${said}\nПитання лишаються в черзі; продовжить сама, щойно Google відповідатиме.\n${LEARN_URL}`)
+                .catch((e) => console.error('❌ кампанія: сповіщення не надіслано:', e instanceof Error ? e.message : e));
+        }
     }
     async function finish(c, reason) {
         const [byDepth, noRoute] = await Promise.all([
@@ -366,12 +429,37 @@ function createCityCampaigns(deps) {
         const names = noRoute.length
             ? (await prisma.dovedeCityCampaignPlace.findMany({ where: { id: { in: [...new Set(noRoute.map((a) => a.placeId))] } }, select: { place: true } })).map((p) => p.place)
             : [];
-        const report = { byDepth: byDepth.map((d) => ({ depth: d.depth, places: d._count._all })).sort((a, b) => a.depth - b.depth), noRoute: [...new Set(names)].slice(0, 50) };
-        await prisma.dovedeCityCampaign.updateMany({
+        const counts = new Map();
+        for (const a of await prisma.dovedeCityCampaignAsk.findMany({ where: { campaignId: c.id, status: 'ok' }, select: { filtered: true } })) {
+            for (const name of Array.isArray(a.filtered) ? a.filtered : [])
+                if (typeof name === 'string')
+                    counts.set(name, (counts.get(name) ?? 0) + 1);
+        }
+        const plan = c.plan;
+        const suspicious = deps.suspicious ? await deps.suspicious(plan.city).catch(() => null) : null;
+        const report = {
+            byDepth: byDepth.map((d) => ({ depth: d.depth, places: d._count._all })).sort((a, b) => a.depth - b.depth),
+            noRoute: [...new Set(names)].slice(0, 50),
+            noRoutePct: pct(c.noRoute, c.asked),
+            filtered: [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'uk')).slice(0, 30),
+            suspicious,
+        };
+        const r = await prisma.dovedeCityCampaign.updateMany({
             where: { id: c.id, status: { in: ACTIVE } },
-            data: { status: 'done', stopReason: reason, finishedAt: now(), waitUntil: null, waitReason: null, report },
+            data: { status: 'done', stopReason: reason, finishedAt: now(), waitUntil: null, waitReason: null, report: report },
         });
         log(`🎓 Доведе · кампанія #${c.id} завершена (${reason}): питань ${c.asked}, з відповіддю ${c.ok}, запитів до Google ${c.googleCalls}`);
+        if (r.count && deps.notify) {
+            const head = reason === 'budget' ? `💸 <b>Навчання «${esc(c.title)}»: бюджет вичерпано</b>` : `🎓 <b>Навчання «${esc(c.title)}» завершено</b>`;
+            const lines = [
+                head,
+                `Питань ${c.asked}: з дорогою ${c.ok}${c.fromDb ? ` (з бази ${c.fromDb})` : ''}, без дороги ${c.noRoute} (${report.noRoutePct} %). Запитів до Google ${c.googleCalls} з ${c.budget}.`,
+                reason === 'budget' ? 'У черзі ще є питання — у розділі «Навчання» можна додати бюджету.' : null,
+                suspicious ? `Підозрілих доріг у місті: ${suspicious} — перевірте в розділі «Навчання» → «Якість».` : null,
+                LEARN_URL,
+            ];
+            await deps.notify(lines.filter(Boolean).join('\n')).catch((e) => console.error('❌ кампанія: сповіщення не надіслано:', e instanceof Error ? e.message : e));
+        }
     }
     /** Продовжити оренду (і перевірити, що кампанію не поставили на паузу посеред кроку) */
     async function renew(id) {
@@ -457,16 +545,22 @@ function createCityCampaigns(deps) {
             const spent = googleCalled ? 1 : 0;
             const counters = { googleCalls: { increment: spent }, spentToday: { increment: spent } };
             if (answer.ok) {
-                const added = await expand(c, plan, place, ask.phase, answer.steps);
+                const { added, filtered } = await expand(c, plan, place, ask.phase, answer.steps);
                 await prisma.dovedeCityCampaignAsk.update({
                     where: { id: ask.id },
-                    data: { status: 'ok', source: answer.source, minutes: answer.minutes, steps: (0, crawl_core_1.compactSteps)(answer.steps), googleCalled, added, doneAt: now(), error: null },
+                    data: { status: 'ok', source: answer.source, minutes: answer.minutes, steps: (0, crawl_core_1.compactSteps)(answer.steps), googleCalled, added, doneAt: now(), error: null, ...(filtered.length ? { filtered } : {}) },
                 });
-                await prisma.dovedeCityCampaign.update({ where: { id }, data: { ...counters, asked: { increment: 1 }, ok: { increment: 1 }, fromDb: { increment: googleCalled ? 0 : 1 }, places: { increment: added }, errorsInRow: 0 } });
+                await prisma.dovedeCityCampaign.update({
+                    where: { id },
+                    data: { ...counters, asked: { increment: 1 }, ok: { increment: 1 }, fromDb: { increment: googleCalled ? 0 : 1 }, places: { increment: added }, errorsInRow: 0, ...(googleCalled ? { alertedReason: null } : {}) },
+                });
             }
             else if (answer.reason === 'no_route' || answer.reason === 'archived') {
                 await prisma.dovedeCityCampaignAsk.update({ where: { id: ask.id }, data: { status: answer.reason, googleCalled, doneAt: now() } });
-                await prisma.dovedeCityCampaign.update({ where: { id }, data: { ...counters, asked: { increment: 1 }, ...(answer.reason === 'no_route' ? { noRoute: { increment: 1 } } : {}), errorsInRow: 0 } });
+                await prisma.dovedeCityCampaign.update({
+                    where: { id },
+                    data: { ...counters, asked: { increment: 1 }, ...(answer.reason === 'no_route' ? { noRoute: { increment: 1 } } : {}), errorsInRow: 0, ...(googleCalled ? { alertedReason: null } : {}) },
+                });
             }
             else if (answer.reason === 'error') {
                 const last = ask.attempts + 1 >= MAX_ATTEMPTS;
@@ -635,6 +729,7 @@ function createCityCampaigns(deps) {
             title: p.title,
             help: p.help,
             custom: Boolean(p.custom),
+            ownSlots: Boolean(p.ownSlots),
             cities: p.cities.map((city) => {
                 const d = p.defaults(city);
                 return { city, name: city_route_1.CITY_NAME[city], origins: d.origins, dirs: d.dirs, main: d.main, extra: d.extra, maxDepth: d.maxDepth, points: crawl_core_1.ARRIVAL_POINTS[city].map((id) => ({ id, label: crawl_core_1.POINT_LABEL[id] ?? id })) };
@@ -652,5 +747,6 @@ function planView(plan) {
         extra: slotSpec(plan.extra),
         maxDepth: plan.maxDepth,
         seeds: plan.seeds.length,
+        ownSlots: Boolean(plan.ownSlots),
     };
 }

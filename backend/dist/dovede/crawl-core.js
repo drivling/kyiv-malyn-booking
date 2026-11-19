@@ -16,6 +16,7 @@ exports.candidates = candidates;
 exports.describeSteps = describeSteps;
 exports.askOf = askOf;
 exports.taskKey = taskKey;
+exports.rejectedNames = rejectedNames;
 exports.seedsFromUnanswered = seedsFromUnanswered;
 exports.rootsFromRecords = rootsFromRecords;
 exports.createCrawl = createCrawl;
@@ -264,6 +265,41 @@ function taskKey(node, dayType, hour) {
     return [node.city, pointKey(from), pointKey(to), dayType, hour].join('|');
 }
 const recNode = (r) => ({ city: r.city, origin: r.origin, dir: r.dir, place: r.place, depth: r.depth ?? 0, via: r.via ?? 'seed' });
+/**
+ * Назви з відповіді, які обхід відкинув би як сміття (загальні слова, обрізані сторінкою, не місце для сторінки), — для
+ * звіту якості кампанії. Ті самі правила, що в `candidates`; зупинку посадки біля точки не рахуємо (її беруть не як
+ * сміття, а як саму точку), залізницю й метро — теж.
+ */
+function rejectedNames(steps, { dir = 'to', siteForm = plainForm, exclude = [] } = {}) {
+    const rides = steps.filter((s) => s.walk == null);
+    const seen = new Set(exclude.map(normalizeKey));
+    const out = [];
+    const check = (name) => {
+        const clean = String(name ?? '').replace(/\s+/g, ' ').trim();
+        if (!clean)
+            return;
+        const key = normalizeKey(clean);
+        if (seen.has(key))
+            return;
+        seen.add(key);
+        // станцію метро «Доведе» знає сама — це не сміття
+        if (looksLikeMetro(clean))
+            return;
+        const form = usableName(clean) ? siteForm(clean) : null;
+        if (!form || !usableName(form) || exports.CUT_TAIL.test(normalizeKey(form)))
+            out.push(clean);
+    };
+    rides.forEach((s, i) => {
+        if (RAIL_MODES.test(s.mode ?? ''))
+            return;
+        if (!(dir === 'to' && i === 0))
+            check(s.from);
+        if (!(dir === 'from' && i === rides.length - 1))
+            check(s.to);
+        check(s.head);
+    });
+    return out;
+}
 /**
  * Питання людей, на які сервер не знайшов відповіді (`unanswered` з GET /admin/dovede/city), → з чого почати:
  * один кінець пари — id точки, другий — слова людини. Пари «слова — слова» і «точка — точка» сторінка не шле.

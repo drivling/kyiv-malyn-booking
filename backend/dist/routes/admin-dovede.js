@@ -31,6 +31,7 @@ const drive_time_1 = require("../drive-time");
 const city_route_1 = require("../dovede/city-route");
 const viber_listing_expiry_1 = require("../viber-listing-expiry");
 const city_campaign_1 = require("../dovede/city-campaign");
+const city_quality_1 = require("../dovede/city-quality");
 exports.DOVEDE_MAX_TEXT = 300;
 /** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
 const STOPS_TTL_MS = 5 * 60000;
@@ -79,6 +80,7 @@ function createAdminDovedeRouter(deps) {
     const driveTime = deps.driveTime ?? (0, drive_time_1.createDriveTime)({ key: () => (process.env.GOOGLE_MAPS_API_KEY ?? '').trim() || null, dailyCap: () => settings.int('drive.dailyCap') });
     const cityRoutes = deps.cityRoutes ?? (0, city_route_1.cityRoutesFromEnv)(prisma, settings);
     const campaigns = deps.campaigns ?? (0, city_campaign_1.createCityCampaigns)({ prisma, cityRoutes, settings, now: clock });
+    const quality = deps.quality ?? (0, city_quality_1.createCityQuality)(prisma);
     const r = express_1.default.Router();
     /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
     r.get('/dovede/access', (req, res) => {
@@ -385,6 +387,41 @@ function createAdminDovedeRouter(deps) {
         }
         catch (e) {
             console.error('❌ POST /admin/dovede/city/campaigns/:id/action:', e);
+            res.status(500).json({ error: 'Не вдалося' });
+        }
+    });
+    /** Звіт якості (крок 8): підозрілі дороги в базі; `?city=Kyiv|Zhytomyr`, без нього — обидва міста */
+    r.get('/admin/dovede/city/quality', require_admin_1.requireAdmin, async (req, res) => {
+        const raw = String(req.query.city ?? '');
+        if (raw && raw !== 'Kyiv' && raw !== 'Zhytomyr') {
+            res.status(400).json({ error: 'city: Kyiv або Zhytomyr' });
+            return;
+        }
+        try {
+            res.json(await quality.report(raw ? raw : undefined));
+        }
+        catch (e) {
+            console.error('❌ GET /admin/dovede/city/quality:', e);
+            res.status(500).json({ error: 'Не вдалося зібрати звіт' });
+        }
+    });
+    /** «Нормально» у звіті якості: `{ city, key, ok }` — місце більше не показується серед підозрілих (ok: false — знову) */
+    r.post('/admin/dovede/city/place/ok', require_admin_1.requireAdmin, async (req, res) => {
+        const b = (req.body ?? {});
+        if ((b.city !== 'Kyiv' && b.city !== 'Zhytomyr') || typeof b.key !== 'string' || !b.key.trim() || typeof b.ok !== 'boolean') {
+            res.status(400).json({ error: 'city (Kyiv | Zhytomyr), key і ok (true | false) обовʼязкові' });
+            return;
+        }
+        try {
+            const done = await quality.markOk(b.city, b.key.trim(), b.ok);
+            if (!done) {
+                res.status(404).json({ error: 'Такого місця серед збережених доріг немає' });
+                return;
+            }
+            res.json({ city: b.city, key: b.key.trim(), ok: b.ok });
+        }
+        catch (e) {
+            console.error('❌ POST /admin/dovede/city/place/ok:', e);
             res.status(500).json({ error: 'Не вдалося' });
         }
     });

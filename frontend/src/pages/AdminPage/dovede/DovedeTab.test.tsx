@@ -88,7 +88,7 @@ const CAMPAIGN: DovedeCampaign = {
   finishedAt: null,
 };
 
-function mock(log: DovedeLog = LOG, city: DovedeCityStats = CITY, campaigns: DovedeCampaign[] = []): string[] {
+function mock(log: DovedeLog = LOG, city: DovedeCityStats = CITY, campaigns: DovedeCampaign[] = [], suspicious = 0): string[] {
   const queries: string[] = [];
   server.use(
     http.get(`${TEST_API_URL}/admin/dovede/queries`, ({ request }) => {
@@ -99,6 +99,13 @@ function mock(log: DovedeLog = LOG, city: DovedeCityStats = CITY, campaigns: Dov
     http.get(`${TEST_API_URL}/admin/dovede/city/places`, () => HttpResponse.json({ places: [] })),
     http.get(`${TEST_API_URL}/admin/dovede/synonyms`, () => HttpResponse.json({ synonyms: [] })),
     http.get(`${TEST_API_URL}/admin/dovede/city/campaigns`, () => HttpResponse.json({ campaigns, google: { calls: 37, cap: 150, reserve: 50 } })),
+    http.get(`${TEST_API_URL}/admin/dovede/city/quality`, () =>
+      HttpResponse.json({
+        places: 10,
+        okPlaces: 0,
+        items: Array.from({ length: suspicious }, (_, i) => ({ city: 'Kyiv', key: `k${i}`, label: `Місце ${i}`, reasons: [{ code: 'next_to_point', text: 'поруч' }], routes: [] })),
+      }),
+    ),
   );
   return queries;
 }
@@ -176,12 +183,13 @@ describe('DovedeTab', () => {
       CAMPAIGN,
       { ...CAMPAIGN, id: 2, title: 'Дообучити: вечір — Київ', status: 'done', stopReason: 'budget', left: 12 },
       { ...CAMPAIGN, id: 3, title: 'Свій список — Житомир', status: 'done', stopReason: 'finished', finishedAt: recent, asked: 10, ok: 8, noRoute: 2, googleCalls: 9 },
-    ]);
+    ], 4);
     renderAt('/admin/dovede');
     const pill = await screen.findByText('Навчання: «Навчити місто — Житомир» — 120 з 550');
     expect(pill.closest('a')).toHaveAttribute('href', '/admin/dovede/learning');
     expect(screen.getByText('Навчання', { selector: '.admin-kit-tile-label' }).closest('a')).toHaveTextContent('120 / 550 запитів');
     expect(screen.getByRole('link', { name: '«Дообучити: вечір — Київ»: бюджет вичерпано, у черзі ще 12' })).toHaveAttribute('href', '/admin/dovede/learning');
+    expect(screen.getByRole('link', { name: 'Підозрілі дороги в місті: 4' })).toHaveAttribute('href', '/admin/dovede/learning#quality');
     expect(screen.getByRole('link', { name: 'Останній прогін навчання: «Свій список — Житомир»' }).parentElement).toHaveTextContent('питань 10, з дорогою 8, без дороги 2, запитів до Google 9');
   });
 

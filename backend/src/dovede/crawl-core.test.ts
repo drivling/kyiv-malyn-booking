@@ -10,6 +10,7 @@ import {
   createCrawl,
   normalizeKey,
   parseSlots,
+  rejectedNames,
   resolveOrigins,
   rootsFromRecords,
   seedFromIntent,
@@ -103,6 +104,17 @@ describe('dovede-crawl: нові місця з відповіді', () => {
     // сторінка інколи скорочує назву до одного складу чи обриває на сполучнику
     const siteForm = (name: string) => (name.startsWith('ж/м') ? 'ж' : name.replace(/ побуту$/, ''));
     expect(candidates(s, { siteForm }).map((c) => c.name)).toEqual(['Універмаг "Дитячий світ"', 'вул. Татарська']);
+    // те, що відкинуто, — для звіту якості кампанії; зупинку біля точки й метро сміттям не рахуємо
+    expect(rejectedNames(s, { siteForm })).toEqual(['Супермаркет', 'ж/м Теремки', 'Гіпермаркет', 'Авторинок', 'Національний музей народної архітектури та побуту', 'Медучилище', 'станція', 'Дорога', 'Дитяча поліклініка']);
+  });
+
+  it('відкинуті назви: метро й залізниця — не сміття; повтори — один раз', () => {
+    const s = compactSteps([
+      { kind: 'transit', minutes: 5, mode: 'SUBWAY', line: 'M1', fromStop: 'Академмістечко', toStop: 'Вокзальна', headsign: 'Лісова' },
+      { kind: 'transit', minutes: 5, mode: 'BUS', line: '9', fromStop: 'метро «Вокзальна»', toStop: 'Ринок', headsign: 'Ринок' },
+    ]);
+    expect(rejectedNames(s)).toEqual(['Ринок']);
+    expect(candidates(s).map((c) => c.name)).toEqual([]);
   });
 });
 

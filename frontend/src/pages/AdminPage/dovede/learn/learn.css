@@ -328,6 +328,53 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Звіт кампанії */
+.dv-learn-report h5 {
+  margin: 10px 0 0;
+  font-size: var(--pb-font-size-sm, 13px);
+}
+
+/* Якість */
+.dv-learn-quality {
+  margin-top: 20px;
+}
+
+.dv-learn-quality-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.dv-learn-quality-head h3 {
+  margin: 0;
+}
+
+.dv-learn-quality-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dv-learn-quality-list > li {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-left: 3px solid #f59e0b;
+  border-radius: var(--pb-radius, 8px);
+}
+
+.dv-learn-quality-reasons {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: var(--pb-font-size-sm, 13px);
+  line-height: 1.45;
+}
+
 @media (max-width: 1100px) {
   .dv-learn-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -335,6 +382,10 @@
 }
 
 @media (max-width: 520px) {
+  .dv-learn-quality-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .dv-learn-budget {
     grid-template-columns: minmax(0, 1fr);
   }
