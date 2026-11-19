@@ -314,3 +314,128 @@
   flex: 1 1 140px;
   min-width: 0;
 }
+
+/* Перемикачі одного вибору: фільтри й періоди (ChipGroup) */
+.admin-kit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.admin-kit-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: 999px;
+  background: var(--pb-card-bg, #fff);
+  color: var(--pb-text, #1a1a1a);
+  font: inherit;
+  font-size: var(--pb-font-size-sm, 13px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-kit-chip:hover {
+  border-color: var(--pb-primary-border, rgba(26, 115, 232, 0.35));
+}
+.admin-kit-chip.is-on {
+  border-color: var(--pb-primary, #1a73e8);
+  background: var(--pb-primary-light, #e8f0fe);
+  color: var(--pb-primary-active, #185abc);
+}
+.admin-kit-chip:focus-visible {
+  outline: 2px solid var(--pb-primary, #1a73e8);
+  outline-offset: 1px;
+}
+
+/*
+ * Таблиця (ResponsiveTable): на компʼютері — таблиця, на телефоні — картки з підписами. Селектори через обгортку —
+ * сильніші за загальні `.admin-page td` з AdminPage.css.
+ */
+.admin-kit-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  background: var(--pb-card-bg, #fff);
+}
+.admin-kit-table-wrap .admin-kit-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--pb-font-size-sm, 13px);
+}
+.admin-kit-table-wrap .admin-kit-table caption {
+  padding: 10px 12px 0;
+  text-align: left;
+  font-weight: var(--pb-font-weight-semibold, 600);
+}
+.admin-kit-table-wrap .admin-kit-table th,
+.admin-kit-table-wrap .admin-kit-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--pb-border-light, #f0f0f0);
+  text-align: left;
+  white-space: nowrap;
+}
+.admin-kit-table-wrap .admin-kit-table th {
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.75rem;
+  font-weight: var(--pb-font-weight-semibold, 600);
+}
+.admin-kit-table-wrap .admin-kit-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+.admin-kit-table-wrap .admin-kit-table .is-num {
+  font-variant-numeric: tabular-nums;
+}
+.admin-kit-dangerbtn {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--pb-danger, #c0392b);
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+}
+@media (max-width: 639px) {
+  .admin-kit-table-wrap {
+    border: 0;
+    background: none;
+  }
+  .admin-kit-table-wrap .admin-kit-table thead {
+    display: none;
+  }
+  .admin-kit-table-wrap .admin-kit-table,
+  .admin-kit-table-wrap .admin-kit-table tbody,
+  .admin-kit-table-wrap .admin-kit-table tr,
+  .admin-kit-table-wrap .admin-kit-table td {
+    display: block;
+    width: 100%;
+  }
+  .admin-kit-table-wrap .admin-kit-table tr {
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--pb-border, #e0e0e0);
+    border-radius: 10px;
+    background: var(--pb-card-bg, #fff);
+  }
+  .admin-kit-table-wrap .admin-kit-table td {
+    position: relative;
+    padding: 3px 0 3px 7.5em;
+    border: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .admin-kit-table-wrap .admin-kit-table td:not([data-label]) {
+    padding-left: 0;
+  }
+  .admin-kit-table-wrap .admin-kit-table td[data-label]::before {
+    content: attr(data-label);
+    position: absolute;
+    top: 4px;
+    left: 0;
+    width: 7em;
+    color: var(--pb-text-hint, #737373);
+    font-size: 0.75rem;
+  }
+  .admin-kit-table-wrap .admin-kit-table td:empty {
+    display: none;
+  }
+}

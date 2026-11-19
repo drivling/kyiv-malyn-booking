@@ -3,6 +3,7 @@ import { apiClient } from '@/api/client';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import type { TransportDataset } from '@/api/transportDataset';
 import type { ArrivalReportDays, ArrivalReportStats } from '@/types';
+import { AdminSectionHeader, ChipGroup, EmptyState, ResponsiveTable, StatTile, StatTiles, type TableColumn } from './kit';
 import './ArrivalReportsTab.css';
 import { routeNo } from '@/utils/routeNames';
 
@@ -30,7 +31,7 @@ function signedMin(n: number | null): string {
  * «Факт прибуття» (/admin/arrivals): позначки пасажирів «автобус тут» / «автобуса не було»
  * (довге натискання на час рейсу на сторінці маршруту й табло). Поки лише збір статистики —
  * зведення по рейсу на зупинці (середнє, мін і макс відхилення від розкладу) і сирі звіти з
- * можливістю видалити хибний.
+ * можливістю видалити хибний. Зібрано зі спільних деталей адмінки (`kit/`, Docs/dovede-admin-roadmap.md, крок 12).
  */
 /** city — місто звітів (перемикач над вкладками, фаза 6 плану Коростеня); без нього — Малин */
 export const ArrivalReportsTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRANSPORT_CITY }) => {
@@ -82,130 +83,88 @@ export const ArrivalReportsTab: React.FC<{ city?: string }> = ({ city = DEFAULT_
     }
   };
 
+  const summaryColumns: ReadonlyArray<TableColumn<ArrivalReportStats['summary'][number]>> = [
+    { key: 'route', label: '№', render: (r) => routeNo(r.routeId) },
+    { key: 'dir', label: 'Напрямок', render: (r) => DIR_LABEL[r.direction] ?? r.direction },
+    { key: 'stop', label: 'Зупинка', render: (r) => stopName(r.stopId) },
+    { key: 'time', label: 'Розклад', num: true, render: (r) => r.scheduledTime },
+    { key: 'arrived', label: 'Приїхав', num: true, render: (r) => r.arrived },
+    { key: 'missed', label: 'Не було', num: true, render: (r) => r.missed || '' },
+    { key: 'avg', label: 'Сер.', num: true, render: (r) => signedMin(r.avgDelay) },
+    { key: 'range', label: 'Мін … макс', num: true, render: (r) => (r.minDelay === null ? '—' : `${signedMin(r.minDelay)} … ${signedMin(r.maxDelay)}`) },
+    { key: 'days', label: 'Днів', num: true, render: (r) => r.days },
+  ];
+
+  const recentColumns: ReadonlyArray<TableColumn<ArrivalReportStats['recent'][number]>> = [
+    { key: 'at', label: 'Коли', num: true, render: (r) => KYIV_DT.format(new Date(r.createdAt)) },
+    { key: 'route', label: '№', render: (r) => `${routeNo(r.routeId)} ${DIR_LABEL[r.direction] ?? r.direction}` },
+    { key: 'stop', label: 'Зупинка', render: (r) => stopName(r.stopId) },
+    { key: 'time', label: 'Розклад', num: true, render: (r) => r.scheduledTime },
+    { key: 'actual', label: 'Факт', num: true, render: (r) => (r.kind === 'missed' ? `не було${r.waitedMin ? ` (чекав ${r.waitedMin} хв)` : ''}` : r.actualTime) },
+    { key: 'delay', label: 'Відх.', num: true, render: (r) => signedMin(r.delayMin) },
+    { key: 'source', label: 'Звідки', render: (r) => (r.source === 'board' ? 'табло' : 'маршрут') },
+    {
+      key: 'client',
+      label: 'Пристрій',
+      render: (r) => (
+        <span className="arrival-tab-client" title={r.clientId ?? ''}>
+          {r.clientId ? r.clientId.slice(0, 6) : '—'}
+        </span>
+      ),
+    },
+    {
+      key: 'del',
+      label: '',
+      render: (r) => (
+        <button type="button" className="admin-kit-dangerbtn" onClick={() => void remove(r.id)} aria-label={`Видалити звіт ${r.id}`}>
+          ×
+        </button>
+      ),
+    },
+  ];
+
+  const missedShare = stats && stats.total ? stats.missed / stats.total : 0;
+
   return (
     <div className="arrival-tab">
-      <div className="arrival-tab-head">
-        <h2>Факт прибуття</h2>
-        <div className="arrival-tab-chips" role="group" aria-label="Період">
-          {PERIODS.map((d) => (
-            <button key={d} type="button" className={`arrival-tab-chip ${d === days ? 'active' : ''}`} aria-pressed={d === days} onClick={() => setDays(d)}>
-              {periodChip(d)}
+      <AdminSectionHeader
+        title="Факт прибуття"
+        purpose="Пасажири позначають, коли автобус справді приїхав (або що його не було), довгим натисканням на час рейсу на сторінці маршруту чи на табло зупинки. Відхилення = факт − розклад, хв; «+» — запізнення."
+        actions={
+          <>
+            <ChipGroup label="Період" options={PERIODS.map((d) => ({ value: d, label: periodChip(d) }))} value={days} onChange={setDays} />
+            <button type="button" className="admin-kit-chip" onClick={load}>
+              Оновити
             </button>
-          ))}
-          <button type="button" className="arrival-tab-chip" onClick={load}>
-            Оновити
-          </button>
-        </div>
-      </div>
-      <p className="arrival-tab-note">
-        Пасажири позначають, коли автобус справді приїхав (або що його не було), довгим натисканням на час рейсу на
-        сторінці маршруту чи на табло зупинки. Відхилення = факт − розклад, хв; «+» — запізнення.
-      </p>
-      {error ? <p className="arrival-tab-error">{error}</p> : null}
-      {loading && !stats ? <p>Завантаження…</p> : null}
+          </>
+        }
+      />
+      {error ? (
+        <p className="arrival-tab-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      {loading && !stats ? <p className="arrival-tab-note">Завантаження…</p> : null}
       {stats ? (
         <>
-          <div className="arrival-tab-tiles">
-            <div className="arrival-tab-tile">
-              <span>Усього</span>
-              <strong>{stats.total}</strong>
-            </div>
-            <div className="arrival-tab-tile">
-              <span>Приїхав</span>
-              <strong>{stats.arrived}</strong>
-            </div>
-            <div className="arrival-tab-tile">
-              <span>Не було</span>
-              <strong>{stats.missed}</strong>
-            </div>
-          </div>
+          <StatTiles label="За період">
+            <StatTile label="Усього позначок" value={stats.total} />
+            <StatTile label="Приїхав" value={stats.arrived} />
+            <StatTile label="Не було" value={stats.missed} tone={missedShare >= 0.25 ? 'warn' : 'default'} sub={stats.total ? `${Math.round(missedShare * 100)} %` : undefined} />
+          </StatTiles>
 
           <h3>По рейсах на зупинках</h3>
           {stats.summary.length === 0 ? (
-            <p className="arrival-tab-empty">За цей період позначок ще немає.</p>
+            <EmptyState>За цей період позначок ще немає.</EmptyState>
           ) : (
-            <div className="arrival-tab-scroll">
-              <table className="arrival-tab-table">
-                <thead>
-                  <tr>
-                    <th>№</th>
-                    <th>Напрямок</th>
-                    <th>Зупинка</th>
-                    <th>Розклад</th>
-                    <th>Приїхав</th>
-                    <th>Не було</th>
-                    <th>Сер.</th>
-                    <th>Мін … макс</th>
-                    <th>Днів</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.summary.map((r) => (
-                    <tr key={`${r.routeId}|${r.direction}|${r.stopId}|${r.scheduledTime}`}>
-                      <td>{routeNo(r.routeId)}</td>
-                      <td>{DIR_LABEL[r.direction] ?? r.direction}</td>
-                      <td>{stopName(r.stopId)}</td>
-                      <td className="arrival-tab-num">{r.scheduledTime}</td>
-                      <td className="arrival-tab-num">{r.arrived}</td>
-                      <td className="arrival-tab-num">{r.missed || ''}</td>
-                      <td className="arrival-tab-num">{signedMin(r.avgDelay)}</td>
-                      <td className="arrival-tab-num">
-                        {r.minDelay === null ? '—' : `${signedMin(r.minDelay)} … ${signedMin(r.maxDelay)}`}
-                      </td>
-                      <td className="arrival-tab-num">{r.days}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveTable columns={summaryColumns} rows={stats.summary} rowKey={(r) => `${r.routeId}|${r.direction}|${r.stopId}|${r.scheduledTime}`} />
           )}
 
           <h3>Останні позначки</h3>
           {stats.recent.length === 0 ? (
-            <p className="arrival-tab-empty">Порожньо.</p>
+            <EmptyState>Порожньо.</EmptyState>
           ) : (
-            <div className="arrival-tab-scroll">
-              <table className="arrival-tab-table">
-                <thead>
-                  <tr>
-                    <th>Коли</th>
-                    <th>№</th>
-                    <th>Зупинка</th>
-                    <th>Розклад</th>
-                    <th>Факт</th>
-                    <th>Відх.</th>
-                    <th>Звідки</th>
-                    <th>Пристрій</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.recent.map((r) => (
-                    <tr key={r.id} className={r.kind === 'missed' ? 'arrival-tab-row--missed' : ''}>
-                      <td className="arrival-tab-num">{KYIV_DT.format(new Date(r.createdAt))}</td>
-                      <td>
-                        {routeNo(r.routeId)} {DIR_LABEL[r.direction] ?? r.direction}
-                      </td>
-                      <td>{stopName(r.stopId)}</td>
-                      <td className="arrival-tab-num">{r.scheduledTime}</td>
-                      <td className="arrival-tab-num">
-                        {r.kind === 'missed' ? `не було${r.waitedMin ? ` (чекав ${r.waitedMin} хв)` : ''}` : r.actualTime}
-                      </td>
-                      <td className="arrival-tab-num">{signedMin(r.delayMin)}</td>
-                      <td>{r.source === 'board' ? 'табло' : 'маршрут'}</td>
-                      <td className="arrival-tab-client" title={r.clientId ?? ''}>
-                        {r.clientId ? r.clientId.slice(0, 6) : '—'}
-                      </td>
-                      <td>
-                        <button type="button" className="arrival-tab-del" onClick={() => void remove(r.id)} aria-label={`Видалити звіт ${r.id}`}>
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ResponsiveTable columns={recentColumns} rows={stats.recent} rowKey={(r) => r.id} rowClassName={(r) => (r.kind === 'missed' ? 'arrival-tab-row--missed' : undefined)} />
           )}
         </>
       ) : null}
