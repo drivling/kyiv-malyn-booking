@@ -4,10 +4,11 @@ exports.DOVEDE_PAGE_DATA = void 0;
 exports.shuttleProblem = shuttleProblem;
 exports.serviceProblem = serviceProblem;
 exports.ringExtraProblem = ringExtraProblem;
+exports.examplesProblem = examplesProblem;
 exports.createDovedePageData = createDovedePageData;
 /**
  * «Доведе» · дані сторінки, які змінюються в житті й раніше потребували коду та деплою (Docs/dovede-admin-roadmap.md,
- * крок 11): автобус замість метро, години й тариф метро, дні додаткових рейсів міської електрички. Типові значення живуть у коді сторінки
+ * крок 11): автобус замість метро, години й тариф метро, дні додаткових рейсів міської електрички, приклади питань. Типові значення живуть у коді сторінки
  * (`frontend/src/pages/DovedePage/data/…`); тут — лише те, що власник змінив в адмінці.
  *
  * Зберігається в тій самій таблиці, що й налаштування (`DovedeSetting`), з ключем `page.<ключ>` і значенням `{ v }`:
@@ -72,6 +73,22 @@ function ringExtraProblem(v) {
         return 'fromTime: HH:MM';
     return null;
 }
+/** Приклади питань: `{ malyn?, korosten? }` — від 1 до 10 рядків по 3–120 знаків; хоч один список */
+function examplesProblem(v) {
+    if (!isObj(v))
+        return 'обʼєкт { malyn?, korosten? }';
+    const keys = Object.keys(v);
+    if (!keys.length || keys.some((k) => k !== 'malyn' && k !== 'korosten'))
+        return 'лише malyn і / або korosten';
+    for (const k of keys) {
+        const list = v[k];
+        if (!Array.isArray(list) || !list.length || list.length > 10)
+            return `${k}: від 1 до 10 питань`;
+        if (list.some((x) => typeof x !== 'string' || x.trim().length < 3 || x.length > 120))
+            return `${k}: кожне питання — від 3 до 120 знаків`;
+    }
+    return null;
+}
 exports.DOVEDE_PAGE_DATA = [
     {
         key: 'metro.shuttle',
@@ -90,6 +107,12 @@ exports.DOVEDE_PAGE_DATA = [
         label: 'Додаткові рейси міської електрички',
         help: 'Рейси «Д» півкільцем Почайна — Дарниця — Видубичі ходять лише в оголошені дні. Продовжили — змінити дати; скасували — вимкнути.',
         problem: ringExtraProblem,
+    },
+    {
+        key: 'examples',
+        label: 'Приклади питань на сторінці',
+        help: '«Спитайте, наприклад» під полем питання: кнопки, які людина натискає замість того, щоб писати.',
+        problem: examplesProblem,
     },
 ];
 const BY_KEY = new Map(exports.DOVEDE_PAGE_DATA.map((d) => [d.key, d]));
@@ -143,7 +166,11 @@ function createDovedePageData(deps) {
             if (problem)
                 throw new RangeError(`${key}: ${problem}`);
         }
-        const normalized = !reset && key === 'metro.shuttle' && isObj(value) ? { ...value, bus: String(value.bus).trim() } : value;
+        const normalized = !reset && key === 'metro.shuttle' && isObj(value)
+            ? { ...value, bus: String(value.bus).trim() }
+            : !reset && key === 'examples' && isObj(value)
+                ? Object.fromEntries(Object.entries(value).map(([k, list]) => [k, list.map((x) => x.replace(/\s+/g, ' ').trim())]))
+                : value;
         const json = reset ? client_1.Prisma.DbNull : { v: normalized };
         await prisma.dovedeSetting.upsert({ where: { key: PREFIX + key }, create: { key: PREFIX + key, value: json }, update: { value: json } });
         memo = null;

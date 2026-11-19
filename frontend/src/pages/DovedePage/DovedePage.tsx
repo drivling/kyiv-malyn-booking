@@ -46,6 +46,7 @@ import { addDays, parseLocal } from './nlu/parseLocal';
 import { setStopPlaces } from './nlu/places';
 import { setSynonyms } from './nlu/synonyms';
 import { loadPageData, pageDataReady } from './data/pageData';
+import { pageExamples } from './data/examples';
 import { buildStopPlaces } from './nlu/stopPlaces';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
@@ -64,16 +65,6 @@ import { StoryView } from './ui/StoryView';
 import { Understanding } from './ui/Understanding';
 import './DovedePage.css';
 
-const KOROSTEN_EXAMPLES = ['З Пашин до міськлікарні', 'Від Гастелло до вокзалу', 'Коли №4 на Грозине', 'З Чолівки на ринок'];
-
-const EXAMPLES = [
-  'Як доїхати з Києва (Святошин) до Малина на вокзал',
-  'з Царського села до Києва завтра зранку',
-  'електричкою з Києва до Малина',
-  'автобусом з Царського села на вокзал',
-  'з Паперової фабрики в Коростень до міськлікарні',
-  'у Коростені з Пашин до вокзалу',
-];
 
 type View =
   | { kind: 'idle' }
@@ -284,7 +275,10 @@ function DovedeSearch({
   useEffect(() => {
     let alive = true;
     // дані сторінки з адмінки (метро-замінник, години й тариф метро) — один раз на сторінку; відповідь їх дочекається
-    void loadPageData(() => apiClient.dovedePageData());
+    void loadPageData(() => apiClient.dovedePageData()).then(() => {
+      // приклади питань могли змінитись — показати нові
+      if (alive) setTaught((n) => n + 1);
+    });
     void apiClient.dovedeSynonyms().then((list) => {
       if (!alive) return;
       setSynonyms(list);
@@ -637,7 +631,7 @@ function DovedeSearch({
         <section className="dv-home" aria-label="Приклади питань">
           <h2>Спитайте, наприклад</h2>
           <div className="dv-chips">
-            {(korosten ? KOROSTEN_EXAMPLES : EXAMPLES).map((q) => (
+            {pageExamples(korosten).map((q) => (
               <button
                 key={q}
                 type="button"
@@ -902,7 +896,7 @@ function Result({
         <Panel title="Я підказую дорогу">
           <p>Напишіть, звідки, куди й коли.</p>
           <div className="dv-chips">
-            {EXAMPLES.slice(0, 2).map((q) => (
+            {pageExamples().slice(0, 2).map((q) => (
               <button key={q} type="button" className="dv-chip" onClick={() => onExample(q)}>
                 {q}
               </button>

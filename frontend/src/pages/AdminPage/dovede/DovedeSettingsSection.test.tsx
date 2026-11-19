@@ -34,6 +34,7 @@ function mock() {
     { key: 'metro.shuttle', label: 'Автобус замість метро', help: 'Дільниця лінії без поїздів.', changed: false, value: null, updatedAt: null },
     { key: 'metro.service', label: 'Години й тариф метро', help: 'Вхід, закриття, тариф.', changed: false, value: null, updatedAt: null },
     { key: 'ring.extra', label: 'Додаткові рейси міської електрички', help: 'Рейси «Д».', changed: false, value: null, updatedAt: null },
+    { key: 'examples', label: 'Приклади питань на сторінці', help: '«Спитайте, наприклад».', changed: false, value: null, updatedAt: null },
   );
   server.use(
     http.get(`${TEST_API_URL}/admin/dovede/settings`, () => HttpResponse.json({ items, groups: { ai: 'ШІ (Claude)', google: 'Google', learning: 'Фонове навчання' } })),
@@ -104,7 +105,7 @@ describe('DovedeSettingsSection', () => {
     render(<DovedeSettingsSection />);
     const group = await screen.findByRole('group', { name: 'Дані сторінки' });
     expect(within(group).getByText(/Зараз: М3: після «Видубичі» до «Червоний хутір» — автобус №318 \(станцій 7\)/)).toBeInTheDocument();
-    expect(within(group).getAllByText('типове з коду')).toHaveLength(3);
+    expect(within(group).getAllByText('типове з коду')).toHaveLength(4);
 
     // поїзди знову їздять усюди
     await user.click(within(group).getByLabelText('автобус замість метро'));
@@ -153,5 +154,23 @@ describe('DovedeSettingsSection', () => {
     await user.click(within(group).getAllByRole('button', { name: 'Зберегти' })[2]);
     expect(calls[calls.length - 1]).toBe('page:ring.extra=null');
     expect(await within(group).findByText('Зараз: додаткових рейсів немає.')).toBeInTheDocument();
+  });
+
+  it('дані сторінки: приклади питань — по одному в рядку, порожні рядки відкидаємо', async () => {
+    const { calls } = mock();
+    const user = userEvent.setup();
+    render(<DovedeSettingsSection />);
+    const group = await screen.findByRole('group', { name: 'Дані сторінки' });
+    const malyn = within(group).getByLabelText('Малин (і Київ, Житомир)');
+    expect((malyn as HTMLTextAreaElement).value.split('\n')).toHaveLength(6);
+    await user.clear(malyn);
+    await user.type(malyn, 'з Києва до Малина{enter}{enter}  до Охматдиту  ');
+    await user.click(within(group).getAllByRole('button', { name: 'Зберегти' })[3]);
+    const sent = JSON.parse(calls[calls.length - 1].replace('page:examples=', ''));
+    expect(sent.malyn).toEqual(['з Києва до Малина', 'до Охматдиту']);
+    expect(sent.korosten).toHaveLength(4);
+
+    await user.clear(within(group).getByLabelText('Коростень'));
+    expect(within(group).getAllByRole('button', { name: 'Зберегти' })[3]).toBeDisabled();
   });
 });
