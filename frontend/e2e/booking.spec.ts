@@ -13,12 +13,8 @@ test.describe('booking happy path', () => {
     await expect(page.getByRole('button', { name: 'Забронювати' }).first()).toBeVisible({
       timeout: 15_000,
     });
-    // «Зубастик» (Київ ↔ Малин) поки лише за телефоном: банер над картками і дзвінок у картці
-    await expect(page.getByRole('note').first()).toContainText('Онлайн-бронювання поки не працює');
-    await expect(page.getByRole('link', { name: 'Подзвонити 093 192 00 08' }).first()).toHaveAttribute(
-      'href',
-      'tel:+380931920008'
-    );
+    // у пошуку попереджень про «Зубастик» немає — лише в модалці бронювання (рішення власника 2026-11-19)
+    await expect(page.getByText('Онлайн-бронювання поки не працює')).toHaveCount(0);
     await page.getByRole('button', { name: 'Забронювати' }).first().click();
 
     await expect(page.getByRole('heading', { name: 'Бронювання маршрутки' })).toBeVisible();

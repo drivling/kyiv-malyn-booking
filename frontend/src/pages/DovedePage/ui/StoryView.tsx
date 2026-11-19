@@ -2,7 +2,6 @@ import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
 import { isoToDateUrl } from '@/pages/LocalTransportPage/dateUrl';
 import { routeColorStyleIn } from '@/pages/LocalTransportPage/routeColors';
-import { ZUBASTYK_MAIN_PHONE, zubastykTelHref } from '@/pages/MizhgorodskiPage/phoneOnlyBooking';
 import { routeNoIn } from '@/utils/routeNames';
 import { transportProfile } from '@/site/transportCity';
 import { clock } from '../compose/narrate';
@@ -17,6 +16,7 @@ import { RIDE_COLOR, rideLook } from '../compose/cityTransit';
 import { MetroCard } from './MetroCard';
 import { RingCard } from './RingCard';
 import { RideNote } from './RideBoard';
+import { BookingButton } from './BookingButton';
 
 type IntercityLeg = Extract<StoryLeg, { kind: 'intercity' }>;
 type BusLeg = Extract<StoryLeg, { kind: 'bus' }>;
@@ -29,10 +29,12 @@ function intercityTitle(l: IntercityLeg): string {
 
 /**
  * Міжміський рейс — як квиток (у дусі Passbook): кольорова смуга виду транспорту, перфорація і «відривний»
- * корінець з ціною та дією. Лише міжміські: міські автобуси лишаються простими картками, щоб квиток виділявся.
+ * корінець з ціною та дією: маршрутку бронюють тут же (модалка головної), на електричку — квиток перевізника.
+ * Лише міжміські: міські автобуси лишаються простими картками, щоб квиток виділявся.
  */
-function IntercityCard({ l }: { l: IntercityLeg }) {
-  const hasStub = Boolean(l.priceUah || l.phoneOnly || l.ticketUrl);
+function IntercityCard({ l, date }: { l: IntercityLeg; date: string }) {
+  const bookable = l.mode !== 'elektrichka';
+  const hasStub = Boolean(l.priceUah || bookable || l.ticketUrl);
   return (
     <div className={`dv-card dv-ticket dv-ticket--${l.mode}`}>
       <div className="dv-ticket__main">
@@ -50,11 +52,6 @@ function IntercityCard({ l }: { l: IntercityLeg }) {
           </span>
           <span>у дорозі {l.alightApprox || l.boardApprox ? '≈ ' : ''}{durationText(l.alightMins - l.boardMins)}</span>
         </p>
-        {l.phoneOnly ? (
-          <p className="dv-note">
-            Зараз місця бронюють лише телефоном: <b>{ZUBASTYK_MAIN_PHONE.label}</b>
-          </p>
-        ) : null}
         {l.later.length ? <p className="dv-more">Інші рейси: {l.later.join(' · ')}</p> : null}
       </div>
       {hasStub ? (
@@ -66,11 +63,7 @@ function IntercityCard({ l }: { l: IntercityLeg }) {
           ) : (
             <span />
           )}
-          {l.phoneOnly ? (
-            <a className="dv-btn dv-btn--primary" href={zubastykTelHref()}>
-              Подзвонити
-            </a>
-          ) : null}
+          {bookable ? <BookingButton schedule={l.schedule} date={date} fromCity={l.fromCity} toCity={l.toCity} /> : null}
           {l.ticketUrl ? (
             <a className="dv-btn dv-btn--primary" href={l.ticketUrl} target="_blank" rel="noopener noreferrer">
               Квиток ↗
@@ -181,7 +174,7 @@ function legStyle(l: StoryLeg): CSSProperties | undefined {
 function LegBody({ l, date, stopName }: { l: StoryLeg; date: string; stopName: (id: string) => string }) {
   switch (l.kind) {
     case 'intercity':
-      return <IntercityCard l={l} />;
+      return <IntercityCard l={l} date={date} />;
     case 'metro':
       return <MetroCard l={l} />;
     case 'ring':

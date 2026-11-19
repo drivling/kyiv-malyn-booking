@@ -3258,3 +3258,9 @@ button.dv-tear__slip:active {
     transform: rotate(135deg);
   }
 }
+
+/* бронювання маршрутки — модалка головної (ui/DovedeBooking.tsx): обгортка дає лише її кольори, місця не займає */
+.mizh-page.dv-booking {
+  min-height: 0;
+  background: none;
+}

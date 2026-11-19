@@ -958,16 +958,16 @@ notifications — is derived from them. Keep the two maps in sync.
   backend migration has run**. A local `npm run build` rewrites that snapshot from the live API (prices, `fetchedAt`) —
   check `git diff` before committing.
 - Git commit messages must be written in English (project convention, from `.cursor/rules`).
-- «Зубастик» (Kyiv ↔ Malyn marshrutkas) is **phone-only for now**: the online flow (site modal, bot
-  `/book`) still writes the booking and keeps the old «технічний режим» warnings. Warn **only where people
-  book**: search results (banner, card note, call button; the notes are left out of the static prerender
-  via `isPrerendering()`, `src/utils/prerender.ts`), the booking modal, bot booking steps and
-  «Мої бронювання», confirmations, reminders, SMS, the admin message and `POST /bookings` (`phoneOnly` +
-  `notice`). Ads, SEO and AEO copy (landings, FAQ / JSON-LD, meta, `llms.txt`, promos, bot welcome/help)
-  keep promising online booking — at most the soft `ZUBASTYK_TEMP_NOTE` («тимчасово… за телефоном»),
-  never «не працює». One rule, kept identical in `backend/src/phone-booking.ts` and
-  `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts`; the phones mirror `ZUBASTYK_PHONES` in
-  `zubastykContent.ts`. Restoring online booking = reverting that change.
+- «Зубастик» (Kyiv ↔ Malyn marshrutkas) is **phone-only for now** (a separate integration with the carrier is in
+  progress): the online flow (site modal, bot `/book`) still writes the booking and keeps the old «технічний режим»
+  warnings. Warn **only at the moment of booking**: the booking modal (`BusBookingModal`, also opened from «Доведе» —
+  `DovedePage/ui/BookingButton.tsx` → lazy `DovedeBooking.tsx`, a portal into `body`), bot booking steps and «Мої
+  бронювання», confirmations, reminders, SMS, the admin message and `POST /bookings` (`phoneOnly` + `notice`). The home
+  page, search results, «Доведе» stories, ads, SEO and AEO copy (landings, FAQ / JSON-LD, meta, `llms.txt`, promos, bot
+  welcome/help) say nothing about it — back to the copy before the warnings (owner, 2026-11-19; a test keeps the
+  corridor copy free of «не працює / лише за телефоном / тимчасово»). One rule, kept identical in
+  `backend/src/phone-booking.ts` and `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts`; the phones mirror
+  `ZUBASTYK_PHONES` in `zubastykContent.ts`. Restoring online booking = reverting that change.
 - The Python `viberparser/` service has no automated test suite (out of CI) — see `Docs/TESTING.md`
   "Out of CI" section for what's covered by manual smoke checklists instead
   (`Docs/*-smoke.md`), e.g. `Docs/gold-route-model-smoke.md`, `Docs/poputky-od-city-scale-smoke.md`.
