@@ -5,9 +5,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { metroTrip } from './kyiv';
 import { METRO_SERVICE, METRO_SHUTTLE_DEFAULT, applyMetroData, metroOpenAt, metroShuttle, resetMetroData } from './kyivMetroService';
-import { loadPageData, pageDataReady, resetPageDataLoad } from './pageData';
+import { applyPageData, loadPageData, pageDataReady, resetPageDataLoad } from './pageData';
+import { RING_TRAINS, resetRingData, ringTrainRuns, ringTrainWindow } from './kyivRing';
 
 afterEach(() => {
+  resetRingData();
   resetMetroData();
   resetPageDataLoad();
 });
@@ -61,5 +63,35 @@ describe('дані метро з адмінки', () => {
     const t0 = Date.now();
     await pageDataReady(30);
     expect(Date.now() - t0).toBeLessThan(1000);
+  });
+});
+
+describe('додаткові рейси міської електрички з адмінки', () => {
+  const extra = RING_TRAINS.find((t) => t.extra)!;
+  const regular = RING_TRAINS.find((t) => !t.extra)!;
+  const dep = 18 * 60;
+
+  it('типово — дні з розкладу (17–20 листопада, першого дня з 12:00)', () => {
+    expect(ringTrainWindow(extra)).toEqual({ from: '2026-11-17', fromMins: 720, to: '2026-11-20' });
+    expect(ringTrainRuns(extra, '2026-11-18', dep)).toBe(true);
+    expect(ringTrainRuns(extra, '2026-11-24', dep)).toBe(false);
+  });
+
+  it('продовжили — їдуть і далі; скасували (null) — не їдуть; звичайні рейси не чіпаємо', () => {
+    applyPageData({ 'ring.extra': { from: '2026-11-17', fromTime: '12:00', to: '2026-11-30' } });
+    expect(ringTrainRuns(extra, '2026-11-24', dep)).toBe(true);
+    expect(ringTrainRuns(extra, '2026-11-17', 11 * 60)).toBe(false);
+    expect(ringTrainWindow(extra)?.to).toBe('2026-11-30');
+
+    applyPageData({ 'ring.extra': null });
+    expect(ringTrainRuns(extra, '2026-11-18', dep)).toBe(false);
+    expect(ringTrainWindow(regular)).toEqual({ from: regular.from, fromMins: regular.fromMins, to: regular.to });
+    expect(ringTrainRuns(regular, '2026-11-18', 9 * 60)).toBe(true);
+
+    // незрозуміле — без змін
+    applyPageData({ 'ring.extra': { from: '2026-11-30', to: '2026-11-01' } });
+    expect(ringTrainRuns(extra, '2026-11-18', dep)).toBe(false);
+    resetRingData();
+    expect(ringTrainRuns(extra, '2026-11-18', dep)).toBe(true);
   });
 });

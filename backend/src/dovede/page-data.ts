@@ -1,6 +1,6 @@
 /**
  * «Доведе» · дані сторінки, які змінюються в житті й раніше потребували коду та деплою (Docs/dovede-admin-roadmap.md,
- * крок 11): автобус замість метро, години й тариф метро. Типові значення живуть у коді сторінки
+ * крок 11): автобус замість метро, години й тариф метро, дні додаткових рейсів міської електрички. Типові значення живуть у коді сторінки
  * (`frontend/src/pages/DovedePage/data/…`); тут — лише те, що власник змінив в адмінці.
  *
  * Зберігається в тій самій таблиці, що й налаштування (`DovedeSetting`), з ключем `page.<ключ>` і значенням `{ v }`:
@@ -49,6 +49,19 @@ export function serviceProblem(v: unknown): string | null {
   return null;
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const validDate = (v: unknown): v is string => typeof v === 'string' && ISO_DATE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
+
+/** Дні додаткових рейсів «Д» міської електрички: з дати (і часу першого дня) до дати включно; null — рейсів немає */
+export function ringExtraProblem(v: unknown): string | null {
+  if (v === null) return null;
+  if (!isObj(v)) return 'обʼєкт або null';
+  if (!validDate(v.from)) return 'from: YYYY-MM-DD';
+  if (!validDate(v.to) || v.to < v.from) return 'to: YYYY-MM-DD, не раніше from';
+  if (v.fromTime !== undefined && (typeof v.fromTime !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(v.fromTime))) return 'fromTime: HH:MM';
+  return null;
+}
+
 export const DOVEDE_PAGE_DATA: readonly PageDataDef[] = [
   {
     key: 'metro.shuttle',
@@ -61,6 +74,12 @@ export const DOVEDE_PAGE_DATA: readonly PageDataDef[] = [
     label: 'Години й тариф метро',
     help: 'Коли відкривається й закривається вхід і скільки коштує поїздка.',
     problem: serviceProblem,
+  },
+  {
+    key: 'ring.extra',
+    label: 'Додаткові рейси міської електрички',
+    help: 'Рейси «Д» півкільцем Почайна — Дарниця — Видубичі ходять лише в оголошені дні. Продовжили — змінити дати; скасували — вимкнути.',
+    problem: ringExtraProblem,
   },
 ];
 

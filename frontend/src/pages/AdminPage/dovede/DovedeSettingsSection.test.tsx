@@ -33,6 +33,7 @@ function mock() {
     pageData.length,
     { key: 'metro.shuttle', label: 'Автобус замість метро', help: 'Дільниця лінії без поїздів.', changed: false, value: null, updatedAt: null },
     { key: 'metro.service', label: 'Години й тариф метро', help: 'Вхід, закриття, тариф.', changed: false, value: null, updatedAt: null },
+    { key: 'ring.extra', label: 'Додаткові рейси міської електрички', help: 'Рейси «Д».', changed: false, value: null, updatedAt: null },
   );
   server.use(
     http.get(`${TEST_API_URL}/admin/dovede/settings`, () => HttpResponse.json({ items, groups: { ai: 'ШІ (Claude)', google: 'Google', learning: 'Фонове навчання' } })),
@@ -103,7 +104,7 @@ describe('DovedeSettingsSection', () => {
     render(<DovedeSettingsSection />);
     const group = await screen.findByRole('group', { name: 'Дані сторінки' });
     expect(within(group).getByText(/Зараз: М3: після «Видубичі» до «Червоний хутір» — автобус №318 \(станцій 7\)/)).toBeInTheDocument();
-    expect(within(group).getAllByText('типове з коду')).toHaveLength(2);
+    expect(within(group).getAllByText('типове з коду')).toHaveLength(3);
 
     // поїзди знову їздять усюди
     await user.click(within(group).getByLabelText('автобус замість метро'));
@@ -133,5 +134,24 @@ describe('DovedeSettingsSection', () => {
     await user.click(within(group).getAllByRole('button', { name: 'Скинути до типового з коду' })[0]);
     expect(calls[calls.length - 1]).toBe('page:metro.shuttle=reset');
     expect(await within(group).findByText('«Автобус замість метро» — знову типове з коду.')).toBeInTheDocument();
+  });
+
+  it('дані сторінки: додаткові рейси «Д» — дні з розкладу, продовжити, скасувати', async () => {
+    const { calls } = mock();
+    const user = userEvent.setup();
+    render(<DovedeSettingsSection />);
+    const group = await screen.findByRole('group', { name: 'Дані сторінки' });
+    expect(within(group).getByText('Зараз: з 17 листопада (з 12:00) до 20 листопада включно.')).toBeInTheDocument();
+    const to = within(group).getByLabelText('До дати включно');
+    await user.clear(to);
+    await user.type(to, '2026-11-30');
+    await user.click(within(group).getAllByRole('button', { name: 'Зберегти' })[2]);
+    expect(calls[calls.length - 1]).toBe('page:ring.extra={"from":"2026-11-17","to":"2026-11-30","fromTime":"12:00"}');
+    expect(await within(group).findByText('Зараз: з 17 листопада (з 12:00) до 30 листопада включно.')).toBeInTheDocument();
+
+    await user.click(within(group).getByLabelText('додаткові рейси «Д» ходять'));
+    await user.click(within(group).getAllByRole('button', { name: 'Зберегти' })[2]);
+    expect(calls[calls.length - 1]).toBe('page:ring.extra=null');
+    expect(await within(group).findByText('Зараз: додаткових рейсів немає.')).toBeInTheDocument();
   });
 });

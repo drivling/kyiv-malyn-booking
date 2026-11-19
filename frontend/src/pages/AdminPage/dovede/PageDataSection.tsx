@@ -3,6 +3,7 @@ import { apiClient } from '@/api/client';
 import type { DovedePageDataItem } from '@/types';
 import { METRO_STATIONS, type MetroLine } from '@/pages/DovedePage/nlu/kyivMetroData';
 import { METRO_LINE, METRO_SERVICE, METRO_SHUTTLE_DEFAULT, type MetroShuttle } from '@/pages/DovedePage/data/kyivMetroService';
+import { RING_TRAINS } from '@/pages/DovedePage/data/kyivRing';
 
 const LINES: MetroLine[] = ['M1', 'M2', 'M3'];
 const stationName = (id: string) => METRO_STATIONS.find((s) => s.id === id)?.name ?? id;
@@ -208,6 +209,65 @@ const ServiceRow: React.FC<{ item: DovedePageDataItem | undefined; busy: boolean
   );
 };
 
+type RingExtra = { from: string; fromTime?: string; to: string };
+
+/** Дні додаткових рейсів «Д» з розкладу (`kyivRingTimetable.json`); null — у розкладі їх немає */
+const RING_EXTRA_DEFAULT: RingExtra | null = (() => {
+  const t = RING_TRAINS.find((x) => x.extra && x.from && x.to);
+  return t && t.from && t.to ? { from: t.from, to: t.to, ...(t.fromMins ? { fromTime: hhmm(t.fromMins) } : {}) } : null;
+})();
+
+const dayMonth = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('uk-UA', { timeZone: 'Europe/Kyiv', day: 'numeric', month: 'long' });
+
+/** Додаткові рейси міської електрички: вимкнено — їх немає; увімкнено — з дати (і часу першого дня) до дати */
+const RingExtraRow: React.FC<{ item: DovedePageDataItem | undefined; busy: boolean; onSave: (v: unknown, reset?: boolean) => void }> = ({ item, busy, onSave }) => {
+  const current = item?.changed ? (item.value as RingExtra | null) : RING_EXTRA_DEFAULT;
+  const base = current ?? RING_EXTRA_DEFAULT ?? { from: new Date().toISOString().slice(0, 10), to: new Date().toISOString().slice(0, 10) };
+  const [on, setOn] = useState(current !== null);
+  const [from, setFrom] = useState(base.from);
+  const [fromTime, setFromTime] = useState(base.fromTime ?? '');
+  const [to, setTo] = useState(base.to);
+  const valid = !on || (/^\d{4}-\d{2}-\d{2}$/.test(from) && /^\d{4}-\d{2}-\d{2}$/.test(to) && to >= from);
+  return (
+    <div className="admin-kit-setting">
+      <div className="admin-kit-setting-text">
+        <label htmlFor="dv-pd-ring-on">{item?.label ?? 'Додаткові рейси міської електрички'}</label>
+        <p>{item?.help}</p>
+        <p>
+          Зараз: {current ? `з ${dayMonth(current.from)}${current.fromTime ? ` (з ${current.fromTime})` : ''} до ${dayMonth(current.to)} включно` : 'додаткових рейсів немає'}.
+        </p>
+      </div>
+      <div>
+        <label className="admin-kit-switch">
+          <input id="dv-pd-ring-on" type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} /> додаткові рейси «Д» ходять
+        </label>
+        {on ? (
+          <div className="dv-pd-grid">
+            <label>
+              З дати
+              <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+            </label>
+            <label>
+              Першого дня з
+              <input type="time" value={fromTime} onChange={(e) => setFromTime(e.target.value)} />
+            </label>
+            <label>
+              До дати включно
+              <input type="date" value={to} onChange={(e) => setTo(e.target.value)} aria-invalid={!(to >= from)} />
+            </label>
+          </div>
+        ) : null}
+        <div className="admin-kit-setting-form">
+          <button type="button" className="admin-kit-btn" disabled={busy || !valid} onClick={() => onSave(on ? { from, to, ...(fromTime ? { fromTime } : {}) } : null)}>
+            Зберегти
+          </button>
+        </div>
+        <Source item={item} busy={busy} onReset={() => onSave(null, true)} />
+      </div>
+    </div>
+  );
+};
+
 /**
  * «Дані сторінки» в розділі «Налаштування» (Docs/dovede-admin-roadmap.md, крок 11): те, що змінюється в житті й раніше
  * потребувало коду та деплою. Сторінка «Доведе» читає змінене при відкритті (`GET /dovede/page-data`); «Скинути до
@@ -264,6 +324,7 @@ export const PageDataSection: React.FC = () => {
         <>
           <ShuttleRow key={`sh-${by('metro.shuttle')?.updatedAt ?? 'code'}`} item={by('metro.shuttle')} busy={busy} onSave={(v, reset) => void save('metro.shuttle', v, reset)} />
           <ServiceRow item={by('metro.service')} busy={busy} onSave={(v, reset) => void save('metro.service', v, reset)} />
+          <RingExtraRow key={`ring-${by('ring.extra')?.updatedAt ?? 'code'}`} item={by('ring.extra')} busy={busy} onSave={(v, reset) => void save('ring.extra', v, reset)} />
         </>
       ) : null}
     </div>
