@@ -117,7 +117,7 @@ function createApp(deps) {
     app.use((0, admin_lunch_1.createAdminLunchRouter)({ prisma }));
     app.use((0, admin_dzhura_1.createAdminDzhuraRouter)({ prisma }));
     // одна «дорога містом» на весь сервер: лічильник Google, пауза після відмови й фонове навчання — спільні (index.ts)
-    app.use((0, admin_dovede_1.createAdminDovedeRouter)({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess, ...(deps.cityRoutes ? { cityRoutes: deps.cityRoutes } : {}), ...(deps.dovedeSettings ? { settings: deps.dovedeSettings } : {}) }));
+    app.use((0, admin_dovede_1.createAdminDovedeRouter)({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess, ...(deps.cityRoutes ? { cityRoutes: deps.cityRoutes } : {}), ...(deps.dovedeSettings ? { settings: deps.dovedeSettings } : {}), ...(deps.cityCampaigns ? { campaigns: deps.cityCampaigns } : {}) }));
     app.use((0, ads_1.createAdsRouter)({ prisma, adminPassword: ADMIN_PASSWORD, access: deps.dovedeAccess }));
     app.use((0, admin_notification_settings_1.createAdminNotificationSettingsRouter)({ prisma }));
     app.use((0, transport_1.createTransportRouter)({

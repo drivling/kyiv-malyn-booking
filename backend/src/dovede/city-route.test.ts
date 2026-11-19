@@ -690,3 +690,43 @@ test('навчання слухає налаштування: частка лі�
   await quota.find(Q);
   assert.equal((await quota.stats()).blocked?.until, new Date(NOW.getTime() + 3 * 60_000).toISOString());
 });
+
+test('кампанія: campaignAsk каже, чи пішов запит до Google; квота (429) не рахується; попит не росте', async () => {
+  const t = make();
+  const first = await t.svc.campaignAsk(Q);
+  assert.equal(first.answer.ok, true);
+  assert.equal(first.googleCalled, true);
+  // та сама пара — з бази, Google не питали
+  const again = await t.svc.campaignAsk(Q);
+  assert.equal(again.answer.ok && again.answer.source, 'stored');
+  assert.equal(again.googleCalled, false);
+  assert.equal(t.dovedeCityDemand.rows.length, 0);
+
+  const quota = make({ fetchImpl: async () => ({ ok: false, status: 429, json: async () => ({ error: { message: 'Quota exceeded' } }) }) as never });
+  const r = await quota.svc.campaignAsk(Q);
+  assert.equal(r.answer.ok, false);
+  assert.equal(r.googleCalled, false);
+  assert.equal((await quota.svc.googleBudget()).blocked, 'cap');
+  assert.equal((await quota.svc.googleBudget()).calls, 0);
+});
+
+test('кампанія: peekMany — свіже в базі, власні дані, архів, не місце, треба Google; нічого не пише', async () => {
+  const t = make({ ownRoute: (args) => (args.to === 'Житній ринок' ? ({ ok: true, source: 'own' } as never) : null) });
+  // архів місць памʼятається хвилину — кладемо до першого питання
+  t.dovedeCityPlace.rows.push({ id: 1, cityCode: 'Zhytomyr', key: 'площа перемоги', label: 'Площа перемоги', archivedAt: new Date('2026-11-16T00:00:00.000Z') });
+  await t.svc.find(Q);
+  const before = { routes: t.dovedeCityRoute.rows.length, demand: t.dovedeCityDemand.rows.length, calls: t.calls.length };
+  const at = (to: string, time = '09:20'): CityRouteQuery => ({ ...Q, to, time });
+  assert.deepEqual(await t.svc.peekMany([at('Польова 12'), at('Польова 12', '10:00'), at('Польова 12', '12:00'), at('Житній ринок'), at('Площа перемоги'), at('zhytomyr.avtovokzal'), at('Корбутівка')]), [
+    'fresh',
+    'fresh',
+    'none',
+    'own',
+    'archived',
+    'invalid',
+    'none',
+  ]);
+  assert.deepEqual({ routes: t.dovedeCityRoute.rows.length, demand: t.dovedeCityDemand.rows.length, calls: t.calls.length }, before);
+  const b = await t.svc.googleBudget();
+  assert.deepEqual({ calls: b.calls, cap: b.cap, hasKey: b.hasKey, enabled: b.enabled, blocked: b.blocked }, { calls: 1, cap: 10, hasKey: true, enabled: true, blocked: null });
+});

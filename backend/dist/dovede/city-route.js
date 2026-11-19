@@ -416,7 +416,8 @@ function createCityRoutes(deps) {
             });
         }
     }
-    async function askGoogle(q, from, to, purpose) {
+    /** `trace.google` — запит до Google справді пішов і рахується (кампанія навчання рахує свій бюджет за ним) */
+    async function askGoogle(q, from, to, purpose, trace) {
         const key = deps.key();
         if (!key)
             return 'no_key';
@@ -432,6 +433,8 @@ function createCityRoutes(deps) {
             await countCall(purpose, -1);
             return 'cap';
         }
+        if (trace)
+            trace.google = true;
         try {
             // Google приймає лише майбутній час; для «вже зараз» — без нього
             const future = q.departAt.getTime() > now().getTime() + 60000;
@@ -451,6 +454,8 @@ function createCityRoutes(deps) {
                 // 429 — квота в Google Cloud менша за наш денний ліміт або її вибрали інші скрипти з тим самим ключем;
                 // 401 / 403 — ключ, вимкнений API або білінг. Не вина пари й не наш ліміт: спроба не рахується
                 await countCall(purpose, -1);
+                if (trace)
+                    trace.google = false;
                 blockedUntil = now().getTime() + (await backoffMs());
                 blockedReason = res.status === 429 ? 'cap' : 'denied';
                 await noteGoogleError(res.status, message, res.status === 429 ? 'quota' : 'denied');
@@ -474,7 +479,7 @@ function createCityRoutes(deps) {
      */
     const find = (q, background = false) => answer(q, background, false);
     /** `force` — оновлення збереженої відповіді: базу не читаємо, одразу питаємо Google */
-    async function answer(q, background, force) {
+    async function answer(q, background, force, trace) {
         if (!(await enabled()))
             return { ok: false, fallback: 'maps', reason: 'disabled' };
         const from = resolveCityPoint(q.city, q.from);
@@ -514,7 +519,7 @@ function createCityRoutes(deps) {
             }
             return { ok: true, source: stored.source === 'own' ? 'own' : 'stored', city: q.city, fromLabel: stored.fromLabel, toLabel: stored.toLabel, steps: stored.steps, minutes: stored.minutes, fetchedAt: stored.fetchedAt.toISOString() };
         }
-        const got = await askGoogle(q, from, to, background ? 'learn' : 'people');
+        const got = await askGoogle(q, from, to, background ? 'learn' : 'people', trace);
         if (typeof got === 'string') {
             if (!background)
                 await noteDemand(q.city, from, to, false);
@@ -643,6 +648,57 @@ function createCityRoutes(deps) {
             }
         }
         return { asked, learned };
+    }
+    /**
+     * Питання кампанії навчання (`city-campaign.ts`): як фонове навчання (попиту не рахує), а ще каже, чи пішов запит
+     * до Google — бюджет кампанії рахує саме їх.
+     */
+    async function campaignAsk(q) {
+        const trace = { google: false };
+        const r = await answer(q, true, false, trace);
+        return { answer: r, googleCalled: trace.google };
+    }
+    /**
+     * Що відповів би сервер без Google — для оцінки кампанії, нічого не пише: `own` — власні дані Житомира, `fresh` —
+     * свіжа відповідь у базі (той самий тип дня, година ± 1), `archived` — місце в архіві, `invalid` — слова не місце,
+     * `none` — треба питати Google. Збережене читає одним запитом на всі питання.
+     */
+    async function peekMany(qs) {
+        const own = await ownEnabled();
+        const hidden = await archivedPlaces();
+        const resolved = qs.map((q) => ({ q, from: resolveCityPoint(q.city, q.from), to: resolveCityPoint(q.city, q.to), hour: Number(q.time.slice(0, 2)) }));
+        const keys = new Set();
+        for (const r of resolved)
+            if (r.from && r.to)
+                keys.add(r.from.key).add(r.to.key);
+        const freshFrom = await freshSince();
+        const rows = keys.size
+            ? await prisma.dovedeCityRoute
+                .findMany({
+                where: { cityCode: { in: [...new Set(qs.map((q) => q.city))] }, archivedAt: null, fetchedAt: { gte: freshFrom }, fromKey: { in: [...keys] }, toKey: { in: [...keys] } },
+                select: { cityCode: true, fromKey: true, toKey: true, dayType: true, hour: true },
+            })
+                .catch((e) => {
+                console.error('❌ city-route: оцінка — база не відповіла:', e instanceof Error ? e.message : e);
+                return [];
+            })
+            : [];
+        const have = new Set(rows.map((r) => `${r.cityCode}|${r.fromKey}|${r.toKey}|${r.dayType}|${r.hour}`));
+        return resolved.map(({ q, from, to, hour }) => {
+            if (!from || !to || from.key === to.key || !Number.isInteger(hour))
+                return 'invalid';
+            if (q.city === 'Zhytomyr' && own && ownRoute({ from: q.from.trim(), to: q.to.trim(), date: q.date, time: q.time }, { from: from.label, to: to.label }))
+                return 'own';
+            if (hidden.has(`${q.city}|${from.key}`) || hidden.has(`${q.city}|${to.key}`))
+                return 'archived';
+            const day = (0, crawl_core_1.dayTypeOf)(q.date);
+            return [hour - 1, hour, hour + 1].some((h) => have.has(`${q.city}|${from.key}|${to.key}|${day}|${h}`)) ? 'fresh' : 'none';
+        });
+    }
+    /** Стан денного обліку Google для кампаній: скільки питали, ліміт, скільки людям відмовили, чи пауза після відмови */
+    async function googleBudget() {
+        const [calls, cap, row, blocked, on] = await Promise.all([callsToday(), capNow(), dayRow(), blockedNow(), enabled()]);
+        return { calls, cap, refused: row?.refused ?? 0, blocked, hasKey: Boolean(deps.key()), enabled: on && store() };
     }
     /** Зведення для адмінки */
     async function stats() {
@@ -803,7 +859,7 @@ function createCityRoutes(deps) {
         const r = await prisma.dovedeCityDemand.updateMany({ where: { asked: { gt: 0 } }, data: { asked: 0 } });
         return { reset: r.count };
     }
-    return { find, learnTick, stats, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays, setDailyCap };
+    return { find, campaignAsk, peekMany, googleBudget, learnTick, stats, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays, setDailyCap };
 }
 /** Найближчий будень о 09:00 за Києвом (взимку UTC+2, влітку UTC+3 — похибка в годину для навчання неважлива) */
 function nextWeekdayMorning(now) {
