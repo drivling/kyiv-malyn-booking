@@ -5,6 +5,7 @@ exports.buildPlan = buildPlan;
 exports.expandSeeds = expandSeeds;
 exports.campaignQuery = campaignQuery;
 exports.estimateCost = estimateCost;
+exports.leaderOf = leaderOf;
 exports.createCityCampaigns = createCityCampaigns;
 /**
  * «Доведе» · кампанії навчання міста на сервері (Docs/dovede-admin-roadmap.md, крок 6).
@@ -281,6 +282,10 @@ function estimateCost(plan, level0) {
 const esc = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const LEARN_URL = (0, site_domains_1.siteUrl)(site_domains_1.PRIMARY_SITE, '/admin/dovede/learning');
 const pct = (part, all) => (all ? Math.round((part / all) * 100) : 0);
+/** Яку кампанію сервер веде зараз: найстаріша активна, що не чекає (або її очікування минуло) */
+function leaderOf(activeById, at) {
+    return activeById.find((c) => c.status === 'running' || !c.waitUntil || c.waitUntil.getTime() <= at.getTime()) ?? null;
+}
 function createCityCampaigns(deps) {
     const { prisma, cityRoutes } = deps;
     const now = deps.now ?? (() => new Date());
@@ -473,7 +478,7 @@ function createCityCampaigns(deps) {
     async function tick() {
         const at = now();
         const list = await prisma.dovedeCityCampaign.findMany({ where: { status: { in: ACTIVE }, archivedAt: null }, orderBy: { id: 'asc' } });
-        const c0 = list.find((c) => c.status === 'running' || !c.waitUntil || c.waitUntil.getTime() <= at.getTime());
+        const c0 = leaderOf(list, at);
         if (!c0)
             return { campaignId: null, asked: 0 };
         const claimed = await prisma.dovedeCityCampaign.updateMany({
@@ -595,15 +600,25 @@ function createCityCampaigns(deps) {
         }
         return done;
     }
+    /**
+     * Черга: сервер веде одну кампанію за раз — найстарішу, яку зараз можна вести (`leaderOf`, той самий вибір, що в
+     * `tick`). Решта зі станом «running» стоять за нею — адмінка показує «У черзі після …», а не «Іде».
+     */
+    async function queue() {
+        const active = await prisma.dovedeCityCampaign.findMany({ where: { status: { in: ACTIVE }, archivedAt: null }, orderBy: { id: 'asc' }, select: { id: true, title: true, status: true, waitUntil: true } });
+        const l = leaderOf(active, now());
+        return { leader: l ? { id: l.id, title: l.title } : null };
+    }
+    const behind = (c, leader) => (c.status === 'running' && leader && leader.id !== c.id ? leader : null);
     /** Список для адмінки: кампанії (без схованих), новіші вгорі, і стан денного обліку Google */
     async function list() {
-        const rows = await prisma.dovedeCityCampaign.findMany({ where: { archivedAt: null }, orderBy: { id: 'desc' }, take: 50 });
+        const [rows, { leader }] = await Promise.all([prisma.dovedeCityCampaign.findMany({ where: { archivedAt: null }, orderBy: { id: 'desc' }, take: 50 }), queue()]);
         const queued = rows.length
             ? await prisma.dovedeCityCampaignAsk.groupBy({ by: ['campaignId'], where: { campaignId: { in: rows.map((r) => r.id) }, status: { in: ['queued', 'asking'] } }, _count: { _all: true } })
             : [];
         const left = new Map(queued.map((q) => [q.campaignId, q._count._all]));
         const g = await cityRoutes.googleBudget();
-        return { campaigns: rows.map((r) => view(r, left.get(r.id) ?? 0)), google: { calls: g.calls, cap: g.cap, reserve: (0, exports.reserveFor)(g.cap) } };
+        return { campaigns: rows.map((r) => view(r, left.get(r.id) ?? 0, behind(r, leader))), google: { calls: g.calls, cap: g.cap, reserve: (0, exports.reserveFor)(g.cap) } };
     }
     /** Одна кампанія: стан, питання за станами, місця за глибиною, останні відповіді */
     async function get(id) {
@@ -618,8 +633,9 @@ function createCityCampaigns(deps) {
         const places = recent.length ? await prisma.dovedeCityCampaignPlace.findMany({ where: { id: { in: recent.map((a) => a.placeId) } } }) : [];
         const placeById = new Map(places.map((p) => [p.id, p]));
         const count = (s) => byStatus.find((b) => b.status === s)?._count._all ?? 0;
+        const { leader } = await queue();
         return {
-            ...view(c, count('queued') + count('asking')),
+            ...view(c, count('queued') + count('asking'), behind(c, leader)),
             asks: Object.fromEntries(byStatus.map((b) => [b.status, b._count._all])),
             byDepth: byDepth.map((d) => ({ depth: d.depth, places: d._count._all })).sort((a, b) => a.depth - b.depth),
             recent: recent.map((a) => {
@@ -691,9 +707,10 @@ function createCityCampaigns(deps) {
         }
         const fresh = await prisma.dovedeCityCampaign.findUnique({ where: { id } });
         const left = await prisma.dovedeCityCampaignAsk.count({ where: { campaignId: id, status: { in: ['queued', 'asking'] } } });
-        return fresh ? view(fresh, left) : null;
+        const { leader } = await queue();
+        return fresh ? view(fresh, left, behind(fresh, leader)) : null;
     }
-    function view(c, left = 0) {
+    function view(c, left = 0, queuedBehind = null) {
         const plan = c.plan;
         return {
             id: c.id,
@@ -715,6 +732,7 @@ function createCityCampaigns(deps) {
             failed: c.failed,
             places: c.places,
             left,
+            queuedBehind,
             lastError: c.lastError,
             plan: planView(plan),
             report: c.report ?? null,

@@ -20,6 +20,7 @@ export const isOpen = (c: Pick<DovedeCampaign, 'status'>) => isActive(c) || c.st
 
 /** [тон, коротко, пояснення] */
 export function campaignState(c: DovedeCampaign): [StatusTone, string, string] {
+  if (c.status === 'running' && c.queuedBehind) return ['off', 'У черзі', `після «${c.queuedBehind.title}» — сервер веде одну кампанію за раз`];
   if (c.status === 'running') return ['busy', 'Іде', ''];
   if (c.status === 'waiting') return ['warn', 'Чекає', `${WAIT_REASON[c.waitReason ?? ''] ?? c.waitReason ?? ''}${c.waitUntil ? ` — продовжить ${time(c.waitUntil)}` : ''}`];
   if (c.status === 'paused') return ['off', 'На паузі', ''];

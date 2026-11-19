@@ -1617,6 +1617,8 @@ export interface DovedeCampaign {
   places: number;
   /** питань у черзі */
   left: number;
+  /** кампанія стоїть у черзі за цією (сервер веде одну за раз); null — іде сама або не активна */
+  queuedBehind?: { id: number; title: string } | null;
   lastError: string | null;
   plan: DovedeCampaignPlanView;
   report: DovedeCampaignReport | null;

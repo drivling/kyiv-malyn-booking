@@ -193,6 +193,13 @@ describe('DovedeTab', () => {
     expect(screen.getByRole('link', { name: 'Останній прогін навчання: «Свій список — Житомир»' }).parentElement).toHaveTextContent('питань 10, з дорогою 8, без дороги 2, запитів до Google 9');
   });
 
+  it('«Огляд»: плашка навчання — про ту, що йде, а не про ту, що в черзі', async () => {
+    mock(LOG, CITY, [{ ...CAMPAIGN, id: 9, title: 'Свій список — Київ', googleCalls: 0, queuedBehind: { id: 1, title: CAMPAIGN.title } }, CAMPAIGN]);
+    renderAt('/admin/dovede');
+    expect(await screen.findByText('Навчання: «Навчити місто — Житомир» — 120 з 550')).toBeInTheDocument();
+    expect(screen.queryByText(/Свій список — Київ/)).toBeNull();
+  });
+
   it('«Огляд» без справ — одне речення', async () => {
     mock({ ...LOG, summary: { ...LOG.summary, topUnknown: [], disagreed: 0, aiFailed: 0 } }, { ...CITY, unanswered: [] });
     renderAt('/admin/dovede');

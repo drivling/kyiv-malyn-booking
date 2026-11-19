@@ -3,7 +3,7 @@
  * бюджет (увесь і на добу), запас для людей, квота Google, помилки, оренда між контейнерами, керування з адмінки.
  * База — у памʼяті; дорога містом — заглушка (`campaignAsk`, `peekMany`, `googleBudget`).
  */
-import { test } from 'vitest';
+import { expect, test } from 'vitest';
 import assert from 'node:assert/strict';
 import express from 'express';
 import request from 'supertest';
@@ -542,4 +542,23 @@ test('Google відмовив у доступі (403): власнику пише
   t.setNow(new Date(NOW.getTime() + 62 * 60_000));
   await t.svc.tick();
   assert.equal(t.dovedeCityCampaign.rows[0].alertedReason, null);
+});
+
+test('черга: веде найстаріша; новіша показує «у черзі після …»; та, що чекає до завтра, пропускає чергу', async () => {
+  const t = make(() => ({ answer: fail('no_route'), google: true }));
+  const a = await t.svc.create({ ...CUSTOM, options: { ...CUSTOM.options, places: 'А1 місце\nБ2 місце', extra: '' }, dailyBudget: 1 });
+  const b = await t.svc.create({ ...CUSTOM, options: { ...CUSTOM.options, places: 'В3 місце', extra: '' } });
+  let list = (await t.svc.list()).campaigns;
+  const byId = (id: number) => list.find((c) => c.id === id)!;
+  expect(byId(a.id).queuedBehind).toBeNull();
+  expect(byId(b.id).queuedBehind).toEqual({ id: a.id, title: 'Свій список — Житомир' });
+  expect((await t.svc.get(b.id))!.queuedBehind?.id).toBe(a.id);
+
+  // перша вичерпала денну частку й чекає до півночі — тепер веде друга, у черзі ніхто
+  await t.svc.tick();
+  list = (await t.svc.list()).campaigns;
+  expect(byId(a.id).status).toBe('waiting');
+  expect(byId(b.id).queuedBehind).toBeNull();
+  const r = await t.svc.tick();
+  expect(r.campaignId).toBe(b.id);
 });
