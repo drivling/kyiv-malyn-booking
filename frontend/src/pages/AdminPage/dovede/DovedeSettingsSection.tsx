@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { DovedeSettingView } from '@/types';
 import { AdminSectionHeader, SettingRow } from '../kit';
+import { PageDataSection } from './PageDataSection';
 
 const GROUP_ORDER: DovedeSettingView['group'][] = ['ai', 'google', 'learning'];
 
@@ -46,7 +47,7 @@ export const DovedeSettingsSection: React.FC = () => {
 
   return (
     <section className="dovede-settings">
-      <AdminSectionHeader title="Налаштування" purpose="Ліміти, вмикачі й фонове навчання — без деплою. Нове значення діє протягом хвилини." />
+      <AdminSectionHeader title="Налаштування" purpose="Ліміти, вмикачі, фонове навчання й дані сторінки — без деплою. Нове значення діє протягом хвилини." />
       {error ? <p className="dovede-log-error">{error}</p> : null}
       {note ? (
         <p className="dovede-log-note" role="status">
@@ -68,6 +69,7 @@ export const DovedeSettingsSection: React.FC = () => {
             );
           })
         : null}
+      <PageDataSection />
     </section>
   );
 };

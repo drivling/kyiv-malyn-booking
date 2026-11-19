@@ -10,13 +10,28 @@
  *    Теремки 2286 с на 17; М3 Сирець → Видубичі 1468 с на 7 і Золоті ворота → Видубичі 671 с на 4; інтервали М3
  *    225 / 360 / 420 с (пік / день / вечір) — для М1 і М2 Google їх не дав, тому беремо ті самі як оцінку згори;
  *  - на всі запити за «Видубичі» (Славутич … Червоний хутір) Google замість метро дає автобус №318 від метро до
- *    метро — тобто за розкладом поїзди туди зараз не ходять. Це записано в `METRO_SHUTTLE`; коли рух відновлять,
- *    досить зробити його `null`.
+ *    метро — тобто за розкладом поїзди туди зараз не ходять. Це записано в `METRO_SHUTTLE_DEFAULT`; коли рух відновлять,
+ *    власник вимикає його в адмінці («Налаштування» → «Дані сторінки»), без деплою.
  * Усе це — середні: час кроку метро в історії завжди з «≈».
  */
 import type { MetroLine } from '../nlu/kyivMetroData';
 
-export const METRO_SERVICE = {
+export interface MetroService {
+  checkedAt: string;
+  openMins: number;
+  closeMins: number;
+  fareUah: number;
+  hopSeconds: Record<MetroLine, number>;
+  transferSeconds: number;
+  accessSeconds: number;
+  headwaySeconds: { peak: number; day: number; evening: number };
+}
+
+/**
+ * Типові дані метро з коду. Години й тариф власник може змінити в адмінці (крок 11 плану адмінки, «Дані сторінки»):
+ * сторінка читає `GET /dovede/page-data` і кладе їх сюди (`applyMetroData`), тому `METRO_SERVICE` — живий обʼєкт.
+ */
+const SERVICE_DEFAULT: MetroService = {
   checkedAt: '2026-11-17',
   /** перший вхід і закриття для пасажирів, хв від півночі */
   openMins: 5 * 60 + 30,
@@ -30,13 +45,25 @@ export const METRO_SERVICE = {
   accessSeconds: 240,
   /** інтервал між поїздами, с */
   headwaySeconds: { peak: 225, day: 360, evening: 420 },
-} as const;
+};
+
+export const METRO_SERVICE: MetroService = { ...SERVICE_DEFAULT };
 
 /**
  * Дільниця, де замість поїздів ходить автобус: після станції `after` у бік кінцевої. Видубичі → Позняки автобусом —
  * 659 с (три станції), Видубичі → Бориспільська — 1072 с (шість): близько 200 с на «перегін». null — метро їздить усюди.
  */
-export const METRO_SHUTTLE: { line: MetroLine; after: string; stations: string[]; bus: string; hopSeconds: number; waitSeconds: number; checkedAt: string } | null = {
+export interface MetroShuttle {
+  line: MetroLine;
+  after: string;
+  stations: string[];
+  bus: string;
+  hopSeconds: number;
+  waitSeconds: number;
+  checkedAt?: string;
+}
+
+export const METRO_SHUTTLE_DEFAULT: MetroShuttle | null = {
   line: 'M3',
   after: 'kyiv.m.vydubychi',
   stations: ['kyiv.m.slavutych', 'kyiv.m.osokorky', 'kyiv.m.pozniaky', 'kyiv.m.kharkivska', 'kyiv.m.vyrlytsia', 'kyiv.m.boryspilska', 'kyiv.m.chervonyi-khutir'],
@@ -45,6 +72,38 @@ export const METRO_SHUTTLE: { line: MetroLine; after: string; stations: string[]
   waitSeconds: 300,
   checkedAt: '2026-11-17',
 };
+
+let shuttle: MetroShuttle | null = METRO_SHUTTLE_DEFAULT;
+
+/** Дільниця з автобусом замість поїздів, що діє зараз (типова з коду або з адмінки); null — метро їздить усюди */
+export const metroShuttle = (): MetroShuttle | null => shuttle;
+
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isInt = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v);
+
+/**
+ * Дані метро з адмінки (`GET /dovede/page-data`, лише змінені ключі): `metro.shuttle` — обʼєкт або null («метро
+ * їздить усюди»), `metro.service` — години й тариф. Незрозуміле пропускаємо — лишається типове з коду.
+ */
+export function applyMetroData(values: Record<string, unknown>): void {
+  if ('metro.shuttle' in values) {
+    const v = values['metro.shuttle'];
+    if (v === null) shuttle = null;
+    else if (isObj(v) && typeof v.line === 'string' && typeof v.after === 'string' && Array.isArray(v.stations) && typeof v.bus === 'string' && isInt(v.hopSeconds) && isInt(v.waitSeconds)) {
+      shuttle = { line: v.line as MetroLine, after: v.after, stations: v.stations.filter((x): x is string => typeof x === 'string'), bus: v.bus, hopSeconds: v.hopSeconds, waitSeconds: v.waitSeconds, ...(typeof v.checkedAt === 'string' ? { checkedAt: v.checkedAt } : {}) };
+    }
+  }
+  const sv = values['metro.service'];
+  if (isObj(sv) && isInt(sv.openMins) && isInt(sv.closeMins) && isInt(sv.fareUah) && sv.closeMins > sv.openMins) {
+    Object.assign(METRO_SERVICE, { openMins: sv.openMins, closeMins: sv.closeMins, fareUah: sv.fareUah });
+  }
+}
+
+/** Назад до типового з коду (тести) */
+export function resetMetroData(): void {
+  shuttle = METRO_SHUTTLE_DEFAULT;
+  Object.assign(METRO_SERVICE, SERVICE_DEFAULT);
+}
 
 /** Кольори ліній — як у розкладі метрополітену, синя й зелена трохи темніші, щоб білий текст мав контраст ≥ 4.5:1 */
 export const METRO_LINE: Record<MetroLine, { no: string; name: string; color: string; ink: string }> = {

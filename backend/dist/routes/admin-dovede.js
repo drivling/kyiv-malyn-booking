@@ -32,6 +32,7 @@ const city_route_1 = require("../dovede/city-route");
 const viber_listing_expiry_1 = require("../viber-listing-expiry");
 const city_campaign_1 = require("../dovede/city-campaign");
 const city_quality_1 = require("../dovede/city-quality");
+const page_data_1 = require("../dovede/page-data");
 exports.DOVEDE_MAX_TEXT = 300;
 /** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
 const STOPS_TTL_MS = 5 * 60000;
@@ -81,6 +82,7 @@ function createAdminDovedeRouter(deps) {
     const cityRoutes = deps.cityRoutes ?? (0, city_route_1.cityRoutesFromEnv)(prisma, settings);
     const campaigns = deps.campaigns ?? (0, city_campaign_1.createCityCampaigns)({ prisma, cityRoutes, settings, now: clock });
     const quality = deps.quality ?? (0, city_quality_1.createCityQuality)(prisma);
+    const pageData = deps.pageData ?? (0, page_data_1.createDovedePageData)({ prisma, now: clock });
     const r = express_1.default.Router();
     /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
     r.get('/dovede/access', (req, res) => {
@@ -161,6 +163,40 @@ function createAdminDovedeRouter(deps) {
     r.get('/dovede/synonyms', (0, access_1.requireDovedeAccess)(access), async (_req, res) => {
         res.set('Cache-Control', 'private, no-store');
         res.json({ synonyms: await synonyms(clock()) });
+    });
+    /** Дані сторінки, змінені в адмінці (крок 11): лише змінені ключі; решта — типові з коду сторінки */
+    r.get('/dovede/page-data', (0, access_1.requireDovedeAccess)(access), async (_req, res) => {
+        res.set('Cache-Control', 'private, no-store');
+        res.json({ values: await pageData.values() });
+    });
+    r.get('/admin/dovede/page-data', require_admin_1.requireAdmin, async (_req, res) => {
+        try {
+            res.set('Cache-Control', 'private, no-store');
+            res.json({ items: await pageData.list() });
+        }
+        catch (e) {
+            console.error('❌ GET /admin/dovede/page-data:', e);
+            res.status(500).json({ error: 'Не вдалося прочитати дані сторінки' });
+        }
+    });
+    /** `{ key, value }` — змінити; `{ key, reset: true }` — повернути типове з коду */
+    r.put('/admin/dovede/page-data', require_admin_1.requireAdmin, async (req, res) => {
+        const b = (req.body ?? {});
+        if (typeof b.key !== 'string' || (b.reset !== true && !('value' in b))) {
+            res.status(400).json({ error: 'потрібні key і value (або reset: true)' });
+            return;
+        }
+        try {
+            res.json(await pageData.set(b.key, b.value, b.reset === true));
+        }
+        catch (e) {
+            if (e instanceof RangeError) {
+                res.status(400).json({ error: e.message });
+                return;
+            }
+            console.error('❌ PUT /admin/dovede/page-data:', e);
+            res.status(500).json({ error: 'Не вдалося зберегти' });
+        }
     });
     r.get('/admin/dovede/synonyms', require_admin_1.requireAdmin, async (_req, res) => {
         try {

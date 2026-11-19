@@ -1462,6 +1462,17 @@ export interface DovedeCityDemandRow {
   lastAskedAt: string;
 }
 
+/** «Доведе» · дані сторінки, змінені в адмінці (GET /admin/dovede/page-data) */
+export interface DovedePageDataItem {
+  key: string;
+  label: string;
+  help: string;
+  /** змінено в адмінці; інакше діє типове з коду сторінки */
+  changed: boolean;
+  value: unknown;
+  updatedAt: string | null;
+}
+
 /** «Доведе» · одне налаштування з розділу «Налаштування» (GET /admin/dovede/settings) */
 export interface DovedeSettingView {
   key: string;

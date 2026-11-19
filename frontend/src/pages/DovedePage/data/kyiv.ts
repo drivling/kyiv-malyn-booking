@@ -4,7 +4,7 @@
  * транспорту (Maps URLs, без ключа API).
  */
 import { findMetroIn, metroPath, type MetroPath, type MetroSegment } from '../nlu/kyivMetro';
-import { METRO_LINE, METRO_SERVICE, METRO_SHUTTLE, metroOpenAt, metroPeriod } from './kyivMetroService';
+import { METRO_LINE, METRO_SERVICE, metroOpenAt, metroPeriod, metroShuttle } from './kyivMetroService';
 import { METRO_STATIONS } from '../nlu/kyivMetroData';
 import { RING_STATIONS } from '../nlu/kyivRingData';
 import { normalizeWord } from '../nlu/normalize';
@@ -113,9 +113,9 @@ export interface MetroTrip {
   closed: boolean;
 }
 
-/** Ділить відрізок там, де поїзди зараз не ходять і працює автобус (`METRO_SHUTTLE`): перегін автобусний, якщо хоч один його кінець — на закритій дільниці */
+/** Ділить відрізок там, де поїзди зараз не ходять і працює автобус (`metroShuttle()`): перегін автобусний, якщо хоч один його кінець — на закритій дільниці */
 function splitShuttle(sg: MetroSegment): TripSegment[] {
-  const sh = METRO_SHUTTLE;
+  const sh = metroShuttle();
   if (!sh || sg.line !== sh.line) return [{ ...sg, bus: null }];
   const byBus = (i: number) => sh.stations.includes(sg.stations[i].id) || sh.stations.includes(sg.stations[i + 1].id);
   const out: TripSegment[] = [];
@@ -149,9 +149,10 @@ export function metroTrip(fromId: string, toId: string, at?: { mins: number; dat
   const S = METRO_SERVICE;
   const headway = S.headwaySeconds[at ? metroPeriod(at.mins, at.date) : 'day'];
   const segments = path.segments.flatMap(splitShuttle);
+  const sh = metroShuttle();
   // на кожній посадці в поїзд чекаємо в середньому пів інтервалу; автобус-замінник — свій час і своє очікування
   const seconds =
-    segments.reduce((n, sg) => n + (sg.bus ? sg.hops * METRO_SHUTTLE!.hopSeconds + METRO_SHUTTLE!.waitSeconds : sg.hops * S.hopSeconds[sg.line] + headway / 2), 0) +
+    segments.reduce((n, sg) => n + (sg.bus ? sg.hops * sh!.hopSeconds + sh!.waitSeconds : sg.hops * S.hopSeconds[sg.line] + headway / 2), 0) +
     path.transfers.length * S.transferSeconds +
     S.accessSeconds;
   const minutes = Math.round(seconds / 60);

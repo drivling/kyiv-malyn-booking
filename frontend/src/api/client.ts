@@ -1233,6 +1233,26 @@ class ApiClient {
     return this.request(`/admin/dovede/pickups?days=${days}`);
   }
 
+  /** «Доведе»: дані сторінки, змінені в адмінці (лише змінені ключі); не вдалося — порожньо, діють типові з коду */
+  async dovedePageData(): Promise<Record<string, unknown>> {
+    try {
+      const r = await this.request<{ values: Record<string, unknown> }>('/dovede/page-data', { headers: this.dovedeHeaders(), cache: 'no-store' });
+      return r && typeof r.values === 'object' && r.values !== null ? r.values : {};
+    } catch {
+      return {};
+    }
+  }
+
+  /** Адмін: дані сторінки «Доведе» — що змінено в адмінці (метро-замінник, години й тариф метро) */
+  async getDovedePageData(): Promise<{ items: import('@/types').DovedePageDataItem[] }> {
+    return this.request('/admin/dovede/page-data');
+  }
+
+  /** Адмін: змінити дані сторінки (`reset` — повернути типові з коду) */
+  async setDovedePageData(key: string, value: unknown, reset = false): Promise<import('@/types').DovedePageDataItem> {
+    return this.request('/admin/dovede/page-data', { method: 'PUT', body: JSON.stringify(reset ? { key, reset: true } : { key, value }) });
+  }
+
   /** «Доведе»: синоніми з адмінки для розбору в браузері; не вдалося — порожньо (сторінка працює й без них) */
   async dovedeSynonyms(): Promise<import('@/pages/DovedePage/nlu/synonyms').Synonym[]> {
     try {

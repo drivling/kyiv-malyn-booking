@@ -239,8 +239,14 @@ of `dist` in a commit.
   hop + 5 per transfer + 5), and a trip from Kyiv starts earlier by the same. The metro part is a story step of its own
   (`kind: 'metro'`, `kyivStep` in the composer, card `ui/MetroCard.tsx`): `metroTrip(from, to, at)` in `data/kyiv.ts` times it
   from our own `data/kyivMetroService.ts` (hours 05:30–23:00, fare, average hop per line, headways by time of day) and
-  marks it `closed` outside working hours. `METRO_SHUTTLE` there records the stretch where a bus runs instead of trains
-  (green line beyond «Видубичі», bus 318 — inferred from Google on 2026-11-17, owner to confirm; set to `null` when trains return). A metro step that is only that bus is never worded as metro: `metroPhrase` in
+  marks it `closed` outside working hours. `METRO_SHUTTLE_DEFAULT` there records the stretch where a bus runs instead of
+  trains (green line beyond «Видубичі», bus 318 — inferred from Google on 2026-11-17); what applies is `metroShuttle()`.
+  The owner changes it — and the metro hours and fare — in the admin without a deploy («Налаштування» → «Дані сторінки»,
+  `AdminPage/dovede/PageDataSection.tsx`; switched off = trains run everywhere): `backend/src/dovede/page-data.ts` keeps
+  only what was changed (`DovedeSetting` keys `page.<key>`, value `{ v }`, so «changed to null» ≠ «default»;
+  `GET` / `PUT /admin/dovede/page-data`), the page reads `GET /dovede/page-data` once per open
+  (`DovedePage/data/pageData.ts` → `applyMetroData`) and an answer waits for it at most 1.5 s. New page data = a
+  registry entry with its check + where the page applies it. A metro step that is only that bus is never worded as metro: `metroPhrase` in
   `compose/narrate.ts` says «автобус №318 замість метро до…», and `MetroCard` opens with «Поїзди метро тут не ходять» and
   drops the token, turnstile and train-headway lines. Golden sets: `eval/kyiv-metro.json`
   (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in
