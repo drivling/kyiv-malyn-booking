@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw';
+import { ZUBASTYK_PHONES } from '@/pages/MizhgorodskiPage/zubastykContent';
 
 /** Match default ApiClient base URL (`VITE_API_URL` or localhost:3000). */
 export const TEST_API_URL = 'http://localhost:3000';
@@ -33,6 +34,8 @@ export const handlers = [
   }),
 
   http.get(`${TEST_API_URL}/transport/dataset`, () => HttpResponse.json(emptyDataset)),
+  // телефони «Зубастика»: сервер відповідає типовими — сторінки показують ті самі, що в коді
+  http.get(`${TEST_API_URL}/site/zubastyk-phones`, () => HttpResponse.json({ phones: ZUBASTYK_PHONES })),
   // Блок «Джерела розкладу» в редакторі графіка: за замовчуванням джерел немає
   http.get(`${TEST_API_URL}/admin/transport/sources`, () => HttpResponse.json({ sources: [] })),
   // Знімок збірки /transport/dataset.json (same-origin; jsdom теж живе на localhost:3000) — у тестах його нема

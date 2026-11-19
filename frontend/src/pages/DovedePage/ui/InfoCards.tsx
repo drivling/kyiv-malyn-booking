@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { ZUBASTYK_PHONES } from '@/pages/MizhgorodskiPage/zubastykContent';
+import { useZubastykPhones } from '@/site/zubastykPhones';
 import type { PriceLine } from '../compose/types';
 
 /**
@@ -40,6 +40,7 @@ export function PriceCard({ lines }: { lines: PriceLine[] }) {
  * номерами. Номери тут відкриті (це телефони бронювання з сайту), тож кожен корінець — одразу посилання «подзвонити».
  */
 export function ContactCard() {
+  const phones = useZubastykPhones();
   return (
     <section className="dv-board" aria-label="Телефони маршруток Київ — Малин">
       <header className="dv-board__plate">
@@ -56,7 +57,7 @@ export function ContactCard() {
             <p className="dv-ad__text">Бронювання місць і питання про рейси — за телефоном.</p>
           </div>
           <ul className="dv-tabs">
-            {ZUBASTYK_PHONES.map((p) => (
+            {phones.map((p) => (
               <li key={p.digits}>
                 <a className="dv-tabs__tab" href={`tel:+${p.digits}`}>
                   <span className="dv-tabs__num">{p.label}</span>

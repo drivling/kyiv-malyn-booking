@@ -1,3 +1,4 @@
+import { ZubastykPhonesPanel } from './ZubastykPhonesPanel';
 import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
@@ -1658,6 +1659,7 @@ export const AdminPage: React.FC = () => {
 
         {activeTab === 'schedules' && (
           <div className="tab-content">
+            <ZubastykPhonesPanel />
             <div className="admin-controls">
               <div className="admin-controls-filters">
                 <Select

@@ -304,3 +304,13 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Телефони «Зубастика» (ZubastykPhonesPanel): номер, примітка, «прибрати» в рядок */
+.zubastyk-phones-row {
+  margin-bottom: 6px;
+}
+.zubastyk-phones-row input {
+  width: auto;
+  flex: 1 1 140px;
+  min-width: 0;
+}

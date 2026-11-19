@@ -775,7 +775,7 @@ function createSchedulesBookingsRouter(deps) {
         }
         // «Зубастик» поки лише за телефоном: заявку зберігаємо, але клієнт API має показати попередження
         const phoneOnly = (0, phone_booking_1.isPhoneOnlyBooking)(resolvedSchedule);
-        res.status(201).json({ ...booking, phoneOnly, ...(phoneOnly ? { notice: phone_booking_1.PHONE_ONLY_NOTICE_TEXT } : {}) });
+        res.status(201).json({ ...booking, phoneOnly, ...(phoneOnly ? { notice: (0, phone_booking_1.phoneOnlyNoticeText)() } : {}) });
     });
     r.get('/bookings', require_admin_1.requireAdmin, async (_req, res) => {
         res.json(await prisma.booking.findMany({ orderBy: { createdAt: 'desc' } }));

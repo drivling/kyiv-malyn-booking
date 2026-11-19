@@ -6,17 +6,14 @@
  * SMS, відповідь API). Реклама й загальні тексти бота (привітання, /help, промо) обіцяють
  * онлайн-бронювання як і раніше — тимчасове обмеження там не згадуємо.
  *
- * Дзеркало фронтового `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts` (те саме правило) і
- * `ZUBASTYK_PHONES` з `zubastykContent.ts` — при зміні правити обидва місця.
+ * Дзеркало фронтового `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts` (те саме правило). Номери — з
+ * `zubastyk-phones.ts` (власник міняє в адмінці), тому тексти нижче — функції, а не сталі.
  */
 
-/** Телефони бронювання «Зубастика» (сторінка /zubastyk). Останній — резервний. */
-export const ZUBASTYK_PHONES: ReadonlyArray<{ digits: string; label: string; note?: string }> = [
-  { digits: '380931920008', label: '093 192 00 08' },
-  { digits: '380961420008', label: '096 142 00 08' },
-  { digits: '380661620008', label: '066 162 00 08' },
-  { digits: '380931701835', label: '093 170 18 35', note: 'резервний' },
-];
+import { zubastykPhones, type ZubastykPhone } from './zubastyk-phones';
+
+/** Телефони, що діють зараз (типові або з адмінки, `zubastyk-phones.ts`) */
+export { zubastykPhones };
 
 /** Kyiv-Malyn-Irpin, Malyn-Kyiv-Bucha тощо (електрички мають ті самі `Kyiv-Malyn` / `Malyn-Kyiv`). */
 const KYIV_MALYN_ROUTE_RE = /^(Kyiv-Malyn|Malyn-Kyiv)(-|$)/;
@@ -35,26 +32,32 @@ export function isPhoneOnlyBooking(item: {
   return KYIV_MALYN_ROUTE_RE.test(item.route ?? '');
 }
 
-const phonesPlain = ZUBASTYK_PHONES.map((p) => (p.note ? `${p.label} (${p.note})` : p.label)).join(', ');
+const plain = (list: readonly ZubastykPhone[]) => list.map((p) => (p.note ? `${p.label} (${p.note})` : p.label)).join(', ');
 
-const phonesHtml = ZUBASTYK_PHONES.map((p) => {
-  const link = `<a href="tel:+${p.digits}">${p.label}</a>`;
-  return p.note ? `${link} (${p.note})` : link;
-}).join(', ');
+const html = (list: readonly ZubastykPhone[]) =>
+  list
+    .map((p) => {
+      const link = `<a href="tel:+${p.digits}">${p.label}</a>`;
+      return p.note ? `${link} (${p.note})` : link;
+    })
+    .join(', ');
 
 /** Для Telegram (HTML): окремим абзацом у підтвердженнях, нагадуваннях і кроках бронювання. */
-export const PHONE_ONLY_NOTICE_HTML =
-  '⛔️ <b>Онлайн-бронювання маршруток Київ ↔ Малин поки не працює.</b>\n' +
-  `Місце бронюється лише за телефоном: ${phonesHtml}`;
+export const phoneOnlyNoticeHtml = (): string =>
+  '⛔️ <b>Онлайн-бронювання маршруток Київ ↔ Малин поки не працює.</b>\n' + `Місце бронюється лише за телефоном: ${html(zubastykPhones())}`;
 
 /** Те саме простим текстом — у відповіді API. */
-export const PHONE_ONLY_NOTICE_TEXT =
-  'Онлайн-бронювання маршруток Київ ↔ Малин поки не працює. ' +
-  `Місце бронюється лише за телефоном: ${phonesPlain}.`;
+export const phoneOnlyNoticeText = (): string =>
+  'Онлайн-бронювання маршруток Київ ↔ Малин поки не працює. ' + `Місце бронюється лише за телефоном: ${plain(zubastykPhones())}.`;
 
-/** Коротко для SMS (кирилиця = UCS-2, 70 символів на сегмент) — два основні номери. */
-export const PHONE_ONLY_SMS = 'Онлайн-бронь поки не працює — лише за тел. 0931920008, 0961420008.';
+/** Коротко для SMS (кирилиця = UCS-2, 70 символів на сегмент) — два перші номери без резервних. */
+export const phoneOnlySms = (): string => {
+  const list = zubastykPhones();
+  const main = list.filter((p) => !p.note);
+  const two = (main.length ? main : list).slice(0, 2).map((p) => `0${p.digits.slice(3)}`);
+  return `Онлайн-бронь поки не працює — лише за тел. ${two.join(', ')}.`;
+};
 
 /** Спливаюче повідомлення бота (`answerCallbackQuery`, ≤ 200 символів). */
-export const PHONE_ONLY_TOAST =
-  'Заявку збережено, але онлайн-бронювання поки не працює — зателефонуйте 093 192 00 08, щоб забронювати місце.';
+export const phoneOnlyToast = (): string =>
+  `Заявку збережено, але онлайн-бронювання поки не працює — зателефонуйте ${zubastykPhones()[0].label}, щоб забронювати місце.`;

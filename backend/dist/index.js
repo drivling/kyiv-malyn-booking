@@ -4,6 +4,7 @@ exports.getSupportPhoneForRoute = exports.getRegisteredRoutes = exports.createAp
 const city_route_1 = require("./dovede/city-route");
 const city_campaign_1 = require("./dovede/city-campaign");
 const city_quality_1 = require("./dovede/city-quality");
+const zubastyk_phones_1 = require("./zubastyk-phones");
 const settings_1 = require("./dovede/settings");
 const client_1 = require("@prisma/client");
 const create_app_1 = require("./create-app");
@@ -42,6 +43,9 @@ function main() {
     const dovedeSettings = (0, settings_1.createDovedeSettings)({ prisma });
     const cityRoutes = (0, city_route_1.cityRoutesFromEnv)(prisma, dovedeSettings);
     const cityQuality = (0, city_quality_1.createCityQuality)(prisma);
+    // телефони «Зубастика» з адмінки — у памʼять для бота й SMS: при старті й раз на 5 хв (інший контейнер)
+    const zubastykPhones = (0, zubastyk_phones_1.createZubastykPhonesStore)(prisma);
+    const stopZubastykPhonesSync = zubastykPhones.startSync(5);
     const cityCampaigns = (0, city_campaign_1.createCityCampaigns)({
         prisma,
         cityRoutes,
@@ -50,7 +54,7 @@ function main() {
         notify: telegram_1.sendAdminAlertHtml,
         suspicious: async (city) => (await cityQuality.report(city)).items.length,
     });
-    const app = (0, create_app_1.createApp)({ prisma, cityRoutes, dovedeSettings, cityCampaigns });
+    const app = (0, create_app_1.createApp)({ prisma, cityRoutes, dovedeSettings, cityCampaigns, zubastykPhones });
     // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
     void (0, transport_revisions_1.ensureInitialTransportRevision)(prisma).then((row) => {
         if (row)
@@ -176,6 +180,7 @@ function main() {
         gpsJob?.stop();
         cityLearnJob?.stop();
         cityCampaignJob?.stop();
+        stopZubastykPhonesSync();
         eltrainJob?.stop();
         // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
         await (0, lunch_listener_1.stopLunchListenerAndWait)(3000);

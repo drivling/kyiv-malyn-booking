@@ -1,6 +1,7 @@
 import { cityRoutesFromEnv } from './dovede/city-route';
 import { createCityCampaigns } from './dovede/city-campaign';
 import { createCityQuality } from './dovede/city-quality';
+import { createZubastykPhonesStore } from './zubastyk-phones';
 import { createDovedeSettings } from './dovede/settings';
 import { PrismaClient } from '@prisma/client';
 import { CODE_VERSION, createApp, getRegisteredRoutes } from './create-app';
@@ -46,6 +47,9 @@ function main(): void {
   const dovedeSettings = createDovedeSettings({ prisma });
   const cityRoutes = cityRoutesFromEnv(prisma, dovedeSettings);
   const cityQuality = createCityQuality(prisma);
+  // телефони «Зубастика» з адмінки — у памʼять для бота й SMS: при старті й раз на 5 хв (інший контейнер)
+  const zubastykPhones = createZubastykPhonesStore(prisma);
+  const stopZubastykPhonesSync = zubastykPhones.startSync(5);
   const cityCampaigns = createCityCampaigns({
     prisma,
     cityRoutes,
@@ -54,7 +58,7 @@ function main(): void {
     notify: sendAdminAlertHtml,
     suspicious: async (city) => (await cityQuality.report(city)).items.length,
   });
-  const app = createApp({ prisma, cityRoutes, dovedeSettings, cityCampaigns });
+  const app = createApp({ prisma, cityRoutes, dovedeSettings, cityCampaigns, zubastykPhones });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {
     if (row) console.log(`[transport-revisions] initial row ${row.revision}`);
@@ -210,6 +214,7 @@ function main(): void {
     gpsJob?.stop();
     cityLearnJob?.stop();
     cityCampaignJob?.stop();
+    stopZubastykPhonesSync();
     eltrainJob?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);

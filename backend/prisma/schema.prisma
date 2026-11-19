@@ -1421,6 +1421,14 @@ model DovedeCityGoogleDay {
   updatedAt        DateTime  @default(now()) @updatedAt
 }
 
+/// Налаштування сайту, які власник міняє в адмінці без деплою: `zubastyk.phones` — телефони «Зубастика»
+/// (src/zubastyk-phones.ts). Значення — JSON; рядок не видаляється, «типове» — `{}`
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
 /// «Доведе» · кампанія навчання міста на сервері («Навчити Житомир»): план, погоджений бюджет запитів до Google,
 /// стан і лічильники. Виконує фонова задача `dovede-city-campaign` (src/dovede/city-campaign.ts). Не видаляється
 model DovedeCityCampaign {
