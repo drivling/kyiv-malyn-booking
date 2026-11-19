@@ -51,7 +51,9 @@ export type StoryLeg =
       /** «Малин — Житомир» */
       routeLabel: string;
       priceUah: number | null;
-      phoneOnly: boolean;
+      /** звідки й куди — для бронювання маршрутки на сайті (та сама модалка, що на головній) */
+      fromCity: 'Kyiv' | 'Malyn' | 'Zhytomyr' | 'Korosten';
+      toCity: 'Kyiv' | 'Malyn' | 'Zhytomyr' | 'Korosten';
       ticketUrl: string | null;
       tripNumber: string | null;
       /** наступні рейси того ж виду, «HH:MM» */

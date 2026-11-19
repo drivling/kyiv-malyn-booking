@@ -4,7 +4,6 @@
  */
 import type { Schedule } from '@/types';
 import { isScheduleActiveOnDate } from '@/pages/MizhgorodskiPage/mizhUtils';
-import { isPhoneOnlySchedule } from '@/pages/MizhgorodskiPage/phoneOnlyBooking';
 import { findAnchor, isPeak, type Corridor, type FarCity, type IntercityMode } from '../data/anchors';
 import { kyivPointForPlace } from '../data/kyiv';
 
@@ -28,7 +27,6 @@ export interface IntercityTrip {
   via: string | null;
   /** рейс їде далі за місто призначення чи здалеку: «транзит на Хмільник», «транзит з Вінниці» */
   transit: string | null;
-  phoneOnly: boolean;
 }
 
 export function clockToMins(s: string | null | undefined): number | null {
@@ -113,7 +111,6 @@ export function intercityTrips(schedules: Schedule[], corridor: Corridor, isoDat
       kyivPoint: far === 'Kyiv' ? kyivPointForPlace(kyivPlace, s.route) : null,
       via,
       transit,
-      phoneOnly: isPhoneOnlySchedule(s),
     });
   }
   return out.sort((a, b) => a.depMins - b.depMins);

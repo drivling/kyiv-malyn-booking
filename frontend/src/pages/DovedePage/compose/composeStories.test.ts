@@ -125,7 +125,7 @@ describe('Київ (Святошин) → Малин, вокзал — пʼят�
     const ic = intercity(s);
     expect(ic.boardLabel).toBe('від метро «Святошин»');
     expect([ic.alightLabel, ic.alightMins, ic.alightApprox]).toEqual(['біля ПТЛ', hm(16, 22), true]);
-    expect(ic.phoneOnly).toBe(true);
+    expect([ic.fromCity, ic.toCity]).toEqual(['Kyiv', 'Malyn']);
     expect(ic.later).toEqual(['16:00 від метро «Академмістечко»']);
     const b = busLeg(s);
     expect([b.routeId, b.depMins]).toEqual(['7', hm(16, 41)]);
@@ -680,7 +680,7 @@ describe('Житомир ↔ Малин — між містами', () => {
     expect(out.askMode).toBe(false);
     const ic = intercity(s);
     expect([ic.routeLabel, ic.boardLabel, ic.boardMins, ic.alightLabel, ic.alightMins, ic.alightApprox]).toEqual(['Житомир — Малин', 'від автовокзалу Житомир-1', hm(15, 50), 'на автостанції', hm(17, 15), false]);
-    expect(ic.phoneOnly).toBe(false);
+    expect([ic.fromCity, ic.toCity]).toEqual(['Zhytomyr', 'Malyn']);
     expect(kinds(s)).toEqual(['intercity', 'wait', 'bus']);
     expect(busLeg(s)).toMatchObject({ routeId: '8', depMins: hm(17, 30) });
     expect([s.fromLabel, s.arriveMins, s.priceUah]).toEqual(['Житомир', hm(17, 42), 287]);
