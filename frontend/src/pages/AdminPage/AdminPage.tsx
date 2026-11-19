@@ -1,4 +1,5 @@
 import { ZubastykPhonesPanel } from './ZubastykPhonesPanel';
+import { SchedulesTab } from './SchedulesTab';
 import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
@@ -1659,117 +1660,24 @@ export const AdminPage: React.FC = () => {
 
         {activeTab === 'schedules' && (
           <div className="tab-content">
-            <ZubastykPhonesPanel />
-            <div className="admin-controls">
-              <div className="admin-controls-filters">
-                <Select
-                  options={[
-                    { value: '', label: 'Всі маршрути' },
-                    ...routeOptions,
-                  ]}
-                  value={scheduleRouteFilter}
-                  onChange={(e) => {
-                    const next = e.target.value;
-                    setScheduleRouteFilter(next);
-                    loadSchedules(next);
-                  }}
-                />
-              </div>
-              <div className="admin-controls-actions">
-                <Button onClick={() => loadSchedules()}>Оновити</Button>
-                <Button type="button" variant="secondary" onClick={handleRebindScheduleTripRoutes}>
-                  Перепривʼязати TripRoute
-                </Button>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => handleTimetablePreview()}
-                  disabled={timetablePreviewLoading}
-                >
-                  {timetablePreviewLoading ? 'Парсинг…' : 'Оновити графіки (через парсер)'}
-                </Button>
-                <Button onClick={() => openScheduleModal()}>Додати рейс</Button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="admin-loading" aria-live="polite">Завантаження...</div>
-            ) : schedules.length === 0 ? (
-              <div className="admin-empty">
-                <p className="admin-empty-text">Ще немає рейсів у графіку</p>
-                <Button onClick={() => openScheduleModal()}>Додати перший рейс</Button>
-              </div>
-            ) : (
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Тип</th>
-                      <th>Маршрут</th>
-                      <th>Час</th>
-                      <th>Номер</th>
-                      <th>Місць</th>
-                      <th>Ціна</th>
-                      <th>Посадка / висадка</th>
-                      <th>Дії</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {schedules.map((schedule) => (
-                      <tr key={schedule.id}>
-                        <td>#{schedule.id}</td>
-                        <td>{schedule.vehicleType === 'elektrichka' ? 'Електричка' : 'Маршрутка'}</td>
-                        <td>
-                          <span className={`badge ${getRouteBadgeClass(schedule.route)}`}>
-                            {schedule.tripRoute?.labelUk || getRouteLabel(schedule.route)}
-                          </span>
-                          <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
-                            {schedule.tripRoute?.slug || schedule.route}
-                            {schedule.tripRoute &&
-                              schedule.tripRoute.slug !== schedule.route && (
-                                <span style={{ color: '#b45309' }}> · FK≠route</span>
-                              )}
-                          </div>
-                        </td>
-                        <td><strong>{schedule.departureTime}</strong>{schedule.arrivalTime ? ` → ${schedule.arrivalTime}` : ''}</td>
-                        <td>
-                          {schedule.tripNumber || '—'}
-                          {schedule.timetableSourceUrl ? (
-                            <span
-                              title={schedule.timetableSourceUrl}
-                              style={{ marginLeft: 6, fontSize: 11, color: 'var(--pb-primary, #1a73e8)' }}
-                            >
-                              🔗
-                            </span>
-                          ) : null}
-                        </td>
-                        <td><strong>{schedule.maxSeats}</strong></td>
-                        <td>{schedule.priceUah != null ? <strong>{schedule.priceUah}</strong> : '—'}</td>
-                        <td>
-                          {[schedule.boardingPlace, schedule.alightingPlace].filter(Boolean).join(' / ') || '—'}
-                        </td>
-                        <td>
-                          <Button
-                            variant="secondary"
-                            onClick={() => openScheduleModal(schedule)}
-                            style={{ marginRight: '8px' }}
-                          >
-                            Редагувати
-                          </Button>
-                          <Button
-                            variant="danger"
-                            onClick={() => handleDeleteSchedule(schedule.id)}
-                          >
-                            Видалити
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <SchedulesTab
+              schedules={schedules}
+              loading={loading}
+              routeOptions={routeOptions}
+              routeFilter={scheduleRouteFilter}
+              onRouteFilter={(next) => {
+                setScheduleRouteFilter(next);
+                loadSchedules(next);
+              }}
+              onReload={() => loadSchedules()}
+              onAdd={() => openScheduleModal()}
+              onEdit={(sch) => openScheduleModal(sch)}
+              onDelete={(id) => handleDeleteSchedule(id)}
+              onRebind={handleRebindScheduleTripRoutes}
+              onParse={() => handleTimetablePreview()}
+              parsing={timetablePreviewLoading}
+              footer={<ZubastykPhonesPanel />}
+            />
           </div>
         )}
 

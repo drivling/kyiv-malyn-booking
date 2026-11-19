@@ -1,0 +1,191 @@
+/*
+ * «Графіки» — рейси за напрямками щільними рядками (як «Факт прибуття»): на компʼютері рейс — один рядок, на телефоні —
+ * два. Спільне — у kit/kit.css.
+ */
+.sched-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sched-note {
+  color: var(--pb-text-hint, #737373);
+  font-size: var(--pb-font-size-sm, 13px);
+}
+
+.sched-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.sched-toolbar-route {
+  min-width: 220px;
+}
+
+.sched-toolbar-route .select-wrapper {
+  margin: 0;
+}
+
+.sched-toolbar-tools {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-left: auto;
+  font-size: var(--pb-font-size-sm, 13px);
+}
+
+.sched-group {
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  background: var(--pb-card-bg, #fff);
+}
+
+.sched-group-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--pb-border-light, #f0f0f0);
+}
+
+.sched-group-head h3 {
+  margin: 0;
+  font-size: var(--pb-font-size-base, 14px);
+}
+
+.sched-flag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.sched-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sched-row {
+  display: grid;
+  grid-template-columns: auto 104px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--pb-border-light, #f0f0f0);
+  font-size: var(--pb-font-size-sm, 13px);
+}
+
+.sched-row:first-child {
+  border-top: 0;
+}
+
+.sched-kind {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.sched-kind--bus {
+  background: #054752;
+}
+
+.sched-kind--train {
+  background: #1f7a3a;
+}
+
+.sched-time {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sched-time strong {
+  font-size: 0.9375rem;
+}
+
+.sched-time small {
+  color: var(--pb-text-hint, #737373);
+}
+
+.sched-what {
+  min-width: 0;
+}
+
+.sched-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.sched-tag {
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #eef0f1;
+  color: #3c4a52;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.sched-tag--days {
+  background: #e8f0fe;
+  color: #185abc;
+}
+
+.sched-places {
+  display: block;
+  overflow: hidden;
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sched-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sched-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 639px) {
+  .sched-toolbar-tools {
+    margin-left: 0;
+  }
+
+  /* рейс: вид, час і ціна зверху; теги й посадка — другим рядком; дії праворуч */
+  .sched-row {
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+  }
+
+  .sched-what {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .sched-meta {
+    justify-self: end;
+  }
+
+  .sched-meta .sched-note {
+    display: none;
+  }
+}
