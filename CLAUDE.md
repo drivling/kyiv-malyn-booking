@@ -182,8 +182,8 @@ of `dist` in a commit.
   next steps in `Docs/dovede-admin-roadmap.md`): Огляд (no segment — today's tiles, Claude / Google N of cap, «Потребує
   уваги» linking to the fix), `questions` (`AdminPage/DovedeLogTab.tsx`; `GET /admin/dovede/queries`, pure
   `src/dovede/log.ts`: summary, words nobody recognised, the latest questions with both parses; period and filter in
-  `?days=&only=`), `dictionary` (synonyms, `?word=` fills the form; drivers' pickup notes) and `city`; an unknown section
-  redirects to Огляд. Shared admin pieces (section nav, header, stat tiles, status pill, empty state, `kit.css` on the
+  `?days=&only=`), `dictionary` (synonyms, `?word=` fills the form; drivers' pickup notes), `city`, `learning` (learning campaigns, see
+  below) and `settings`; an unknown section redirects to Огляд. Shared admin pieces (section nav, header, stat tiles, status pill, empty state, `kit.css` on the
   `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
   `data-label` (CSS only). The same tab teaches synonyms without a deploy
   (`DovedeSynonym`, `DovedeSynonymsPanel.tsx`, `/admin/dovede/synonyms`): the page reads `GET /dovede/synonyms` on open
@@ -340,7 +340,13 @@ of `dist` in a commit.
   wait until Kyiv midnight; budget spent → `done` / `budget` (`extend` reopens it). One container at a time leads a
   campaign (`leaseUntil`, 2 min); an ask left `asking` by a vanished container returns to the queue after 5 min. Tables
   `DovedeCityCampaign` / `…Place` / `…Ask` are never deleted from; `POST …/campaigns/:id/action { pause | resume |
-  cancel | extend | archive }` (archive = hide a finished one).
+  cancel | extend | archive }` (archive = hide a finished one). Admin section «Навчання» (`/admin/dovede/learning`,
+  `AdminPage/dovede/DovedeLearnSection.tsx` + `dovede/learn/`; desktop-first, ~1440 px): campaigns with status, Google
+  spent of budget, pause / resume / cancel / add budget / hide and the latest answers; «Нова кампанія» — city, preset,
+  points, directions, hours as a day × hour grid (`learn/hours.ts` ↔ `weekday@09`), depth → «Оцінити» → the approved
+  budget and daily share → «Почати» (only what was estimated; any change clears the estimate); «Крок зараз» of the
+  background learning. Огляд shows the learning pill and tile and, under «Потребує уваги», a campaign out of budget and
+  the last finished run.
   The same block has «Скинути лічильник попиту» (`POST /admin/dovede/city/demand/reset`): it sets `asked = 0` and
   deletes nothing; a row with `asked = 0` is in neither the list nor the learning queue until a person asks again.
   `GET /dovede/city-route?…&learn=1` with the admin token is the learning mode (`find(q, true)`): same answer, same

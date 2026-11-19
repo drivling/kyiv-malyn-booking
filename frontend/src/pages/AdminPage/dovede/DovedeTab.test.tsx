@@ -9,7 +9,7 @@ import { MemoryRouter, Route, Routes, useLocation, useParams } from 'react-route
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
-import type { DovedeCityStats, DovedeLog } from '@/types';
+import type { DovedeCampaign, DovedeCityStats, DovedeLog } from '@/types';
 import DovedeTab from './DovedeTab';
 import { dovedePath } from './sections';
 
@@ -60,7 +60,35 @@ const CITY: DovedeCityStats = {
   ],
 };
 
-function mock(log: DovedeLog = LOG, city: DovedeCityStats = CITY): string[] {
+const CAMPAIGN: DovedeCampaign = {
+  id: 1,
+  city: 'Zhytomyr',
+  preset: 'learn',
+  title: 'Навчити місто — Житомир',
+  status: 'running',
+  waitReason: null,
+  waitUntil: null,
+  stopReason: null,
+  budget: 550,
+  dailyBudget: 200,
+  googleCalls: 120,
+  spentToday: 40,
+  asked: 150,
+  ok: 118,
+  fromDb: 30,
+  noRoute: 32,
+  failed: 0,
+  places: 140,
+  left: 60,
+  lastError: null,
+  plan: { city: 'Zhytomyr', origins: [], dirs: ['to'], main: 'weekday@09', extra: '', maxDepth: 0, seeds: 1 },
+  report: null,
+  createdAt: '2026-11-19T08:00:00.000Z',
+  startedAt: '2026-11-19T08:00:00.000Z',
+  finishedAt: null,
+};
+
+function mock(log: DovedeLog = LOG, city: DovedeCityStats = CITY, campaigns: DovedeCampaign[] = []): string[] {
   const queries: string[] = [];
   server.use(
     http.get(`${TEST_API_URL}/admin/dovede/queries`, ({ request }) => {
@@ -70,6 +98,7 @@ function mock(log: DovedeLog = LOG, city: DovedeCityStats = CITY): string[] {
     http.get(`${TEST_API_URL}/admin/dovede/city`, () => HttpResponse.json(city)),
     http.get(`${TEST_API_URL}/admin/dovede/city/places`, () => HttpResponse.json({ places: [] })),
     http.get(`${TEST_API_URL}/admin/dovede/synonyms`, () => HttpResponse.json({ synonyms: [] })),
+    http.get(`${TEST_API_URL}/admin/dovede/city/campaigns`, () => HttpResponse.json({ campaigns, google: { calls: 37, cap: 150, reserve: 50 } })),
   );
   return queries;
 }
@@ -107,6 +136,7 @@ describe('DovedeTab', () => {
     expect(link('Питання людей')).toHaveAttribute('href', '/admin/dovede/questions');
     expect(link('Словник')).toHaveAttribute('href', '/admin/dovede/dictionary');
     expect(link('Місто')).toHaveAttribute('href', '/admin/dovede/city');
+    expect(link('Навчання')).toHaveAttribute('href', '/admin/dovede/learning');
     expect(link('Питання людей')).toHaveAttribute('aria-current', 'page');
     expect(link('Огляд')).not.toHaveAttribute('aria-current');
     expect(await screen.findByRole('heading', { name: 'Питання людей' })).toBeInTheDocument();
@@ -138,6 +168,21 @@ describe('DovedeTab', () => {
     expect(screen.getByRole('link', { name: 'Словник і ШІ зрозуміли по-різному: 7' })).toHaveAttribute('href', '/admin/dovede/questions?days=7&only=disagree');
     expect(screen.getByRole('link', { name: 'ШІ не відповів: 2' })).toHaveAttribute('href', '/admin/dovede/questions?days=7&only=fail');
     expect(queries.sort()).toEqual(['?days=1&only=problems', '?days=7&only=fail']);
+  });
+
+  it('«Огляд»: стан навчання — плашка й плитка ведуть у «Навчання»; вичерпаний бюджет і останній прогін — у «Потребує уваги»', async () => {
+    const recent = new Date(Date.now() - 3600_000).toISOString();
+    mock(LOG, CITY, [
+      CAMPAIGN,
+      { ...CAMPAIGN, id: 2, title: 'Дообучити: вечір — Київ', status: 'done', stopReason: 'budget', left: 12 },
+      { ...CAMPAIGN, id: 3, title: 'Свій список — Житомир', status: 'done', stopReason: 'finished', finishedAt: recent, asked: 10, ok: 8, noRoute: 2, googleCalls: 9 },
+    ]);
+    renderAt('/admin/dovede');
+    const pill = await screen.findByText('Навчання: «Навчити місто — Житомир» — 120 з 550');
+    expect(pill.closest('a')).toHaveAttribute('href', '/admin/dovede/learning');
+    expect(screen.getByText('Навчання', { selector: '.admin-kit-tile-label' }).closest('a')).toHaveTextContent('120 / 550 запитів');
+    expect(screen.getByRole('link', { name: '«Дообучити: вечір — Київ»: бюджет вичерпано, у черзі ще 12' })).toHaveAttribute('href', '/admin/dovede/learning');
+    expect(screen.getByRole('link', { name: 'Останній прогін навчання: «Свій список — Житомир»' }).parentElement).toHaveTextContent('питань 10, з дорогою 8, без дороги 2, запитів до Google 9');
   });
 
   it('«Огляд» без справ — одне речення', async () => {

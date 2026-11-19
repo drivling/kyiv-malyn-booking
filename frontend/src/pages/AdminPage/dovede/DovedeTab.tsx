@@ -4,6 +4,7 @@ import { AdminSectionHeader, AdminSectionNav } from '../kit';
 import DovedeLogTab from '../DovedeLogTab';
 import { DovedeCityPanel } from '../DovedeCityPanel';
 import { DovedeDictionarySection } from './DovedeDictionarySection';
+import { DovedeLearnSection } from './DovedeLearnSection';
 import { DovedeOverview } from './DovedeOverview';
 import { DovedeSettingsSection } from './DovedeSettingsSection';
 import { DOVEDE_ADMIN_BASE, DOVEDE_SECTIONS, isDovedeSection } from './sections';
@@ -30,6 +31,7 @@ const DovedeTab: React.FC<{ section?: string }> = ({ section = '' }) => {
           <DovedeCityPanel defaultOpen />
         </>
       ) : null}
+      {section === 'learning' ? <DovedeLearnSection /> : null}
       {section === 'settings' ? <DovedeSettingsSection /> : null}
     </div>
   );

@@ -1168,6 +1168,36 @@ class ApiClient {
     return this.request('/admin/dovede/city/demand/reset', { method: 'POST' });
   }
 
+  /** Адмін: заготовки кампаній навчання міста з типовими точками, напрямками й годинами */
+  async getDovedeCampaignPresets(): Promise<{ presets: import('@/types').DovedeCampaignPreset[] }> {
+    return this.request('/admin/dovede/city/campaigns/presets');
+  }
+
+  /** Адмін: оцінка кампанії до старту — скільки запитів до Google; нічого не записує */
+  async previewDovedeCampaign(input: { preset: string; city: string; options?: import('@/types').DovedeCampaignOptions }): Promise<import('@/types').DovedeCampaignPreview> {
+    return this.request('/admin/dovede/city/campaigns/preview', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  /** Адмін: запустити кампанію з погодженим бюджетом (кількість запитів до Google усього й на добу) */
+  async createDovedeCampaign(input: { preset: string; city: string; options?: import('@/types').DovedeCampaignOptions; budget: number; dailyBudget: number }): Promise<import('@/types').DovedeCampaign> {
+    return this.request('/admin/dovede/city/campaigns', { method: 'POST', body: JSON.stringify(input) });
+  }
+
+  /** Адмін: кампанії (новіші вгорі) і облік Google за сьогодні */
+  async getDovedeCampaigns(): Promise<import('@/types').DovedeCampaignList> {
+    return this.request('/admin/dovede/city/campaigns');
+  }
+
+  /** Адмін: одна кампанія — питання за станами, місця за глибиною, останні відповіді */
+  async getDovedeCampaign(id: number): Promise<import('@/types').DovedeCampaignDetail> {
+    return this.request(`/admin/dovede/city/campaigns/${id}`);
+  }
+
+  /** Адмін: пауза, продовжити, скасувати, додати бюджету, сховати завершену */
+  async dovedeCampaignAction(id: number, action: 'pause' | 'resume' | 'cancel' | 'extend' | 'archive', extra: { budget?: number; dailyBudget?: number } = {}): Promise<import('@/types').DovedeCampaign> {
+    return this.request(`/admin/dovede/city/campaigns/${id}/action`, { method: 'POST', body: JSON.stringify({ action, ...extra }) });
+  }
+
   /** Адмін: скільки днів збережена відповідь свіжа (1–365); далі сервер питає Google знову */
   async setDovedeCityFreshDays(freshDays: number): Promise<{ freshDays: number }> {
     return this.request('/admin/dovede/city/settings', { method: 'PUT', body: JSON.stringify({ freshDays }) });
