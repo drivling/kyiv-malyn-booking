@@ -7,3 +7,4 @@ export { AdminSectionHeader } from './AdminSectionHeader';
 export { StatTile, StatTiles, type StatTone } from './StatTile';
 export { StatusPill, type StatusTone } from './StatusPill';
 export { EmptyState } from './EmptyState';
+export { SettingRow, type SettingRowData } from './SettingRow';

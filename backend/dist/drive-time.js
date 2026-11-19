@@ -60,7 +60,7 @@ function createDriveTime(deps) {
             day = today;
             calls = 0;
         }
-        if (calls >= dailyCap())
+        if (calls >= (await dailyCap()))
             return fixed;
         calls++;
         try {

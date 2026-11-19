@@ -5,6 +5,7 @@ import DovedeLogTab from '../DovedeLogTab';
 import { DovedeCityPanel } from '../DovedeCityPanel';
 import { DovedeDictionarySection } from './DovedeDictionarySection';
 import { DovedeOverview } from './DovedeOverview';
+import { DovedeSettingsSection } from './DovedeSettingsSection';
 import { DOVEDE_ADMIN_BASE, DOVEDE_SECTIONS, isDovedeSection } from './sections';
 import '../DovedeLogTab.css';
 import './DovedeTab.css';
@@ -25,10 +26,11 @@ const DovedeTab: React.FC<{ section?: string }> = ({ section = '' }) => {
       {section === 'dictionary' ? <DovedeDictionarySection /> : null}
       {section === 'city' ? (
         <>
-          <AdminSectionHeader title="Місто" purpose="Дороги містом у Києві й Житомирі: що вже знаємо, ліміт Google і архів." />
+          <AdminSectionHeader title="Місто" purpose="Дороги містом у Києві й Житомирі: що вже знаємо, що питають і архів." />
           <DovedeCityPanel defaultOpen />
         </>
       ) : null}
+      {section === 'settings' ? <DovedeSettingsSection /> : null}
     </div>
   );
 };

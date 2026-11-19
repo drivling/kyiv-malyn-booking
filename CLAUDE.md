@@ -139,6 +139,17 @@ of `dist` in a commit.
   sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
 
+- «Доведе» admin settings (`/admin/dovede/settings`, `dovede/DovedeSettingsSection.tsx` + `kit/SettingRow.tsx`): one
+  registry `DOVEDE_SETTINGS` in `backend/src/dovede/settings.ts` (key, group, label, limits, default from an env var or
+  code) and the table `DovedeSetting` (key → JSON; `null` = default), read through a one-minute cache by one
+  `createDovedeSettings` instance per process (`index.ts` → `createApp` → router and `cityRoutes`):
+  `ai.enabled` / `ai.dailyCap` (Claude), `city.enabled`, `city.dailyCap`, `city.freshDays`, `city.own`,
+  `drive.dailyCap`, `google.backoffMin`, `learn.refresh`, `learn.sharePct`, `learn.batch`, `learn.retryDays`.
+  A switch whose env var says off (`DOVEDE_ENABLED=0`, `DOVEDE_CITY_ROUTES=off`, `DOVEDE_CITY_OWN=0`,
+  `DOVEDE_CITY_REFRESH=0`) cannot be switched on from the admin (`lockedBy`). `GET` / `PUT /admin/dovede/settings`
+  (`{ key, value }`, `null` resets); the old `PUT /admin/dovede/city/settings` writes the same keys. `DovedeCitySettings`
+  is no longer read (its values were copied by migration `20261119300000_dovede_settings`). New setting = a registry
+  entry + where it is read; never a key or password.
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; the admin tab
   redesign and server-side learning runs are planned in `Docs/dovede-admin-roadmap.md` (plan of plans, read it first); research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
@@ -284,11 +295,10 @@ of `dist` in a commit.
   fixtures in `compose/fixtures/kyiv-city-modes.json` (from our DB, with the `ask` that produced them); the same pairs
   are `MODE_PAIRS` in `backend/src/dovede/city-route.ts`, part of `SEED_PAIRS`, so background learning keeps them
   fresh (a backend test keeps the two lists equal). Server `backend/src/dovede/city-route.ts`: a stored answer of the same
-  pair, day type and hour ± 1 not older than the fresh window (30 days by default; the owner edits it in the admin
-  block — singleton `DovedeCitySettings.freshDays`, 1–365, `PUT /admin/dovede/city/settings`, cached for a minute) is
+  pair, day type and hour ± 1 not older than the fresh window (30 days by default, setting `city.freshDays`) is
   served from `DovedeCityRoute` (`source: 'stored'`), otherwise
-  Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`; daily cap — the field «Запитів до Google на день» in the admin
-  block, `DovedeCitySettings.dailyCap` 0–5000, else `DOVEDE_CITY_DAILY_CAP`, else 150; the count of the Kyiv day, the
+  Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`; daily cap — setting `city.dailyCap` 0–5000, else
+  `DOVEDE_CITY_DAILY_CAP`, else 150; the count of the Kyiv day, the
   people / learning split, people refused, the pause after Google's 429 / 401 / 403 and its last error text live in
   `DovedeCityGoogleDay`, shared by every container — one `cityRoutes` instance per process is created in `index.ts` and
   passed to `createApp`, so people and background learning share it too) and the route, its lines

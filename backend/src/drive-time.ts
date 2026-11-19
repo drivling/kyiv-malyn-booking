@@ -47,7 +47,8 @@ export function createDriveTime(deps: {
   key: () => string | null;
   fetchImpl?: FetchLike;
   now?: () => number;
-  dailyCap?: () => number;
+  /** ліміт на день: число або з налаштувань адмінки (async) */
+  dailyCap?: () => number | Promise<number>;
 }): DriveTimeFn {
   const fetchImpl = deps.fetchImpl ?? (fetch as unknown as FetchLike);
   const now = deps.now ?? Date.now;
@@ -73,7 +74,7 @@ export function createDriveTime(deps: {
       day = today;
       calls = 0;
     }
-    if (calls >= dailyCap()) return fixed;
+    if (calls >= (await dailyCap())) return fixed;
     calls++;
 
     try {

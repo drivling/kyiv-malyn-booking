@@ -188,3 +188,119 @@
 .admin-kit-empty p {
   margin: 0;
 }
+
+/* Рядок налаштування: текст ліворуч, поле праворуч (на компʼютері), під полем — звідки значення й «Скинути» */
+.admin-kit-settings {
+  display: grid;
+  gap: 0;
+  margin: 0 0 20px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  background: var(--pb-card-bg, #fff);
+}
+.admin-kit-settings > h3 {
+  margin: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--pb-border, #e0e0e0);
+  font-size: var(--pb-font-size-base, 14px);
+}
+.admin-kit-setting {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+  gap: 8px 24px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--pb-border-light, #f0f0f0);
+}
+.admin-kit-settings > h3 + .admin-kit-setting {
+  border-top: 0;
+}
+.admin-kit-setting-text label {
+  font-weight: var(--pb-font-weight-semibold, 600);
+  font-size: var(--pb-font-size-base, 14px);
+}
+.admin-kit-setting-text p {
+  margin: 4px 0 0;
+  color: var(--pb-text-hint, #737373);
+  font-size: var(--pb-font-size-sm, 13px);
+  line-height: 1.4;
+}
+.admin-kit-setting-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.admin-kit-setting-form input {
+  width: 96px;
+  padding: 6px 8px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+}
+.admin-kit-setting-form input[aria-invalid='true'] {
+  border-color: var(--pb-danger, #c0392b);
+}
+.admin-kit-setting-unit {
+  color: var(--pb-text-hint, #737373);
+  font-size: var(--pb-font-size-sm, 13px);
+}
+.admin-kit-setting-source {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 6px 0 0;
+  color: var(--pb-text-hint, #737373);
+  font-size: var(--pb-font-size-sm, 13px);
+}
+.admin-kit-setting-source.is-error {
+  color: var(--pb-danger, #c0392b);
+}
+.admin-kit-setting.is-locked .admin-kit-setting-text label {
+  color: var(--pb-text-hint, #737373);
+}
+.admin-kit-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--pb-font-size-base, 14px);
+  cursor: pointer;
+}
+.admin-kit-switch input {
+  width: 18px;
+  height: 18px;
+}
+.admin-kit-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--pb-primary, #1a73e8);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-primary, #1a73e8);
+  color: #fff;
+  font: inherit;
+  font-size: var(--pb-font-size-sm, 13px);
+  font-weight: var(--pb-font-weight-semibold, 600);
+  cursor: pointer;
+}
+.admin-kit-btn:disabled {
+  border-color: var(--pb-border, #e0e0e0);
+  background: var(--pb-bg-secondary, #fafafa);
+  color: var(--pb-text-hint, #737373);
+  cursor: default;
+}
+.admin-kit-linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--pb-primary, #1a73e8);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+.admin-kit-linkbtn:disabled {
+  color: var(--pb-text-hint, #737373);
+  cursor: default;
+}
+@media (max-width: 720px) {
+  .admin-kit-setting {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

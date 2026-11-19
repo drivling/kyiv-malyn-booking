@@ -1,4 +1,5 @@
 import { cityRoutesFromEnv } from './dovede/city-route';
+import { createDovedeSettings } from './dovede/settings';
 import { PrismaClient } from '@prisma/client';
 import { CODE_VERSION, createApp, getRegisteredRoutes } from './create-app';
 import {
@@ -38,8 +39,10 @@ function main(): void {
   let cityLearnJob: IntervalJob | null = null;
   let eltrainJob: IntervalJob | null = null;
   // «Доведе»: одна «дорога містом» на весь процес — для людей (роутер) і для фонового навчання нижче
-  const cityRoutes = cityRoutesFromEnv(prisma);
-  const app = createApp({ prisma, cityRoutes });
+  // …і одні налаштування з адмінки (розділ «Налаштування») — спільні для роутера й фонового навчання
+  const dovedeSettings = createDovedeSettings({ prisma });
+  const cityRoutes = cityRoutesFromEnv(prisma, dovedeSettings);
+  const app = createApp({ prisma, cityRoutes, dovedeSettings });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {
     if (row) console.log(`[transport-revisions] initial row ${row.revision}`);

@@ -1,6 +1,7 @@
 /** «Місто: що вже знаємо» в адмінці: строк свіжості збереженої відповіді та скидання лічильника попиту. */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
@@ -72,35 +73,29 @@ function mock(over: Partial<DovedeCityStats> = {}) {
 
 async function open() {
   const user = userEvent.setup();
-  render(<DovedeCityPanel />);
+  render(
+    <MemoryRouter>
+      <DovedeCityPanel />
+    </MemoryRouter>,
+  );
   await user.click(screen.getByRole('button', { name: 'Показати' }));
-  const field = (await screen.findByLabelText('Збережена відповідь свіжа, днів')) as HTMLInputElement;
-  return { user, field };
+  await screen.findByRole('button', { name: 'Скинути лічильник попиту' });
+  return { user };
 }
 
 afterEach(() => vi.restoreAllMocks());
 
 describe('DovedeCityPanel', () => {
-  it('показує строк свіжості з сервера й зберігає новий; поза межами 1–365 зберегти не дає', async () => {
-    const { calls } = mock();
-    const { user, field } = await open();
-    expect(field.value).toBe('30');
+  it('рядок стану й посилання: строк свіжості й ліміт Google показано, змінюють їх у «Налаштування»', async () => {
+    mock();
+    await open();
     expect(screen.getByText(/застаріло доріг: 3 — сервер оновлює їх сам/)).toBeInTheDocument();
     expect(screen.getByText(/Google відмовив \(HTTP 403\) 18 листопада о 00:12 — немає доступу: обмеження ключа, вимкнений Routes API або білінг; Google: «Requests to this API are blocked.»/)).toBeInTheDocument();
-    const save = within(field.closest('form')!).getByRole('button', { name: 'Зберегти' });
-    expect(save).toBeDisabled(); // те саме значення
-
-    await user.clear(field);
-    await user.type(field, '400');
-    expect(save).toBeDisabled();
-    expect(screen.getByText('Ціле число від 1 до 365.')).toBeInTheDocument();
-
-    await user.clear(field);
-    await user.type(field, '90');
-    await user.click(save);
-    await screen.findByText('Збережено: відповідь свіжа 90 днів.');
-    expect(calls).toEqual(['fresh:90']);
-    await waitFor(() => expect(field.value).toBe('90'));
+    expect(screen.getByText(/Відповідь свіжа 30 днів · ліміт Google 150 на день/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: '«Налаштування»' })).toHaveAttribute('href', '/admin/dovede/settings');
+    // полів налаштувань тут більше немає
+    expect(screen.queryByLabelText('Збережена відповідь свіжа, днів')).toBeNull();
+    expect(screen.queryByLabelText('Запитів до Google на день')).toBeNull();
   });
 
   it('рядок стану: з чого склались запити до Google, скільки людям відмовили, пауза після відмови', async () => {
@@ -109,29 +104,6 @@ describe('DovedeCityPanel', () => {
     const status = screen.getByText(/запитів до Google сьогодні: 40 з 150 \(люди 25, навчання 15\)/);
     expect(status.textContent).toContain('людям відмовили через ліміт: 3');
     expect(status.textContent).toMatch(/Google не питаємо до 18 листопада о 12:20 — вичерпано квоту/);
-  });
-
-  it('денний ліміт Google: видно, скільки вже витрачено; зберігає новий; «Як на сервері» повертає змінну', async () => {
-    const { calls } = mock({ callsToday: 1536, dailyCap: 2450, dailyCapDefault: 2450, dailyCapFromAdmin: false });
-    const { user } = await open();
-    const cap = screen.getByLabelText('Запитів до Google на день') as HTMLInputElement;
-    const form = within(cap.closest('form')!);
-    expect(cap.value).toBe('2450');
-    expect(form.getByText(/Сьогодні вже 1536\..*Зараз — зі змінної на сервері\./)).toBeInTheDocument();
-    expect(form.queryByRole('button', { name: /Як на сервері/ })).toBeNull();
-
-    await user.clear(cap);
-    await user.type(cap, '6000');
-    expect(form.getByRole('button', { name: 'Зберегти' })).toBeDisabled();
-    expect(form.getByText('Ціле число від 0 до 5000 (квота проєкту в Google Cloud).')).toBeInTheDocument();
-
-    await user.clear(cap);
-    await user.type(cap, '3000');
-    await user.click(form.getByRole('button', { name: 'Зберегти' }));
-    await screen.findByText('Збережено: до 3000 запитів до Google на день.');
-    await user.click(await form.findByRole('button', { name: 'Як на сервері (2450)' }));
-    await screen.findByText('Ліміт — як у змінній на сервері: 2450 на день.');
-    expect(calls).toEqual(['cap:3000', 'cap:null']);
   });
 
   it('скидає лічильник попиту лише після підтвердження; пару без відповіді позначає', async () => {

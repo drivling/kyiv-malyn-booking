@@ -1433,6 +1433,24 @@ export interface DovedeCityStats {
   unanswered?: Array<{ city: string; fromKey: string; toKey: string; from: string; to: string; asked: number }>;
 }
 
+/** «Доведе» · одне налаштування з розділу «Налаштування» (GET /admin/dovede/settings) */
+export interface DovedeSettingView {
+  key: string;
+  group: 'ai' | 'google' | 'learning';
+  kind: 'int' | 'bool';
+  label: string;
+  help: string;
+  unit?: string;
+  min?: number;
+  max?: number;
+  value: number | boolean;
+  default: number | boolean;
+  defaultSource: 'env' | 'code';
+  stored: number | boolean | null;
+  updatedAt: string | null;
+  lockedBy: string | null;
+}
+
 /** «Доведе» · місце словами зі збереженими дорогами містом (GET /admin/dovede/city/places) */
 export interface DovedeCityPlace {
   city: string;

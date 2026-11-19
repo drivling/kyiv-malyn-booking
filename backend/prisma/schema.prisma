@@ -1419,7 +1419,16 @@ model DovedeCityGoogleDay {
   updatedAt        DateTime  @default(now()) @updatedAt
 }
 
-/// Налаштування дороги містом (singleton id=1): редагуються в адмінці «Місто: що вже знаємо», без редеплою
+/// «Доведе» · налаштування з адмінки (розділ «Налаштування»): ключ → значення JSON; NULL — типове (змінна середовища
+/// або код). Перелік ключів і межі — backend/src/dovede/settings.ts. Рядки не видаляються
+model DovedeSetting {
+  key       String   @id
+  value     Json?
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+/// Налаштування дороги містом (singleton id=1). З 2026-11-19 не читається: значення перенесено в `DovedeSetting`
+/// (було: редагуються в адмінці «Місто: що вже знаємо», без редеплою)
 model DovedeCitySettings {
   id        Int      @id
   /// Скільки днів збережена відповідь вважається свіжою; далі сервер питає Google знову
