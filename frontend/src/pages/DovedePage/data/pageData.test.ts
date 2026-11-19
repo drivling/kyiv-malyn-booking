@@ -7,8 +7,10 @@ import { metroTrip } from './kyiv';
 import { METRO_SERVICE, METRO_SHUTTLE_DEFAULT, applyMetroData, metroOpenAt, metroShuttle, resetMetroData } from './kyivMetroService';
 import { applyPageData, loadPageData, pageDataReady, resetPageDataLoad } from './pageData';
 import { RING_TRAINS, resetRingData, ringTrainRuns, ringTrainWindow } from './kyivRing';
+import { EXAMPLES_DEFAULT, KOROSTEN_EXAMPLES_DEFAULT, pageExamples, resetExamplesData } from './examples';
 
 afterEach(() => {
+  resetExamplesData();
   resetRingData();
   resetMetroData();
   resetPageDataLoad();
@@ -93,5 +95,18 @@ describe('додаткові рейси міської електрички з �
     expect(ringTrainRuns(extra, '2026-11-18', dep)).toBe(false);
     resetRingData();
     expect(ringTrainRuns(extra, '2026-11-18', dep)).toBe(true);
+  });
+});
+describe('приклади питань з адмінки', () => {
+  it('типові з коду; змінено один список — інший лишається; порожнє й закоротке — пропускаємо', () => {
+    expect(pageExamples()).toBe(EXAMPLES_DEFAULT);
+    expect(pageExamples(true)).toBe(KOROSTEN_EXAMPLES_DEFAULT);
+    applyPageData({ examples: { korosten: ['  З   Пашин на вокзал ', 'ок', 7] } });
+    expect(pageExamples(true)).toEqual(['З Пашин на вокзал']);
+    expect(pageExamples()).toBe(EXAMPLES_DEFAULT);
+    applyPageData({ examples: { malyn: [] } });
+    expect(pageExamples()).toBe(EXAMPLES_DEFAULT);
+    applyPageData({ examples: { malyn: Array.from({ length: 12 }, (_, i) => `питання ${i}`) } });
+    expect(pageExamples()).toHaveLength(10);
   });
 });

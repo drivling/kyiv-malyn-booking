@@ -4,6 +4,7 @@ import type { DovedePageDataItem } from '@/types';
 import { METRO_STATIONS, type MetroLine } from '@/pages/DovedePage/nlu/kyivMetroData';
 import { METRO_LINE, METRO_SERVICE, METRO_SHUTTLE_DEFAULT, type MetroShuttle } from '@/pages/DovedePage/data/kyivMetroService';
 import { RING_TRAINS } from '@/pages/DovedePage/data/kyivRing';
+import { EXAMPLES_DEFAULT, KOROSTEN_EXAMPLES_DEFAULT } from '@/pages/DovedePage/data/examples';
 
 const LINES: MetroLine[] = ['M1', 'M2', 'M3'];
 const stationName = (id: string) => METRO_STATIONS.find((s) => s.id === id)?.name ?? id;
@@ -268,6 +269,51 @@ const RingExtraRow: React.FC<{ item: DovedePageDataItem | undefined; busy: boole
   );
 };
 
+type Examples = { malyn?: string[]; korosten?: string[] };
+const lines = (t: string) =>
+  t
+    .split('\n')
+    .map((x) => x.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+const listOk = (l: string[]) => l.length >= 1 && l.length <= 10 && l.every((x) => x.length >= 3 && x.length <= 120);
+
+/** Приклади питань: по одному в рядку, окремо для сторінки Малина й Коростеня */
+const ExamplesRow: React.FC<{ item: DovedePageDataItem | undefined; busy: boolean; onSave: (v: unknown, reset?: boolean) => void }> = ({ item, busy, onSave }) => {
+  const stored = (item?.changed ? (item.value as Examples) : null) ?? {};
+  const [malyn, setMalyn] = useState((stored.malyn ?? EXAMPLES_DEFAULT).join('\n'));
+  const [korosten, setKorosten] = useState((stored.korosten ?? KOROSTEN_EXAMPLES_DEFAULT).join('\n'));
+  const m = lines(malyn);
+  const k = lines(korosten);
+  const valid = listOk(m) && listOk(k);
+  return (
+    <div className="admin-kit-setting">
+      <div className="admin-kit-setting-text">
+        <label htmlFor="dv-pd-examples-malyn">{item?.label ?? 'Приклади питань на сторінці'}</label>
+        <p>{item?.help}</p>
+        <p>По одному питанню в рядку, до 10; так, як написала б людина. Натиснута кнопка одразу питає — перевірте, що сторінка його розуміє.</p>
+      </div>
+      <div>
+        <div className="dv-pd-grid dv-pd-grid--wide">
+          <label>
+            Малин (і Київ, Житомир)
+            <textarea id="dv-pd-examples-malyn" rows={6} value={malyn} onChange={(e) => setMalyn(e.target.value)} aria-invalid={!listOk(m)} />
+          </label>
+          <label>
+            Коростень
+            <textarea rows={4} value={korosten} onChange={(e) => setKorosten(e.target.value)} aria-invalid={!listOk(k)} />
+          </label>
+        </div>
+        <div className="admin-kit-setting-form">
+          <button type="button" className="admin-kit-btn" disabled={busy || !valid} onClick={() => onSave({ malyn: m, korosten: k })}>
+            Зберегти
+          </button>
+        </div>
+        <Source item={item} busy={busy} onReset={() => onSave(null, true)} />
+      </div>
+    </div>
+  );
+};
+
 /**
  * «Дані сторінки» в розділі «Налаштування» (Docs/dovede-admin-roadmap.md, крок 11): те, що змінюється в житті й раніше
  * потребувало коду та деплою. Сторінка «Доведе» читає змінене при відкритті (`GET /dovede/page-data`); «Скинути до
@@ -325,6 +371,7 @@ export const PageDataSection: React.FC = () => {
           <ShuttleRow key={`sh-${by('metro.shuttle')?.updatedAt ?? 'code'}`} item={by('metro.shuttle')} busy={busy} onSave={(v, reset) => void save('metro.shuttle', v, reset)} />
           <ServiceRow item={by('metro.service')} busy={busy} onSave={(v, reset) => void save('metro.service', v, reset)} />
           <RingExtraRow key={`ring-${by('ring.extra')?.updatedAt ?? 'code'}`} item={by('ring.extra')} busy={busy} onSave={(v, reset) => void save('ring.extra', v, reset)} />
+          <ExamplesRow key={`ex-${by('examples')?.updatedAt ?? 'code'}`} item={by('examples')} busy={busy} onSave={(v, reset) => void save('examples', v, reset)} />
         </>
       ) : null}
     </div>

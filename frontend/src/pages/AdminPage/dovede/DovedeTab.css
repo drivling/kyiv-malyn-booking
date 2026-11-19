@@ -83,6 +83,21 @@ a.dovede-log-chip {
   font: inherit;
 }
 
+.dv-pd-grid--wide {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dv-pd-grid textarea {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+  line-height: 1.45;
+  resize: vertical;
+}
+
+.dv-pd-grid textarea[aria-invalid='true'],
 .dv-pd-grid input[aria-invalid='true'] {
   border-color: var(--pb-danger, #c0392b);
 }

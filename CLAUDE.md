@@ -246,7 +246,8 @@ of `dist` in a commit.
   only what was changed (`DovedeSetting` keys `page.<key>`, value `{ v }`, so «changed to null» ≠ «default»;
   `GET` / `PUT /admin/dovede/page-data`), the page reads `GET /dovede/page-data` once per open
   (`DovedePage/data/pageData.ts` → `applyMetroData`) and an answer waits for it at most 1.5 s. New page data = a
-  registry entry with its check + where the page applies it (now: `metro.shuttle`, `metro.service`, `ring.extra`). A metro step that is only that bus is never worded as metro: `metroPhrase` in
+  registry entry with its check + where the page applies it (now: `metro.shuttle`, `metro.service`, `ring.extra`, `examples` — the «Спитайте, наприклад» buttons of Malyn and
+  Korosten, `data/examples.ts`; the page re-renders once the data arrives). A metro step that is only that bus is never worded as metro: `metroPhrase` in
   `compose/narrate.ts` says «автобус №318 замість метро до…», and `MetroCard` opens with «Поїзди метро тут не ходять» and
   drops the token, turnstile and train-headway lines. Golden sets: `eval/kyiv-metro.json`
   (questions, driver notes, station pairs — no AI, `nlu/kyivMetro.test.ts`) and 40 `scope: kyiv` cases in

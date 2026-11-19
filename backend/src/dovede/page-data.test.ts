@@ -7,7 +7,7 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import request from 'supertest';
 import { Prisma, type PrismaClient } from '@prisma/client';
-import { createDovedePageData, ringExtraProblem, serviceProblem, shuttleProblem } from './page-data';
+import { createDovedePageData, examplesProblem, ringExtraProblem, serviceProblem, shuttleProblem } from './page-data';
 import { createAdminDovedeRouter } from '../routes/admin-dovede';
 import { adminAuthToken, setAdminPassword } from '../middleware/require-admin';
 import type { CityRoutes } from './city-route';
@@ -52,6 +52,13 @@ test('перевірка: замінник метро — станції тіє�
   assert.match(ringExtraProblem({ from: '2026-11-17', to: '2026-11-16' })!, /^to/);
   assert.match(ringExtraProblem({ from: '17.11.2026', to: '2026-11-20' })!, /^from/);
   assert.match(ringExtraProblem({ from: '2026-11-17', to: '2026-11-20', fromTime: '25:00' })!, /^fromTime/);
+  assert.equal(examplesProblem({ malyn: ['з Києва до Малина'], korosten: ['з Пашин на вокзал'] }), null);
+  assert.equal(examplesProblem({ korosten: ['з Пашин на вокзал'] }), null);
+  assert.match(examplesProblem({})!, /лише malyn/);
+  assert.match(examplesProblem({ lviv: ['x'] })!, /лише malyn/);
+  assert.match(examplesProblem({ malyn: [] })!, /від 1 до 10/);
+  assert.match(examplesProblem({ malyn: Array(11).fill('з Києва') })!, /від 1 до 10/);
+  assert.match(examplesProblem({ malyn: ['ок'] })!, /від 3 до 120/);
 });
 
 test('змінене віддаємо сторінці; null — теж значення («метро їздить усюди»), reset — назад до коду', async () => {
@@ -78,7 +85,7 @@ test('змінене віддаємо сторінці; null — теж знач
   at = new Date(at.getTime() + 61_000);
   assert.deepEqual(await pd.values(), {});
   const list = await pd.list();
-  assert.deepEqual(list.map((x) => [x.key, x.changed]), [['metro.shuttle', false], ['metro.service', false], ['ring.extra', false]]);
+  assert.deepEqual(list.map((x) => [x.key, x.changed]), [['metro.shuttle', false], ['metro.service', false], ['ring.extra', false], ['examples', false]]);
 });
 
 test('HTTP: сторінка читає з доступом «Доведе», міняє лише адмін', async () => {
@@ -112,5 +119,8 @@ test('HTTP: сторінка читає з доступом «Доведе», м
   assert.equal(page.status, 200);
   assert.deepEqual(page.body, { values: { 'metro.service': { openMins: 330, closeMins: 1380, fareUah: 35 } } });
   const admin = await request(app).get('/admin/dovede/page-data').set('Authorization', AUTH);
-  assert.equal(admin.body.items.length, 3);
+  assert.equal(admin.body.items.length, 4);
+  // приклади — пробіли стиснуто
+  const ex = await request(app).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'examples', value: { malyn: ['  з   Києва до Малина '] } });
+  assert.deepEqual(ex.body.value, { malyn: ['з Києва до Малина'] });
 });

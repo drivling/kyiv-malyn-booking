@@ -5,6 +5,7 @@
  */
 import { applyMetroData } from './kyivMetroService';
 import { applyRingData } from './kyivRing';
+import { applyExamplesData } from './examples';
 
 export const READY_WAIT_MS = 1500;
 
@@ -14,6 +15,7 @@ let ready: Promise<void> | null = null;
 export function applyPageData(values: Record<string, unknown>): void {
   applyMetroData(values);
   applyRingData(values);
+  applyExamplesData(values);
 }
 
 /** Прочитати один раз на сторінку (повторний виклик — той самий запит); помилка — лишаються типові */
