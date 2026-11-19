@@ -1233,6 +1233,22 @@ class ApiClient {
     return this.request(`/admin/dovede/pickups?days=${days}`);
   }
 
+  /** Телефони «Зубастика», що діють (типові або з адмінки); без авторизації */
+  async getZubastykPhones(): Promise<Array<{ digits: string; label: string; note?: string }>> {
+    const r = await this.request<{ phones: Array<{ digits: string; label: string; note?: string }> }>('/site/zubastyk-phones');
+    return r.phones;
+  }
+
+  /** Адмін: телефони «Зубастика» — що діє, змінено чи типові */
+  async getAdminZubastykPhones(): Promise<{ phones: Array<{ digits: string; label: string; note?: string }>; changed: boolean; updatedAt: string | null; defaults: Array<{ digits: string; label: string; note?: string }> }> {
+    return this.request('/admin/site/zubastyk-phones');
+  }
+
+  /** Адмін: задати телефони (`null` — повернути типові з коду) */
+  async setZubastykPhones(phones: Array<{ phone: string; note?: string }> | null): Promise<{ phones: Array<{ digits: string; label: string; note?: string }>; changed: boolean; updatedAt: string | null; defaults: Array<{ digits: string; label: string; note?: string }> }> {
+    return this.request('/admin/site/zubastyk-phones', { method: 'PUT', body: JSON.stringify(phones === null ? { reset: true } : { phones }) });
+  }
+
   /** «Доведе»: дані сторінки, змінені в адмінці (лише змінені ключі); не вдалося — порожньо, діють типові з коду */
   async dovedePageData(): Promise<Record<string, unknown>> {
     try {

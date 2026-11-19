@@ -116,10 +116,10 @@ import {
 import { INLINE_QUERY_PREFIX, handleChosenInlineResult, handleInlineQuery } from './telegram-inline';
 import { boardingTimeAtStop, isScheduleActiveOnDate, scheduleMatchesOdAlongStops } from './schedule-trip';
 import {
-  PHONE_ONLY_NOTICE_HTML,
-  PHONE_ONLY_SMS,
-  PHONE_ONLY_TOAST,
-  ZUBASTYK_PHONES,
+  phoneOnlyNoticeHtml,
+  phoneOnlySms,
+  phoneOnlyToast,
+  zubastykPhones,
   isPhoneOnlyBooking,
 } from './phone-booking';
 
@@ -3021,7 +3021,7 @@ export const sendBookingConfirmationToCustomer = async (
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
 🎫 <b>Місць:</b> ${booking.seats}
 👤 <b>Пасажир:</b> ${displayName(booking.name, 'Пасажир')}
-${isPhoneOnlyBooking(booking) ? `\n${PHONE_ONLY_NOTICE_HTML}\n` : ''}${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
+${isPhoneOnlyBooking(booking) ? `\n${phoneOnlyNoticeHtml()}\n` : ''}${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
 
 <i>Бажаємо приємної подорожі! 🚐</i>
     `.trim();
@@ -3073,7 +3073,7 @@ export function buildTripReminderSms(booking: TripReminderBooking, when: TripRem
     : '';
   return (
     `${lead}: ${getRouteName(booking.route)} ${formatDate(booking.date)} о ${booking.departureTime}.${drv} ` +
-    `${isPhoneOnlyBooking(booking) ? `${PHONE_ONLY_SMS} ` : ''}` +
+    `${isPhoneOnlyBooking(booking) ? `${phoneOnlySms()} ` : ''}` +
     `Перевірте бронювання за телефоном — інакше воно не гарантоване. ${siteDomainForRoute(booking.route)}`
   );
 }
@@ -3143,7 +3143,7 @@ export const sendTripReminderVia = async (
 
     const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
-${isPhoneOnlyBooking(booking) ? `\n${PHONE_ONLY_NOTICE_HTML}\n` : ''}
+${isPhoneOnlyBooking(booking) ? `\n${phoneOnlyNoticeHtml()}\n` : ''}
 ${text.heading}
 
 ${text.intro(displayName(booking.name, 'Друже'))}
@@ -5131,7 +5131,7 @@ ${buildReferralHelpSection()}
         const sourceLabel = (booking as { source?: string }).source === 'viber_match' ? ' · 🚗 Попутка' : '';
         message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${displayName(booking.name, 'Пасажир')}\n`;
         if (isPhoneOnlyBooking(booking as { route: string; source?: string })) {
-          message += `   ⛔️ Онлайн-бронь поки не діє — підтвердіть місце за тел. <a href="tel:+${ZUBASTYK_PHONES[0].digits}">${ZUBASTYK_PHONES[0].label}</a>\n`;
+          message += `   ⛔️ Онлайн-бронь поки не діє — підтвердіть місце за тел. <a href="tel:+${zubastykPhones()[0].digits}">${zubastykPhones()[0].label}</a>\n`;
         }
         if (booking.viberListing) message += `   🚗 Водій: ${displayName(booking.viberListing.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
         message += '\n';
@@ -7312,7 +7312,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
           '🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
             `✅ Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n` +
             `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
-            (schedules.some((sch) => isPhoneOnlyBooking(sch)) ? `${PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
+            (schedules.some((sch) => isPhoneOnlyBooking(sch)) ? `${phoneOnlyNoticeHtml()}\n\n` : '') +
             '4️⃣ Оберіть час посадки:',
           {
             chat_id: chatId,
@@ -7597,7 +7597,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             `✅ Напрямок: ${routeLabel}\n` +
             `✅ Дата: ${formatDate(new Date(selectedDate))}\n` +
             `✅ Час: ${schedule.departureTime}\n\n` +
-            (isPhoneOnlyBooking(schedule) ? `${PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
+            (isPhoneOnlyBooking(schedule) ? `${phoneOnlyNoticeHtml()}\n\n` : '') +
             '4️⃣ Скільки місць забронювати?',
           {
             chat_id: chatId,
@@ -7644,7 +7644,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             `🕐 <b>Час:</b> ${schedule?.departureTime ?? '—'}\n` +
             `🎫 <b>Місць:</b> ${seats}\n\n` +
             (schedule && isPhoneOnlyBooking(schedule)
-              ? `${PHONE_ONLY_NOTICE_HTML}\n` +
+              ? `${phoneOnlyNoticeHtml()}\n` +
                 'Заявку ми збережемо, але місце вона не гарантує — забронюйте його дзвінком.\n\n'
               : '') +
             '⚠️ Підтверджуєте бронювання?',
@@ -7750,7 +7750,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
             : '\n\n';
           await bot?.editMessageText(
             '📋 <b>Заявку прийнято</b> (працюємо в технічному режимі)\n\n' +
-              (phoneOnly ? `${PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
+              (phoneOnly ? `${phoneOnlyNoticeHtml()}\n\n` : '') +
               `🎫 <b>Номер:</b> #${booking.id}\n` +
               `📍 <b>Маршрут:</b> ${routeLabel}\n` +
               `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
@@ -7772,7 +7772,7 @@ const routeKeyboard = buildPoputkyFromKeyboard('addpassenger', points);
 
           await bot?.answerCallbackQuery(query.id, {
             text: phoneOnly
-              ? PHONE_ONLY_TOAST
+              ? phoneOnlyToast()
               : schedule.supportPhone
                 ? 'Заявку прийнято. Краще уточнити за тел. ' + schedule.supportPhone
                 : '✅ Заявку прийнято!',

@@ -10,8 +10,17 @@ import { tripsPerDayText } from '@/utils/weekdays';
 export const ZUBASTYK_PATH = '/zubastyk';
 export const ZUBASTYK_CANONICAL = `https://malin.kiev.ua${ZUBASTYK_PATH}`;
 
-/** Телефони бронювання маршруток Малин — Київ. Останній у списку — резервний. */
-export const ZUBASTYK_PHONES: Array<{ digits: string; label: string; note?: string }> = [
+export interface ZubastykPhone {
+  digits: string;
+  label: string;
+  note?: string;
+}
+
+/**
+ * Типові телефони бронювання маршруток Малин — Київ (останній — резервний). Ті, що діють, власник міняє в адмінці —
+ * `useZubastykPhones()` у `src/site/zubastykPhones.ts`; тут — що показати, поки сервер не відповів.
+ */
+export const ZUBASTYK_PHONES: readonly ZubastykPhone[] = [
   { digits: '380931920008', label: '093 192 00 08' },
   { digits: '380961420008', label: '096 142 00 08' },
   { digits: '380661620008', label: '066 162 00 08' },
@@ -42,12 +51,13 @@ export function priceRange(rows: Schedule[]): { min: number; max: number } | nul
   return prices.length ? { min: Math.min(...prices), max: Math.max(...prices) } : null;
 }
 
-const phonesText = ZUBASTYK_PHONES.map((p) => (p.note ? `${p.label} (${p.note})` : p.label)).join(', ');
+const phonesText = (phones: readonly ZubastykPhone[]) => phones.map((p) => (p.note ? `${p.label} (${p.note})` : p.label)).join(', ');
 
 /** FAQ = те, що люди буквально вводять у Google: «зубастик малин номер телефону», «…розклад». */
 export function buildZubastykFaq(
   toKyiv: Schedule[],
-  toMalyn: Schedule[]
+  toMalyn: Schedule[],
+  phones: readonly ZubastykPhone[] = ZUBASTYK_PHONES
 ): Array<{ q: string; a: string }> {
   const rk = scheduleRange(toKyiv);
   const rm = scheduleRange(toMalyn);
@@ -57,7 +67,7 @@ export function buildZubastykFaq(
   const faq: Array<{ q: string; a: string }> = [
     {
       q: 'Який номер телефону маршрутки «Зубастик» Малин — Київ?',
-      a: `Бронювання місць за телефонами: ${phonesText}. Або оберіть рейс у пошуку на malin.kiev.ua/mizhgorodski — бронювання без дзвінка.`,
+      a: `Бронювання місць за телефонами: ${phonesText(phones)}. Або оберіть рейс у пошуку на malin.kiev.ua/mizhgorodski — бронювання без дзвінка.`,
     },
   ];
   if (rk) {

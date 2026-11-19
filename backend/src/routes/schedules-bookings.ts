@@ -34,7 +34,7 @@ import {
 import { applyTimetablePreview, buildTimetablePreview, parseTimetablePages } from '../schedule-timetable-sync';
 import { runEltrainSync } from '../eltrain-sync';
 import { fetchEltrainPage } from '../swrailway-eltrain';
-import { PHONE_ONLY_NOTICE_TEXT, isPhoneOnlyBooking } from '../phone-booking';
+import { isPhoneOnlyBooking, phoneOnlyNoticeText } from '../phone-booking';
 
 async function buildAvailabilityPayload(
   prisma: PrismaClient,
@@ -885,7 +885,7 @@ export function createSchedulesBookingsRouter(deps: {
 
     // «Зубастик» поки лише за телефоном: заявку зберігаємо, але клієнт API має показати попередження
     const phoneOnly = isPhoneOnlyBooking(resolvedSchedule);
-    res.status(201).json({ ...booking, phoneOnly, ...(phoneOnly ? { notice: PHONE_ONLY_NOTICE_TEXT } : {}) });
+    res.status(201).json({ ...booking, phoneOnly, ...(phoneOnly ? { notice: phoneOnlyNoticeText() } : {}) });
   });
 
   r.get('/bookings', requireAdmin, async (_req, res) => {

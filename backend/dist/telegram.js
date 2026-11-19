@@ -2396,7 +2396,7 @@ const sendBookingConfirmationToCustomer = async (chatId, booking) => {
 🕐 <b>Час відправлення:</b> ${booking.departureTime}
 🎫 <b>Місць:</b> ${booking.seats}
 👤 <b>Пасажир:</b> ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}
-${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `\n${phone_booking_1.PHONE_ONLY_NOTICE_HTML}\n` : ''}${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
+${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `\n${(0, phone_booking_1.phoneOnlyNoticeHtml)()}\n` : ''}${booking.supportPhone ? `\n⚠️ Краще уточнити бронювання за телефоном: ${booking.supportPhone}\n` : ''}
 
 <i>Бажаємо приємної подорожі! 🚐</i>
     `.trim();
@@ -2425,7 +2425,7 @@ function buildTripReminderSms(booking, when) {
         ? ` Водій ${(0, person_name_1.displayName)(booking.driver.senderName, '—')}, тел +${(0, exports.normalizePhone)(booking.driver.phone)}.`
         : '';
     return (`${lead}: ${getRouteName(booking.route)} ${formatDate(booking.date)} о ${booking.departureTime}.${drv} ` +
-        `${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `${phone_booking_1.PHONE_ONLY_SMS} ` : ''}` +
+        `${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `${(0, phone_booking_1.phoneOnlySms)()} ` : ''}` +
         `Перевірте бронювання за телефоном — інакше воно не гарантоване. ${(0, site_domains_1.siteDomainForRoute)(booking.route)}`);
 }
 /** Платний SMS-фолбек нагадування (коли Telegram недосяжний). */
@@ -2483,7 +2483,7 @@ const sendTripReminderVia = async (chatId, booking, when) => {
             : '';
         const message = `
 ⚠️❗ <b>Увага!</b> Якщо ви не перевірили бронювання за телефоном — воно не гарантоване!
-${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `\n${phone_booking_1.PHONE_ONLY_NOTICE_HTML}\n` : ''}
+${(0, phone_booking_1.isPhoneOnlyBooking)(booking) ? `\n${(0, phone_booking_1.phoneOnlyNoticeHtml)()}\n` : ''}
 ${text.heading}
 
 ${text.intro((0, person_name_1.displayName)(booking.name, 'Друже'))}
@@ -4278,7 +4278,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 const sourceLabel = booking.source === 'viber_match' ? ' · 🚗 Попутка' : '';
                 message += `${index + 1}. 🎫 <b>Бронювання #${booking.id}</b>${sourceLabel}\n   🚌 ${getRouteName(booking.route)}\n   📅 ${formatDate(booking.date)} о ${booking.departureTime}\n   🎫 Місць: ${booking.seats}\n   👤 ${(0, person_name_1.displayName)(booking.name, 'Пасажир')}\n`;
                 if ((0, phone_booking_1.isPhoneOnlyBooking)(booking)) {
-                    message += `   ⛔️ Онлайн-бронь поки не діє — підтвердіть місце за тел. <a href="tel:+${phone_booking_1.ZUBASTYK_PHONES[0].digits}">${phone_booking_1.ZUBASTYK_PHONES[0].label}</a>\n`;
+                    message += `   ⛔️ Онлайн-бронь поки не діє — підтвердіть місце за тел. <a href="tel:+${(0, phone_booking_1.zubastykPhones)()[0].digits}">${(0, phone_booking_1.zubastykPhones)()[0].label}</a>\n`;
                 }
                 if (booking.viberListing)
                     message += `   🚗 Водій: ${(0, person_name_1.displayName)(booking.viberListing.senderName, '—')}, 📞 ${formatPhoneTelLink(booking.viberListing.phone)}\n`;
@@ -6221,7 +6221,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                 await bot?.editMessageText('🎫 <b>Нове бронювання</b> · 🚌 Маршрутка\n\n' +
                     `✅ Напрямок: ${odPairLabel(from.nameUk, to.nameUk)}\n` +
                     `✅ Дата: ${formatDate(new Date(selectedDate))}\n\n` +
-                    (schedules.some((sch) => (0, phone_booking_1.isPhoneOnlyBooking)(sch)) ? `${phone_booking_1.PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
+                    (schedules.some((sch) => (0, phone_booking_1.isPhoneOnlyBooking)(sch)) ? `${(0, phone_booking_1.phoneOnlyNoticeHtml)()}\n\n` : '') +
                     '4️⃣ Оберіть час посадки:', {
                     chat_id: chatId,
                     message_id: messageId,
@@ -6454,7 +6454,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     `✅ Напрямок: ${routeLabel}\n` +
                     `✅ Дата: ${formatDate(new Date(selectedDate))}\n` +
                     `✅ Час: ${schedule.departureTime}\n\n` +
-                    ((0, phone_booking_1.isPhoneOnlyBooking)(schedule) ? `${phone_booking_1.PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
+                    ((0, phone_booking_1.isPhoneOnlyBooking)(schedule) ? `${(0, phone_booking_1.phoneOnlyNoticeHtml)()}\n\n` : '') +
                     '4️⃣ Скільки місць забронювати?', {
                     chat_id: chatId,
                     message_id: messageId,
@@ -6492,7 +6492,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     `🕐 <b>Час:</b> ${schedule?.departureTime ?? '—'}\n` +
                     `🎫 <b>Місць:</b> ${seats}\n\n` +
                     (schedule && (0, phone_booking_1.isPhoneOnlyBooking)(schedule)
-                        ? `${phone_booking_1.PHONE_ONLY_NOTICE_HTML}\n` +
+                        ? `${(0, phone_booking_1.phoneOnlyNoticeHtml)()}\n` +
                             'Заявку ми збережемо, але місце вона не гарантує — забронюйте його дзвінком.\n\n'
                         : '') +
                     '⚠️ Підтверджуєте бронювання?', {
@@ -6580,7 +6580,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                         ? `\n⚠️ Краще уточнити бронювання за телефоном: ${schedule.supportPhone}\n\n`
                         : '\n\n';
                     await bot?.editMessageText('📋 <b>Заявку прийнято</b> (працюємо в технічному режимі)\n\n' +
-                        (phoneOnly ? `${phone_booking_1.PHONE_ONLY_NOTICE_HTML}\n\n` : '') +
+                        (phoneOnly ? `${(0, phone_booking_1.phoneOnlyNoticeHtml)()}\n\n` : '') +
                         `🎫 <b>Номер:</b> #${booking.id}\n` +
                         `📍 <b>Маршрут:</b> ${routeLabel}\n` +
                         `📅 <b>Дата:</b> ${formatDate(booking.date)}\n` +
@@ -6599,7 +6599,7 @@ ${(0, telegram_referral_1.buildReferralHelpSection)()}
                     });
                     await bot?.answerCallbackQuery(query.id, {
                         text: phoneOnly
-                            ? phone_booking_1.PHONE_ONLY_TOAST
+                            ? (0, phone_booking_1.phoneOnlyToast)()
                             : schedule.supportPhone
                                 ? 'Заявку прийнято. Краще уточнити за тел. ' + schedule.supportPhone
                                 : '✅ Заявку прийнято!',

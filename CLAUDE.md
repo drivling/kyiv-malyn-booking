@@ -966,8 +966,16 @@ notifications — is derived from them. Keep the two maps in sync.
   page, search results, «Доведе» stories, ads, SEO and AEO copy (landings, FAQ / JSON-LD, meta, `llms.txt`, promos, bot
   welcome/help) say nothing about it — back to the copy before the warnings (owner, 2026-11-19; a test keeps the
   corridor copy free of «не працює / лише за телефоном / тимчасово»). One rule, kept identical in
-  `backend/src/phone-booking.ts` and `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts`; the phones mirror
-  `ZUBASTYK_PHONES` in `zubastykContent.ts`. Restoring online booking = reverting that change.
+  `backend/src/phone-booking.ts` and `frontend/src/pages/MizhgorodskiPage/phoneOnlyBooking.ts`. Restoring online
+  booking = reverting that change.
+- **Zubastyk phones** are one list for the whole site, changed by the owner in the admin without a deploy («Графіки»
+  tab → `AdminPage/ZubastykPhonesPanel.tsx`): table `SiteSetting` (key `zubastyk.phones`, value `{ phones }`, `{}` =
+  defaults), `backend/src/zubastyk-phones.ts` (defaults, parsing «093 192 00 08», in-memory list refreshed at start, every
+  5 min and on save; bot / SMS / API texts in `phone-booking.ts` are functions reading it), `GET /site/zubastyk-phones`
+  (public, 5 min cache) and `GET` / `PUT /admin/site/zubastyk-phones`. Pages use `useZubastykPhones()`
+  (`src/site/zubastykPhones.ts`; defaults = `ZUBASTYK_PHONES` in `zubastykContent.ts`): /zubastyk (list, FAQ, meta), the
+  booking modal notice, «Доведе» contacts. The static /zubastyk is rendered with the same request at build time — after
+  changing the phones, redeploy the frontend so crawlers see them.
 - The Python `viberparser/` service has no automated test suite (out of CI) — see `Docs/TESTING.md`
   "Out of CI" section for what's covered by manual smoke checklists instead
   (`Docs/*-smoke.md`), e.g. `Docs/gold-route-model-smoke.md`, `Docs/poputky-od-city-scale-smoke.md`.

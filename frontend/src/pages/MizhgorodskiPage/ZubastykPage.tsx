@@ -7,11 +7,11 @@ import { TELEGRAM_BOT_URL, TELEGRAM_BOT_USERNAME } from '@/pages/SupportPage/sup
 import type { Schedule } from '@/types';
 import { ROUTES } from '@/utils/constants';
 import { weekdaysLabel } from '@/utils/weekdays';
+import { useZubastykPhones } from '@/site/zubastykPhones';
 import { corridorPath } from './corridorLandings';
 import {
   ZUBASTYK_BOARDING,
   ZUBASTYK_CANONICAL,
-  ZUBASTYK_PHONES,
   buildZubastykFaq,
   scheduleRange,
 } from './zubastykContent';
@@ -96,7 +96,8 @@ export function ZubastykPage() {
     };
   }, []);
 
-  const faq = useMemo(() => buildZubastykFaq(rows.toKyiv, rows.toMalyn), [rows]);
+  const phones = useZubastykPhones();
+  const faq = useMemo(() => buildZubastykFaq(rows.toKyiv, rows.toMalyn, phones), [rows, phones]);
   const rangeToKyiv = scheduleRange(rows.toKyiv);
 
   const jsonLd = useMemo(
@@ -136,7 +137,7 @@ export function ZubastykPage() {
   usePageSeo({
     title: 'Зубастик Малин — Київ: розклад маршруток і номер телефону | malin.kiev.ua',
     canonicalUrl: ZUBASTYK_CANONICAL,
-    description: `Маршрутка «Зубастик» Малин — Київ: телефони бронювання ${ZUBASTYK_PHONES.slice(0, 3)
+    description: `Маршрутка «Зубастик» Малин — Київ: телефони бронювання ${phones.slice(0, 3)
       .map((p) => p.label)
       .join(', ')}${rangeToKyiv ? `, рейси з ${rangeToKyiv.first} до ${rangeToKyiv.last}` : ''}, посадка на Академмістечку та Святошині. Онлайн-бронювання на malin.kiev.ua.`,
     jsonLdId: 'zubastyk-jsonld',
@@ -174,7 +175,7 @@ export function ZubastykPage() {
         <section className="corridor-section" aria-labelledby="zubastyk-phones">
           <h2 id="zubastyk-phones">Номери телефону для бронювання</h2>
           <ul className="corridor-ways">
-            {ZUBASTYK_PHONES.map((p) => (
+            {phones.map((p) => (
               <li key={p.digits}>
                 <a href={`tel:+${p.digits}`}>
                   <strong>{p.label}</strong>
