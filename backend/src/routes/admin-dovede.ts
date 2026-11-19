@@ -32,6 +32,7 @@ import { CITY_DAILY_CAP_MAX, CITY_DAILY_CAP_MIN, CITY_FRESH_DAYS_MAX, CITY_FRESH
 import { kyivWallToUtc } from '../viber-listing-expiry';
 import { CampaignInputError, createCityCampaigns, type CampaignInput, type CityCampaigns } from '../dovede/city-campaign';
 import { createCityQuality, type CityQuality } from '../dovede/city-quality';
+import { createDovedePageData, type DovedePageData } from '../dovede/page-data';
 
 export const DOVEDE_MAX_TEXT = 300;
 /** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
@@ -92,6 +93,8 @@ export function createAdminDovedeRouter(deps: {
   campaigns?: CityCampaigns;
   /** Звіт якості навчання (підозрілі дороги) */
   quality?: CityQuality;
+  /** Дані сторінки, які власник міняє сам (метро-замінник, години й тариф метро) */
+  pageData?: DovedePageData;
 }): Router {
   const { prisma } = deps;
   const understand = deps.understand === undefined ? understandFromEnv() : deps.understand;
@@ -106,6 +109,7 @@ export function createAdminDovedeRouter(deps: {
   const cityRoutes = deps.cityRoutes ?? cityRoutesFromEnv(prisma, settings);
   const campaigns = deps.campaigns ?? createCityCampaigns({ prisma, cityRoutes, settings, now: clock });
   const quality = deps.quality ?? createCityQuality(prisma);
+  const pageData = deps.pageData ?? createDovedePageData({ prisma, now: clock });
   const r = express.Router();
 
   /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
@@ -192,6 +196,41 @@ export function createAdminDovedeRouter(deps: {
   r.get('/dovede/synonyms', requireDovedeAccess(access), async (_req, res) => {
     res.set('Cache-Control', 'private, no-store');
     res.json({ synonyms: await synonyms(clock()) });
+  });
+
+  /** Дані сторінки, змінені в адмінці (крок 11): лише змінені ключі; решта — типові з коду сторінки */
+  r.get('/dovede/page-data', requireDovedeAccess(access), async (_req, res) => {
+    res.set('Cache-Control', 'private, no-store');
+    res.json({ values: await pageData.values() });
+  });
+
+  r.get('/admin/dovede/page-data', requireAdmin, async (_req, res) => {
+    try {
+      res.set('Cache-Control', 'private, no-store');
+      res.json({ items: await pageData.list() });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/page-data:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати дані сторінки' });
+    }
+  });
+
+  /** `{ key, value }` — змінити; `{ key, reset: true }` — повернути типове з коду */
+  r.put('/admin/dovede/page-data', requireAdmin, async (req, res) => {
+    const b = (req.body ?? {}) as { key?: unknown; value?: unknown; reset?: unknown };
+    if (typeof b.key !== 'string' || (b.reset !== true && !('value' in b))) {
+      res.status(400).json({ error: 'потрібні key і value (або reset: true)' });
+      return;
+    }
+    try {
+      res.json(await pageData.set(b.key, b.value, b.reset === true));
+    } catch (e) {
+      if (e instanceof RangeError) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
+      console.error('❌ PUT /admin/dovede/page-data:', e);
+      res.status(500).json({ error: 'Не вдалося зберегти' });
+    }
   });
 
   r.get('/admin/dovede/synonyms', requireAdmin, async (_req, res) => {

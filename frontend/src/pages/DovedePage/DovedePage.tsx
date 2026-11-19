@@ -45,6 +45,7 @@ import { localIsSure, pickIntent, sameAnswer, usableAiIntent, withHouses, withIn
 import { addDays, parseLocal } from './nlu/parseLocal';
 import { setStopPlaces } from './nlu/places';
 import { setSynonyms } from './nlu/synonyms';
+import { loadPageData, pageDataReady } from './data/pageData';
 import { buildStopPlaces } from './nlu/stopPlaces';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
@@ -282,6 +283,8 @@ function DovedeSearch({
   const [taught, setTaught] = useState(0);
   useEffect(() => {
     let alive = true;
+    // дані сторінки з адмінки (метро-замінник, години й тариф метро) — один раз на сторінку; відповідь їх дочекається
+    void loadPageData(() => apiClient.dovedePageData());
     void apiClient.dovedeSynonyms().then((list) => {
       if (!alive) return;
       setSynonyms(list);
@@ -317,6 +320,7 @@ function DovedeSearch({
   /** Намір → розклад → історії */
   const answer = useCallback(
     async (id: number, q: string, parse: LocalParse, intent: TripIntent, now: KyivNow) => {
+      await pageDataReady();
       const shape = korosten ? korostenShape(intent) : classify(intent);
       const cities = corridorCities(shape);
       // один запит: розклад коридору й оголошення попуток на цей день
