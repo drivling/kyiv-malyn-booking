@@ -31,7 +31,8 @@ const cityState = (c: DovedeCityStats): [StatusTone, string] =>
 const learnState = (c: DovedeCampaign | undefined): [StatusTone, string] | null => {
   if (!c) return null;
   const spent = `${num(c.googleCalls)} з ${num(c.budget)}`;
-  if (c.status === 'running') return ['busy', `Навчання: «${c.title}» — ${spent}`];
+  if (c.status === 'running' && !c.queuedBehind) return ['busy', `Навчання: «${c.title}» — ${spent}`];
+  if (c.status === 'running') return ['off', `Навчання у черзі: «${c.title}»`];
   if (c.status === 'waiting') return ['warn', `Навчання чекає: ${WAIT_REASON[c.waitReason ?? ''] ?? c.waitReason}`];
   return ['off', `Навчання на паузі: «${c.title}»`];
 };
@@ -83,7 +84,8 @@ export const DovedeOverview: React.FC = () => {
   const words = w?.topUnknown ?? [];
   const unanswered = c?.unanswered?.length ?? 0;
   const campaigns = learn.data?.campaigns ?? [];
-  const current = campaigns.find(isOpen);
+  // та, що йде зараз; якщо такої немає — перша відкрита (чекає, на паузі, у черзі)
+  const current = campaigns.find((x) => isOpen(x) && !x.queuedBehind && x.status !== 'paused') ?? campaigns.find(isOpen);
   const learning = learnState(current);
   const outOfBudget = campaigns.filter((x) => x.status === 'done' && x.stopReason === 'budget' && x.left > 0);
   const lastRun = campaigns.find((x) => x.status === 'done' && x.stopReason === 'finished' && x.finishedAt && Date.now() - new Date(x.finishedAt).getTime() < RECENT_RUN_MS);

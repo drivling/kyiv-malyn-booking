@@ -360,3 +360,17 @@ describe('«Відкрити як людина»', () => {
     expect(humanLink({ city: 'Zhytomyr', label: 'Польова 12' }, { origin: 'zhytomyr.avtovokzal', dir: 'to' })).toBe('/dovede?f=malyn.avtostantsiya&t=city.Zhytomyr&td=%D0%9F%D0%BE%D0%BB%D1%8C%D0%BE%D0%B2%D0%B0+12');
   });
 });
+
+describe('черга кампаній', () => {
+  it('кампанія за іншою — «У черзі після …», не «Іде»', async () => {
+    mock([campaign({ id: 8, title: 'Свій список — Київ', googleCalls: 0, asked: 0, queuedBehind: { id: 7, title: 'Дообучити: вечір — Житомир' } }), campaign({ id: 7, title: 'Дообучити: вечір — Житомир' })]);
+    renderSection();
+    const queued = await screen.findByRole('article', { name: 'Свій список — Київ' });
+    expect(within(queued).getByText('У черзі')).toBeInTheDocument();
+    expect(within(queued).getByText(/після «Дообучити: вечір — Житомир» — сервер веде одну кампанію за раз/)).toBeInTheDocument();
+    expect(queued).not.toHaveClass('is-active');
+    const leading = screen.getByRole('article', { name: 'Дообучити: вечір — Житомир' });
+    expect(within(leading).getByText('Іде')).toBeInTheDocument();
+    expect(leading).toHaveClass('is-active');
+  });
+});

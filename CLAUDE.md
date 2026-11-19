@@ -353,7 +353,9 @@ of `dist` in a commit.
   today's calls are below the cap minus `reserveFor(cap)` (a fifth, at least 50) — the rest is for people. Our cap /
   Google 429 / 403 / switched off → `waiting` with `waitReason` (the ask goes back to the queue); own daily share spent →
   wait until Kyiv midnight; budget spent → `done` / `budget` (`extend` reopens it). One container at a time leads a
-  campaign (`leaseUntil`, 2 min); an ask left `asking` by a vanished container returns to the queue after 5 min. Tables
+  campaign (`leaseUntil`, 2 min); an ask left `asking` by a vanished container returns to the queue after 5 min. The server
+  leads one campaign at a time — the oldest that may run now (`leaderOf`, shared by `tick` and the views); the others in
+  `running` carry `queuedBehind` and the admin shows «У черзі після …», not «Іде». Tables
   `DovedeCityCampaign` / `…Place` / `…Ask` are never deleted from; `POST …/campaigns/:id/action { pause | resume |
   cancel | extend | archive }` (archive = hide a finished one). Admin section «Навчання» (`/admin/dovede/learning`,
   `AdminPage/dovede/DovedeLearnSection.tsx` + `dovede/learn/`; desktop-first, ~1440 px): campaigns with status, Google

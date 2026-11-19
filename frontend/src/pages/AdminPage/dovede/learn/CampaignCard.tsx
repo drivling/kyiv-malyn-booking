@@ -137,7 +137,7 @@ export const CampaignCard: React.FC<{ c: DovedeCampaign; onChange: (c: DovedeCam
   const extendOk = extend !== null && Number.isInteger(more) && more > 0;
 
   return (
-    <article className={`dv-learn-card dv-learn-campaign${isActive(c) ? ' is-active' : ''}`} aria-label={c.title}>
+    <article className={`dv-learn-card dv-learn-campaign${isActive(c) && !c.queuedBehind ? ' is-active' : ''}`} aria-label={c.title}>
       <header className="dv-learn-campaign-head">
         <h4>{c.title}</h4>
         <StatusPill tone={tone}>{label}</StatusPill>

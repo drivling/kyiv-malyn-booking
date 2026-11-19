@@ -425,6 +425,11 @@ export interface CampaignReport {
   suspicious: number | null;
 }
 
+/** Яку кампанію сервер веде зараз: найстаріша активна, що не чекає (або її очікування минуло) */
+export function leaderOf<T extends { id: number; status: string; waitUntil: Date | null }>(activeById: readonly T[], at: Date): T | null {
+  return activeById.find((c) => c.status === 'running' || !c.waitUntil || c.waitUntil.getTime() <= at.getTime()) ?? null;
+}
+
 export function createCityCampaigns(deps: CityCampaignsDeps) {
   const { prisma, cityRoutes } = deps;
   const now = deps.now ?? (() => new Date());
@@ -618,7 +623,7 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
   async function tick(): Promise<{ campaignId: number | null; asked: number }> {
     const at = now();
     const list = await prisma.dovedeCityCampaign.findMany({ where: { status: { in: ACTIVE }, archivedAt: null }, orderBy: { id: 'asc' } });
-    const c0 = list.find((c) => c.status === 'running' || !c.waitUntil || c.waitUntil.getTime() <= at.getTime());
+    const c0 = leaderOf(list, at);
     if (!c0) return { campaignId: null, asked: 0 };
     const claimed = await prisma.dovedeCityCampaign.updateMany({
       where: { id: c0.id, status: { in: ACTIVE }, OR: [{ leaseUntil: null }, { leaseUntil: { lt: at } }, { leaseHolder: holder }] },
@@ -733,15 +738,27 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
     return done;
   }
 
+  /**
+   * Черга: сервер веде одну кампанію за раз — найстарішу, яку зараз можна вести (`leaderOf`, той самий вибір, що в
+   * `tick`). Решта зі станом «running» стоять за нею — адмінка показує «У черзі після …», а не «Іде».
+   */
+  async function queue(): Promise<{ leader: { id: number; title: string } | null }> {
+    const active = await prisma.dovedeCityCampaign.findMany({ where: { status: { in: ACTIVE }, archivedAt: null }, orderBy: { id: 'asc' }, select: { id: true, title: true, status: true, waitUntil: true } });
+    const l = leaderOf(active, now());
+    return { leader: l ? { id: l.id, title: l.title } : null };
+  }
+
+  const behind = (c: Pick<CampaignRow, 'id' | 'status'>, leader: { id: number; title: string } | null) => (c.status === 'running' && leader && leader.id !== c.id ? leader : null);
+
   /** Список для адмінки: кампанії (без схованих), новіші вгорі, і стан денного обліку Google */
   async function list(): Promise<{ campaigns: CampaignView[]; google: { calls: number; cap: number; reserve: number } }> {
-    const rows = await prisma.dovedeCityCampaign.findMany({ where: { archivedAt: null }, orderBy: { id: 'desc' }, take: 50 });
+    const [rows, { leader }] = await Promise.all([prisma.dovedeCityCampaign.findMany({ where: { archivedAt: null }, orderBy: { id: 'desc' }, take: 50 }), queue()]);
     const queued = rows.length
       ? await prisma.dovedeCityCampaignAsk.groupBy({ by: ['campaignId'], where: { campaignId: { in: rows.map((r) => r.id) }, status: { in: ['queued', 'asking'] } }, _count: { _all: true } })
       : [];
     const left = new Map(queued.map((q) => [q.campaignId, q._count._all]));
     const g = await cityRoutes.googleBudget();
-    return { campaigns: rows.map((r) => view(r, left.get(r.id) ?? 0)), google: { calls: g.calls, cap: g.cap, reserve: reserveFor(g.cap) } };
+    return { campaigns: rows.map((r) => view(r, left.get(r.id) ?? 0, behind(r, leader))), google: { calls: g.calls, cap: g.cap, reserve: reserveFor(g.cap) } };
   }
 
   /** Одна кампанія: стан, питання за станами, місця за глибиною, останні відповіді */
@@ -756,8 +773,9 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
     const places = recent.length ? await prisma.dovedeCityCampaignPlace.findMany({ where: { id: { in: recent.map((a) => a.placeId) } } }) : [];
     const placeById = new Map(places.map((p) => [p.id, p]));
     const count = (s: string) => byStatus.find((b) => b.status === s)?._count._all ?? 0;
+    const { leader } = await queue();
     return {
-      ...view(c, count('queued') + count('asking')),
+      ...view(c, count('queued') + count('asking'), behind(c, leader)),
       asks: Object.fromEntries(byStatus.map((b) => [b.status, b._count._all])),
       byDepth: byDepth.map((d) => ({ depth: d.depth, places: d._count._all })).sort((a, b) => a.depth - b.depth),
       recent: recent.map((a) => {
@@ -817,10 +835,11 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
     }
     const fresh = await prisma.dovedeCityCampaign.findUnique({ where: { id } });
     const left = await prisma.dovedeCityCampaignAsk.count({ where: { campaignId: id, status: { in: ['queued', 'asking'] } } });
-    return fresh ? view(fresh, left) : null;
+    const { leader } = await queue();
+    return fresh ? view(fresh, left, behind(fresh, leader)) : null;
   }
 
-  function view(c: CampaignRow, left = 0): CampaignView {
+  function view(c: CampaignRow, left = 0, queuedBehind: { id: number; title: string } | null = null): CampaignView {
     const plan = c.plan as unknown as CampaignPlan;
     return {
       id: c.id,
@@ -842,6 +861,7 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
       failed: c.failed,
       places: c.places,
       left,
+      queuedBehind,
       lastError: c.lastError,
       plan: planView(plan),
       report: (c.report as unknown as CampaignView['report']) ?? null,
@@ -916,6 +936,8 @@ export interface CampaignView {
   places: number;
   /** питань у черзі */
   left: number;
+  /** стоїть у черзі за цією кампанією (сервер веде одну за раз); null — іде сама або не активна */
+  queuedBehind: { id: number; title: string } | null;
   lastError: string | null;
   plan: CampaignPlanView;
   report: CampaignReport | null;
