@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/api/client';
-import type { DovedeCityStats, DovedeLog } from '@/types';
+import type { DovedeCampaign, DovedeCampaignList, DovedeCityStats, DovedeLog } from '@/types';
 import { AdminSectionHeader, EmptyState, StatTile, StatTiles, StatusPill, type StatusTone } from '../kit';
 import { googleErrorLine } from './googleError';
+import { WAIT_REASON, isOpen } from './learn/campaignText';
 import { dovedePath } from './sections';
 
 /** скільки днів дивиться «Потребує уваги» */
@@ -26,16 +27,29 @@ const aiState = (log: DovedeLog): [StatusTone, string] =>
 const cityState = (c: DovedeCityStats): [StatusTone, string] =>
   !c.enabled ? ['off', 'Пошук містом вимкнено'] : !c.hasKey ? ['error', 'Google: немає ключа'] : c.googleError ? ['warn', 'Google відмовляв'] : ['ok', 'Пошук містом працює'];
 
+/** Стан навчання одним рядком: кампанія, що йде (чи чекає, чи на паузі), інакше — нічого */
+const learnState = (c: DovedeCampaign | undefined): [StatusTone, string] | null => {
+  if (!c) return null;
+  const spent = `${num(c.googleCalls)} з ${num(c.budget)}`;
+  if (c.status === 'running') return ['busy', `Навчання: «${c.title}» — ${spent}`];
+  if (c.status === 'waiting') return ['warn', `Навчання чекає: ${WAIT_REASON[c.waitReason ?? ''] ?? c.waitReason}`];
+  return ['off', `Навчання на паузі: «${c.title}»`];
+};
+
+/** Завершена кампанія свіжіша за стільки днів — у «Потребує уваги» як «останній прогін» */
+const RECENT_RUN_MS = 7 * 24 * 3600_000;
+
 /**
  * «Огляд» вкладки «Доведе» (/admin/dovede): коротко — що сьогодні й що варто виправити, з посиланнями туди, де це
  * виправляють. Своїх даних не має: журнал питань (`GET /admin/dovede/queries`) і зведення міста
- * (`GET /admin/dovede/city`). Журнал питаємо двічі: за сьогодні з фільтром «з проблемами» (бо `matched` — скільки
+ * (`GET /admin/dovede/city`), кампанії навчання (`GET /admin/dovede/city/campaigns`). Журнал питаємо двічі: за сьогодні з фільтром «з проблемами» (бо `matched` — скільки
  * таких) і за 7 днів з фільтром «ШІ не відповів» — зведення там за весь період, а фільтр лише зменшує список питань.
  */
 export const DovedeOverview: React.FC = () => {
   const [today, setToday] = useState<Part<DovedeLog>>(empty);
   const [week, setWeek] = useState<Part<DovedeLog>>(empty);
   const [city, setCity] = useState<Part<DovedeCityStats>>(empty);
+  const [learn, setLearn] = useState<Part<DovedeCampaignList>>(empty);
 
   const load = useCallback(() => {
     apiClient
@@ -50,6 +64,10 @@ export const DovedeOverview: React.FC = () => {
       .getDovedeCity()
       .then((data) => setCity({ data, error: '' }))
       .catch((e) => setCity({ data: null, error: failed(e, 'Не вдалося завантажити зведення міста') }));
+    apiClient
+      .getDovedeCampaigns()
+      .then((data) => setLearn({ data, error: '' }))
+      .catch((e) => setLearn({ data: null, error: failed(e, 'Не вдалося завантажити кампанії навчання') }));
   }, []);
 
   useEffect(load, [load]);
@@ -59,6 +77,11 @@ export const DovedeOverview: React.FC = () => {
   const w = week.data?.summary;
   const words = w?.topUnknown ?? [];
   const unanswered = c?.unanswered?.length ?? 0;
+  const campaigns = learn.data?.campaigns ?? [];
+  const current = campaigns.find(isOpen);
+  const learning = learnState(current);
+  const outOfBudget = campaigns.filter((x) => x.status === 'done' && x.stopReason === 'budget' && x.left > 0);
+  const lastRun = campaigns.find((x) => x.status === 'done' && x.stopReason === 'finished' && x.finishedAt && Date.now() - new Date(x.finishedAt).getTime() < RECENT_RUN_MS);
   const attention = [
     words.length ? (
       <li key="words">
@@ -96,9 +119,25 @@ export const DovedeOverview: React.FC = () => {
         <span className="dovede-log-dim">— місця, куди Google дороги не знайшов або ліміт не дав спитати</span>
       </li>
     ) : null,
+    ...outOfBudget.map((x) => (
+      <li key={`budget-${x.id}`}>
+        <Link to={dovedePath('learning')}>
+          «{x.title}»: бюджет вичерпано, у черзі ще {num(x.left)}
+        </Link>{' '}
+        <span className="dovede-log-dim">— додайте бюджету або сховайте кампанію</span>
+      </li>
+    )),
+    lastRun ? (
+      <li key="last-run">
+        <Link to={dovedePath('learning')}>Останній прогін навчання: «{lastRun.title}»</Link>{' '}
+        <span className="dovede-log-dim">
+          — питань {num(lastRun.asked)}, з дорогою {num(lastRun.ok)}, без дороги {num(lastRun.noRoute)}, запитів до Google {num(lastRun.googleCalls)}
+        </span>
+      </li>
+    ) : null,
   ].filter(Boolean);
 
-  const errors = [today.error, week.error, city.error].filter(Boolean);
+  const errors = [today.error, week.error, city.error, learn.error].filter(Boolean);
   const loaded = week.data && city.data;
 
   return (
@@ -117,10 +156,15 @@ export const DovedeOverview: React.FC = () => {
           {e}
         </p>
       ))}
-      {t || c ? (
-        <div className="dovede-overview-status">
+      {t || c || learning ? (
+        <div className="dovede-overview-status" role="group" aria-label="Стан">
           {t ? <StatusPill tone={aiState(t)[0]}>{aiState(t)[1]}</StatusPill> : null}
           {c ? <StatusPill tone={cityState(c)[0]}>{cityState(c)[1]}</StatusPill> : null}
+          {learning ? (
+            <Link to={dovedePath('learning')} className="dovede-overview-pill-link">
+              <StatusPill tone={learning[0]}>{learning[1]}</StatusPill>
+            </Link>
+          ) : null}
         </div>
       ) : null}
 
@@ -129,6 +173,13 @@ export const DovedeOverview: React.FC = () => {
         <StatTile label="З проблемами" value={t ? num(t.matched) : '—'} tone={t?.matched ? 'warn' : 'default'} to={dovedePath('questions', { days: 1, only: 'problems' })} />
         <StatTile label="Claude сьогодні" value={t ? num(t.callsToday) : '—'} sub={t ? `/ ${num(t.dailyCap)}` : undefined} tone={t && nearCap(t.callsToday, t.dailyCap) ? 'warn' : 'default'} />
         <StatTile label="Google сьогодні" value={c ? num(c.callsToday) : '—'} sub={c ? `/ ${num(c.dailyCap)}` : undefined} tone={c && nearCap(c.callsToday, c.dailyCap) ? 'warn' : 'default'} to={dovedePath('city')} />
+        <StatTile
+          label="Навчання"
+          value={current ? num(current.googleCalls) : learn.data ? 'немає' : '—'}
+          sub={current ? `/ ${num(current.budget)} запитів` : undefined}
+          tone={current?.status === 'waiting' ? 'warn' : 'default'}
+          to={dovedePath('learning')}
+        />
       </StatTiles>
 
       {c?.googleError ? (

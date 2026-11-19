@@ -1,0 +1,345 @@
+/*
+ * Розділ «Навчання» (AdminPage/dovede/DovedeLearnSection.tsx). Насамперед під компʼютер (~1440 px): ліворуч кампанії,
+ * праворуч «Нова кампанія»; вужче за 1100 px — одна колонка, телефон лише не ламається.
+ */
+
+.dv-learn-google {
+  margin: 8px 0 0;
+}
+
+.dv-learn-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  gap: 20px;
+  align-items: start;
+  margin-top: 12px;
+}
+
+.dv-learn-main {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dv-learn-main > h3,
+.dv-learn-sub {
+  margin: 0;
+}
+
+.dv-learn-card {
+  min-width: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  background: var(--pb-card-bg, #fff);
+}
+
+.dv-learn-card h3,
+.dv-learn-card h4 {
+  margin: 0 0 8px;
+}
+
+.dv-learn-hint {
+  margin: 6px 0 0;
+  color: var(--pb-text-hint, #737373);
+  font-size: var(--pb-font-size-sm, 13px);
+  line-height: 1.45;
+}
+
+/* Кампанія */
+.dv-learn-campaign.is-active {
+  border-color: var(--pb-primary-border, rgba(26, 115, 232, 0.35));
+}
+
+.dv-learn-campaign-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.dv-learn-campaign-head h4 {
+  margin: 0;
+}
+
+.dv-learn-campaign-head .dv-learn-hint {
+  margin: 0;
+  flex-basis: 100%;
+}
+
+.dv-learn-progress {
+  height: 8px;
+  margin: 12px 0 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--pb-bg-secondary, #f1f3f4);
+}
+
+.dv-learn-progress span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--pb-primary, #1a73e8);
+  transition: width 0.3s ease;
+}
+
+.dv-learn-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 0;
+  font-size: var(--pb-font-size-sm, 13px);
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-learn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 10px;
+}
+
+.dv-learn-extend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--pb-font-size-sm, 13px);
+}
+
+.dv-learn-extend input,
+.dv-learn-field input,
+.dv-learn-field select,
+.dv-learn-field textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: #fff;
+  font: inherit;
+}
+
+.dv-learn-extend input {
+  width: 90px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dv-learn-extend input[aria-invalid='true'],
+.dv-learn-field input[aria-invalid='true'] {
+  border-color: var(--pb-danger, #c0392b);
+}
+
+.dv-learn-details {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--pb-border-light, #f0f0f0);
+}
+
+.dv-learn-caption {
+  padding-bottom: 6px;
+  text-align: left;
+  font-weight: var(--pb-font-weight-semibold, 600);
+  font-size: var(--pb-font-size-sm, 13px);
+}
+
+/* Нова кампанія */
+.dv-learn-new-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.dv-learn-new-form {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dv-learn-seg {
+  display: inline-flex;
+  justify-self: start;
+  padding: 3px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-bg-secondary, #fafafa);
+}
+
+.dv-learn-seg button {
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--pb-text-muted, #4a4a4a);
+  font: inherit;
+  font-weight: var(--pb-font-weight-semibold, 600);
+  cursor: pointer;
+}
+
+.dv-learn-seg button.is-on {
+  background: var(--pb-card-bg, #fff);
+  color: var(--pb-primary, #1a73e8);
+  box-shadow: var(--pb-shadow, 0 1px 3px rgba(0, 0, 0, 0.08));
+}
+
+.dv-learn-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+}
+
+.dv-learn-preset {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  cursor: pointer;
+}
+
+.dv-learn-preset.is-on {
+  border-color: var(--pb-primary, #1a73e8);
+  background: var(--pb-primary-light, #e8f0fe);
+}
+
+.dv-learn-preset input {
+  margin-top: 3px;
+}
+
+.dv-learn-preset span {
+  display: grid;
+  gap: 2px;
+}
+
+.dv-learn-preset small {
+  color: var(--pb-text-hint, #737373);
+  line-height: 1.35;
+}
+
+.dv-learn-options {
+  display: grid;
+  gap: 12px;
+}
+
+.dv-learn-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--pb-font-size-sm, 13px);
+}
+
+.dv-learn-checks legend,
+.dv-learn-hours legend,
+.dv-learn-field > span {
+  margin-bottom: 4px;
+  padding: 0;
+  font-weight: var(--pb-font-weight-semibold, 600);
+  font-size: var(--pb-font-size-sm, 13px);
+}
+
+.dv-learn-checks legend {
+  width: 100%;
+}
+
+.dv-learn-field {
+  display: grid;
+  gap: 4px;
+}
+
+.dv-learn-field--inline {
+  grid-template-columns: auto auto;
+  justify-content: start;
+  align-items: center;
+  gap: 10px;
+}
+
+.dv-learn-field--inline > span {
+  margin: 0;
+}
+
+.dv-learn-hours {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dv-learn-hours-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+}
+
+.dv-learn-hours-row > span {
+  width: 56px;
+  color: var(--pb-text-muted, #4a4a4a);
+  font-size: 0.75rem;
+}
+
+.dv-learn-hour {
+  width: 28px;
+  padding: 4px 0;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--pb-text-muted, #4a4a4a);
+  font: inherit;
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.dv-learn-hour.is-on {
+  border-color: var(--pb-primary, #1a73e8);
+  background: var(--pb-primary, #1a73e8);
+  color: #fff;
+}
+
+.dv-learn-hour:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.dv-learn-estimate {
+  padding: 12px 14px;
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-bg-secondary, #fafafa);
+}
+
+.dv-learn-estimate h4 {
+  margin: 0 0 8px;
+}
+
+.dv-learn-budget {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 200px));
+  gap: 8px 16px;
+  margin: 12px 0;
+}
+
+.dv-learn-budget .dv-learn-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.dv-learn-budget input {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1100px) {
+  .dv-learn-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 520px) {
+  .dv-learn-budget {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dv-learn-hours-row > span {
+    width: 100%;
+  }
+}

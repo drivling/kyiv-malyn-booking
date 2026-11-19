@@ -1451,6 +1451,133 @@ export interface DovedeSettingView {
   lockedBy: string | null;
 }
 
+/** «Доведе» · кампанії навчання міста (backend/src/dovede/city-campaign.ts) */
+export type DovedeCampaignCity = 'Kyiv' | 'Zhytomyr';
+export type DovedeCampaignDir = 'to' | 'from';
+
+/** Що власник може поміняти в заготовці; години — `weekday@09,saturday@11` */
+export interface DovedeCampaignOptions {
+  origins?: string[];
+  dirs?: DovedeCampaignDir[];
+  main?: string;
+  extra?: string;
+  maxDepth?: number;
+  places?: string;
+}
+
+export interface DovedeCampaignPreset {
+  id: string;
+  title: string;
+  help: string;
+  /** власник пише свій список місць */
+  custom: boolean;
+  cities: Array<{
+    city: DovedeCampaignCity;
+    name: string;
+    origins: string[];
+    dirs: DovedeCampaignDir[];
+    main: string;
+    extra: string;
+    maxDepth: number;
+    /** усі точки висадки міста */
+    points: Array<{ id: string; label: string }>;
+  }>;
+}
+
+export interface DovedeCampaignPlanView {
+  city: DovedeCampaignCity;
+  origins: Array<{ id: string; label: string }>;
+  dirs: DovedeCampaignDir[];
+  main: string;
+  extra: string;
+  maxDepth: number;
+  seeds: number;
+}
+
+/** Оцінка до старту (POST /admin/dovede/city/campaigns/preview) */
+export interface DovedeCampaignEstimate {
+  places: number;
+  asks: number;
+  /** треба Google / уже знаємо / пропускаємо */
+  google: number;
+  free: number;
+  skipped: number;
+  extraSlots: number;
+  maxDepth: number;
+  /** запитів до Google усього — від і до */
+  low: number;
+  high: number;
+  /** пропоновані бюджет і денна частка */
+  budget: number;
+  dailyBudget: number;
+  days: number;
+  cap: number;
+  callsToday: number;
+  reserve: number;
+}
+
+export interface DovedeCampaignPreview {
+  title: string;
+  plan: DovedeCampaignPlanView;
+  estimate: DovedeCampaignEstimate;
+}
+
+export type DovedeCampaignStatus = 'running' | 'waiting' | 'paused' | 'done' | 'cancelled';
+
+export interface DovedeCampaign {
+  id: number;
+  city: string;
+  preset: string;
+  title: string;
+  status: DovedeCampaignStatus | string;
+  /** cap | daily | quota | denied | errors | disabled */
+  waitReason: string | null;
+  waitUntil: string | null;
+  /** finished | budget | cancelled */
+  stopReason: string | null;
+  budget: number;
+  dailyBudget: number;
+  googleCalls: number;
+  spentToday: number;
+  asked: number;
+  ok: number;
+  fromDb: number;
+  noRoute: number;
+  failed: number;
+  places: number;
+  /** питань у черзі */
+  left: number;
+  lastError: string | null;
+  plan: DovedeCampaignPlanView;
+  report: { byDepth: Array<{ depth: number; places: number }>; noRoute: string[] } | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+}
+
+export interface DovedeCampaignDetail extends DovedeCampaign {
+  asks: Record<string, number>;
+  byDepth: Array<{ depth: number; places: number }>;
+  recent: Array<{
+    place: string;
+    origin: string;
+    dir: DovedeCampaignDir | string;
+    depth: number;
+    slot: string;
+    status: string;
+    source: string | null;
+    minutes: number | null;
+    google: boolean;
+    added: number;
+    at: string | null;
+  }>;
+}
+
+export interface DovedeCampaignList {
+  campaigns: DovedeCampaign[];
+  google: { calls: number; cap: number; reserve: number };
+}
+
 /** «Доведе» · місце словами зі збереженими дорогами містом (GET /admin/dovede/city/places) */
 export interface DovedeCityPlace {
   city: string;

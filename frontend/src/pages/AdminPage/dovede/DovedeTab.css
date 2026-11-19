@@ -23,6 +23,14 @@ a.dovede-log-chip {
   gap: 6px;
 }
 
+.dovede-overview-pill-link {
+  text-decoration: none;
+}
+
+.dovede-overview-pill-link:hover .admin-kit-pill {
+  text-decoration: underline;
+}
+
 .dovede-overview-attention {
   margin: 0;
   padding-left: 18px;
