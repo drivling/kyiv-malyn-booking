@@ -1419,6 +1419,96 @@ model DovedeCityGoogleDay {
   updatedAt        DateTime  @default(now()) @updatedAt
 }
 
+/// «Доведе» · кампанія навчання міста на сервері («Навчити Житомир»): план, погоджений бюджет запитів до Google,
+/// стан і лічильники. Виконує фонова задача `dovede-city-campaign` (src/dovede/city-campaign.ts). Не видаляється
+model DovedeCityCampaign {
+  id          Int       @id @default(autoincrement())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  cityCode    String
+  /// learn | refill | unanswered | custom
+  preset      String
+  title       String
+  /// точки, напрямки, години (основні й додаткові), глибина — див. CampaignPlan у city-campaign.ts
+  plan        Json
+  /// скільки запитів до Google погодив власник: усього й на добу
+  budget      Int
+  dailyBudget Int
+  /// queued | running | waiting | paused | blocked | done | cancelled
+  status      String    @default("running")
+  waitUntil   DateTime?
+  /// cap | daily | pacing | people | quota | errors | disabled
+  waitReason  String?
+  /// finished | budget | cancelled | denied
+  stopReason  String?
+  asked       Int       @default(0)
+  ok          Int       @default(0)
+  fromDb      Int       @default(0)
+  noRoute     Int       @default(0)
+  failed      Int       @default(0)
+  places      Int       @default(0)
+  googleCalls Int       @default(0)
+  /// київська дата, за яку рахується `spentToday`
+  spentDay    String?
+  spentToday  Int       @default(0)
+  errorsInRow Int       @default(0)
+  lastError   String?
+  report      Json?
+  /// хто з контейнерів зараз веде кампанію (два під час деплою); до `leaseUntil`
+  leaseHolder String?
+  leaseUntil  DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  archivedAt  DateTime?
+
+  @@index([status])
+}
+
+/// Місце в обході кампанії: точка (origin), напрямок, слова місця, глибина й звідки взялось (list, terminal, people…)
+model DovedeCityCampaignPlace {
+  id         Int      @id @default(autoincrement())
+  createdAt  DateTime @default(now())
+  campaignId Int
+  cityCode   String
+  origin     String
+  /// to — від точки до місця; from — від місця до точки
+  dir        String
+  place      String
+  placeKey   String
+  depth      Int
+  via        String
+
+  @@unique([campaignId, origin, dir, placeKey], map: "DovedeCityCampaignPlace_key")
+}
+
+/// Одне питання кампанії: місце × тип дня × година; phase 0 — основна година, 1 — додаткові. Журнал обходу
+model DovedeCityCampaignAsk {
+  id           Int       @id @default(autoincrement())
+  createdAt    DateTime  @default(now())
+  campaignId   Int
+  placeId      Int
+  dayType      String
+  hour         Int
+  phase        Int
+  /// queued | asking | ok | no_route | archived | failed
+  status       String    @default("queued")
+  /// google | stored | own
+  source       String?
+  minutes      Int?
+  /// кроки коротко (compactSteps)
+  steps        Json?
+  googleCalled Boolean   @default(false)
+  /// скільки нових місць дала ця відповідь
+  added        Int       @default(0)
+  attempts     Int       @default(0)
+  claimedAt    DateTime?
+  doneAt       DateTime?
+  error        String?
+
+  @@unique([placeId, dayType, hour], map: "DovedeCityCampaignAsk_key")
+  @@index([campaignId, status, phase, id], map: "DovedeCityCampaignAsk_queue_idx")
+}
+
 /// «Доведе» · налаштування з адмінки (розділ «Налаштування»): ключ → значення JSON; NULL — типове (змінна середовища
 /// або код). Перелік ключів і межі — backend/src/dovede/settings.ts. Рядки не видаляються
 model DovedeSetting {

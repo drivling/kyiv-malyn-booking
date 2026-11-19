@@ -30,6 +30,7 @@ import { DEFAULT_TRANSPORT_CITY } from '../transport-city';
 import { DEFAULT_CAR_MINUTES, createDriveTime, type DriveTimeFn } from '../drive-time';
 import { CITY_DAILY_CAP_MAX, CITY_DAILY_CAP_MIN, CITY_FRESH_DAYS_MAX, CITY_FRESH_DAYS_MIN, cityRoutesFromEnv, isValidDailyCap, isValidFreshDays, type CityCode, type CityRoutes } from '../dovede/city-route';
 import { kyivWallToUtc } from '../viber-listing-expiry';
+import { CampaignInputError, createCityCampaigns, type CampaignInput, type CityCampaigns } from '../dovede/city-campaign';
 
 export const DOVEDE_MAX_TEXT = 300;
 /** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
@@ -86,6 +87,8 @@ export function createAdminDovedeRouter(deps: {
   cityRoutes?: CityRoutes;
   /** Налаштування з адмінки (розділ «Налаштування»); той самий обʼєкт, що в `cityRoutes` (index.ts) */
   settings?: DovedeSettings;
+  /** Кампанії навчання міста; той самий обʼєкт, що веде фонова задача (index.ts) */
+  campaigns?: CityCampaigns;
 }): Router {
   const { prisma } = deps;
   const understand = deps.understand === undefined ? understandFromEnv() : deps.understand;
@@ -98,6 +101,7 @@ export function createAdminDovedeRouter(deps: {
   const loginFailures = createLoginFailures(() => clock().getTime());
   const driveTime = deps.driveTime ?? createDriveTime({ key: () => (process.env.GOOGLE_MAPS_API_KEY ?? '').trim() || null, dailyCap: () => settings.int('drive.dailyCap') });
   const cityRoutes = deps.cityRoutes ?? cityRoutesFromEnv(prisma, settings);
+  const campaigns = deps.campaigns ?? createCityCampaigns({ prisma, cityRoutes, settings, now: clock });
   const r = express.Router();
 
   /** Чи відкривати сторінку: `open` — відкрита всім, `allowed` — цьому браузеру (токен пароля чи адміна) */
@@ -324,6 +328,97 @@ export function createAdminDovedeRouter(deps: {
   });
 
   /** Обнуляє лічильник попиту «Що питають найчастіше» (після прогону самонавчання). Рядки й збережені дороги лишаються */
+  // ── Кампанії навчання міста (Docs/dovede-admin-roadmap.md, крок 6) ─────────────────────────────────────────────
+  // Заготовки → оцінка (скільки запитів до Google) → власник погоджує бюджет → сервер обходить сам (city-campaign.ts)
+
+  r.get('/admin/dovede/city/campaigns/presets', requireAdmin, (_req, res) => {
+    res.json({ presets: campaigns.presets() });
+  });
+
+  const campaignInput = (body: unknown): CampaignInput => {
+    const b = (body ?? {}) as Record<string, unknown>;
+    return {
+      preset: String(b.preset ?? ''),
+      city: String(b.city ?? ''),
+      ...(b.options && typeof b.options === 'object' ? { options: b.options as CampaignInput['options'] } : {}),
+      ...(b.budget !== undefined ? { budget: b.budget as number } : {}),
+      ...(b.dailyBudget !== undefined ? { dailyBudget: b.dailyBudget as number } : {}),
+    };
+  };
+
+  r.post('/admin/dovede/city/campaigns/preview', requireAdmin, async (req, res) => {
+    try {
+      res.json(await campaigns.preview(campaignInput(req.body)));
+    } catch (e) {
+      if (e instanceof CampaignInputError) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
+      console.error('❌ POST /admin/dovede/city/campaigns/preview:', e);
+      res.status(500).json({ error: 'Не вдалося оцінити' });
+    }
+  });
+
+  r.post('/admin/dovede/city/campaigns', requireAdmin, async (req, res) => {
+    try {
+      res.status(201).json(await campaigns.create(campaignInput(req.body)));
+    } catch (e) {
+      if (e instanceof CampaignInputError) {
+        res.status(400).json({ error: e.message });
+        return;
+      }
+      console.error('❌ POST /admin/dovede/city/campaigns:', e);
+      res.status(500).json({ error: 'Не вдалося запустити' });
+    }
+  });
+
+  r.get('/admin/dovede/city/campaigns', requireAdmin, async (_req, res) => {
+    try {
+      res.json(await campaigns.list());
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/city/campaigns:', e);
+      res.status(500).json({ error: 'Не вдалося завантажити' });
+    }
+  });
+
+  r.get('/admin/dovede/city/campaigns/:id', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id < 1) {
+      res.status(400).json({ error: 'Невірний id' });
+      return;
+    }
+    try {
+      const c = await campaigns.get(id);
+      if (!c) {
+        res.status(404).json({ error: 'Такої кампанії немає' });
+        return;
+      }
+      res.json(c);
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/city/campaigns/:id:', e);
+      res.status(500).json({ error: 'Не вдалося завантажити' });
+    }
+  });
+
+  r.post('/admin/dovede/city/campaigns/:id/action', requireAdmin, async (req, res) => {
+    const id = Number(req.params.id);
+    const b = (req.body ?? {}) as { action?: unknown; budget?: number; dailyBudget?: number };
+    const act = b.action;
+    if (!Number.isInteger(id) || id < 1 || !(act === 'pause' || act === 'resume' || act === 'cancel' || act === 'extend' || act === 'archive')) {
+      res.status(400).json({ error: 'action: pause | resume | cancel | extend | archive' });
+      return;
+    }
+    try {
+      const r2 = await campaigns.action(id, act, { budget: b.budget, dailyBudget: b.dailyBudget });
+      if (r2 === null) res.status(404).json({ error: 'Такої кампанії немає' });
+      else if (typeof r2 === 'string') res.status(409).json({ error: r2 });
+      else res.json(r2);
+    } catch (e) {
+      console.error('❌ POST /admin/dovede/city/campaigns/:id/action:', e);
+      res.status(500).json({ error: 'Не вдалося' });
+    }
+  });
+
   r.post('/admin/dovede/city/demand/reset', requireAdmin, async (_req, res) => {
     try {
       res.json(await cityRoutes.resetDemand());

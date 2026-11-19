@@ -1,4 +1,5 @@
 import { cityRoutesFromEnv } from './dovede/city-route';
+import { createCityCampaigns } from './dovede/city-campaign';
 import { createDovedeSettings } from './dovede/settings';
 import { PrismaClient } from '@prisma/client';
 import { CODE_VERSION, createApp, getRegisteredRoutes } from './create-app';
@@ -37,12 +38,14 @@ function main(): void {
   let sourceWatchJob: IntervalJob | null = null;
   let gpsJob: IntervalJob | null = null;
   let cityLearnJob: IntervalJob | null = null;
+  let cityCampaignJob: IntervalJob | null = null;
   let eltrainJob: IntervalJob | null = null;
   // «Доведе»: одна «дорога містом» на весь процес — для людей (роутер) і для фонового навчання нижче
   // …і одні налаштування з адмінки (розділ «Налаштування») — спільні для роутера й фонового навчання
   const dovedeSettings = createDovedeSettings({ prisma });
   const cityRoutes = cityRoutesFromEnv(prisma, dovedeSettings);
-  const app = createApp({ prisma, cityRoutes, dovedeSettings });
+  const cityCampaigns = createCityCampaigns({ prisma, cityRoutes, settings: dovedeSettings });
+  const app = createApp({ prisma, cityRoutes, dovedeSettings, cityCampaigns });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {
     if (row) console.log(`[transport-revisions] initial row ${row.revision}`);
@@ -174,6 +177,16 @@ function main(): void {
         },
         { intervalMin: Number(process.env.DOVEDE_CITY_LEARN_INTERVAL_MIN ?? 60), firstDelayMs: 15 * 60_000 },
       );
+      // «Доведе»: кампанії навчання міста з адмінки («Навчити Житомир») — щохвилини до 20 питань у межах погодженого
+      // бюджету й запасу для людей; DOVEDE_CITY_CAMPAIGN_INTERVAL_MIN (за замовч. 1, 0 = вимкнено)
+      cityCampaignJob = startIntervalJob(
+        'dovede-city-campaign',
+        async () => {
+          const r = await cityCampaigns.tick();
+          if (r.asked) console.log(`🎓 Доведе · кампанія #${r.campaignId}: питань ${r.asked}`);
+        },
+        { intervalMin: Number(process.env.DOVEDE_CITY_CAMPAIGN_INTERVAL_MIN ?? 1), firstDelayMs: 2 * 60_000 },
+      );
     }
   });
 
@@ -187,6 +200,7 @@ function main(): void {
     sourceWatchJob?.stop();
     gpsJob?.stop();
     cityLearnJob?.stop();
+    cityCampaignJob?.stop();
     eltrainJob?.stop();
     // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
     await stopLunchListenerAndWait(3000);

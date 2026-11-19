@@ -104,6 +104,9 @@ export interface CityStep {
   departs?: string;
 }
 
+/** Що відповів би сервер без Google (оцінка кампанії, `peekMany`) */
+export type CityPeek = 'own' | 'fresh' | 'archived' | 'invalid' | 'none';
+
 export type CityRouteAnswer =
   | { ok: true; source: 'google' | 'stored' | 'own'; city: CityCode; fromLabel: string; toLabel: string; steps: CityStep[]; minutes: number; fetchedAt: string }
   | { ok: false; fallback: 'maps'; reason: 'disabled' | 'no_key' | 'cap' | 'denied' | 'error' | 'no_route' | 'archived' };
@@ -545,7 +548,8 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     }
   }
 
-  async function askGoogle(q: CityRouteQuery, from: CityPoint, to: CityPoint, purpose: Purpose): Promise<ParsedGoogleRoute | 'no_key' | 'cap' | 'denied' | 'error' | 'no_route'> {
+  /** `trace.google` — запит до Google справді пішов і рахується (кампанія навчання рахує свій бюджет за ним) */
+  async function askGoogle(q: CityRouteQuery, from: CityPoint, to: CityPoint, purpose: Purpose, trace?: { google: boolean }): Promise<ParsedGoogleRoute | 'no_key' | 'cap' | 'denied' | 'error' | 'no_route'> {
     const key = deps.key();
     if (!key) return 'no_key';
     const blocked = await blockedNow();
@@ -558,6 +562,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
       await countCall(purpose, -1);
       return 'cap';
     }
+    if (trace) trace.google = true;
     try {
       // Google приймає лише майбутній час; для «вже зараз» — без нього
       const future = q.departAt.getTime() > now().getTime() + 60_000;
@@ -576,6 +581,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
         // 429 — квота в Google Cloud менша за наш денний ліміт або її вибрали інші скрипти з тим самим ключем;
         // 401 / 403 — ключ, вимкнений API або білінг. Не вина пари й не наш ліміт: спроба не рахується
         await countCall(purpose, -1);
+        if (trace) trace.google = false;
         blockedUntil = now().getTime() + (await backoffMs());
         blockedReason = res.status === 429 ? 'cap' : 'denied';
         await noteGoogleError(res.status, message, res.status === 429 ? 'quota' : 'denied');
@@ -599,7 +605,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
   const find = (q: CityRouteQuery, background = false): Promise<CityRouteAnswer> => answer(q, background, false);
 
   /** `force` — оновлення збереженої відповіді: базу не читаємо, одразу питаємо Google */
-  async function answer(q: CityRouteQuery, background: boolean, force: boolean): Promise<CityRouteAnswer> {
+  async function answer(q: CityRouteQuery, background: boolean, force: boolean, trace?: { google: boolean }): Promise<CityRouteAnswer> {
     if (!(await enabled())) return { ok: false, fallback: 'maps', reason: 'disabled' };
     const from = resolveCityPoint(q.city, q.from);
     const to = resolveCityPoint(q.city, q.to);
@@ -637,7 +643,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
       return { ok: true, source: stored.source === 'own' ? 'own' : 'stored', city: q.city, fromLabel: stored.fromLabel, toLabel: stored.toLabel, steps: stored.steps as unknown as CityStep[], minutes: stored.minutes, fetchedAt: stored.fetchedAt.toISOString() };
     }
 
-    const got = await askGoogle(q, from, to, background ? 'learn' : 'people');
+    const got = await askGoogle(q, from, to, background ? 'learn' : 'people', trace);
     if (typeof got === 'string') {
       if (!background) await noteDemand(q.city, from, to, false);
       if (!background && (got === 'cap' || got === 'denied')) await noteRefused();
@@ -750,6 +756,55 @@ export function createCityRoutes(deps: CityRoutesDeps) {
       }
     }
     return { asked, learned };
+  }
+
+  /**
+   * Питання кампанії навчання (`city-campaign.ts`): як фонове навчання (попиту не рахує), а ще каже, чи пішов запит
+   * до Google — бюджет кампанії рахує саме їх.
+   */
+  async function campaignAsk(q: CityRouteQuery): Promise<{ answer: CityRouteAnswer; googleCalled: boolean }> {
+    const trace = { google: false };
+    const r = await answer(q, true, false, trace);
+    return { answer: r, googleCalled: trace.google };
+  }
+
+  /**
+   * Що відповів би сервер без Google — для оцінки кампанії, нічого не пише: `own` — власні дані Житомира, `fresh` —
+   * свіжа відповідь у базі (той самий тип дня, година ± 1), `archived` — місце в архіві, `invalid` — слова не місце,
+   * `none` — треба питати Google. Збережене читає одним запитом на всі питання.
+   */
+  async function peekMany(qs: CityRouteQuery[]): Promise<CityPeek[]> {
+    const own = await ownEnabled();
+    const hidden = await archivedPlaces();
+    const resolved = qs.map((q) => ({ q, from: resolveCityPoint(q.city, q.from), to: resolveCityPoint(q.city, q.to), hour: Number(q.time.slice(0, 2)) }));
+    const keys = new Set<string>();
+    for (const r of resolved) if (r.from && r.to) keys.add(r.from.key).add(r.to.key);
+    const freshFrom = await freshSince();
+    const rows = keys.size
+      ? await prisma.dovedeCityRoute
+          .findMany({
+            where: { cityCode: { in: [...new Set(qs.map((q) => q.city))] }, archivedAt: null, fetchedAt: { gte: freshFrom }, fromKey: { in: [...keys] }, toKey: { in: [...keys] } },
+            select: { cityCode: true, fromKey: true, toKey: true, dayType: true, hour: true },
+          })
+          .catch((e) => {
+            console.error('❌ city-route: оцінка — база не відповіла:', e instanceof Error ? e.message : e);
+            return [];
+          })
+      : [];
+    const have = new Set(rows.map((r) => `${r.cityCode}|${r.fromKey}|${r.toKey}|${r.dayType}|${r.hour}`));
+    return resolved.map(({ q, from, to, hour }): CityPeek => {
+      if (!from || !to || from.key === to.key || !Number.isInteger(hour)) return 'invalid';
+      if (q.city === 'Zhytomyr' && own && ownRoute({ from: q.from.trim(), to: q.to.trim(), date: q.date, time: q.time }, { from: from.label, to: to.label })) return 'own';
+      if (hidden.has(`${q.city}|${from.key}`) || hidden.has(`${q.city}|${to.key}`)) return 'archived';
+      const day = dayTypeOf(q.date);
+      return [hour - 1, hour, hour + 1].some((h) => have.has(`${q.city}|${from.key}|${to.key}|${day}|${h}`)) ? 'fresh' : 'none';
+    });
+  }
+
+  /** Стан денного обліку Google для кампаній: скільки питали, ліміт, скільки людям відмовили, чи пауза після відмови */
+  async function googleBudget(): Promise<{ calls: number; cap: number; refused: number; blocked: 'cap' | 'denied' | null; hasKey: boolean; enabled: boolean }> {
+    const [calls, cap, row, blocked, on] = await Promise.all([callsToday(), capNow(), dayRow(), blockedNow(), enabled()]);
+    return { calls, cap, refused: row?.refused ?? 0, blocked, hasKey: Boolean(deps.key()), enabled: on && store() };
   }
 
   /** Зведення для адмінки */
@@ -913,7 +968,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     return { reset: r.count };
   }
 
-  return { find, learnTick, stats, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays, setDailyCap };
+  return { find, campaignAsk, peekMany, googleBudget, learnTick, stats, archiveGoogle, restoreGoogle, archivePlace, restorePlace, places, resetDemand, setFreshDays, setDailyCap };
 }
 
 export type CityRoutes = ReturnType<typeof createCityRoutes>;

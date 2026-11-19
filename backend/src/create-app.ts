@@ -28,6 +28,7 @@ import { createAdsRouter } from './routes/ads';
 import type { UnderstandFn } from './dovede/understand';
 import type { CityRoutes } from './dovede/city-route';
 import type { DovedeSettings } from './dovede/settings';
+import type { CityCampaigns } from './dovede/city-campaign';
 import type { DovedeAccessConfig } from './dovede/access';
 import { createAdminNotificationSettingsRouter } from './routes/admin-notification-settings';
 import { createTransportRouter } from './routes/transport';
@@ -58,6 +59,8 @@ export type CreateAppDeps = {
   cityRoutes?: CityRoutes;
   /** «Доведе» · налаштування з адмінки: той самий обʼєкт, що в `cityRoutes` (index.ts); немає — роутер створить свій */
   dovedeSettings?: DovedeSettings;
+  /** «Доведе» · кампанії навчання міста: той самий обʼєкт, що веде фонова задача (index.ts); немає — роутер створить свій */
+  cityCampaigns?: CityCampaigns;
   /** Стеження за джерелами розкладу (transport-source-watch.ts): тести підміняють мережу й сповіщення */
   sourceWatch?: Partial<SourceWatchDeps>;
 };
@@ -150,7 +153,7 @@ app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
 app.use(createAdminDzhuraRouter({ prisma }));
 // одна «дорога містом» на весь сервер: лічильник Google, пауза після відмови й фонове навчання — спільні (index.ts)
-app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess, ...(deps.cityRoutes ? { cityRoutes: deps.cityRoutes } : {}), ...(deps.dovedeSettings ? { settings: deps.dovedeSettings } : {}) }));
+app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess, ...(deps.cityRoutes ? { cityRoutes: deps.cityRoutes } : {}), ...(deps.dovedeSettings ? { settings: deps.dovedeSettings } : {}), ...(deps.cityCampaigns ? { campaigns: deps.cityCampaigns } : {}) }));
 app.use(createAdsRouter({ prisma, adminPassword: ADMIN_PASSWORD, access: deps.dovedeAccess }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
 app.use(

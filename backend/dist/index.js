@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSupportPhoneForRoute = exports.getRegisteredRoutes = exports.createApp = exports.CODE_VERSION = void 0;
 const city_route_1 = require("./dovede/city-route");
+const city_campaign_1 = require("./dovede/city-campaign");
 const settings_1 = require("./dovede/settings");
 const client_1 = require("@prisma/client");
 const create_app_1 = require("./create-app");
@@ -33,12 +34,14 @@ function main() {
     let sourceWatchJob = null;
     let gpsJob = null;
     let cityLearnJob = null;
+    let cityCampaignJob = null;
     let eltrainJob = null;
     // «Доведе»: одна «дорога містом» на весь процес — для людей (роутер) і для фонового навчання нижче
     // …і одні налаштування з адмінки (розділ «Налаштування») — спільні для роутера й фонового навчання
     const dovedeSettings = (0, settings_1.createDovedeSettings)({ prisma });
     const cityRoutes = (0, city_route_1.cityRoutesFromEnv)(prisma, dovedeSettings);
-    const app = (0, create_app_1.createApp)({ prisma, cityRoutes, dovedeSettings });
+    const cityCampaigns = (0, city_campaign_1.createCityCampaigns)({ prisma, cityRoutes, settings: dovedeSettings });
+    const app = (0, create_app_1.createApp)({ prisma, cityRoutes, dovedeSettings, cityCampaigns });
     // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
     void (0, transport_revisions_1.ensureInitialTransportRevision)(prisma).then((row) => {
         if (row)
@@ -144,6 +147,13 @@ function main() {
                 if (r.asked)
                     console.log(`🧭 Доведе · місто: спитано ${r.asked}, вивчено ${r.learned}`);
             }, { intervalMin: Number(process.env.DOVEDE_CITY_LEARN_INTERVAL_MIN ?? 60), firstDelayMs: 15 * 60000 });
+            // «Доведе»: кампанії навчання міста з адмінки («Навчити Житомир») — щохвилини до 20 питань у межах погодженого
+            // бюджету й запасу для людей; DOVEDE_CITY_CAMPAIGN_INTERVAL_MIN (за замовч. 1, 0 = вимкнено)
+            cityCampaignJob = (0, interval_job_1.startIntervalJob)('dovede-city-campaign', async () => {
+                const r = await cityCampaigns.tick();
+                if (r.asked)
+                    console.log(`🎓 Доведе · кампанія #${r.campaignId}: питань ${r.asked}`);
+            }, { intervalMin: Number(process.env.DOVEDE_CITY_CAMPAIGN_INTERVAL_MIN ?? 1), firstDelayMs: 2 * 60000 });
         }
     });
     const shutdown = async (signal) => {
@@ -156,6 +166,7 @@ function main() {
         sourceWatchJob?.stop();
         gpsJob?.stop();
         cityLearnJob?.stop();
+        cityCampaignJob?.stop();
         eltrainJob?.stop();
         // Спершу Telethon має зникнути, лише потім звільняємо оренду для нового контейнера
         await (0, lunch_listener_1.stopLunchListenerAndWait)(3000);

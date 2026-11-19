@@ -326,6 +326,21 @@ of `dist` in a commit.
   (`googleError: { at, status, message }`). A 429, a 403, our cap or a Google failure stops the learning tick and marks
   nothing; the crawl never journals such failures, so the question stays in its queue. Admin block «Місто: що вже знаємо»
   (`AdminPage/DovedeCityPanel.tsx`, `GET /admin/dovede/city`). Golden `scope: city`.
+  **Learning campaigns** (admin plan step 6, `Docs/dovede-admin-roadmap.md` «Крок 6»; `src/dovede/city-campaign.ts`): the
+  owner picks a preset («Навчити місто», «Дообучити: вечір / вихідні / ранок», «Питання людей без відповіді», «Види
+  транспорту», «Свій список»), sees the estimate (`POST /admin/dovede/city/campaigns/preview`: level 0 exactly from the DB via
+  `cityRoutes.peekMany`, deeper levels as a low–high range) and approves or changes the number of **Google requests**
+  (`budget`, `dailyBudget`; `POST /admin/dovede/city/campaigns`). The job `dovede-city-campaign`
+  (`DOVEDE_CITY_CAMPAIGN_INTERVAL_MIN`, default 1, `0` = off) walks breadth-first like the crawl (`crawl-core.ts`
+  `candidates` → places one level deeper, up to `maxDepth`; extra hours only for places that got an answer), up to 20
+  asks per minute, asking through `cityRoutes.campaignAsk` (background: no demand count; returns `googleCalled`, which
+  is what the budget counts — stored and own answers are free but still feed the walk). Google is asked only while
+  today's calls are below the cap minus `reserveFor(cap)` (a fifth, at least 50) — the rest is for people. Our cap /
+  Google 429 / 403 / switched off → `waiting` with `waitReason` (the ask goes back to the queue); own daily share spent →
+  wait until Kyiv midnight; budget spent → `done` / `budget` (`extend` reopens it). One container at a time leads a
+  campaign (`leaseUntil`, 2 min); an ask left `asking` by a vanished container returns to the queue after 5 min. Tables
+  `DovedeCityCampaign` / `…Place` / `…Ask` are never deleted from; `POST …/campaigns/:id/action { pause | resume |
+  cancel | extend | archive }` (archive = hide a finished one).
   The same block has «Скинути лічильник попиту» (`POST /admin/dovede/city/demand/reset`): it sets `asked = 0` and
   deletes nothing; a row with `asked = 0` is in neither the list nor the learning queue until a person asks again.
   `GET /dovede/city-route?…&learn=1` with the admin token is the learning mode (`find(q, true)`): same answer, same
@@ -416,6 +431,8 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
 | Watch external timetable sources (Korosten council page, data.gov.ua sets) → admin-chat alert on change | `TRANSPORT_SOURCE_WATCH_INTERVAL_MIN` (360) | `transport-source-watch.ts` |
 | Record city-transport GPS tracks from the Korosten council feed into `TransportVehiclePosition` (30-day retention; admin-only `GET /admin/transport/gps`) | `TRANSPORT_GPS_INTERVAL_MIN` (1), `TRANSPORT_GPS_RETENTION_DAYS` (30) | `transport-gps.ts` |
 | Elektrichkas from the SW Railway timetable (swrailway.gov.ua, line Kyiv – Teteriv – Korosten): one `Schedule` row per train per city pair (Kyiv ↔ Malyn / Korosten, Malyn ↔ Korosten) — adds, updates, removes its own rows, changes → admin chat; manual `POST /schedules/eltrain-sync` (`dryRun`, `force`, `pages`) | `ELTRAIN_SYNC_INTERVAL_MIN` (360) | `eltrain-sync.ts` |
+| «Доведе» city learning: demand pairs, `SEED_PAIRS`, refresh of stale answers (within `learn.sharePct` of the Google cap) | `DOVEDE_CITY_LEARN_INTERVAL_MIN` (60) | `dovede/city-route.ts` `learnTick` |
+| «Доведе» learning campaigns started from the admin (≤ 20 asks per tick, approved Google budget, reserve for people) | `DOVEDE_CITY_CAMPAIGN_INTERVAL_MIN` (1) | `dovede/city-campaign.ts` `tick` |
 
 - A listing is visible until `endsAt + 1 h`. `endsAt` = trip day + end of `departureTime` **in Kyiv time** stored as
   UTC (`getListingEndsAt`; Railway runs TZ=UTC). Public reads (`/viber-listings`, `/search`, `/:id/contact`,
