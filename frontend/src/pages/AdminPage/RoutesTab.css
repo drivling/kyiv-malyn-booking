@@ -1,0 +1,51 @@
+/* «Маршрути» — на основі рядків «Графіків» (SchedulesTab.css): коридор, під ним варіанти з відступом; місто — рядок */
+.route-row,
+.point-row {
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr) auto auto;
+}
+
+.route-row--variant {
+  background: var(--pb-bg-secondary, #fafafa);
+}
+
+.route-row--variant .route-name {
+  padding-left: 18px;
+  border-left: 2px solid var(--pb-border, #e0e0e0);
+}
+
+.route-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.route-via {
+  color: var(--pb-text-muted, #4a4a4a);
+}
+
+.route-slug {
+  overflow: hidden;
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.6875rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .route-row,
+  .point-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .route-row .sched-tags,
+  .point-row .sched-tags {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  /* «Графіки» ховають примітки в мета-колонці; тут це головна цифра — час авто, скільки маршрутів */
+  .route-row .sched-meta .sched-note,
+  .point-row .sched-meta .sched-note {
+    display: inline;
+  }
+}
