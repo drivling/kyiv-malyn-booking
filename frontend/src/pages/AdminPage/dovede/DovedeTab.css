@@ -16,6 +16,48 @@ a.dovede-log-chip {
   overflow-x: auto;
 }
 
+/* «Питання людей»: період і фільтр — одна панель над списком (крок 9) */
+.dovede-log-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  margin: 12px 0 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  background: var(--pb-bg-secondary, #fafafa);
+}
+
+.dovede-log-toolbar .dovede-log-chips {
+  align-items: center;
+}
+
+.dovede-log-toolbar-label {
+  margin-right: 2px;
+  color: var(--pb-text-hint, #737373);
+  font-size: var(--pb-font-size-sm, 13px);
+  font-weight: var(--pb-font-weight-semibold, 600);
+}
+
+.dovede-log-open {
+  display: inline-block;
+  margin-top: 2px;
+  color: var(--pb-primary, #1a73e8);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.dovede-log-open:hover,
+.dovede-log-open:focus-visible {
+  text-decoration: underline;
+}
+
+.dovede-log-unknown a {
+  color: inherit;
+  font-weight: var(--pb-font-weight-semibold, 600);
+}
+
 /* «Огляд» */
 .dovede-overview-status {
   display: flex;
@@ -104,6 +146,21 @@ a.dovede-log-chip {
   .dovede-tab .dovede-log-table--cards a.dovede-log-chip {
     margin-top: 4px;
   }
+
+  /* панель гортається вбік рядками, а не розтягує сторінку */
+  .dovede-tab .dovede-log-toolbar .dovede-log-chips {
+    flex-wrap: nowrap;
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .dovede-tab .dovede-log-toolbar .dovede-log-chip,
+  .dovede-tab .dovede-log-toolbar-label {
+    flex: none;
+    white-space: nowrap;
+  }
+
 
   .dovede-tab .dovede-log-scroll,
   .dovede-tab .dovede-log-table-wrap {

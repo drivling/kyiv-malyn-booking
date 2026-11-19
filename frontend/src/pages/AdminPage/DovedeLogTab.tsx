@@ -4,7 +4,7 @@ import { apiClient } from '@/api/client';
 import { resolvePlace } from '@/pages/DovedePage/nlu/places';
 import type { PlaceRef } from '@/pages/DovedePage/nlu/types';
 import type { DovedeLog, DovedeLogDays, DovedeLogFlag, DovedeLogItem } from '@/types';
-import { intentLine } from './dovedeLogText';
+import { intentLine, questionLink } from './dovedeLogText';
 import { AdminSectionHeader } from './kit';
 import { dovedePath } from './dovede/sections';
 import { useMalynStops } from './dovede/useMalynStops';
@@ -67,8 +67,9 @@ const sec = (ms: number) => `${(ms / 1000).toFixed(1).replace('.', ',')} с`;
 /**
  * Журнал «Доведе», розділ «Питання людей» (/admin/dovede/questions, Docs/dovede-roadmap.md, фаза 4): що люди питали
  * і що з цього зрозуміли браузер та Claude. Головне тут — «Чого не впізнали»: «навчити» веде слово до розділу
- * «Словник». Період і фільтр живуть в адресі (`?days=30&only=disagree`), тож «Огляд» може послати сюди одразу
- * з потрібним фільтром.
+ * «Словник». Період і фільтр — одна панель над списком (Docs/dovede-admin-roadmap.md, крок 9) і живуть в адресі
+ * (`?days=30&only=disagree`), тож «Огляд» може послати сюди одразу з потрібним фільтром. У рядку питання —
+ * невпізнані слова посиланнями «навчити» і «Відкрити як людина» (та сама відповідь сторінки, без виклику Claude).
  */
 const DovedeLogTab: React.FC = () => {
   const [params, setParams] = useSearchParams();
@@ -151,18 +152,29 @@ const DovedeLogTab: React.FC = () => {
           </>
         }
         actions={
-          <div className="dovede-log-chips" role="group" aria-label="Період">
-            {PERIODS.map((d) => (
-              <button key={d} type="button" className={`dovede-log-chip ${d === days ? 'active' : ''}`} aria-pressed={d === days} onClick={() => setQuery({ days: d })}>
-                {periodChip(d)}
-              </button>
-            ))}
-            <button type="button" className="dovede-log-chip" onClick={load}>
-              Оновити
-            </button>
-          </div>
+          <button type="button" className="dovede-log-chip" onClick={load}>
+            Оновити
+          </button>
         }
       />
+      <div className="dovede-log-toolbar">
+        <div className="dovede-log-chips" role="group" aria-label="Період">
+          <span className="dovede-log-toolbar-label">Період</span>
+          {PERIODS.map((d) => (
+            <button key={d} type="button" className={`dovede-log-chip ${d === days ? 'active' : ''}`} aria-pressed={d === days} onClick={() => setQuery({ days: d })}>
+              {periodChip(d)}
+            </button>
+          ))}
+        </div>
+        <div className="dovede-log-chips" role="group" aria-label="Фільтр">
+          <span className="dovede-log-toolbar-label">Питання</span>
+          {FILTERS.map((f) => (
+            <button key={f.only} type="button" className={`dovede-log-chip ${f.only === only ? 'active' : ''}`} aria-pressed={f.only === only} onClick={() => setQuery({ only: f.only })}>
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
       {error ? <p className="dovede-log-error">{error}</p> : null}
       {loading && !log ? <p>Завантаження…</p> : null}
       {log && s ? (
@@ -254,16 +266,11 @@ const DovedeLogTab: React.FC = () => {
             </div>
           )}
 
-          <div className="dovede-log-head">
-            <h3>Питання</h3>
-            <div className="dovede-log-chips" role="group" aria-label="Фільтр">
-              {FILTERS.map((f) => (
-                <button key={f.only} type="button" className={`dovede-log-chip ${f.only === only ? 'active' : ''}`} aria-pressed={f.only === only} onClick={() => setQuery({ only: f.only })}>
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <h3>
+            Питання{only ? ` · ${FILTERS.find((f) => f.only === only)?.label.toLowerCase()}` : ''}
+            {' · '}
+            <span className="dovede-log-dim">{periodChip(days).toLowerCase()}</span>
+          </h3>
           {log.items.length === 0 ? (
             <p className="dovede-log-empty">{only ? 'Таких питань за цей період немає.' : 'За цей період питань ще не було.'}</p>
           ) : (
@@ -288,10 +295,27 @@ const DovedeLogTab: React.FC = () => {
                         </td>
                         <td className="dovede-log-text" data-label="Питання">
                           {it.text}
+                          <div>
+                            <a className="dovede-log-open" href={questionLink(it)} target="_blank" rel="noreferrer" aria-label={`Відкрити як людина: ${it.text}`}>
+                              відкрити як людина ↗
+                            </a>
+                          </div>
                         </td>
                         <td className="dovede-log-text" data-label="Як зрозуміли">
                           {understanding(it)}
-                          {unknown.length ? <div className="dovede-log-unknown">не впізнано: {unknown.join(', ')}</div> : null}
+                          {unknown.length ? (
+                            <div className="dovede-log-unknown">
+                              не впізнано:{' '}
+                              {unknown.map((w, i) => (
+                                <React.Fragment key={`${w}-${i}`}>
+                                  {i ? ', ' : null}
+                                  <Link to={dovedePath('dictionary', { word: w })} title={`Навчити слову «${w}»`}>
+                                    {w}
+                                  </Link>
+                                </React.Fragment>
+                              ))}
+                            </div>
+                          ) : null}
                         </td>
                         <td data-label={it.flags.length ? 'Позначки' : undefined}>
                           {it.flags.map((f) => (

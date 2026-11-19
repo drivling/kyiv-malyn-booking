@@ -181,8 +181,10 @@ of `dist` in a commit.
   with their own addresses (route `/admin/:tab?/:section?`; shell `AdminPage/dovede/DovedeTab.tsx`, lazy chunk; plan and
   next steps in `Docs/dovede-admin-roadmap.md`): Огляд (no segment — today's tiles, Claude / Google N of cap, «Потребує
   уваги» linking to the fix), `questions` (`AdminPage/DovedeLogTab.tsx`; `GET /admin/dovede/queries`, pure
-  `src/dovede/log.ts`: summary, words nobody recognised, the latest questions with both parses; period and filter in
-  `?days=&only=`), `dictionary` (synonyms, `?word=` fills the form; drivers' pickup notes), `city`, `learning` (learning campaigns, see
+  `src/dovede/log.ts`: summary, words nobody recognised, the latest questions with both parses; period and filter — one
+  toolbar above the list, in `?days=&only=`; in each row the unrecognised words link to «Словник» and «відкрити як
+  людина» opens the page's answer from the stored parse — `questionLink` in `dovedeLogText.ts`, ids + `q=`, no Claude
+  call), `dictionary` (synonyms, `?word=` fills the form; drivers' pickup notes), `city`, `learning` (learning campaigns, see
   below) and `settings`; an unknown section redirects to Огляд. Shared admin pieces (section nav, header, stat tiles, status pill, empty state, `kit.css` on the
   `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
   `data-label` (CSS only). The same tab teaches synonyms without a deploy
