@@ -314,3 +314,44 @@
   flex: 1 1 140px;
   min-width: 0;
 }
+
+/* Перемикачі одного вибору: фільтри й періоди (ChipGroup) */
+.admin-kit-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.admin-kit-chip {
+  padding: 6px 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: 999px;
+  background: var(--pb-card-bg, #fff);
+  color: var(--pb-text, #1a1a1a);
+  font: inherit;
+  font-size: var(--pb-font-size-sm, 13px);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.admin-kit-chip:hover {
+  border-color: var(--pb-primary-border, rgba(26, 115, 232, 0.35));
+}
+.admin-kit-chip.is-on {
+  border-color: var(--pb-primary, #1a73e8);
+  background: var(--pb-primary-light, #e8f0fe);
+  color: var(--pb-primary-active, #185abc);
+}
+.admin-kit-chip:focus-visible {
+  outline: 2px solid var(--pb-primary, #1a73e8);
+  outline-offset: 1px;
+}
+
+.admin-kit-dangerbtn {
+  padding: 0 4px;
+  border: 0;
+  background: none;
+  color: var(--pb-danger, #c0392b);
+  font: inherit;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+}
