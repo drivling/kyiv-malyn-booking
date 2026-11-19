@@ -10,7 +10,9 @@
  *
  * Журнал `data/dovede-crawl/journal-<сервер>.jsonl` (поза git): що вже питали — вдруге сервер тим самим не
  * ганяємо, а запуск без фрази продовжує обхід із того місця, де він зупинився. Ctrl+C — зупинка після поточного
- * запиту. Локальний скрипт, не для CI: чиста логіка — `dovede-crawl-core.mjs`, її тест мережі не торкається.
+ * запиту. Локальний скрипт, не для CI. Чиста логіка — спільна з сервером `backend/src/dovede/crawl-core.ts` (тест
+ * `crawl-core.test.ts`, мережі не торкається), стартові списки місць — `backend/src/dovede/learn-places.ts`; обидва
+ * esbuild збирає в `node_modules/.cache/dovede-crawl/` перед запуском.
  *
  * Денний ліміт Google на сервері спільний із людьми (`DOVEDE_CITY_DAILY_CAP`), тому є `--budget` (нових відповідей
  * Google за запуск) і, з токеном адміна, `--reserve` (скільки ліміту лишити людям).
@@ -19,25 +21,50 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { API_BASE } from './api-base.mjs';
-import {
+
+const frontendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const repoRoot = path.resolve(frontendDir, '..');
+const cacheDir = path.join(frontendDir, 'node_modules/.cache/dovede-crawl');
+
+/** Ядро обходу й списки місць живуть на сервері (TypeScript): збираємо їх esbuild-ом в один модуль */
+async function loadCore() {
+  const { build } = await import('esbuild');
+  const outfile = path.join(cacheDir, 'crawl-core.mjs');
+  await build({
+    stdin: {
+      contents: "export * from './backend/src/dovede/crawl-core.ts';\nexport * from './backend/src/dovede/learn-places.ts';\n",
+      resolveDir: repoRoot,
+      sourcefile: 'dovede-crawl-core-entry.ts',
+      loader: 'ts',
+    },
+    bundle: true,
+    format: 'esm',
+    platform: 'node',
+    outfile,
+    logLevel: 'silent',
+  });
+  return import(`${pathToFileURL(outfile).href}?t=${Date.now()}`);
+}
+
+const {
   POINT_LABEL,
   DEFAULT_FRESH_DAYS,
+  LEARN_PLACES,
   createCrawl,
   describeSteps,
   compactSteps,
   kyivToday,
-  looksLikeMetro,
-  normalizeKey,
   parseSlots,
   resolveOrigins,
   rootsFromRecords,
   seedFromIntent,
   seedsFromUnanswered,
+  siteForm,
   summarizeRecords,
-} from './dovede-crawl-core.mjs';
+} = await loadCore();
 
-const frontendDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const repoRoot = path.resolve(frontendDir, '..');
+/** `--places kyiv | zhytomyr` — готовий список із `learn-places.ts` і його місто */
+const READY_LIST_CITY = { kyiv: 'Kyiv', zhytomyr: 'Zhytomyr' };
 
 const HELP = `«Доведе» · обхід у ширину для наповнення бази доріг містом
 
@@ -49,10 +76,10 @@ const HELP = `«Доведе» · обхід у ширину для наповн
                     (типово академ; для Житомира завжди автовокзал)
   --both            ще й зворотний напрям: від місця до точки посадки
   --reverse         лише зворотний напрям (для поїздок із міста — зручно разом із вечірнім часом у --when)
-  --city <місто>    Kyiv | Zhytomyr — для --place і --places (типово Kyiv)
+  --city <місто>    Kyiv | Zhytomyr — для --place і --places (типово Kyiv; з --places zhytomyr — Zhytomyr)
   --place "<слова>" місце без фрази; можна кілька разів
-  --places <файл>   місця з файла, по одному в рядку (# — коментар); готові списки:
-                    scripts/data/dovede-places-kyiv.txt, scripts/data/dovede-places-zhytomyr.txt (з --city Zhytomyr)
+  --places <список> готовий список kyiv | zhytomyr (backend/src/dovede/learn-places.ts) або файл:
+                    по одному місцю в рядку, # — коментар
   --unanswered      питання людей, на які сервер не знайшов відповіді (потрібен токен адміна)
   --when <часи>     weekday@09:00 (типово) | day | full | weekday@08,saturday@10
                     сервер віддає з бази відповідь того самого типу дня й години ± 1
@@ -72,7 +99,7 @@ VIBER_ADMIN_TOKEN) теж відкриває, показує денний лім
 потрапляють у лічильник попиту людей.`;
 
 function parseArgs(argv) {
-  const o = { phrases: [], places: [], from: '', both: false, city: 'Kyiv', placesFile: '', when: '', depth: 3, budget: 40, reserve: 50, max: Infinity, pause: 1500, headsigns: true, api: API_BASE, dry: false, status: false, help: false, unanswered: false, asPerson: false, freshDays: null, reverse: false };
+  const o = { phrases: [], places: [], from: '', both: false, city: 'Kyiv', cityGiven: false, placesFile: '', when: '', depth: 3, budget: 40, reserve: 50, max: Infinity, pause: 1500, headsigns: true, api: API_BASE, dry: false, status: false, help: false, unanswered: false, asPerson: false, freshDays: null, reverse: false };
   const num = (name, v) => {
     const n = Number(v);
     if (!Number.isFinite(n) || n < 0) throw new Error(`${name}: потрібне число, а не «${v}»`);
@@ -89,7 +116,10 @@ function parseArgs(argv) {
     else if (a === '--from') o.from = val();
     else if (a === '--both') o.both = true;
     else if (a === '--reverse') o.reverse = true;
-    else if (a === '--city') o.city = val();
+    else if (a === '--city') {
+      o.city = val();
+      o.cityGiven = true;
+    }
     else if (a === '--place') o.places.push(val());
     else if (a === '--places') o.placesFile = val();
     else if (a === '--when') o.when = val();
@@ -108,6 +138,9 @@ function parseArgs(argv) {
     else if (a.startsWith('--')) throw new Error(`Невідомий прапорець ${a} (див. --help)`);
     else o.phrases.push(a);
   }
+  // готовий список задає й місто, якщо його не названо окремо
+  const listCity = READY_LIST_CITY[o.placesFile.toLowerCase()];
+  if (listCity && !o.cityGiven) o.city = listCity;
   if (o.city !== 'Kyiv' && o.city !== 'Zhytomyr') throw new Error('--city: Kyiv або Zhytomyr');
   return o;
 }
@@ -116,7 +149,7 @@ function parseArgs(argv) {
 async function loadSiteParser() {
   try {
     const { build } = await import('esbuild');
-    const outfile = path.join(frontendDir, 'node_modules/.cache/dovede-crawl/parse-local.mjs');
+    const outfile = path.join(cacheDir, 'parse-local.mjs');
     await build({ entryPoints: [path.join(frontendDir, 'src/pages/DovedePage/nlu/parseLocal.ts')], bundle: true, format: 'esm', platform: 'node', outfile, logLevel: 'silent' });
     const mod = await import(`${pathToFileURL(outfile).href}?t=${Date.now()}`);
     return typeof mod.parseLocal === 'function' ? mod.parseLocal : null;
@@ -214,14 +247,6 @@ async function main() {
   const slots = parseSlots(o.when);
   const parseLocal = await loadSiteParser();
   const nowK = { date: kyivToday(), mins: 600 };
-  /** Як сторінка назвала б це місце в питанні до сервера; null — місце вона знає сама (метро, вокзал) і сервер не питає */
-  const siteForm = (city, name) => {
-    if (looksLikeMetro(name)) return null;
-    if (!parseLocal) return name;
-    const got = seedFromIntent(parseLocal(`з Малина до ${city === 'Kyiv' ? 'Києва' : 'Житомира'} до ${name}`, nowK).intent);
-    if (!got || got.city !== city) return null;
-    return normalizeKey(got.place) === normalizeKey(name) ? name : got.place;
-  };
 
   // Сервер потрібен і для сухого прогону з --unanswered: список питань людей лежить у нього
   const online = !o.dry || o.unanswered;
@@ -249,7 +274,9 @@ async function main() {
     addSeed(seed.city, seed.place, seed.dir, 'seed');
   }
   const listed = [...o.places];
-  if (o.placesFile) {
+  const ready = LEARN_PLACES[READY_LIST_CITY[o.placesFile.toLowerCase()]];
+  if (ready) listed.push(...ready);
+  else if (o.placesFile) {
     for (const line of fs.readFileSync(path.resolve(process.cwd(), o.placesFile), 'utf8').split('\n')) {
       const t = line.replace(/#.*$/, '').trim();
       if (t) listed.push(t);
@@ -257,7 +284,7 @@ async function main() {
   }
   let ownPlaces = 0;
   for (const place of listed) {
-    // місце шлемо так, як його надіслала б сторінка (до пʼяти слів); відоме їй — не шлемо зовсім
+    // місце шлемо так, як його надіслала б сторінка (до пʼяти слів, `detailForm`); відоме їй — не шлемо зовсім
     const form = siteForm(o.city, place);
     if (form === null) {
       ownPlaces++;
@@ -297,7 +324,7 @@ async function main() {
     maxDepth: o.depth,
     freshDays,
     headsigns: o.headsigns,
-    // у обхід беремо назву так, як її надіслала б сторінка; відоме їй місце — не беремо зовсім
+    // у обхід беремо назву так, як її надіслала б сторінка (`detailForm`); відоме їй місце — не беремо зовсім
     siteForm,
   });
 

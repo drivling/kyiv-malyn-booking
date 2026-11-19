@@ -18,6 +18,9 @@
  * кнопку карти). Загальне «відновити» таких місць не повертає — лише `restorePlace`.
  */
 import type { PrismaClient } from '@prisma/client';
+// ключ пари й тип дня — спільні з обходом (`crawl-core.ts`): журнал обходу й база рахують їх однаково
+import { dayTypeOf, normalizeKey } from './crawl-core';
+export { dayTypeOf, normalizeKey };
 import { METRO_STATIONS } from './kyivMetroData';
 import { kyivDayStart } from './guard';
 import { kyivWallToUtc } from '../viber-listing-expiry';
@@ -136,15 +139,6 @@ const KNOWN_POINTS: Record<string, { label: string; address: string; city: CityC
   'kyiv.borshch': { label: 'платформа «Борщагівка»', address: 'зупинний пункт Борщагівка, Київ, Україна', city: 'Kyiv' },
 };
 
-export function normalizeKey(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[’ʼ`]/g, "'")
-    .replace(/[«»"().,;:!?]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
 /** Точка за id (автовокзал, станція метро) або словами людини («Польова 12», «Охматдит»); null — порожньо чи сміття */
 export function resolveCityPoint(city: CityCode, raw: string): CityPoint | null {
   const value = raw.trim();
@@ -179,12 +173,6 @@ export function nextSlot(now: Date, dayType: DayType, hour: number): { date: str
     return { date, time: `${String(hour).padStart(2, '0')}:00`, utc: kyivWallToUtc(yy, mm - 1, dd, hour, 0) };
   }
   throw new Error(`Невідомий тип дня: ${dayType}`);
-}
-
-export function dayTypeOf(isoDate: string): DayType {
-  const [y, m, d] = isoDate.split('-').map(Number);
-  const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
-  return wd === 0 ? 'sunday' : wd === 6 ? 'saturday' : 'weekday';
 }
 
 const seconds = (v: unknown): number => Number(String(v ?? '').replace(/s$/, '')) || 0;

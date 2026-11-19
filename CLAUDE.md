@@ -332,9 +332,14 @@ of `dist` in a commit.
   write to the DB, but no demand count and no `hits`; when it finds a road for a pair people asked, the pair is marked
   answered. Without the admin token the flag changes nothing. Stats also return `unanswered` (pairs with keys).
   Local crawl without AI: `npm run dovede:crawl -- "з Малина до Києва на вулицю Ентузіастів 7" --from святошин`
-  (frontend; `scripts/dovede-crawl.mjs` + pure `dovede-crawl-core.mjs`) parses the phrase with the page's own
-  `parseLocal` (bundled by esbuild), asks `GET /dovede/city-route` like the page does and walks breadth-first over the
-  places found in the answers (transfer / alighting stops and line termini; metro and rail are skipped as own data).
+  (frontend; `scripts/dovede-crawl.mjs`) parses the phrase with the page's own `parseLocal` (bundled by esbuild), asks
+  `GET /dovede/city-route` like the page does and walks breadth-first over the places found in the answers (transfer /
+  alighting stops and line termini; metro and rail are skipped as own data). The pure crawl logic is shared with the
+  server: `backend/src/dovede/crawl-core.ts` (test next to it; the CLI bundles it with esbuild; it owns `normalizeKey` /
+  `dayTypeOf`, which `city-route.ts` re-exports). A place is asked in the page's own form — `detailForm(city, name)` in
+  `nlu/cityDetail.ts` (`farDetails`, `nominative`, the preposition sets; imported by `parseLocal`), byte-identical in
+  `backend/src/dovede/` together with `kyivMetro.ts` / `kyivRing.ts`; `nlu/cityDetail.test.ts` diffs the copies and
+  checks `detailForm` against the full `parseLocal` over the place lists, the city-modes fixture and Zhytomyr stops.
   It never calls `/dovede/understand`. The journal `data/dovede-crawl/journal-<host>.jsonl` (gitignored) keeps what was
   asked, so nothing is asked twice within the fresh window (read from the admin stats, `--fresh-days` overrides) and a
   run without a phrase resumes — and asks again whatever has expired (`--status` says how much). The Google cap is
@@ -343,11 +348,12 @@ of `dist` in a commit.
   counted (`--as-person` switches that off); with only the guests' password every ask counts like a person's.
   `--both` adds the way back (place → boarding point), `--reverse` asks only that way — with an evening `--when` it
   is the trip home from the city.
-  `--unanswered` starts from people's questions the server could not answer; `--places <file>` from a list — the
-  the walk skips stop names a city has many of («Супермаркет», «Авторинок» — `GENERIC` in the core) and names the
-  page's parser cut off at a conjunction, because Google would match them to some other spot;
-  starter lists are `scripts/data/dovede-places-kyiv.txt` / `-zhytomyr.txt` (a test keeps every line a «place in
-  words» for the page: no metro, no leading «Київський», no «імені», which the page's `nominative` turns into «іменя»).
+  `--unanswered` starts from people's questions the server could not answer; `--places kyiv | zhytomyr | <file>` from a
+  list — the walk skips stop names a city has many of («Супермаркет», «Авторинок» — `GENERIC` in the core) and names
+  the page's parser cut off at a conjunction, because Google would match them to some other spot;
+  starter lists are `backend/src/dovede/learn-places.ts` (`--places zhytomyr` also picks the city; `learn-places.test.ts`
+  keeps every line a «place in words» for the page: no metro, no leading «Київський», no «імені», which the page's
+  `nominative` turns into «іменя»).
   Zhytomyr from the owner's own site (stage 3б): `npm run zhytomyr:snapshot` (backend; flags in the script header) keeps
   `data/zhytomyr-transport/` — pages of `zt.rozklad.in.ua` (the site refuses requests without a browser `User-Agent`)
   parsed by `zhytomyr-site-parser.ts` into `routes.json`, stop coordinates from an OSM snapshot plus Google for names
