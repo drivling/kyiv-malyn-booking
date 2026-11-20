@@ -431,6 +431,7 @@ function createAdminViberAnalyticsRouter(deps) {
                 .trim();
             const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, plainMessage, {
                 telegramUsername: person?.telegramUsername ?? undefined,
+                purpose: 'promo',
             });
             if (ok) {
                 await prisma.person.updateMany({

@@ -1,9 +1,11 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NOTIFICATION_SETTINGS_DEFAULTS = exports.SMS_MATCH_TYPE_THRESHOLDS = void 0;
+exports.TG_ID_CAP_MAX = exports.NOTIFICATION_SETTINGS_DEFAULTS = exports.SMS_MATCH_TYPE_THRESHOLDS = void 0;
 exports.setNotificationSettingsCacheForTests = setNotificationSettingsCacheForTests;
 exports.getNotificationSettings = getNotificationSettings;
 exports.updateNotificationSettings = updateNotificationSettings;
+exports.kyivMonthStart = kyivMonthStart;
+exports.kyivDayStart = kyivDayStart;
 exports.countSmsSendsToday = countSmsSendsToday;
 exports.countSmsSendsThisMonth = countSmsSendsThisMonth;
 exports.SMS_MATCH_TYPE_THRESHOLDS = [
@@ -23,8 +25,14 @@ exports.NOTIFICATION_SETTINGS_DEFAULTS = {
     smsMonthlyCap: 1000,
     turboSmsToken: null,
     turboSmsSender: null,
+    tgUserMatchEnabled: true,
+    tgUserAuthorConfirmationEnabled: true,
+    tgUserByIdEnabled: true,
+    tgUserByIdDailyCap: null,
 };
 const CAP_MAX = 100000;
+/** Писати незнайомим за id більше кількох десятків на добу — ризик втратити особистий акаунт */
+exports.TG_ID_CAP_MAX = 200;
 const CACHE_TTL_MS = 30000;
 let cache = null;
 /** Тільки для тестів: підмінити/скинути кеш налаштувань. */
@@ -81,6 +89,21 @@ async function updateNotificationSettings(prisma, patch) {
         data.smsInactivityReminderEnabled = coerceBool(patch.smsInactivityReminderEnabled, 'smsInactivityReminderEnabled');
     if ('smsChannelPromoEnabled' in patch)
         data.smsChannelPromoEnabled = coerceBool(patch.smsChannelPromoEnabled, 'smsChannelPromoEnabled');
+    for (const key of ['tgUserMatchEnabled', 'tgUserAuthorConfirmationEnabled', 'tgUserByIdEnabled']) {
+        if (key in patch)
+            data[key] = coerceBool(patch[key], key);
+    }
+    if ('tgUserByIdDailyCap' in patch) {
+        const v = patch.tgUserByIdDailyCap;
+        if (v == null)
+            data.tgUserByIdDailyCap = null;
+        else {
+            const n = Number(v);
+            if (!Number.isInteger(n) || n < 0 || n > exports.TG_ID_CAP_MAX)
+                throw new Error(`tgUserByIdDailyCap: ціле число від 0 до ${exports.TG_ID_CAP_MAX}`);
+            data.tgUserByIdDailyCap = n;
+        }
+    }
     if ('smsMatchTypeThreshold' in patch) {
         const t = String(patch.smsMatchTypeThreshold);
         if (!exports.SMS_MATCH_TYPE_THRESHOLDS.includes(t)) {

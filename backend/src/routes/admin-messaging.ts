@@ -285,6 +285,7 @@ r.post('/admin/send-reminder-via-user-account', requireAdmin, async (req, res) =
         }
         const ok = await sendMessageViaUserAccount(phone, message, {
           telegramUsername: person?.telegramUsername ?? undefined,
+          purpose: 'promo',
         });
         if (ok) {
           sent++;
@@ -384,6 +385,7 @@ r.post('/admin/send-channel-promo', requireAdmin, async (req, res) => {
       if (!phone) continue;
       let ok = await sendMessageViaUserAccount(phone, message, {
         telegramUsername: p.telegramUsername ?? undefined,
+        purpose: 'promo',
       });
       let via: 'telegram' | 'sms' = 'telegram';
       if (!ok) {

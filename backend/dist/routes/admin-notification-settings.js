@@ -7,6 +7,24 @@ exports.createAdminNotificationSettingsRouter = createAdminNotificationSettingsR
 const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
 const notification_settings_1 = require("../notification-settings");
+const telegram_user_dm_guard_1 = require("../telegram-user-dm-guard");
+/** Рядки groupBy → { ключ: { sent, failed } } */
+function tally(rows, key) {
+    var _a;
+    const out = {};
+    for (const r of rows) {
+        const t = (out[_a = r[key]] ?? (out[_a] = { sent: 0, failed: 0 }));
+        const ok = r.ok ?? (r.status === 'sent' || r.status === 'pending');
+        if (ok)
+            t.sent += r._count._all;
+        else if (r.ok === false || r.status === 'failed')
+            t.failed += r._count._all;
+    }
+    return out;
+}
+const sum = (m) => Object.values(m).reduce((a, t) => ({ sent: a.sent + t.sent, failed: a.failed + t.failed }), { sent: 0, failed: 0 });
+/** Сесія особистого акаунта налаштована (те саме правило, що в telegram.ts) */
+const telegramUserConfigured = () => Boolean(process.env.TELEGRAM_USER_SESSION_PATH?.trim() && process.env.TELEGRAM_API_ID?.trim() && process.env.TELEGRAM_API_HASH?.trim());
 const TOKEN_HINT_PREFIX = '••••';
 /** Маска замість токена — щоб не віддавати платний секрет у фронт. */
 function maskSettings(s) {
@@ -52,6 +70,10 @@ function createAdminNotificationSettingsRouter(deps) {
                 'smsDailyCap',
                 'smsMonthlyCap',
                 'turboSmsSender',
+                'tgUserMatchEnabled',
+                'tgUserAuthorConfirmationEnabled',
+                'tgUserByIdEnabled',
+                'tgUserByIdDailyCap',
             ]) {
                 if (key in body)
                     patch[key] = body[key];
@@ -72,7 +94,9 @@ function createAdminNotificationSettingsRouter(deps) {
     r.get('/admin/notification-settings/usage', require_admin_1.requireAdmin, async (_req, res) => {
         try {
             const s = await (0, notification_settings_1.getNotificationSettings)(prisma);
-            const [sentToday, sentThisMonth, recent] = await Promise.all([
+            const dayStart = (0, notification_settings_1.kyivDayStart)();
+            const monthStart = (0, notification_settings_1.kyivMonthStart)();
+            const [sentToday, sentThisMonth, recent, smsMonth, tgToday, tgMonth, tgErrors] = await Promise.all([
                 (0, notification_settings_1.countSmsSendsToday)(prisma),
                 (0, notification_settings_1.countSmsSendsThisMonth)(prisma),
                 prisma.smsSendLog.findMany({
@@ -90,13 +114,40 @@ function createAdminNotificationSettingsRouter(deps) {
                         sentAt: true,
                     },
                 }),
+                prisma.smsSendLog.groupBy({ by: ['useCase', 'status'], where: { createdAt: { gte: monthStart } }, _count: { _all: true } }),
+                prisma.telegramUserSendLog.groupBy({ by: ['purpose', 'ok'], where: { createdAt: { gte: dayStart } }, _count: { _all: true } }),
+                prisma.telegramUserSendLog.groupBy({ by: ['purpose', 'ok'], where: { createdAt: { gte: monthStart } }, _count: { _all: true } }),
+                // без контакту: лише коли, як шукали і що відповів Telegram
+                prisma.telegramUserSendError.findMany({
+                    orderBy: { createdAt: 'desc' },
+                    take: 5,
+                    select: { id: true, contactType: true, errorCode: true, errorText: true, createdAt: true },
+                }),
             ]);
+            const byPurposeMonth = tally(tgMonth, 'purpose');
+            const limits = (0, telegram_user_dm_guard_1.idDmLimits)(s);
             res.json({
                 sentToday,
                 capToday: s.smsDailyCap,
                 sentThisMonth,
                 capThisMonth: s.smsMonthlyCap,
                 recent,
+                smsByUseCase: tally(smsMonth, 'useCase'),
+                telegramUser: {
+                    configured: telegramUserConfigured(),
+                    today: sum(tally(tgToday, 'purpose')),
+                    month: sum(byPurposeMonth),
+                    byPurpose: byPurposeMonth,
+                    byId: {
+                        enabled: limits.enabled,
+                        lockedBy: limits.lockedBy,
+                        cap: limits.cap,
+                        defaultCap: limits.defaultCap,
+                        usedToday: telegram_user_dm_guard_1.idDmGuard.used(),
+                        flooded: telegram_user_dm_guard_1.idDmGuard.tripped(),
+                    },
+                    recentErrors: tgErrors.map((e) => ({ ...e, errorText: (e.errorText ?? '').split('\n').filter(Boolean).pop()?.slice(0, 200) ?? null })),
+                },
             });
         }
         catch (e) {

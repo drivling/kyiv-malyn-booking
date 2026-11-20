@@ -53,6 +53,7 @@ exports.getResolvedNameForPerson = getResolvedNameForPerson;
 exports.pickBestNameFromCandidates = pickBestNameFromCandidates;
 const telegram_source_link_1 = require("./telegram-source-link");
 const telegram_user_dm_guard_1 = require("./telegram-user-dm-guard");
+const notification_settings_1 = require("./notification-settings");
 const telegram_dzhura_source_1 = require("./telegram-dzhura-source");
 const node_telegram_bot_api_1 = __importDefault(require("node-telegram-bot-api"));
 const child_process_1 = require("child_process");
@@ -649,12 +650,14 @@ async function sendMatchMessageToPerson(phone, messageHtml, botOptions) {
     }
     if (botOptions?.forceBotOnly)
         return { sent: false, via: 'none' };
-    // Безкоштовний канал: особистий акаунт (Telethon) — по @username або номеру.
-    if (isTelegramUserSenderEnabled()) {
+    // Безкоштовний канал: особистий акаунт (Telethon) — по @username або номеру. Вимикач — адмінка «Сповіщення».
+    const userSettings = isTelegramUserSenderEnabled() ? await (0, notification_settings_1.getNotificationSettings)(tgPrisma).catch(() => null) : null;
+    if (isTelegramUserSenderEnabled() && userSettings?.tgUserMatchEnabled !== false) {
         const person = await (0, exports.getPersonByPhone)(phone).catch(() => null);
         const ok = await sendMessageViaUserAccount(phone, messageHtml, {
             telegramUsername: person?.telegramUsername ?? null,
             telegramUserId: person?.telegramUserId ?? null,
+            purpose: 'match',
         }).catch(() => false);
         if (ok)
             return { sent: true, via: 'user' };
@@ -1565,10 +1568,11 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
             // Безкоштовний канал пробуємо ЗАВЖДИ (це транзакційне підтвердження щойно
             // створеного оголошення), без 7-денного кулдауну telegramPromoSentAt.
             let sent = false;
-            if (person && isTelegramUserSenderEnabled()) {
+            if (person && (await userConfirmationAllowed())) {
                 const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
                 sent = await sendMessageViaUserAccount(person.phoneNormalized, promoMessage, {
                     telegramUsername: (0, telegram_contact_1.normalizeTelegramUsername)(trimmed),
+                    purpose: 'authorConfirmation',
                 });
                 if (sent) {
                     await tgPrisma.person.update({
@@ -1622,11 +1626,12 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
             // Безкоштовний канал (Telethon по номеру) пробуємо ЗАВЖДИ — без кулдауну
             // telegramPromoSentAt. Кулдаун лишається лише для масової розсилки неактивним.
             let sent = false;
-            if (isTelegramUserSenderEnabled()) {
+            if (await userConfirmationAllowed()) {
                 const promoMessage = buildViberListingConfirmationMessage(listing, { addSubscribeInstruction: true });
                 sent = await sendMessageViaUserAccount(phoneForApi, promoMessage, {
                     telegramUsername: person?.telegramUsername ?? null,
                     telegramUserId: person?.telegramUserId ?? null,
+                    purpose: 'authorConfirmation',
                 });
                 if (sent) {
                     if (person) {
@@ -1661,6 +1666,13 @@ const sendViberListingConfirmationToUser = async (phone, listing) => {
 };
 exports.sendViberListingConfirmationToUser = sendViberListingConfirmationToUser;
 /** Чи налаштовано відправку одноразового промо від вашого акаунта (Telethon): сесія + API */
+/** Підтвердження автору від особистого акаунта: є сесія і не вимкнено в адмінці «Сповіщення» */
+async function userConfirmationAllowed() {
+    if (!isTelegramUserSenderEnabled())
+        return false;
+    const s = await (0, notification_settings_1.getNotificationSettings)(tgPrisma).catch(() => null);
+    return s?.tgUserAuthorConfirmationEnabled !== false;
+}
 function isTelegramUserSenderEnabled() {
     const session = process.env.TELEGRAM_USER_SESSION_PATH;
     const apiId = process.env.TELEGRAM_API_ID;
@@ -2179,51 +2191,55 @@ async function resolveNameByPhoneFromOpendatabot(phone) {
         child.on('error', () => resolve(null));
     });
 }
-/**
- * Відправити одне повідомлення від вашого Telegram-акаунта по номеру телефону або username (Python Telethon).
- * Спочатку пробує по телефону; якщо не знайдено — по telegramUsername (якщо передано).
- * Повертає true, якщо повідомлення доставлено; false — помилка або користувач не знайдено.
- * Експортується для одноразової реклами каналу (без оновлення telegramPromoSentAt).
- */
 async function sendMessageViaUserAccount(phone, message, options) {
     const username = options?.telegramUsername?.trim().replace(/^@/, '');
+    const purpose = options?.purpose ?? 'other';
     // Серіалізуємо разом із lunch.listener та іншими Telethon-скриптами: спільний
     // .session — це SQLite, паралельний доступ дає "database is locked".
     return withTelegramUserSessionExclusive(async () => {
-        // Якщо є @username — спочатку пробуємо по ньому (1 API call). Інакше ResolvePhone (до 3 викликів) + send = багато запитів підряд → Too many requests.
-        if (username) {
-            const sentByUsername = await spawnSendMessage(username, message, true);
-            if (sentByUsername) {
-                console.log(`ℹ️ Telegram user-sender: надіслано по @${username}`);
-                return true;
+        const attempt = async () => {
+            // Якщо є @username — спочатку пробуємо по ньому (1 API call). Інакше ResolvePhone (до 3 викликів) + send = багато запитів підряд → Too many requests.
+            if (username) {
+                const sentByUsername = await spawnSendMessage(username, message, true);
+                if (sentByUsername) {
+                    console.log(`ℹ️ Telegram user-sender: надіслано по @${username}`);
+                    return 'username';
+                }
+                // Пауза перед спробою по телефону, щоб не перевищити rate limit
+                await new Promise((r) => setTimeout(r, 10000));
             }
-            // Пауза перед спробою по телефону, щоб не перевищити rate limit
-            await new Promise((r) => setTimeout(r, 10000));
-        }
-        // Автор без username: пишемо за числовим id (його бачили в групі) — з предохранителем, бо це незнайомі люди
-        const userId = options?.telegramUserId?.trim();
-        if (userId && /^\d+$/.test(userId)) {
-            if (!telegram_user_dm_guard_1.idDmGuard.tryAcquire()) {
-                console.log(`ℹ️ Telegram user-sender: DM по id ${userId} пропущено (вимкнено, добовий ліміт або PEER_FLOOD)`);
-            }
-            else {
-                const accessHash = await getDzhuraAccessHash(userId);
-                if (await spawnSendMessage(userId, message, 'id', { accessHash })) {
-                    console.log(`ℹ️ Telegram user-sender: надіслано по id ${userId}`);
-                    return true;
+            // Автор без username: пишемо за числовим id (його бачили в групі) — з предохранителем, бо це незнайомі люди
+            const userId = options?.telegramUserId?.trim();
+            if (userId && /^\d+$/.test(userId)) {
+                const settings = await (0, notification_settings_1.getNotificationSettings)(tgPrisma).catch(() => null);
+                if (!telegram_user_dm_guard_1.idDmGuard.tryAcquire((0, telegram_user_dm_guard_1.idDmLimits)(settings))) {
+                    console.log(`ℹ️ Telegram user-sender: DM по id ${userId} пропущено (вимкнено, добовий ліміт або PEER_FLOOD)`);
+                }
+                else {
+                    const accessHash = await getDzhuraAccessHash(userId);
+                    if (await spawnSendMessage(userId, message, 'id', { accessHash })) {
+                        console.log(`ℹ️ Telegram user-sender: надіслано по id ${userId}`);
+                        return 'id';
+                    }
                 }
             }
-        }
-        // 380010000000+ — не телефон: шукати його в Telegram безглуздо
-        if ((0, telegram_contact_1.isTechnicalPlaceholderPhone)(phone))
-            return false;
-        const sentByPhone = await spawnSendMessage(phone, message, false);
-        if (sentByPhone)
-            return true;
-        if (username) {
-            console.log(`ℹ️ Telegram user-sender: по @${username} та по телефону ${phone} не вдалося`);
-        }
-        return false;
+            // 380010000000+ — не телефон: шукати його в Telegram безглуздо
+            if ((0, telegram_contact_1.isTechnicalPlaceholderPhone)(phone))
+                return null;
+            const sentByPhone = await spawnSendMessage(phone, message, false);
+            if (sentByPhone)
+                return 'phone';
+            if (username) {
+                console.log(`ℹ️ Telegram user-sender: по @${username} та по телефону ${phone} не вдалося`);
+            }
+            return null;
+        };
+        const method = await attempt();
+        // лише лічильник: без контакту й тексту
+        await tgPrisma.telegramUserSendLog
+            .create({ data: { purpose, method, ok: method != null } })
+            .catch((e) => console.error('❌ TelegramUserSendLog:', e));
+        return method != null;
     }, () => false);
 }
 /** access_hash автора, збережений Джурою (без нього писати за числовим id неможливо після рестарту сесії). */

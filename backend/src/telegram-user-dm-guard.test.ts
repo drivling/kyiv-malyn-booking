@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ID_DM_DAILY_CAP_DEFAULT, createIdDmGuard, idDmDailyCap, idDmEnabled } from './telegram-user-dm-guard';
+import { ID_DM_DAILY_CAP_DEFAULT, createIdDmGuard, idDmDailyCap, idDmEnabled, idDmLimits } from './telegram-user-dm-guard';
 
 describe('idDmEnabled / idDmDailyCap', () => {
   it('за замовчуванням увімкнено, "0" вимикає; ліміт з env або 20', () => {
@@ -41,5 +41,28 @@ describe('createIdDmGuard', () => {
     expect(g.tryAcquire()).toBe(false);
     now = '2026-10-13T10:00:00Z';
     expect(g.tryAcquire()).toBe(true);
+  });
+});
+
+describe('idDmLimits — адмінка «Сповіщення» поверх змінних середовища', () => {
+  it('ліміт з адмінки, інакше зі змінної; вимкнено в адмінці — вимкнено', () => {
+    expect(idDmLimits(null, {})).toEqual({ enabled: true, cap: 20, lockedBy: null, defaultCap: 20 });
+    expect(idDmLimits({ tgUserByIdEnabled: true, tgUserByIdDailyCap: null }, { TELEGRAM_USER_DM_BY_ID_DAILY_CAP: '5' }).cap).toBe(5);
+    expect(idDmLimits({ tgUserByIdEnabled: true, tgUserByIdDailyCap: 3 }, { TELEGRAM_USER_DM_BY_ID_DAILY_CAP: '5' }).cap).toBe(3);
+    expect(idDmLimits({ tgUserByIdEnabled: false }, {}).enabled).toBe(false);
+  });
+
+  it('TELEGRAM_USER_DM_BY_ID=0 вимикає, хоч би що в адмінці', () => {
+    expect(idDmLimits({ tgUserByIdEnabled: true }, { TELEGRAM_USER_DM_BY_ID: '0' })).toMatchObject({ enabled: false, lockedBy: 'TELEGRAM_USER_DM_BY_ID=0' });
+  });
+
+  it('tryAcquire бере межі з аргументу; tripped() — чи був PEER_FLOOD сьогодні', () => {
+    const g = createIdDmGuard({ now: () => new Date('2026-10-12T10:00:00Z') });
+    expect(g.tryAcquire({ enabled: true, cap: 1 })).toBe(true);
+    expect(g.tryAcquire({ enabled: true, cap: 1 })).toBe(false);
+    expect(g.tryAcquire({ enabled: false, cap: 9 })).toBe(false);
+    expect(g.tripped()).toBe(false);
+    g.trip();
+    expect(g.tripped()).toBe(true);
   });
 });

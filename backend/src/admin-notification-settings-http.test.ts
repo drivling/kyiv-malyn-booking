@@ -43,6 +43,23 @@ async function makeApp(initial: Partial<typeof BASE_ROW> = {}) {
     smsSendLog: {
       count: async () => 3,
       findMany: async () => [],
+      groupBy: async () => [
+        { useCase: 'match', status: 'sent', _count: { _all: 4 } },
+        { useCase: 'match', status: 'failed', _count: { _all: 1 } },
+        { useCase: 'bookingReminder', status: 'skipped', _count: { _all: 2 } },
+      ],
+    },
+    telegramUserSendLog: {
+      groupBy: async () => [
+        { purpose: 'match', ok: true, _count: { _all: 5 } },
+        { purpose: 'match', ok: false, _count: { _all: 2 } },
+        { purpose: 'authorConfirmation', ok: true, _count: { _all: 3 } },
+      ],
+    },
+    telegramUserSendError: {
+      findMany: async () => [
+        { id: 1, contactType: 'user_id', errorCode: 2, errorText: 'Traceback…\nPeerFloodError: PEER_FLOOD', createdAt: new Date('2026-11-20T10:00:00Z') },
+      ],
     },
   } as unknown as PrismaClient;
   const app = await listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }));
@@ -152,4 +169,30 @@ test('GET /admin/notification-settings/usage: форма відповіді', as
   assert.equal(res.body.sentThisMonth, 3);
   assert.equal(res.body.capThisMonth, 1000);
   assert.ok(Array.isArray(res.body.recent));
+  // SMS за місяць по сценаріях: skipped не рахується ні туди, ні туди
+  assert.deepEqual(res.body.smsByUseCase, { match: { sent: 4, failed: 1 }, bookingReminder: { sent: 0, failed: 0 } });
+  const tg = res.body.telegramUser;
+  assert.deepEqual(tg.month, { sent: 8, failed: 2 });
+  assert.deepEqual(tg.byPurpose.match, { sent: 5, failed: 2 });
+  assert.equal(tg.byId.enabled, true);
+  assert.equal(tg.byId.cap, 20);
+  assert.equal(tg.byId.lockedBy, null);
+  // лише останній рядок помилки, без контакту
+  assert.equal(tg.recentErrors[0].errorText, 'PeerFloodError: PEER_FLOOD');
+  assert.equal(tg.recentErrors[0].contact, undefined);
+});
+
+test('PATCH /admin/notification-settings: вимикачі особистого акаунта й ліміт за id', async () => {
+  const ctx = await makeApp();
+  const auth = await token(ctx.app);
+  await request(ctx.app)
+    .patch('/admin/notification-settings')
+    .set('Authorization', auth)
+    .send({ tgUserMatchEnabled: false, tgUserByIdDailyCap: 7 })
+    .expect(200);
+  assert.equal(ctx.row.tgUserMatchEnabled, false);
+  assert.equal(ctx.row.tgUserByIdDailyCap, 7);
+  await request(ctx.app).patch('/admin/notification-settings').set('Authorization', auth).send({ tgUserByIdDailyCap: null }).expect(200);
+  assert.equal(ctx.row.tgUserByIdDailyCap, null);
+  await request(ctx.app).patch('/admin/notification-settings').set('Authorization', auth).send({ tgUserByIdDailyCap: 5000 }).expect(400);
 });

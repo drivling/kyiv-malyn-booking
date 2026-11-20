@@ -189,8 +189,10 @@ of `dist` in a commit.
   `GET /admin/dovede/city/place/routes?city=&key=`, whole-base actions in a folded «Небезпечна зона»), `learning`
   (learning campaigns, see below) and `settings`; an unknown section redirects to Огляд. Shared admin pieces (section nav, header, stat tiles, status pill, empty state, setting row, `ChipGroup` for filters
   and periods; used by «Доведе», «Факт прибуття», «Графіки» (`AdminPage/SchedulesTab.tsx`: trips grouped by direction, one
-  dense row per trip) and «Маршрути» (`AdminPage/RoutesTab.tsx`: each corridor with its «через …» variants under it,
-  missing route points / car time as flags; cities with their flags and route count). Other admin tabs move to it one PR at a time; **the map editor tab (`MapEditorTab`) is not to be
+  dense row per trip), «Маршрути» (`AdminPage/RoutesTab.tsx`: each corridor with its «через …» variants under it,
+  missing route points / car time as flags; cities with their flags and route count) and «Сповіщення»
+  (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS» below). Other admin tabs move to it one PR at
+  a time; **the map editor tab (`MapEditorTab`) is not to be
   touched** (owner's decision), `kit.css` on the
   `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
   `data-label` (CSS only). The same tab teaches synonyms without a deploy
@@ -486,9 +488,10 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
   writes by id (`send_message.py --user-id … --access-hash …`) as the last free tier after bot → `@username`. One
   short message (the listing confirmation with the bot subscribe link / a match notice), never a dialogue: once
   the person presses `/start`, `getPersonByTelegram(userId, …)` finds that same Person and sets `telegramChatId`, so
-  everything else goes through the bot. Safety: `telegram-user-dm-guard.ts` (`TELEGRAM_USER_DM_BY_ID=0` switches it
-  off, `TELEGRAM_USER_DM_BY_ID_DAILY_CAP`, default 20 per Kyiv day, stops for the day on `PEER_FLOOD`) because the one
-  personal session also carries Dzhura and the lunch listener. Technical phones (`380010000000+`) never get paid SMS
+  everything else goes through the bot. Safety: `telegram-user-dm-guard.ts` (switch and daily cap in the admin
+  «Сповіщення» — `NotificationSettings.tgUserByIdEnabled` / `tgUserByIdDailyCap`, `null` = `TELEGRAM_USER_DM_BY_ID_DAILY_CAP`
+  or 20 per Kyiv day; `TELEGRAM_USER_DM_BY_ID=0` switches it off for good, the admin cannot override it; stops for the day on
+  `PEER_FLOOD`) because the one personal session also carries Dzhura and the lunch listener. Technical phones (`380010000000+`) never get paid SMS
   (`sendPaidFallbackSms` → `technical_phone`) and are not revealed by `GET /viber-listings/:id/contact`.
 - `ViberListing.source` is only the coarse channel (`Viber1` / `telegram1`; also feeds the ingest hash). Where a
   Telegram listing came from is in `sourceChat` / `sourceTopicId` / `sourceMessageId` (first source wins on merge,
@@ -570,6 +573,15 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   /admin/lunch/ocr-compare`, block on the lunch tab) runs a day's real photos through several models and reports
   where they differ, with time and cost; it changes nothing.
 - The same listener process hosts «Джура» chat capture (`DZHURA_ENABLED`, default on) — see above.
+- **Personal account and SMS** (admin «Сповіщення», `/admin/notifications`, `AdminPage/NotificationSettingsTab.tsx`;
+  settings row `NotificationSettings`, 30 s cache, no deploy): when the bot does not reach a person, the personal
+  Telegram account is tried first (free), then paid SMS (TurboSMS). The owner switches the personal account per
+  scenario — match notices (`tgUserMatchEnabled`) and the author's listing confirmation
+  (`tgUserAuthorConfirmationEnabled`) — plus DMs by id (above). Every `sendMessageViaUserAccount` call carries a
+  `purpose` (`match` | `authorConfirmation` | `promo` | `other`) and writes one row to `TelegramUserSendLog` (purpose,
+  how it got through, ok — never the contact or text); `GET /admin/notification-settings/usage` returns those counts
+  (`telegramUser`), SMS per scenario this month (`smsByUseCase`) and the last five account errors without the contact.
+  Switches save at once, fields with «Зберегти».
 - Python phone-lookup scripts under `backend/opendatabot-fop-parser/` and
   `backend/internet-phone-search/`, invoked from `phone-lookup.ts`/`phonecheck.ts`.
 

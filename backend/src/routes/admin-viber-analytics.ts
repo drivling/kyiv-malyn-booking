@@ -500,6 +500,7 @@ r.post('/admin/viber-analytics/send-person-promo', requireAdmin, async (req, res
 
     const ok = await sendMessageViaUserAccount(phone, plainMessage, {
       telegramUsername: person?.telegramUsername ?? undefined,
+      purpose: 'promo',
     });
     if (ok) {
       await prisma.person.updateMany({

@@ -271,6 +271,7 @@ function createAdminMessagingRouter(deps) {
                     }
                     const ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
                         telegramUsername: person?.telegramUsername ?? undefined,
+                        purpose: 'promo',
                     });
                     if (ok) {
                         sent++;
@@ -354,6 +355,7 @@ function createAdminMessagingRouter(deps) {
                     continue;
                 let ok = await (0, telegram_1.sendMessageViaUserAccount)(phone, message, {
                     telegramUsername: p.telegramUsername ?? undefined,
+                    purpose: 'promo',
                 });
                 let via = 'telegram';
                 if (!ok) {
