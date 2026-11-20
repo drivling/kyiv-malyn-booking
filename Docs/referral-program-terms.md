@@ -131,7 +131,8 @@
 | `/confirmride` | Підтвердити поїздку пасажира (2 фото) |
 | `/referralreport` | Лише адмін: звіт по нарахуванням / підозрах |
 
-Admin API: `GET /admin/referrals/report`.
+Admin API: `GET /admin/referrals/report`. Веб-адмінка: `/admin/referrals` (виплати й бюджет), `/admin/referrals/photos`,
+`/admin/referrals/suspicious`, `/admin/referrals/invites`.
 
 ---
 

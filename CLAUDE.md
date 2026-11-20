@@ -203,8 +203,10 @@ of `dist` in a commit.
   and periods; used by «Доведе», «Факт прибуття», «Графіки» (`AdminPage/SchedulesTab.tsx`: trips grouped by direction, one
   dense row per trip), «Маршрути» (`AdminPage/RoutesTab.tsx`: each corridor with its «через …» variants under it,
   missing route points / car time as flags; cities with their flags and route count), «Сповіщення»
-  (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS» below) and «Наклейки зупинок»
-  (`AdminPage/StopStickerTab.tsx`, see «Stop stickers» below). Other admin tabs move to it one PR at
+  (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS» below), «Наклейки зупинок»
+  (`AdminPage/StopStickerTab.tsx`, see «Stop stickers» below) and «Реферали» (`AdminPage/referrals/`: sections
+  `/admin/referrals` = payouts with the budget, `photos`, `suspicious`, `invites`, the same `/admin/:tab?/:section?` route
+  as «Доведе»; pure helpers in `referralText.ts`). Other admin tabs move to it one PR at
   a time; **the map editor tab (`MapEditorTab`) is not to be
   touched** (owner's decision), `kit.css` on the
   `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
