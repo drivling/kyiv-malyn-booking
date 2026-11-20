@@ -205,8 +205,10 @@ of `dist` in a commit.
   and periods; used by «Доведе», «Факт прибуття», «Графіки» (`AdminPage/SchedulesTab.tsx`: trips grouped by direction, one
   dense row per trip), «Маршрути» (`AdminPage/RoutesTab.tsx`: each corridor with its «через …» variants under it,
   missing route points / car time as flags; cities with their flags and route count), «Сповіщення»
-  (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS» below) and «Наклейки зупинок»
-  (`AdminPage/StopStickerTab.tsx`, see «Stop stickers» below). Other admin tabs move to it one PR at
+  (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS» below), «Наклейки зупинок»
+  (`AdminPage/StopStickerTab.tsx`, see «Stop stickers» below) and «Реферали» (`AdminPage/referrals/`: sections
+  `/admin/referrals` = payouts with the budget, `photos`, `suspicious`, `invites`, the same `/admin/:tab?/:section?` route
+  as «Доведе»; pure helpers in `referralText.ts`). Other admin tabs move to it one PR at
   a time; **the map editor tab (`MapEditorTab`) is not to be
   touched** (owner's decision), `kit.css` on the
   `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
@@ -370,7 +372,9 @@ of `dist` in a commit.
   is what the budget counts — stored and own answers are free but still feed the walk). Google is asked only while
   today's calls are below the cap minus `reserveFor(cap)` (a fifth, at least 50) — the rest is for people. Our cap /
   Google 429 / 403 / switched off → `waiting` with `waitReason` (the ask goes back to the queue); own daily share spent →
-  wait until Kyiv midnight; budget spent → `done` / `budget` (`extend` reopens it). One container at a time leads a
+  wait until Kyiv midnight (the card's «На добу» field sends `extend` with a new `dailyBudget`; raising it above what was
+  spent today resumes a campaign that waits for `daily` at once, other wait reasons stay); budget spent → `done` /
+  `budget` (`extend` reopens it). One container at a time leads a
   campaign (`leaseUntil`, 2 min); an ask left `asking` by a vanished container returns to the queue after 5 min. The server
   leads one campaign at a time — the oldest that may run now (`leaderOf`, shared by `tick` and the views); the others in
   `running` carry `queuedBehind` and the admin shows «У черзі після …», not «Іде». Tables

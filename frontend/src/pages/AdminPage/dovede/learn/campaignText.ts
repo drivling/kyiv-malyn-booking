@@ -3,6 +3,9 @@ import type { DovedeCampaign, DovedeCampaignPlanView } from '@/types';
 import type { StatusTone } from '../../kit';
 import { hoursText } from './hours';
 
+/** Найбільша денна частка кампанії — та сама межа, що `MAX_DAILY_BUDGET` на сервері */
+export const MAX_DAILY = 5_000;
+
 export const WAIT_REASON: Record<string, string> = {
   cap: 'за день витрачено ліміт Google мінус запас для людей',
   daily: 'денну частку кампанії витрачено',

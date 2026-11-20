@@ -18,7 +18,7 @@ import { StopStickerTab } from './StopStickerTab';
 import { ArrivalReportsTab } from './ArrivalReportsTab';
 import { TransportCityBar } from './TransportCityBar';
 import { transportCitySearch, useAdminTransportCity } from './useAdminTransportCity';
-import { ReferralTab } from './ReferralTab';
+import { ReferralTab } from './referrals/ReferralTab';
 import { LunchTab } from './LunchTab';
 import { DzhuraTab } from './DzhuraTab';
 import { NotificationSettingsTab } from './NotificationSettingsTab';
@@ -73,7 +73,8 @@ function eltrainPageLabel(url: string): string {
 
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
-  // `section` — другий сегмент адреси (/admin/dovede/questions, /admin/lunch/menu); його читають «Доведе» й «Столова»
+  // `section` — другий сегмент адреси (/admin/dovede/questions, /admin/referrals/photos, /admin/lunch/menu); його читають
+  // «Доведе», «Реферали» й «Столова»
   const { tab: tabSlug, section } = useParams<{ tab?: string; section?: string }>();
   const activeTab: Tab = (tabSlug && SLUG_TO_TAB[tabSlug]) || DEFAULT_TAB;
   // Місто транспортних вкладок (?city=); між ними переходить разом із вкладкою
@@ -2920,7 +2921,7 @@ export const AdminPage: React.FC = () => {
         {activeTab === 'stickers' && <StopStickerTab key={transportCity} city={transportCity} />}
         {activeTab === 'arrivals' && <ArrivalReportsTab key={transportCity} city={transportCity} />}
 
-        {activeTab === 'referrals' && <ReferralTab />}
+        {activeTab === 'referrals' && <ReferralTab section={section} />}
 
         {activeTab === 'lunch' && <LunchTab section={section} />}
 
