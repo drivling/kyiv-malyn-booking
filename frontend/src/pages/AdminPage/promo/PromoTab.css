@@ -1,0 +1,171 @@
+/* Вкладка «Реклама» (promo/PromoTab.tsx) на спільному наборі kit/ */
+
+.promo-tab .admin-kit-nav {
+  margin-bottom: 12px;
+}
+.promo-muted {
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+.promo-ok {
+  color: #1e6b3a;
+  font-size: 0.8125rem;
+}
+.promo-error {
+  color: var(--pb-danger, #c5221f);
+  font-size: 0.75rem;
+}
+.promo-tag--ok {
+  background: #e7f6ec;
+  color: #1e6b3a;
+}
+
+.promo-block__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+.promo-block__head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.promo-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+.promo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.promo-count {
+  margin: 4px 0 6px;
+}
+
+.promo-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.promo-rows > li {
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  font-size: 0.875rem;
+}
+.promo-rows > li:first-child {
+  border-top: 0;
+}
+.promo-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 12px;
+}
+/* Списки людей — у дві-три колонки на широкому екрані */
+.promo-rows--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+}
+.promo-rows--grid > li,
+.promo-rows--grid > li:first-child {
+  border-top: 0;
+  border-bottom: 1px solid var(--pb-border-light, #eee);
+}
+
+.promo-results {
+  margin-bottom: 12px;
+}
+.promo-results > .sched-tags,
+.promo-results__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 6px;
+}
+
+.promo-contact {
+  margin-top: 14px;
+  padding: 8px 12px;
+  border: 1px dashed var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+}
+.promo-contact summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+.promo-contact__form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 12px;
+  margin-top: 8px;
+}
+.promo-contact__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: var(--pb-text-hint, #737373);
+}
+.promo-contact__form input {
+  padding: 6px 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+}
+
+/* ---- Постійні клієнти: шапка рядком, маршрути, опис, ідеї в згортці, кнопки сценаріїв */
+.promo-client {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+}
+.promo-client__head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 4px 12px;
+}
+.promo-client__summary {
+  margin: 0;
+  font-size: 0.875rem;
+}
+.promo-client__ideas {
+  font-size: 0.8125rem;
+}
+.promo-client__ideas summary {
+  cursor: pointer;
+  color: var(--pb-text-hint, #737373);
+}
+.promo-client__ideas ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+.promo-client__send {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.promo-client__scenario {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.promo-more {
+  margin-top: 10px;
+}
