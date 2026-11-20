@@ -73,7 +73,7 @@ function eltrainPageLabel(url: string): string {
 
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
-  // `section` — другий сегмент адреси (/admin/dovede/questions); його читає лише вкладка «Доведе»
+  // `section` — другий сегмент адреси (/admin/dovede/questions, /admin/lunch/menu); його читають «Доведе» й «Столова»
   const { tab: tabSlug, section } = useParams<{ tab?: string; section?: string }>();
   const activeTab: Tab = (tabSlug && SLUG_TO_TAB[tabSlug]) || DEFAULT_TAB;
   // Місто транспортних вкладок (?city=); між ними переходить разом із вкладкою
@@ -2922,7 +2922,7 @@ export const AdminPage: React.FC = () => {
 
         {activeTab === 'referrals' && <ReferralTab />}
 
-        {activeTab === 'lunch' && <LunchTab />}
+        {activeTab === 'lunch' && <LunchTab section={section} />}
 
         {activeTab === 'dzhura' && <DzhuraTab />}
 

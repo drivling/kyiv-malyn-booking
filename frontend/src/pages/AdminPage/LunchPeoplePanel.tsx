@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/Button';
 import type { LunchDayPeople, LunchPerson } from '@/types';
 
 function formatTime(iso: string): string {
@@ -24,24 +23,24 @@ export const LunchPeoplePanel: React.FC<{
   const shown = showAll ? people : withoutOrder;
 
   return (
-    <section className="lunch-card">
-      <div className="lunch-card__row">
-        <h3 className="lunch-card__title">
+    <section className="lunch-block" aria-labelledby="lunch-people-title">
+      <div className="lunch-block__head">
+        <h3 id="lunch-people-title">
           Писали в групі сьогодні · без замовлення ({withoutOrder.length})
         </h3>
-        <div className="lunch-actions lunch-actions--tight">
+        <div className="lunch-actions lunch-actions--tight lunch-block__action">
           <label className="lunch-check">
             <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
             і з замовленням ({people.length - withoutOrder.length})
           </label>
-          <Button type="button" variant="secondary" onClick={onRefresh} disabled={loading}>
+          <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={onRefresh} disabled={loading}>
             Оновити список
-          </Button>
+          </button>
         </div>
       </div>
-      <p className="lunch-card__hint">
-        Список береться з «Джури» (збережені повідомлення групи), тож Telegram не чіпається. «Розібрати» шукає
-        повідомлення цієї людини за сьогодні й розбирає лише її — чужі замовлення та ручні правки лишаються.
+      <p className="lunch-muted lunch-block__hint">
+        Список з «Джури» (збережені повідомлення групи), Telegram не чіпається. «Розібрати» розбирає лише цю людину —
+        чужі замовлення й ручні правки лишаються.
       </p>
       <label className="lunch-check">
         <input type="checkbox" checked={notify} onChange={(e) => onNotifyChange(e.target.checked)} />
@@ -57,24 +56,23 @@ export const LunchPeoplePanel: React.FC<{
           {loading ? 'Завантаження…' : 'Усі, хто писав у групі, мають замовлення.'}
         </p>
       ) : (
-        <ul className="lunch-people">
+        <ul className="lunch-rows lunch-people" aria-label="Писали в групі">
           {shown.map((p) => (
             <li key={p.tgUserId} className="lunch-person">
               <div className="lunch-person__head">
                 <strong>{p.name}</strong>
                 {p.username ? <span className="lunch-muted">@{p.username}</span> : null}
-                <span className={`lunch-badge ${p.hasOrder ? 'lunch-badge--ordering' : 'lunch-badge--none'}`}>
+                <span className={p.hasOrder ? 'sched-tag' : 'sched-flag'}>
                   {p.hasOrder ? `є замовлення · ${p.orderTotalUah ?? 0} грн` : 'без замовлення'}
                 </span>
-                <Button
+                <button
                   type="button"
-                  variant={p.hasOrder ? 'secondary' : 'primary'}
-                  className="lunch-pay-btn"
+                  className={`admin-kit-btn${p.hasOrder ? ' admin-kit-btn--quiet' : ''} lunch-person__btn`}
                   disabled={disabled}
                   onClick={() => onReparse(p)}
                 >
                   {busyTgUserId === p.tgUserId ? 'Розбір…' : p.hasOrder ? 'Перерозібрати' : 'Розібрати'}
-                </Button>
+                </button>
               </div>
               <ul className="lunch-person__msgs">
                 {p.messageCount > p.messages.length ? (

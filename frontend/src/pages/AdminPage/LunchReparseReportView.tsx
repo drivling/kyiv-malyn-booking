@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { Button } from '@/components/Button';
 import type { LunchReparseDetail, LunchReparseReport } from '@/types';
 
 const SOURCE_LABEL: Record<string, string> = {
@@ -35,9 +34,9 @@ export const LunchReparseReportView: React.FC<{
     <section className="lunch-card lunch-report" aria-label="Звіт розбору">
       <div className="lunch-card__row">
         <h3 className="lunch-card__title">{title}</h3>
-        <Button type="button" variant="secondary" onClick={onClose}>
+        <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={onClose}>
           Закрити звіт
-        </Button>
+        </button>
       </div>
       <p className="lunch-card__hint" style={{ marginTop: 0 }}>
         Повідомлень: {report.scanned ?? 0} · замовлень: {report.orders ?? 0} · оплат: {report.payments ?? 0}
