@@ -5,6 +5,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
@@ -41,7 +42,7 @@ type Call = { model: string; op: string; args: unknown };
  * Стаб, що записує кожен виклик у `calls` — так можна перевірити не лише результат,
  * а й ПОРЯДОК операцій (архів до видалень, Booking до ViberListing).
  */
-function makeApp(overrides: Partial<typeof BASE_PERSON> = {}, seed: Record<string, unknown[]> = {}) {
+async function makeApp(overrides: Partial<typeof BASE_PERSON> = {}, seed: Record<string, unknown[]> = {}) {
   const person = { ...BASE_PERSON, ...overrides };
   const calls: Call[] = [];
   const rows: Record<string, unknown[]> = {
@@ -107,7 +108,7 @@ function makeApp(overrides: Partial<typeof BASE_PERSON> = {}, seed: Record<strin
     $transaction: async (fn: (tx: unknown) => unknown) => fn(prisma),
   } as unknown as PrismaClient;
 
-  return { app: createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }), calls, person };
+  return { app: await listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD })), calls, person };
 }
 
 const find = (calls: Call[], model: string, op: string) => calls.find((c) => c.model === model && c.op === op);
@@ -118,7 +119,7 @@ const dataOf = (c: Call | undefined) => (c?.args as { data: Record<string, unkno
 // ---------- auth ----------
 
 test('нові ендпоінти вимагають адмін-токен', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   await request(app).post('/admin/persons/42/archive').send({ reason: 'скарга' }).expect(401);
   await request(app).get('/admin/person-archives').expect(401);
   await request(app).get('/admin/person-archives/5').expect(401);
@@ -127,7 +128,7 @@ test('нові ендпоінти вимагають адмін-токен', asy
 // ---------- заборона номера ----------
 
 test('PUT: увімкнення заборони ставить прапорець і глушить сповіщення', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   await request(app)
     .put('/admin/persons/42')
     .set('Authorization', AUTH)
@@ -143,7 +144,7 @@ test('PUT: увімкнення заборони ставить прапорец
 });
 
 test('PUT: увімкнення заборони ховає активні оголошення з сайту', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   await request(app)
     .put('/admin/persons/42')
     .set('Authorization', AUTH)
@@ -158,7 +159,7 @@ test('PUT: увімкнення заборони ховає активні ог�
 });
 
 test('PUT: повторне збереження вже заблокованої персони не перезапускає приховування', async () => {
-  const { app, calls } = makeApp({ phoneBlockedAt: new Date('2026-09-01T00:00:00Z') });
+  const { app, calls } = await makeApp({ phoneBlockedAt: new Date('2026-09-01T00:00:00Z') });
   await request(app)
     .put('/admin/persons/42')
     .set('Authorization', AUTH)
@@ -172,7 +173,7 @@ test('PUT: повторне збереження вже заблокованої
 });
 
 test('PUT: зняття заборони обнуляє прапорець і лічильник спроб, але не вмикає оголошення', async () => {
-  const { app, calls } = makeApp({
+  const { app, calls } = await makeApp({
     phoneBlockedAt: new Date('2026-09-01T00:00:00Z'),
     phoneBlockReason: 'стара скарга',
     blockedAttemptCount: 4,
@@ -197,7 +198,7 @@ test('PUT: зняття заборони обнуляє прапорець і л
 // ---------- архівація ----------
 
 test('POST /archive: потрібна причина', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   await request(app).post('/admin/persons/42/archive').set('Authorization', AUTH).send({}).expect(400);
   await request(app)
     .post('/admin/persons/42/archive')
@@ -207,7 +208,7 @@ test('POST /archive: потрібна причина', async () => {
 });
 
 test('POST /archive: знімок пишеться ДО видалень, Booking — перед ViberListing', async () => {
-  const { app, calls } = makeApp(
+  const { app, calls } = await makeApp(
     {},
     {
       booking: [{ id: 1 }, { id: 2 }],
@@ -239,7 +240,7 @@ test('POST /archive: знімок пишеться ДО видалень, Bookin
 });
 
 test('POST /archive: Person вичищається, але НЕ видаляється', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   await request(app)
     .post('/admin/persons/42/archive')
     .set('Authorization', AUTH)
@@ -260,7 +261,7 @@ test('POST /archive: Person вичищається, але НЕ видаляєт
 });
 
 test('POST /archive: виплачені нарахування лишаються, але знеособлюються', async () => {
-  const { app, calls } = makeApp(
+  const { app, calls } = await makeApp(
     {},
     {
       referralReward: [
@@ -300,7 +301,7 @@ test('POST /archive: виплачені нарахування лишаютьс�
 });
 
 test('GET /admin/person-archives: список без payload', async () => {
-  const { app, calls } = makeApp({}, { personDataArchive: [{ id: 5, phoneNormalized: '380679551952' }] });
+  const { app, calls } = await makeApp({}, { personDataArchive: [{ id: 5, phoneNormalized: '380679551952' }] });
   await request(app).get('/admin/person-archives').set('Authorization', AUTH).expect(200);
 
   const select = (find(calls, 'personDataArchive', 'findMany')!.args as { select: Record<string, boolean> }).select;

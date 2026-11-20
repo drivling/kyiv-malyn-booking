@@ -1,5 +1,6 @@
 import { ZubastykPhonesPanel } from './ZubastykPhonesPanel';
 import { SchedulesTab } from './SchedulesTab';
+import { RoutesTab } from './RoutesTab';
 import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
@@ -1683,119 +1684,18 @@ export const AdminPage: React.FC = () => {
 
         {activeTab === 'routes' && (
           <div className="tab-content">
-            <div className="table-container" style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
-                <h3 style={{ margin: 0 }}>Міста / точки маршруту</h3>
-                <Button type="button" onClick={() => openTripPointModal()}>Додати місто</Button>
-              </div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Code</th>
-                    <th>Назва</th>
-                    <th>Sort</th>
-                    <th>Обовʼязкова</th>
-                    <th>У «звідки/куди»</th>
-                    <th>У попутках</th>
-                    <th>Локальний транспорт</th>
-                    <th>Швидкі напрямки</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tripPoints.map((p) => (
-                    <tr key={p.id}>
-                      <td>{p.code}</td>
-                      <td>{p.nameUk}</td>
-                      <td>{p.sortOrder}</td>
-                      <td>{p.requiredOnTrip ? 'так' : '—'}</td>
-                      <td>{p.appearInFromTo ? 'так' : '—'}</td>
-                      <td>{p.appearInPoputky ? 'так' : '—'}</td>
-                      <td>{p.hasLocalTransport ? 'так' : '—'}</td>
-                      <td style={{ fontSize: 12, maxWidth: 220 }}>
-                        {(p.quickDirectPointIds || [])
-                          .map((id) => tripPoints.find((x) => x.id === id)?.nameUk || `#${id}`)
-                          .join(', ') || '—'}
-                      </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        <Button type="button" variant="secondary" onClick={() => openTripPointModal(p)}>
-                          Редагувати
-                        </Button>{' '}
-                        <Button type="button" variant="secondary" onClick={() => handleDeleteTripPoint(p)}>
-                          Видалити
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="admin-controls" style={{ marginBottom: 12 }}>
-              <div className="admin-controls-actions">
-                <Button type="button" onClick={loadRoutesTab}>Оновити</Button>
-                <Button type="button" onClick={() => openTripRouteModal()}>Додати маршрут</Button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="admin-loading" aria-live="polite">Завантаження...</div>
-            ) : adminTripRoutes.length === 0 ? (
-              <div className="admin-empty">
-                <p className="admin-empty-text">Ще немає маршрутів TripRoute</p>
-                <Button onClick={() => openTripRouteModal()}>Додати перший маршрут</Button>
-              </div>
-            ) : (
-              <div className="table-container">
-                <h3 style={{ marginTop: 0 }}>Маршрути (TripRoute)</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Slug</th>
-                      <th>Назва</th>
-                      <th>Start → End</th>
-                      <th>Via</th>
-                      <th>Тип</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {adminTripRoutes.map((r) => {
-                      const vias = (r.stops || [])
-                        .filter((s) => s.role === 'via')
-                        .sort((a, b) => a.position - b.position)
-                        .map((s) => s.point?.nameUk || `#${s.pointId}`)
-                        .join(', ');
-                      const kind = r.corridorTripRouteId
-                        ? `variant → #${r.corridorTripRouteId}`
-                        : 'corridor';
-                      return (
-                        <tr key={r.id}>
-                          <td>#{r.id}</td>
-                          <td><code>{r.slug}</code></td>
-                          <td>{r.labelUk}</td>
-                          <td>
-                            {r.startPoint?.nameUk || `#${r.startPointId}`} →{' '}
-                            {r.endPoint?.nameUk || `#${r.endPointId}`}
-                          </td>
-                          <td style={{ fontSize: 13 }}>{vias || '—'}</td>
-                          <td style={{ fontSize: 12 }}>{kind}</td>
-                          <td style={{ whiteSpace: 'nowrap' }}>
-                            <Button type="button" variant="secondary" onClick={() => openTripRouteModal(r)}>
-                              Редагувати
-                            </Button>{' '}
-                            <Button type="button" variant="secondary" onClick={() => handleDeleteTripRoute(r)}>
-                              Видалити
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <RoutesTab
+              points={tripPoints}
+              routes={adminTripRoutes}
+              loading={loading}
+              onReload={loadRoutesTab}
+              onAddPoint={() => openTripPointModal()}
+              onEditPoint={(p) => openTripPointModal(p)}
+              onDeletePoint={(p) => handleDeleteTripPoint(p)}
+              onAddRoute={() => openTripRouteModal()}
+              onEditRoute={(r) => openTripRouteModal(r)}
+              onDeleteRoute={(r) => handleDeleteTripRoute(r)}
+            />
           </div>
         )}
 

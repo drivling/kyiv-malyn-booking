@@ -189,8 +189,10 @@ of `dist` in a commit.
   `GET /admin/dovede/city/place/routes?city=&key=`, whole-base actions in a folded «Небезпечна зона»), `learning`
   (learning campaigns, see below) and `settings`; an unknown section redirects to Огляд. Shared admin pieces (section nav, header, stat tiles, status pill, empty state, setting row, `ChipGroup` for filters
   and periods; used by «Доведе», «Факт прибуття», «Графіки» (`AdminPage/SchedulesTab.tsx`: trips grouped by direction, one
-  dense row per trip) and «Сповіщення» (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS»
-  below). Other admin tabs move to it one PR at a time; **the map editor tab (`MapEditorTab`) is not to be
+  dense row per trip), «Маршрути» (`AdminPage/RoutesTab.tsx`: each corridor with its «через …» variants under it,
+  missing route points / car time as flags; cities with their flags and route count) and «Сповіщення»
+  (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS» below). Other admin tabs move to it one PR at
+  a time; **the map editor tab (`MapEditorTab`) is not to be
   touched** (owner's decision), `kit.css` on the
   `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
   `data-label` (CSS only). The same tab teaches synonyms without a deploy
@@ -500,7 +502,9 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
 
 Business logic takes its dependencies (Prisma client, admin password, etc.) as explicit parameters
 rather than reading module-level singletons, so tests can inject stubs/mocks. Key hooks:
-- `createApp({ prisma, adminPassword })` + `supertest` for HTTP-level tests, no `app.listen()`.
+- `createApp({ prisma, adminPassword })` + `supertest` for HTTP-level tests: always `request(await listenLocal(app))`
+  (`src/http-test-server.ts`, closed after each test), never `request(app)`. supertest listens on `::` but connects to
+  127.0.0.1, and on macOS another process holding that port on 127.0.0.1 answers instead (flaky 404s).
 - `telegram.ts` exposes `setTelegramPrismaForTests` / `setTelegramBotForTests` / `setSpawnForTests`
   (and matching `reset*`) to avoid hitting real Telegram/Postgres/child processes in unit tests.
 - `vitest.setup.ts` deletes `TELEGRAM_BOT_TOKEN` before any module loads, so importing `telegram.ts`

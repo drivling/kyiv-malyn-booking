@@ -4,8 +4,10 @@
  * (Docs/transport-offline-writes-2026-10.md): occurredAt замість серверного «зараз», ідемпотентність за
  * clientId + clientEventId.
  */
-import { test } from 'vitest';
+import { afterEach, test } from 'vitest';
 import assert from 'node:assert/strict';
+import http from 'node:http';
+import type { Application } from 'express';
 import request from 'supertest';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
@@ -42,6 +44,11 @@ function input(over: Partial<ArrivalReportInput> = {}): ArrivalReportInput {
 
 /** Київ у жовтні — UTC+3 */
 const kyiv = (hhmm: string, date = '2026-10-09') => new Date(`${date}T${hhmm}:00+03:00`);
+/** Київ у листопаді — UTC+2; секунди — щоб перевіряти зміну хвилини між двома натисканнями */
+const kyivNov = (hhmmss: string, date = '2026-11-20') => new Date(`${date}T${hhmmss.length === 5 ? `${hhmmss}:00` : hhmmss}+02:00`);
+/** «Зараз» сервера в HTTP-тестах: годинник підставлено в createApp({ now }), справжній час не читається */
+const NOON = kyivNov('12:00');
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 test('parseArrivalReport: валідне тіло, необов’язкові поля і clientId', () => {
   assert.deepEqual(parseArrivalReport({ ...base, minutesAgo: 2, clientId: 'abcd-1234-efgh' }), {
@@ -160,8 +167,29 @@ test('parseReportDays', () => {
 
 type Stored = ArrivalReportRow & { id: number; createdAt: Date };
 
-function makeApp(initial: Stored[] = [], opts: { createThrows?: { code: string } } = {}) {
+/**
+ * Сервер тесту слухає саме 127.0.0.1. `request(app)` у supertest слухає `::` (порт 0), а стукає на
+ * 127.0.0.1 — на macOS цей порт може вже тримати інший процес саме на 127.0.0.1, і тоді відповідає він
+ * (так 2026-11-20 повтор звіту отримав 404 від чужого сервера). Явна адреса цей порт не отримає.
+ */
+const servers: http.Server[] = [];
+async function listenLocal(app: Application): Promise<http.Server> {
+  const server = http.createServer(app);
+  await new Promise<void>((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', () => resolve());
+  });
+  servers.push(server);
+  return server;
+}
+afterEach(async () => {
+  await Promise.all(servers.splice(0).map((s) => new Promise<void>((resolve) => s.close(() => resolve()))));
+});
+
+async function makeApp(initial: Stored[] = [], opts: { createThrows?: { code: string }; now?: Date } = {}) {
   const rows: Stored[] = [...initial];
+  /** Годинник сервера: тест пересуває `clock.now` між запитами */
+  const clock = { now: opts.now ?? NOON };
   let createThrows = opts.createThrows;
   const prisma = {
     transportTrip: {
@@ -178,7 +206,7 @@ function makeApp(initial: Stored[] = [], opts: { createThrows?: { code: string }
           createThrows = undefined;
           throw Object.assign(new Error('Unique constraint failed'), e);
         }
-        const row = { ...data, id: rows.length + 1, createdAt: new Date() };
+        const row = { ...data, id: rows.length + 1, createdAt: clock.now };
         rows.push(row);
         return row;
       },
@@ -201,40 +229,46 @@ function makeApp(initial: Stored[] = [], opts: { createThrows?: { code: string }
       },
     },
   } as unknown as PrismaClient;
-  return { app: createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }), prisma, rows };
+  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD, now: () => clock.now });
+  return { app: await listenLocal(app), prisma, rows, clock };
 }
 
-const nowHhmm = () => minsToHhmm(kyivClock(new Date()).mins);
-
-test('POST /transport/arrival-reports: записує факт прибуття, повтор за 10 хв не рахується', async () => {
-  const { app, rows } = makeApp();
-  const body = { ...base, scheduledTime: nowHhmm() };
-  const send = () => request(app).post('/transport/arrival-reports').set('X-Forwarded-For', '203.0.113.5').set('User-Agent', 'Phone').send(body);
+// Час натискання → (розклад, перший звіт, повтор через хвилину). Повтор має той самий ключ навіть
+// через північ: доба рейсу — за розкладом, а не за датою повтору.
+test.each([
+  { name: 'полудень', scheduled: '12:00', first: kyivNov('12:00:10'), repeat: kyivNov('12:01:05'), serviceDate: '2026-11-20' },
+  { name: '00:30 за Києвом (ще 22:30 UTC попередньої доби)', scheduled: '00:30', first: kyivNov('00:30:40'), repeat: kyivNov('00:31:20'), serviceDate: '2026-11-20' },
+  { name: 'повтор уже після півночі', scheduled: '23:59', first: kyivNov('23:59:30', '2026-11-19'), repeat: kyivNov('00:00:30'), serviceDate: '2026-11-19' },
+])('POST /transport/arrival-reports: записує факт прибуття, повтор за 10 хв не рахується — $name', async ({ scheduled, first, repeat, serviceDate }) => {
+  const { app, rows, clock } = await makeApp([], { now: first });
+  const body = { ...base, scheduledTime: scheduled };
+  const send = (b: object = body) => request(app).post('/transport/arrival-reports').set('X-Forwarded-For', '203.0.113.5').set('User-Agent', 'Phone').send(b);
   const res = await send().expect(201);
   assert.equal(res.body.counted, true);
-  assert.ok(Math.abs(res.body.delayMin) <= 1);
+  assert.equal(res.body.delayMin, 0);
   assert.equal(rows.length, 1);
-  assert.equal(rows[0].kind, 'arrived');
-  assert.equal(rows[0].source, 'route');
+  assert.deepEqual([rows[0].kind, rows[0].source, rows[0].serviceDate, rows[0].actualTime], ['arrived', 'route', serviceDate, scheduled]);
+  clock.now = repeat;
   const again = await send().expect(200);
   assert.equal(again.body.counted, false);
+  assert.equal(again.body.delayMin, 1);
   assert.equal(rows.length, 1);
-  await request(app)
-    .post('/transport/arrival-reports')
-    .set('X-Forwarded-For', '203.0.113.5')
-    .set('User-Agent', 'Phone')
-    .send({ ...body, kind: 'missed', waitedMin: 15 })
-    .expect(201);
+  await send({ ...body, kind: 'missed', waitedMin: 15 }).expect(201);
   assert.equal(rows.length, 2);
   assert.equal(rows[1].waitedMin, 15);
+  assert.equal(rows[1].serviceDate, serviceDate);
+  // через 10 хв після першого — уже новий факт
+  clock.now = new Date(first.getTime() + 10 * 60 * 1000);
+  await send().expect(201);
+  assert.equal(rows.length, 3);
 });
 
 test('POST /transport/arrival-reports: запис із черги — occurredAt, той самий clientEventId не дублюється', async () => {
-  const { app, rows } = makeApp();
-  const occurredAt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+  const { app, rows } = await makeApp();
+  const occurredAt = new Date(NOON.getTime() - 3 * 60 * 60 * 1000);
   const body = {
     ...base,
-    scheduledTime: minsToHhmm(kyivClock(occurredAt).mins - 4),
+    scheduledTime: '08:56',
     minutesAgo: 2,
     occurredAt: occurredAt.toISOString(),
     clientId: 'abcd-1234-efgh',
@@ -244,7 +278,7 @@ test('POST /transport/arrival-reports: запис із черги — occurredAt
   // за серверним часом було б 422 (три години тому) — а за occurredAt це факт у вікні
   const res = await send('203.0.113.5').expect(201);
   assert.equal(res.body.counted, true);
-  assert.equal(res.body.actualTime, minsToHhmm(kyivClock(occurredAt).mins - 2));
+  assert.equal(res.body.actualTime, '08:58');
   assert.equal(res.body.delayMin, 2);
   assert.equal(rows[0].clientEventId, body.clientEventId);
   // повтор із черги (інша мережа, через 10+ хв за IP-дедупом) — відповідь та сама, рядок один
@@ -261,35 +295,34 @@ test('POST /transport/arrival-reports: запис із черги — occurredAt
 });
 
 test('POST /transport/arrival-reports: гонка двох вкладок (P2002) — 200 { counted: false }', async () => {
-  const { app, rows } = makeApp([], { createThrows: { code: 'P2002' } });
+  const { app, rows } = await makeApp([], { createThrows: { code: 'P2002' } });
   const res = await request(app)
     .post('/transport/arrival-reports')
-    .send({ ...base, scheduledTime: nowHhmm(), clientId: 'abcd-1234-efgh', clientEventId: 'ev-0001-aaaa' })
+    .send({ ...base, scheduledTime: '12:00', clientId: 'abcd-1234-efgh', clientEventId: 'ev-0001-aaaa' })
     .expect(200);
   assert.equal(res.body.counted, false);
   assert.equal(rows.length, 0);
   // інша помилка бази — 500
-  const broken = makeApp([], { createThrows: { code: 'P1001' } });
-  await request(broken.app).post('/transport/arrival-reports').send({ ...base, scheduledTime: nowHhmm() }).expect(500);
+  const broken = await makeApp([], { createThrows: { code: 'P1001' } });
+  await request(broken.app).post('/transport/arrival-reports').send({ ...base, scheduledTime: '12:00' }).expect(500);
 });
 
 test('POST /transport/arrival-reports: 400 / 404 / 422, нічого не пишеться', async () => {
-  const { app, rows } = makeApp();
+  const { app, rows } = await makeApp();
   const post = (b: object) => request(app).post('/transport/arrival-reports').send(b);
   await post({ ...base, kind: 'x' }).expect(400);
-  await post({ ...base, scheduledTime: nowHhmm(), occurredAt: 'not-a-date' }).expect(400);
-  const old = await post({ ...base, scheduledTime: nowHhmm(), occurredAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString() }).expect(422);
+  await post({ ...base, scheduledTime: '12:00', occurredAt: 'not-a-date' }).expect(400);
+  const old = await post({ ...base, scheduledTime: '12:00', occurredAt: new Date(NOON.getTime() - 8 * DAY_MS).toISOString() }).expect(422);
   assert.equal(old.body.error, 'Report is too old');
-  await post({ ...base, scheduledTime: nowHhmm(), tripId: 'unknown' }).expect(404);
-  await post({ ...base, scheduledTime: nowHhmm(), routeId: '7' }).expect(404);
-  await post({ ...base, scheduledTime: nowHhmm(), stopId: 'st_9999' }).expect(404);
-  const far = minsToHhmm(kyivClock(new Date()).mins + 300);
-  await post({ ...base, scheduledTime: far }).expect(422);
+  await post({ ...base, scheduledTime: '12:00', tripId: 'unknown' }).expect(404);
+  await post({ ...base, scheduledTime: '12:00', routeId: '7' }).expect(404);
+  await post({ ...base, scheduledTime: '12:00', stopId: 'st_9999' }).expect(404);
+  await post({ ...base, scheduledTime: '17:00' }).expect(422);
   assert.equal(rows.length, 0);
 });
 
 test('GET /admin/transport/arrival-reports: auth, зведення по рейсу на зупинці', async () => {
-  const at = new Date();
+  const at = NOON;
   const row = (id: number, over: Partial<Stored>): Stored => ({
     id,
     kind: 'arrived',
@@ -308,12 +341,12 @@ test('GET /admin/transport/arrival-reports: auth, зведення по рейс
     createdAt: at,
     ...over,
   });
-  const { app } = makeApp([
+  const { app } = await makeApp([
     row(1, {}),
     row(2, { serviceDate: '2026-10-09', actualTime: '17:56', delayMin: 10, source: 'board' }),
     row(3, { kind: 'missed', serviceDate: '2026-10-07', actualTime: null, delayMin: null, waitedMin: 30 }),
     row(4, { routeId: '3', tripId: 't3', scheduledTime: '08:00', delayMin: -1 }),
-    row(5, { createdAt: new Date(at.getTime() - 40 * 24 * 60 * 60 * 1000) }),
+    row(5, { createdAt: new Date(at.getTime() - 40 * DAY_MS) }),
   ]);
   await request(app).get('/admin/transport/arrival-reports').expect(401);
   const res = await request(app)
@@ -331,7 +364,7 @@ test('GET /admin/transport/arrival-reports: auth, зведення по рейс
 });
 
 test('arrivalReportStats: days=1 — лише сьогоднішня київська доба рейсу', async () => {
-  const { prisma } = makeApp([
+  const { prisma } = await makeApp([
     { id: 1, kind: 'arrived', routeId: '5', tripId: 't', direction: 'there', stopId: 'st_0015', serviceDate: '2026-10-08', scheduledTime: '10:00', actualTime: '10:01', delayMin: 1, waitedMin: null, source: 'board', clientId: null, clientEventId: null, createdAt: kyiv('10:01', '2026-10-08') },
     { id: 2, kind: 'arrived', routeId: '5', tripId: 't', direction: 'there', stopId: 'st_0015', serviceDate: '2026-10-09', scheduledTime: '10:00', actualTime: '10:03', delayMin: 3, waitedMin: null, source: 'board', clientId: null, clientEventId: null, createdAt: kyiv('10:03') },
   ]);
@@ -340,9 +373,9 @@ test('arrivalReportStats: days=1 — лише сьогоднішня київс�
 });
 
 test('DELETE /admin/transport/arrival-reports/:id', async () => {
-  const { app, rows } = makeApp();
+  const { app, rows } = await makeApp();
   const auth = adminAuthToken(TEST_ADMIN_PASSWORD);
-  await request(app).post('/transport/arrival-reports').send({ ...base, scheduledTime: nowHhmm() }).expect(201);
+  await request(app).post('/transport/arrival-reports').send({ ...base, scheduledTime: '12:00' }).expect(201);
   await request(app).delete('/admin/transport/arrival-reports/1').expect(401);
   await request(app).delete('/admin/transport/arrival-reports/abc').set('Authorization', auth).expect(400);
   await request(app).delete('/admin/transport/arrival-reports/9').set('Authorization', auth).expect(404);

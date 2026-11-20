@@ -5,6 +5,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import express from 'express';
 import request from 'supertest';
+import { listenLocal } from '../http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createCityQuality, findSuspicious, type QualityRouteRow } from './city-quality';
 import { createAdminDovedeRouter } from '../routes/admin-dovede';
@@ -120,21 +121,22 @@ test('звіт: лише Google не в архіві; «Нормально» п�
   setAdminPassword(app, PASSWORD);
   const settings = createDovedeSettings({ prisma: db.prisma, env: {} });
   app.use(createAdminDovedeRouter({ prisma: db.prisma, understand: null, settings, cityRoutes: {} as CityRoutes, quality: q, driveTime: async () => ({ minutes: 95, source: 'fixed' }) }));
+  const server = await listenLocal(app);
 
-  assert.equal((await request(app).get('/admin/dovede/city/quality')).status, 401);
-  assert.equal((await request(app).get('/admin/dovede/city/quality?city=Lviv').set('Authorization', AUTH)).status, 400);
-  const kyiv = await request(app).get('/admin/dovede/city/quality?city=Kyiv').set('Authorization', AUTH);
+  assert.equal((await request(server).get('/admin/dovede/city/quality')).status, 401);
+  assert.equal((await request(server).get('/admin/dovede/city/quality?city=Lviv').set('Authorization', AUTH)).status, 400);
+  const kyiv = await request(server).get('/admin/dovede/city/quality?city=Kyiv').set('Authorization', AUTH);
   assert.equal(kyiv.status, 200);
   assert.equal(kyiv.body.items[0].label, 'ТЕУ');
 
-  assert.equal((await request(app).post('/admin/dovede/city/place/ok').set('Authorization', AUTH).send({ city: 'Kyiv', key: 'теу' })).status, 400);
-  assert.equal((await request(app).post('/admin/dovede/city/place/ok').set('Authorization', AUTH).send({ city: 'Kyiv', key: 'немає', ok: true })).status, 404);
-  const ok = await request(app).post('/admin/dovede/city/place/ok').set('Authorization', AUTH).send({ city: 'Kyiv', key: 'теу', ok: true });
+  assert.equal((await request(server).post('/admin/dovede/city/place/ok').set('Authorization', AUTH).send({ city: 'Kyiv', key: 'теу' })).status, 400);
+  assert.equal((await request(server).post('/admin/dovede/city/place/ok').set('Authorization', AUTH).send({ city: 'Kyiv', key: 'немає', ok: true })).status, 404);
+  const ok = await request(server).post('/admin/dovede/city/place/ok').set('Authorization', AUTH).send({ city: 'Kyiv', key: 'теу', ok: true });
   assert.deepEqual(ok.body, { city: 'Kyiv', key: 'теу', ok: true });
   assert.equal(db.places[0].label, 'ТЕУ');
   assert.equal(db.places[0].archivedAt, null);
   const after = await q.report('Kyiv');
   assert.deepEqual([after.items.length, after.okPlaces], [0, 1]);
-  await request(app).post('/admin/dovede/city/place/ok').set('Authorization', AUTH).send({ city: 'Kyiv', key: 'теу', ok: false });
+  await request(server).post('/admin/dovede/city/place/ok').set('Authorization', AUTH).send({ city: 'Kyiv', key: 'теу', ok: false });
   assert.equal((await q.report('Kyiv')).items.length, 1);
 });

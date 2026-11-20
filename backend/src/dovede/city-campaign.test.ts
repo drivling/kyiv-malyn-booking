@@ -7,6 +7,7 @@ import { expect, test } from 'vitest';
 import assert from 'node:assert/strict';
 import express from 'express';
 import request from 'supertest';
+import { listenLocal } from '../http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { CampaignInputError, buildPlan, createCityCampaigns, estimateCost, expandSeeds, reserveFor, type CampaignPlan } from './city-campaign';
 import { LEARN_PLACES } from './learn-places';
@@ -437,11 +438,12 @@ test('HTTP: лише адмін; заготовки, оцінка, запуск,
   setAdminPassword(app, PASSWORD);
   const settings = createDovedeSettings({ prisma: t.prisma, env: {}, now: () => NOW });
   app.use(createAdminDovedeRouter({ prisma: t.prisma, understand: null, settings, cityRoutes: {} as CityRoutes, campaigns: t.svc, driveTime: async () => ({ minutes: 95, source: 'fixed' }) }));
+  const server = await listenLocal(app);
 
-  assert.equal((await request(app).get('/admin/dovede/city/campaigns')).status, 401);
-  assert.equal((await request(app).post('/admin/dovede/city/campaigns').send(CUSTOM)).status, 401);
+  assert.equal((await request(server).get('/admin/dovede/city/campaigns')).status, 401);
+  assert.equal((await request(server).post('/admin/dovede/city/campaigns').send(CUSTOM)).status, 401);
 
-  const presets = await request(app).get('/admin/dovede/city/campaigns/presets').set('Authorization', AUTH);
+  const presets = await request(server).get('/admin/dovede/city/campaigns/presets').set('Authorization', AUTH);
   assert.deepEqual(
     presets.body.presets.map((p: { id: string }) => p.id),
     ['learn', 'refill-evening', 'refill-weekend', 'refill-morning', 'refresh', 'unanswered', 'modes', 'custom'],
@@ -449,22 +451,22 @@ test('HTTP: лише адмін; заготовки, оцінка, запуск,
   const zt = presets.body.presets[0].cities.find((c: { city: string }) => c.city === 'Zhytomyr');
   assert.deepEqual({ main: zt.main, extra: zt.extra, maxDepth: zt.maxDepth }, { main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 });
 
-  assert.equal((await request(app).post('/admin/dovede/city/campaigns/preview').set('Authorization', AUTH).send({ preset: 'x', city: 'Kyiv' })).status, 400);
-  const pv = await request(app).post('/admin/dovede/city/campaigns/preview').set('Authorization', AUTH).send(CUSTOM);
+  assert.equal((await request(server).post('/admin/dovede/city/campaigns/preview').set('Authorization', AUTH).send({ preset: 'x', city: 'Kyiv' })).status, 400);
+  const pv = await request(server).post('/admin/dovede/city/campaigns/preview').set('Authorization', AUTH).send(CUSTOM);
   assert.equal(pv.status, 200);
   assert.equal(pv.body.estimate.places, 2);
 
-  assert.equal((await request(app).post('/admin/dovede/city/campaigns').set('Authorization', AUTH).send({ ...CUSTOM, budget: 0 })).status, 400);
-  const made = await request(app).post('/admin/dovede/city/campaigns').set('Authorization', AUTH).send(CUSTOM);
+  assert.equal((await request(server).post('/admin/dovede/city/campaigns').set('Authorization', AUTH).send({ ...CUSTOM, budget: 0 })).status, 400);
+  const made = await request(server).post('/admin/dovede/city/campaigns').set('Authorization', AUTH).send(CUSTOM);
   assert.equal(made.status, 201);
-  const list = await request(app).get('/admin/dovede/city/campaigns').set('Authorization', AUTH);
+  const list = await request(server).get('/admin/dovede/city/campaigns').set('Authorization', AUTH);
   assert.equal(list.body.campaigns[0].id, made.body.id);
   assert.deepEqual(list.body.google, { calls: 0, cap: 1000, reserve: 200 });
-  assert.equal((await request(app).get(`/admin/dovede/city/campaigns/${made.body.id}`).set('Authorization', AUTH)).body.title, 'Свій список — Житомир');
-  assert.equal((await request(app).get('/admin/dovede/city/campaigns/999').set('Authorization', AUTH)).status, 404);
-  assert.equal((await request(app).post(`/admin/dovede/city/campaigns/${made.body.id}/action`).set('Authorization', AUTH).send({ action: 'boom' })).status, 400);
-  assert.equal((await request(app).post(`/admin/dovede/city/campaigns/${made.body.id}/action`).set('Authorization', AUTH).send({ action: 'archive' })).status, 409);
-  const paused = await request(app).post(`/admin/dovede/city/campaigns/${made.body.id}/action`).set('Authorization', AUTH).send({ action: 'pause' });
+  assert.equal((await request(server).get(`/admin/dovede/city/campaigns/${made.body.id}`).set('Authorization', AUTH)).body.title, 'Свій список — Житомир');
+  assert.equal((await request(server).get('/admin/dovede/city/campaigns/999').set('Authorization', AUTH)).status, 404);
+  assert.equal((await request(server).post(`/admin/dovede/city/campaigns/${made.body.id}/action`).set('Authorization', AUTH).send({ action: 'boom' })).status, 400);
+  assert.equal((await request(server).post(`/admin/dovede/city/campaigns/${made.body.id}/action`).set('Authorization', AUTH).send({ action: 'archive' })).status, 409);
+  const paused = await request(server).post(`/admin/dovede/city/campaigns/${made.body.id}/action`).set('Authorization', AUTH).send({ action: 'pause' });
   assert.equal(paused.body.status, 'paused');
 });
 

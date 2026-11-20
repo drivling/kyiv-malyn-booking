@@ -5,6 +5,7 @@
 import { test, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken, resolveAdminPassword } from './middleware/require-admin';
@@ -34,7 +35,7 @@ afterEach(() => {
 });
 
 test('POST /poputky/announce-draft: 400 при невідомому маршруті', async () => {
-  const app = createApp({ prisma: createPoputkyAnnouncePrismaStub() });
+  const app = await listenLocal(createApp({ prisma: createPoputkyAnnouncePrismaStub() }));
   await request(app)
     .post('/poputky/announce-draft')
     .send({
@@ -47,7 +48,7 @@ test('POST /poputky/announce-draft: 400 при невідомому маршру
 });
 
 test('POST /poputky/announce-draft: 200, deepLink і token', async () => {
-  const app = createApp({ prisma: createPoputkyAnnouncePrismaStub() });
+  const app = await listenLocal(createApp({ prisma: createPoputkyAnnouncePrismaStub() }));
   const res = await request(app)
     .post('/poputky/announce-draft')
     .send({
@@ -66,7 +67,7 @@ test('POST /poputky/announce-draft: 200, deepLink і token', async () => {
 });
 
 test('POST /poputky/announce-draft: Irpin-Malyn ok', async () => {
-  const app = createApp({ prisma: createPoputkyAnnouncePrismaStub() });
+  const app = await listenLocal(createApp({ prisma: createPoputkyAnnouncePrismaStub() }));
   const res = await request(app)
     .post('/poputky/announce-draft')
     .send({
@@ -82,14 +83,14 @@ test('POST /poputky/announce-draft: Irpin-Malyn ok', async () => {
 test('POST /viber-listings: 401 без адмін-токена', async () => {
   const mock = createListingFlowPrismaMock();
   setTelegramPrismaForTests(mock);
-  const app = createApp({ prisma: mock });
+  const app = await listenLocal(createApp({ prisma: mock }));
   await request(app).post('/viber-listings').send({ rawMessage: SAMPLE_VIBER_RAW }).expect(401);
 });
 
 test('POST /viber-listings: 201 з in-memory Prisma + tgPrisma', async () => {
   const mock = createListingFlowPrismaMock();
   setTelegramPrismaForTests(mock);
-  const app = createApp({ prisma: mock });
+  const app = await listenLocal(createApp({ prisma: mock }));
   const res = await request(app)
     .post('/viber-listings')
     .set(ADMIN_AUTH)
@@ -104,7 +105,7 @@ test('POST /viber-listings: 201 з in-memory Prisma + tgPrisma', async () => {
 test('POST /viber-listings: 400 якщо парсер не зміг розібрати', async () => {
   const mock = createListingFlowPrismaMock();
   setTelegramPrismaForTests(mock);
-  const app = createApp({ prisma: mock });
+  const app = await listenLocal(createApp({ prisma: mock }));
   await request(app).post('/viber-listings').set(ADMIN_AUTH).send({ rawMessage: 'немає маршруту ні телефону' }).expect(400);
 });
 
@@ -118,7 +119,7 @@ test.skipIf(!runRealDb)(
     const url = process.env.INTEGRATION_DATABASE_URL?.trim() || process.env.DATABASE_URL!.trim();
     const prisma = new PrismaClient({ datasources: { db: { url } } });
     setTelegramPrismaForTests(prisma);
-    const app = createApp({ prisma });
+    const app = await listenLocal(createApp({ prisma }));
     const y = new Date().getFullYear() + 1;
     const tail = String(Date.now() % 10_000_000).padStart(7, '0');
     const uniqueRaw = `[ 15 червня ${y} р. 12:00 ] ⁨DbInt⁩: Водій 15.06.${String(y).slice(2)}.

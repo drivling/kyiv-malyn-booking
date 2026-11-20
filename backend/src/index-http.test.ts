@@ -1,9 +1,10 @@
 /**
- * HTTP-даун-тести Express через supertest (без listen, без реальної БД для цих маршрутів).
+ * HTTP-даун-тести Express через supertest (сервер на 127.0.0.1 — listenLocal, без реальної БД для цих маршрутів).
  */
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import { createApp, CODE_VERSION } from './create-app';
 import { createNoDbPrismaStub, examplePersonRow, exampleViberListingRow } from './http-test-prisma-stub';
 import { adminAuthToken } from './middleware/require-admin';
@@ -11,15 +12,15 @@ import { stickerWallKey } from './sticker-wall';
 
 const TEST_ADMIN_PASSWORD = 'http-test-admin-password-x7';
 
-function smokeApp() {
-  return createApp({
+async function smokeApp() {
+  return listenLocal(createApp({
     prisma: createNoDbPrismaStub(),
     adminPassword: TEST_ADMIN_PASSWORD,
-  });
+  }));
 }
 
 test('GET /health', async () => {
-  const res = await request(smokeApp()).get('/health').expect(200);
+  const res = await request(await smokeApp()).get('/health').expect(200);
   assert.equal(res.body.status, 'ok');
   assert.equal(res.body.version, 3);
   assert.equal(res.body.viber, true);
@@ -28,13 +29,13 @@ test('GET /health', async () => {
 });
 
 test('GET /status', async () => {
-  const res = await request(smokeApp()).get('/status').expect(200);
+  const res = await request(await smokeApp()).get('/status').expect(200);
   assert.equal(res.body.status, 'ok');
   assert.equal(res.body.codeVersion, CODE_VERSION);
 });
 
 test('POST /admin/login: успіх з паролем з deps', async () => {
-  const res = await request(smokeApp())
+  const res = await request(await smokeApp())
     .post('/admin/login')
     .send({ password: TEST_ADMIN_PASSWORD })
     .expect(200);
@@ -44,7 +45,7 @@ test('POST /admin/login: успіх з паролем з deps', async () => {
 });
 
 test('POST /admin/login: відмова при невірному паролі', async () => {
-  const res = await request(smokeApp())
+  const res = await request(await smokeApp())
     .post('/admin/login')
     .send({ password: 'wrong-password' })
     .expect(401);
@@ -52,7 +53,7 @@ test('POST /admin/login: відмова при невірному паролі',
 });
 
 test('GET /admin/check: токен з login проходить requireAdmin', async () => {
-  const app = smokeApp();
+  const app = await smokeApp();
   const login = await request(app)
     .post('/admin/login')
     .send({ password: TEST_ADMIN_PASSWORD })
@@ -65,7 +66,7 @@ test('GET /admin/check: токен з login проходить requireAdmin', as
 });
 
 test('GET /admin/check: стара константа, токен іншого пароля і ключ віджета — 401', async () => {
-  const app = smokeApp();
+  const app = await smokeApp();
   for (const token of [
     'admin-authenticated',
     adminAuthToken('other-password'),
@@ -78,8 +79,8 @@ test('GET /admin/check: стара константа, токен іншого �
 });
 
 test('POST /admin/login: без тіла чи з паролем не-рядком — 401', async () => {
-  await request(smokeApp()).post('/admin/login').expect(401);
-  await request(smokeApp()).post('/admin/login').send({ password: ['x'] }).expect(401);
+  await request(await smokeApp()).post('/admin/login').expect(401);
+  await request(await smokeApp()).post('/admin/login').send({ password: ['x'] }).expect(401);
 });
 
 test('фікстури: формати як у живій БД (документація для моків)', () => {

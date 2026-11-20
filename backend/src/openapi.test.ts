@@ -7,6 +7,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import { parse } from 'yaml';
 import type { PrismaClient } from '@prisma/client';
 import { createApp, getRegisteredRoutes } from './create-app';
@@ -116,7 +117,7 @@ test('getRegisteredRoutes keeps the mount prefix of app.use(prefix, router)', ()
 });
 
 test('GET /openapi.yaml serves the document as yaml with an hour of cache', async () => {
-  const res = await request(app()).get('/openapi.yaml').expect(200);
+  const res = await request(await listenLocal(app())).get('/openapi.yaml').expect(200);
   assert.match(res.headers['content-type'], /^application\/yaml; charset=utf-8/);
   assert.equal(res.headers['cache-control'], 'public, max-age=3600');
   assert.ok(res.text.startsWith('openapi: 3.1'));

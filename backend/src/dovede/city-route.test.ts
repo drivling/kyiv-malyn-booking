@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { test } from 'vitest';
+import { listenLocal } from '../http-test-server';
 import { createDovedeSettings } from './settings';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
@@ -765,12 +766,13 @@ test('HTTP адмінки «Місто»: дороги місця й попит 
   setAdminPassword(app, 'city-http');
   app.use(createAdminDovedeRouter({ prisma: t.prisma, understand: null, settings: createDovedeSettings({ prisma: t.prisma, env: {} }), cityRoutes: t.svc, driveTime: async () => ({ minutes: 95, source: 'fixed' }) }));
   const AUTH = adminAuthToken('city-http');
-  assert.equal((await request(app).get('/admin/dovede/city/place/routes?city=Zhytomyr&key=x')).status, 401);
-  assert.equal((await request(app).get('/admin/dovede/city/place/routes?city=Lviv&key=x').set('Authorization', AUTH)).status, 400);
-  const r = await request(app).get(`/admin/dovede/city/place/routes?city=Zhytomyr&key=${encodeURIComponent('польова 12')}`).set('Authorization', AUTH);
+  const server = await listenLocal(app);
+  assert.equal((await request(server).get('/admin/dovede/city/place/routes?city=Zhytomyr&key=x')).status, 401);
+  assert.equal((await request(server).get('/admin/dovede/city/place/routes?city=Lviv&key=x').set('Authorization', AUTH)).status, 400);
+  const r = await request(server).get(`/admin/dovede/city/place/routes?city=Zhytomyr&key=${encodeURIComponent('польова 12')}`).set('Authorization', AUTH);
   assert.equal(r.status, 200);
   assert.equal(r.body.routes[0].to, 'Польова 12');
-  assert.equal((await request(app).get('/admin/dovede/city/demand?only=all').set('Authorization', AUTH)).status, 400);
-  const d = await request(app).get('/admin/dovede/city/demand?city=Zhytomyr').set('Authorization', AUTH);
+  assert.equal((await request(server).get('/admin/dovede/city/demand?only=all').set('Authorization', AUTH)).status, 400);
+  const d = await request(server).get('/admin/dovede/city/demand?city=Zhytomyr').set('Authorization', AUTH);
   assert.equal(d.body.demand[0].to, 'Польова 12');
 });

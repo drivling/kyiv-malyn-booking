@@ -4,6 +4,7 @@
 import { test, afterEach } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal, type LocalServer } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { setNotificationSettingsCacheForTests } from './notification-settings';
@@ -28,7 +29,7 @@ const BASE_ROW = {
   updatedAt: new Date(),
 };
 
-function makeApp(initial: Partial<typeof BASE_ROW> = {}) {
+async function makeApp(initial: Partial<typeof BASE_ROW> = {}) {
   let row = { ...BASE_ROW, ...initial };
   const upsertArgs: Array<Record<string, unknown>> = [];
   const prisma = {
@@ -61,22 +62,22 @@ function makeApp(initial: Partial<typeof BASE_ROW> = {}) {
       ],
     },
   } as unknown as PrismaClient;
-  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const app = await listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }));
   return { app, upsertArgs, get row() { return row; } };
 }
 
-async function token(app: ReturnType<typeof createApp>) {
+async function token(app: LocalServer) {
   const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
   return String(login.body.token);
 }
 
 test('GET /admin/notification-settings: 401 без токена', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   await request(app).get('/admin/notification-settings').expect(401);
 });
 
 test('GET /admin/notification-settings: маскує токен', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   const res = await request(app)
     .get('/admin/notification-settings')
     .set('Authorization', await token(app))
@@ -88,7 +89,7 @@ test('GET /admin/notification-settings: маскує токен', async () => {
 });
 
 test('PATCH: зберігає прапорці', async () => {
-  const h = makeApp();
+  const h = await makeApp();
   const res = await request(h.app)
     .patch('/admin/notification-settings')
     .set('Authorization', await token(h.app))
@@ -100,7 +101,7 @@ test('PATCH: зберігає прапорці', async () => {
 });
 
 test('PATCH: прапорець реактивації (smsInactivityReminderEnabled)', async () => {
-  const h = makeApp();
+  const h = await makeApp();
   const res = await request(h.app)
     .patch('/admin/notification-settings')
     .set('Authorization', await token(h.app))
@@ -111,7 +112,7 @@ test('PATCH: прапорець реактивації (smsInactivityReminderEna
 });
 
 test('PATCH: прапорець реклами каналу (smsChannelPromoEnabled)', async () => {
-  const h = makeApp();
+  const h = await makeApp();
   const res = await request(h.app)
     .patch('/admin/notification-settings')
     .set('Authorization', await token(h.app))
@@ -122,7 +123,7 @@ test('PATCH: прапорець реклами каналу (smsChannelPromoEnab
 });
 
 test('PATCH: порожній/маскований токен не перезаписує наявний', async () => {
-  const h = makeApp();
+  const h = await makeApp();
   const tok = await token(h.app);
 
   await request(h.app)
@@ -149,7 +150,7 @@ test('PATCH: порожній/маскований токен не переза�
 });
 
 test('PATCH: невалідний поріг → 400', async () => {
-  const h = makeApp();
+  const h = await makeApp();
   await request(h.app)
     .patch('/admin/notification-settings')
     .set('Authorization', await token(h.app))
@@ -158,7 +159,7 @@ test('PATCH: невалідний поріг → 400', async () => {
 });
 
 test('GET /admin/notification-settings/usage: форма відповіді', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   const res = await request(app)
     .get('/admin/notification-settings/usage')
     .set('Authorization', await token(app))
@@ -182,7 +183,7 @@ test('GET /admin/notification-settings/usage: форма відповіді', as
 });
 
 test('PATCH /admin/notification-settings: вимикачі особистого акаунта й ліміт за id', async () => {
-  const ctx = makeApp();
+  const ctx = await makeApp();
   const auth = await token(ctx.app);
   await request(ctx.app)
     .patch('/admin/notification-settings')

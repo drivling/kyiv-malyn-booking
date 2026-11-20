@@ -5,6 +5,7 @@
 import { describe, expect, test, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createAdminLunchRouter } from './routes/admin-lunch';
 import { adminAuthToken, setAdminPassword } from './middleware/require-admin';
@@ -163,17 +164,17 @@ function emptySummaryPrisma(extra: Record<string, unknown> = {}): PrismaClient {
   } as unknown as PrismaClient;
 }
 
-function appWith(prisma: PrismaClient, reparsePerson = vi.fn<NonNullable<Parameters<typeof createAdminLunchRouter>[0]['reparsePerson']>>()) {
+async function appWith(prisma: PrismaClient, reparsePerson = vi.fn<NonNullable<Parameters<typeof createAdminLunchRouter>[0]['reparsePerson']>>()) {
   const app = express();
   setAdminPassword(app, ADMIN_PASSWORD);
   app.use(express.json());
   app.use(createAdminLunchRouter({ prisma, reparsePerson }));
-  return { app, reparsePerson };
+  return { app: await listenLocal(app), reparsePerson };
 }
 
 describe('POST /admin/lunch/reparse-person', () => {
   test('401 без токена', async () => {
-    const { app } = appWith(emptySummaryPrisma());
+    const { app } = await appWith(emptySummaryPrisma());
     await request(app).post('/admin/lunch/reparse-person').send({ tgUserId: '111' }).expect(401);
   });
 
@@ -181,7 +182,7 @@ describe('POST /admin/lunch/reparse-person', () => {
     const prisma = emptySummaryPrisma();
     const ok: LunchReparseResult = { ok: true, orders: 1, details: [], person: { tgUserId: '111', name: 'Аліна' } };
     const fn = vi.fn(async () => ok);
-    const { app } = appWith(prisma, fn as never);
+    const { app } = await appWith(prisma, fn as never);
     const res = await request(app).post('/admin/lunch/reparse-person').set(auth).send({ tgUserId: '111' }).expect(200);
     expect(fn).toHaveBeenCalledWith(prisma, { tgUserId: '111', notify: true });
     expect(res.body.ok).toBe(true);
@@ -192,21 +193,21 @@ describe('POST /admin/lunch/reparse-person', () => {
   test('participantId → беремо telegramUserId учасника; notify:false передається', async () => {
     const prisma = emptySummaryPrisma();
     const fn = vi.fn(async () => ({ ok: true }) as LunchReparseResult);
-    const { app } = appWith(prisma, fn as never);
+    const { app } = await appWith(prisma, fn as never);
     await request(app).post('/admin/lunch/reparse-person').set(auth).send({ participantId: 50, notify: false }).expect(200);
     expect(fn).toHaveBeenCalledWith(prisma, { tgUserId: '222', notify: false });
   });
 
   test('учасник із підсумку (name:…) без Telegram id → 400 з підказкою', async () => {
     const fn = vi.fn();
-    const { app } = appWith(emptySummaryPrisma(), fn as never);
+    const { app } = await appWith(emptySummaryPrisma(), fn as never);
     const res = await request(app).post('/admin/lunch/reparse-person').set(auth).send({ participantId: 60 }).expect(400);
     expect(res.body.error).toMatch(/Telegram id/);
     expect(fn).not.toHaveBeenCalled();
   });
 
   test('сміття замість id → 400, невідомий participantId → 404', async () => {
-    const { app } = appWith(emptySummaryPrisma());
+    const { app } = await appWith(emptySummaryPrisma());
     await request(app).post('/admin/lunch/reparse-person').set(auth).send({ tgUserId: 'abc' }).expect(400);
     await request(app).post('/admin/lunch/reparse-person').set(auth).send({ participantId: 999 }).expect(404);
     await request(app).post('/admin/lunch/reparse-person').set(auth).send({ participantId: -1 }).expect(400);
@@ -214,7 +215,7 @@ describe('POST /admin/lunch/reparse-person', () => {
 
   test('помилка розбору (listener мовчить) → 500 з текстом', async () => {
     const fn = vi.fn(async () => ({ ok: false, error: 'Таймаут очікування listener' }) as LunchReparseResult);
-    const { app } = appWith(emptySummaryPrisma(), fn as never);
+    const { app } = await appWith(emptySummaryPrisma(), fn as never);
     const res = await request(app).post('/admin/lunch/reparse-person').set(auth).send({ tgUserId: '111' }).expect(500);
     expect(res.body.error).toMatch(/Таймаут/);
   });
@@ -223,7 +224,7 @@ describe('POST /admin/lunch/reparse-person', () => {
 describe('GET /admin/lunch/day-people', () => {
   test('віддає людей (BigInt як рядок) і потребує токен', async () => {
     const { prisma } = makePrisma();
-    const { app } = appWith(prisma);
+    const { app } = await appWith(prisma);
     await request(app).get('/admin/lunch/day-people').expect(401);
     const res = await request(app).get('/admin/lunch/day-people').set(auth).expect(200);
     expect(res.body.available).toBe(true);
@@ -234,7 +235,7 @@ describe('GET /admin/lunch/day-people', () => {
 describe('DELETE /admin/lunch/orders/:id', () => {
   test('некоректний id → 400; невідоме замовлення → 404', async () => {
     const prisma = emptySummaryPrisma({ lunchOrder: { findUnique: async () => null } });
-    const { app } = appWith(prisma);
+    const { app } = await appWith(prisma);
     await request(app).delete('/admin/lunch/orders/abc').set(auth).expect(400);
     await request(app).delete('/admin/lunch/orders/5').set(auth).expect(404);
   });
@@ -250,7 +251,7 @@ describe('DELETE /admin/lunch/orders/:id', () => {
         },
       },
     });
-    const { app } = appWith(prisma);
+    const { app } = await appWith(prisma);
     const res = await request(app).delete('/admin/lunch/orders/5').set(auth).expect(200);
     expect(res.body.ok).toBe(true);
     expect(updates).toHaveLength(1);
@@ -261,7 +262,7 @@ describe('DELETE /admin/lunch/orders/:id', () => {
     const prisma = emptySummaryPrisma({
       lunchOrder: { findUnique: async () => ({ id: 5, status: 'cancelled' }) },
     });
-    const { app } = appWith(prisma);
+    const { app } = await appWith(prisma);
     await request(app).delete('/admin/lunch/orders/5').set(auth).expect(404);
   });
 });

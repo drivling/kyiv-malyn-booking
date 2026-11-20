@@ -6,6 +6,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adWallSnapshot, deviceOf, parseAdEvent } from './ad-events';
@@ -64,8 +65,8 @@ function store(initial: Row[] = [], initialPeople: Person[] = []) {
   return { prisma, rows, people };
 }
 
-function app(prisma: PrismaClient, isPublic = false) {
-  return createApp({ prisma, adminPassword: ADMIN_PASSWORD, dovedeAccess: { isPublic: () => isPublic, password: () => GUEST_PASSWORD } });
+async function app(prisma: PrismaClient, isPublic = false) {
+  return listenLocal(createApp({ prisma, adminPassword: ADMIN_PASSWORD, dovedeAccess: { isPublic: () => isPublic, password: () => GUEST_PASSWORD } }));
 }
 
 const VIEW = '0f4c2a8e-1b2c-4d5e-8f90-a1b2c3d4e5f6';
@@ -102,7 +103,7 @@ test('deviceOf: лише клас пристрою', () => {
 
 test('POST /ads/events: записує з пристроєм і містом, повтор тієї ж події — 200 без запису, сміття — 400', async () => {
   const { prisma, rows, people } = store([], [{ id: 1, cityCode: 'Malyn', clientId: CLIENT, teaserAt: null }]);
-  const a = app(prisma);
+  const a = await app(prisma);
   const body = { placement: 'sticker', event: 'started', viewId: VIEW, clientId: CLIENT, video: 'hint-1a2b3c4d', stopId: 'st_0015' };
   const first = await request(a).post('/ads/events').set('User-Agent', IPHONE).send(body).expect(201);
   assert.deepEqual(first.body, { ok: true, counted: true });
@@ -121,13 +122,13 @@ test('POST /ads/events: записує з пристроєм і містом, п
 
 test('POST /ads/events page: без доступу — 403; гість із паролем, адмін і відкрита сторінка — свій access', async () => {
   const { prisma, rows } = store();
-  const a = app(prisma);
+  const a = await app(prisma);
   const page = (viewId: string) => ({ placement: 'dovede', event: 'page', viewId, clientId: CLIENT });
   await request(a).post('/ads/events').send(page('11111111-aaaa')).expect(403);
   await request(a).post('/ads/events').set('X-Dovede-Token', dovedeAccessToken('чужий')).send(page('11111111-aaab')).expect(403);
   await request(a).post('/ads/events').set('X-Dovede-Token', dovedeAccessToken(GUEST_PASSWORD)).send(page('22222222-bbbb')).expect(201);
   await request(a).post('/ads/events').set('Authorization', adminAuthToken(ADMIN_PASSWORD)).send(page('33333333-cccc')).expect(201);
-  await request(app(prisma, true)).post('/ads/events').send(page('44444444-dddd')).expect(201);
+  await request(await app(prisma, true)).post('/ads/events').send(page('44444444-dddd')).expect(201);
   assert.deepEqual(
     rows.map((r) => r.access),
     ['guest', 'admin', 'public'],
@@ -136,7 +137,7 @@ test('POST /ads/events page: без доступу — 403; гість із па
 
 test('POST /ads/events punched: талон після ролика — без доступу; хто компостував — за заголовком, якщо є', async () => {
   const { prisma, rows } = store();
-  const a = app(prisma);
+  const a = await app(prisma);
   const punched = (viewId: string) => ({ placement: 'dovede', event: 'punched', viewId, clientId: CLIENT, video: 'intro-55427b80' });
   await request(a).post('/ads/events').send(punched('11111111-aaaa')).expect(201);
   await request(a).post('/ads/events').set('X-Dovede-Token', dovedeAccessToken(GUEST_PASSWORD)).send(punched('22222222-bbbb')).expect(201);
@@ -222,7 +223,7 @@ test('зведення стіни: сьогодні й усього, хто ди
 
 test('GET /ads/wall: лише з ключем стіни, без кешу', async () => {
   const { prisma } = store();
-  const a = app(prisma);
+  const a = await app(prisma);
   await request(a).get('/ads/wall').expect(403);
   await request(a).get('/ads/wall?key=0123456789abcdef0123456789abcdef').expect(403);
   const res = await request(a).get(`/ads/wall?key=${stickerWallKey(ADMIN_PASSWORD)}`).expect(200);

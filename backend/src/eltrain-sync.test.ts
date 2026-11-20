@@ -6,6 +6,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
@@ -408,7 +409,7 @@ describe('POST /schedules/eltrain-sync', () => {
 
   it('лише для адміна; dryRun зі збереженими сторінками нічого не пише', async () => {
     const db = memoryPrisma(prodLikeSeed());
-    const app = createApp({ prisma: db.prisma, adminPassword: ADMIN });
+    const app = await listenLocal(createApp({ prisma: db.prisma, adminPassword: ADMIN }));
     expect((await request(app).post('/schedules/eltrain-sync').send({ dryRun: true })).status).toBe(401);
 
     const res = await request(app)

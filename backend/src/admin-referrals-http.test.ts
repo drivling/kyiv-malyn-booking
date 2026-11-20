@@ -4,6 +4,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 
@@ -13,11 +14,11 @@ function emptyAggregate() {
   return Promise.resolve({ _sum: { amountUah: 0 }, _count: { _all: 0 } });
 }
 
-function app() {
-  return createApp({
+async function app() {
+  return listenLocal(createApp({
     prisma: createReferralReportPrismaStub(),
     adminPassword: TEST_ADMIN_PASSWORD,
-  });
+  }));
 }
 
 /** Minimal Prisma surface for buildAdminReferralReport with empty data. */
@@ -49,11 +50,11 @@ function createReferralReportPrismaStub(): PrismaClient {
 }
 
 test('GET /admin/referrals/report: 401 without token', async () => {
-  await request(app()).get('/admin/referrals/report').expect(401);
+  await request(await app()).get('/admin/referrals/report').expect(401);
 });
 
 test('GET /admin/referrals/report: 200 empty report with admin token', async () => {
-  const a = app();
+  const a = await app();
   const login = await request(a)
     .post('/admin/login')
     .send({ password: TEST_ADMIN_PASSWORD })
