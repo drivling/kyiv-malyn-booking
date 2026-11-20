@@ -13,6 +13,10 @@ import { TEST_API_URL } from '@/test/msw/handlers';
 import type { Schedule } from '@/types';
 import type { Story, StoryLeg } from '../compose/types';
 import { StoryView } from './StoryView';
+// Модалку `BookingButton` вантажить ліниво (`lazy(() => import('./DovedeBooking'))`). Під час усього `npm test` перше
+// таке завантаження йде через перевантажений головний процес vitest — тож модуль вантажимо тут, разом із файлом:
+// тест перевіряє, що кнопка відкриває модалку, а не скільки вантажиться модуль.
+import './DovedeBooking';
 
 const schedule = (over: Partial<Schedule>): Schedule => ({ id: 7, route: 'Kyiv-Malyn-Irpin', departureTime: '08:00', maxSeats: 18, supportPhone: null, priceUah: 310, ...over }) as Schedule;
 
@@ -54,7 +58,9 @@ describe('квиток міжміського рейсу', () => {
     expect(screen.queryByText(/лише телефоном|не працює/)).toBeNull();
     expect(screen.queryByRole('link', { name: 'Квиток ↗' })).toBeNull();
     await userEvent.click(screen.getByRole('button', { name: 'Забронювати' }));
-    expect(await screen.findByRole('heading', { name: 'Бронювання маршрутки' })).toBeInTheDocument();
+    // після кліку ще лишаються Suspense (повтор після `lazy`) і рендер усієї модалки в портал; під навантаженням це
+    // та ще й сам пошук за роллю в її DOM — сотні мілісекунд, тож типової секунди `findBy*` впритул
+    expect(await screen.findByRole('heading', { name: 'Бронювання маршрутки' }, { timeout: 3000 })).toBeInTheDocument();
     expect(document.querySelector('.mizh-page.dv-booking .mizh-modal')).not.toBeNull();
   });
 
