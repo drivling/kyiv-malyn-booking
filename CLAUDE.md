@@ -153,7 +153,8 @@ of `dist` in a commit.
   is no longer read (its values were copied by migration `20261119300000_dovede_settings`). New setting = a registry
   entry + where it is read; never a key or password.
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; the admin tab
-  redesign and server-side learning runs are planned in `Docs/dovede-admin-roadmap.md` (plan of plans, read it first); research in
+  redesign and server-side learning runs are planned in `Docs/dovede-admin-roadmap.md` (plan of plans, read it first); what
+  comes next in learning — Korosten, sources besides Google, a better algorithm — in `Docs/dovede-learning-roadmap.md`; research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
   opens the page — `DovedePage/intro/`, flag `dovede-intro:v2`, file `public/dovede/intro-<hash>.mp4` from
   `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends
