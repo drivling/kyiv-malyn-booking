@@ -1,0 +1,506 @@
+/* Вкладка «Реферали» (referrals/ReferralTab.tsx) на спільному наборі kit/: щільні рядки замість таблиць */
+
+.referral-tab .admin-kit-tiles {
+  margin-bottom: 12px;
+}
+.referral-tab .admin-kit-tile-value small {
+  display: block;
+}
+.referral-tab .admin-kit-nav {
+  margin-bottom: 12px;
+}
+
+.referral-muted {
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+}
+
+.referral-tag--ok {
+  background: #e7f6ec;
+  color: #1e6b3a;
+}
+.referral-flag--error {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+/* ---- Бюджет: один рядок тексту, смужка, поле з кнопкою */
+.referral-budget {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 16px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.referral-budget__text {
+  font-size: 0.875rem;
+}
+.referral-budget__bar {
+  grid-column: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--pb-bg-secondary, #f1f3f4);
+  overflow: hidden;
+}
+.referral-budget__bar span {
+  display: block;
+  height: 100%;
+  background: var(--pb-primary, #1a73e8);
+}
+.referral-budget__bar.is-over span {
+  background: var(--pb-danger, #c0392b);
+}
+.referral-budget__form {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.referral-budget__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.75rem;
+  color: var(--pb-text-hint, #737373);
+}
+.referral-budget__form input {
+  width: 110px;
+  padding: 6px 8px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+}
+.referral-budget__held {
+  grid-column: 1 / -1;
+  margin: 0;
+  white-space: normal;
+  border-radius: var(--pb-radius, 8px);
+}
+
+/* ---- Розділ зі списком: заголовок з поясненням одним рядком, панель фільтрів */
+.referral-queue,
+.referral-photos {
+  margin-bottom: 20px;
+}
+.referral-queue__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  margin-bottom: 8px;
+}
+.referral-queue__head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.referral-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+.referral-search {
+  flex: 1 1 220px;
+  max-width: 360px;
+  padding: 6px 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+}
+.referral-pager {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.referral-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.referral-rows > li {
+  padding: 8px 12px;
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  font-size: 0.875rem;
+}
+.referral-rows > li:first-child {
+  border-top: 0;
+}
+
+/* ---- Черга виплат: людина · сума · мітки · «Виплатив» */
+.referral-payee {
+  padding: 0 !important;
+}
+.referral-payee__row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(110px, auto) minmax(0, 2fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 8px 12px;
+}
+.referral-payee.is-open .referral-payee__row {
+  background: var(--pb-primary-light, #e8f0fe);
+}
+.referral-payee__who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.referral-payee__name {
+  color: var(--pb-primary, #1a73e8);
+  font-weight: 600;
+}
+.referral-payee__sum strong {
+  font-size: 1rem;
+}
+.referral-payee__card {
+  padding: 8px 12px 12px;
+  border-top: 1px dashed var(--pb-border, #e0e0e0);
+  background: var(--pb-bg-secondary, #fafafa);
+}
+
+.referral-people-search {
+  margin-top: 8px;
+}
+.referral-people-search .referral-rows {
+  margin-top: 6px;
+}
+.referral-hit {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.5fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+}
+
+/* ---- Картка людини */
+.referral-card-standalone {
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--pb-primary-border, rgba(26, 115, 232, 0.35));
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.referral-card-standalone__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.referral-card-standalone__head h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.referral-person {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.referral-person__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.875rem;
+}
+.referral-rewards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.referral-reward {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto auto;
+  gap: 4px 10px;
+  align-items: center;
+  padding: 6px 0;
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  font-size: 0.875rem;
+}
+.referral-reward:first-child {
+  border-top: 0;
+}
+.referral-reward__id {
+  color: var(--pb-text-hint, #737373);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+}
+.referral-reward__note {
+  display: block;
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.75rem;
+}
+.referral-reward__note--error {
+  color: var(--pb-danger, #b42318);
+}
+.referral-reward__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* ---- Підозри й спільні акаунти */
+.referral-flagged {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+}
+.referral-flagged.is-fraud,
+.referral-shared.is-fraud {
+  background: #fef3f2;
+}
+.referral-shared {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+}
+
+/* ---- Запрошення: дата · хто → кого · стан · бонус */
+.referral-invite {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr) auto minmax(150px, auto);
+  gap: 4px 12px;
+  align-items: center;
+}
+.referral-invite__date {
+  color: var(--pb-text-hint, #737373);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+}
+.referral-invite__who {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ---- Фото поїздок: картки з двома фото */
+.referral-photos .admin-kit-chips {
+  margin-bottom: 10px;
+}
+.referral-proof-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+.referral-proof-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-left-width: 4px;
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.referral-proof-card--warn {
+  border-left-color: #e0a800;
+}
+.referral-proof-card--error {
+  border-left-color: #d92d20;
+}
+.referral-proof-card--flash {
+  outline: 2px solid var(--pb-primary, #1a73e8);
+  box-shadow: 0 0 0 4px rgba(26, 115, 232, 0.25);
+}
+.referral-proof-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+.referral-proof-card__title {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+.referral-proof-card__meta {
+  margin: 2px 0 0;
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.referral-proof-reason {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #fff8e6;
+  color: #5c4b1a;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+.referral-proof-photos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.referral-proof-photo {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  background: #111;
+  cursor: zoom-in;
+}
+.referral-proof-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.referral-proof-photo__label {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+.referral-proof-photo__err,
+.referral-proof-photo__loading {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  padding: 8px;
+  color: #ccc;
+  font-size: 12px;
+  text-align: center;
+}
+.referral-proof-rewards {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--pb-text-muted, #555);
+  font-size: 0.75rem;
+}
+.referral-proof-rewards li {
+  margin-bottom: 2px;
+}
+.referral-proof-rewards__sum {
+  color: var(--pb-text, #1a1a1a);
+  font-size: 0.8125rem;
+}
+.referral-proof-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.referral-proof-detail-modal {
+  width: 100%;
+  max-width: 560px;
+}
+.referral-proof-detail-meta {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+.referral-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.referral-modal-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.8125rem;
+}
+.referral-modal-label textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+  resize: vertical;
+}
+
+.referral-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.85);
+  cursor: zoom-out;
+}
+.referral-lightbox img {
+  max-width: min(96vw, 1100px);
+  max-height: 92vh;
+  border-radius: 8px;
+  object-fit: contain;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* ---- Телефон: рядки складаються в два-три ряди, без горизонтальної прокрутки */
+@media (max-width: 720px) {
+  .referral-budget {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .referral-budget__form {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .referral-payee__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .referral-payee__tags {
+    grid-column: 1 / -1;
+  }
+  .referral-payee__pay {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .referral-payee__sum {
+    grid-column: 1;
+  }
+  .referral-hit,
+  .referral-shared {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .referral-hit > :nth-child(2) {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .referral-reward {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+  }
+  .referral-reward__actions {
+    grid-column: 2 / -1;
+    justify-content: flex-start;
+  }
+  .referral-invite {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+  .referral-invite > :nth-child(n + 3) {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .referral-pager {
+    margin-left: 0;
+  }
+}

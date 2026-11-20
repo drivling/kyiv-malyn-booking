@@ -286,6 +286,11 @@
   color: var(--pb-text-hint, #737373);
   cursor: default;
 }
+.admin-kit-btn--quiet {
+  border-color: var(--pb-border, #e0e0e0);
+  background: var(--pb-card-bg, #fff);
+  color: var(--pb-text, #1a1a1a);
+}
 .admin-kit-linkbtn {
   padding: 0;
   border: 0;
