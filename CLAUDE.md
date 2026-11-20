@@ -165,8 +165,11 @@ of `dist` in a commit.
   credit (mark + «ТОВ «Технології»», fades in from second 5) laid over the clean render by `npm run dovede:teaser -- credit
   --base <clean.mp4>` (`frontend/scripts/teaser/`: `scene.html` is a pure function of the frame number, Playwright's Chromium
   shoots the frames, ffmpeg assembles; local only, output in `out/`, then `dovede:intro --slot hint`; mode `welcome` makes the
-  «Вітаємо в Малині» greeting with the same dot, timing and sound — not on the site yet; `lockup.py` draws the Ukrainian
-  logo as outlines); views and `/dovede` visits with access go to `AdEvent` via `POST /ads/events`, the wall
+  «Вітаємо в Малині» greeting with the same dot, timing and sound; `lockup.py` draws the Ukrainian
+  logo as outlines); on the stops of `WELCOME_STOPS` in `stickerAd.ts` (Malyn's railway station `st_0019`) the greeting
+  plays **instead of** the dot teaser — file `public/ads/welcome-<hash>.mp4` (`dovede:intro --slot welcome` →
+  `src/ads/welcomeMedia.ts`), its own once-per-browser flag `malyn-welcome:v1`, so the two videos do not cancel each other
+  and the dot is never shown at the station; a new greeting text or size = re-measure the dot point in `StickerAdIntro.tsx`; views and `/dovede` visits with access go to `AdEvent` via `POST /ads/events`, the wall
   widget's «Реклама» tab reads `GET /ads/wall`): a person asks in plain words and gets a story of cards built in the browser
   (`frontend/src/pages/DovedePage/`: `nlu/parseLocal` dictionary parse → `compose/` with `/poputky/search`, anchors
   and the Malyn RAPTOR planner → template text). **AI only understands the text, it never names a time, route or

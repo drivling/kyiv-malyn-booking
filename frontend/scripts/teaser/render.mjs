@@ -8,7 +8,8 @@
  *
  * Локальний скрипт (ffmpeg і мережа до Google Fonts; не для CI й не для Railway). Сцена — `scene.html`: усе в ній
  * залежить лише від номера кадру, Chromium із Playwright знімає кадри, ffmpeg складає H.264 (bt709) зі звуком.
- * Результат — у `out/` (у .gitignore); на сайт ролик кладе `npm run dovede:intro -- <ролик> --slot hint`.
+ * Результат — у `out/` (у .gitignore); на сайт ролик кладе `npm run dovede:intro -- <ролик> --slot hint` («Крапка»)
+ * чи `--slot welcome` (привітання на зупинках із `WELCOME_STOPS`, src/ads/stickerAd.ts).
  * `PW_CHROMIUM=/шлях/до/chrome` — якщо Playwright новіший за встановлені браузери.
  *
  * Логотип українською (`technologies-logo-uk.svg` — знак + «Технології» + «ТОВ», `…-uk-line.svg` — рядок для
