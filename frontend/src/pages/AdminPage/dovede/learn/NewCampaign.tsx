@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { MAX_DAILY } from './campaignText';
 import { apiClient } from "@/api/client";
 import type {
   DovedeCampaign,
@@ -25,7 +26,6 @@ const CITIES: Array<{ id: DovedeCampaignCity; name: string }> = [
   { id: "Kyiv", name: "Київ" },
 ];
 const MAX_BUDGET = 20_000;
-const MAX_DAILY = 5_000;
 
 interface FormState {
   origins: string[];

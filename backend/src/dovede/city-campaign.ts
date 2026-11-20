@@ -822,9 +822,19 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
       if (c.status === 'cancelled') return 'Кампанію скасовано';
       const reopen = c.status === 'done' && c.stopReason === 'budget';
       if (c.status === 'done' && !reopen) return 'Кампанію завершено: місць більше немає';
+      const newDaily = Math.min(daily, budget);
+      // Чекала саме на завтра через денну частку, а її підняли понад уже витрачене сьогодні — іде далі одразу.
+      // Очікування з іншої причини (квота Google, ліміт дня, помилки) не чіпаємо: частка його не знімає
+      const spentToday = c.spentDay === kyivDay(at) ? c.spentToday : 0;
+      const goOn = c.status === 'waiting' && c.waitReason === 'daily' && newDaily > spentToday;
       r = await prisma.dovedeCityCampaign.updateMany({
         where: { id, updatedAt: c.updatedAt },
-        data: { budget, dailyBudget: Math.min(daily, budget), ...(reopen ? { status: 'running', stopReason: null, finishedAt: null } : {}) },
+        data: {
+          budget,
+          dailyBudget: newDaily,
+          ...(reopen ? { status: 'running', stopReason: null, finishedAt: null } : {}),
+          ...(goOn ? { status: 'running', waitUntil: null, waitReason: null } : {}),
+        },
       });
       if (!r.count) return 'Кампанію щойно змінено — оновіть сторінку';
     } else if (act === 'archive') {

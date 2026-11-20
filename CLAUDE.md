@@ -370,7 +370,9 @@ of `dist` in a commit.
   is what the budget counts — stored and own answers are free but still feed the walk). Google is asked only while
   today's calls are below the cap minus `reserveFor(cap)` (a fifth, at least 50) — the rest is for people. Our cap /
   Google 429 / 403 / switched off → `waiting` with `waitReason` (the ask goes back to the queue); own daily share spent →
-  wait until Kyiv midnight; budget spent → `done` / `budget` (`extend` reopens it). One container at a time leads a
+  wait until Kyiv midnight (the card's «На добу» field sends `extend` with a new `dailyBudget`; raising it above what was
+  spent today resumes a campaign that waits for `daily` at once, other wait reasons stay); budget spent → `done` /
+  `budget` (`extend` reopens it). One container at a time leads a
   campaign (`leaseUntil`, 2 min); an ask left `asking` by a vanished container returns to the queue after 5 min. The server
   leads one campaign at a time — the oldest that may run now (`leaderOf`, shared by `tick` and the views); the others in
   `running` carry `queuedBehind` and the admin shows «У черзі після …», not «Іде». Tables
