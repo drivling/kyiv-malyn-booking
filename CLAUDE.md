@@ -620,7 +620,8 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   - `CompanyLegalPage` → `/about` — company details, privacy policy, terms, referral rules.
   - `SupportPage` → `/support` — help centre (`SupportHub` + `SupportArticle`).
 
-  Plus non-menu routes: `AdminPage` (`/admin/:tab?`), `StickerWallPage` (`/admin/wall`),
+  Plus non-menu routes: `AdminPage` (`/admin/:tab?`; the default tab «Бронювання» is `AdminPage/bookings/BookingsTab.tsx`,
+  `?when=upcoming|today|past|all`), `StickerWallPage` (`/admin/wall`),
   `LoginPage` (`/login`), `UserPage` (`/user`). `/booking` redirects to `/mizhgorodski` and `/poputky` to
   `/mizhgorodski?type=carpool` (the «Попутки» tab already chosen; the page's canonical stays `/mizhgorodski`). The 301s are
   one table, `EXACT_REDIRECTS` in `frontend/scripts/serve-dist-rules.mjs` (pure, tested in `serve-dist-rules.test.ts`;

@@ -9,8 +9,8 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, ScheduleFormData, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
-import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, formatPhoneDisplay } from '@/utils/constants';
+import type { Schedule, ScheduleFormData, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
+import { getRouteLabel, formatPhoneDisplay } from '@/utils/constants';
 import { KYIV_MALYN_FARE_UAH } from '@/utils/fares';
 import { MapEditorTab } from './MapEditorTab';
 import { ScheduleEditorTab } from './ScheduleEditorTab';
@@ -20,6 +20,7 @@ import { TransportCityBar } from './TransportCityBar';
 import { transportCitySearch, useAdminTransportCity } from './useAdminTransportCity';
 import { ReferralTab } from './referrals/ReferralTab';
 import { ViberTab } from './viber/ViberTab';
+import { BookingsTab } from './bookings/BookingsTab';
 import { LunchTab } from './LunchTab';
 import { DzhuraTab } from './DzhuraTab';
 import { NotificationSettingsTab } from './NotificationSettingsTab';
@@ -87,7 +88,6 @@ export const AdminPage: React.FC = () => {
     },
     [navigate, transportCity]
   );
-  const [bookings, setBookings] = useState<Booking[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [tripPoints, setTripPoints] = useState<TripPoint[]>([]);
   const [adminTripRoutes, setAdminTripRoutes] = useState<TripRoute[]>([]);
@@ -118,9 +118,6 @@ export const AdminPage: React.FC = () => {
   const [success, setSuccess] = useState('');
 
   // Фільтри
-  const [routeFilter, setRouteFilter] = useState('');
-  const [dateFilter, setDateFilter] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
   const [scheduleRouteFilter, setScheduleRouteFilter] = useState('');
 
   // Модальне вікно для графіку
@@ -235,9 +232,7 @@ export const AdminPage: React.FC = () => {
   const [promoSendStatus, setPromoSendStatus] = useState<{ phoneKey?: string; success?: boolean; error?: string }>({});
 
   useEffect(() => {
-    if (activeTab === 'bookings') {
-      loadBookings();
-    } else if (activeTab === 'schedules') {
+    if (activeTab === 'schedules') {
       loadSchedules();
     } else if (activeTab === 'routes') {
       loadRoutesTab();
@@ -804,23 +799,6 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const loadBookings = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const [data, routes] = await Promise.all([
-        apiClient.getBookings(),
-        apiClient.getTripRoutes(),
-      ]);
-      setBookings(data);
-      setAdminTripRoutes(routes);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка завантаження');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const loadSchedules = async (routeSlug?: string) => {
     setLoading(true);
     setError('');
@@ -862,29 +840,6 @@ export const AdminPage: React.FC = () => {
       setError(err instanceof Error ? err.message : 'Помилка завантаження маршрутів');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const filteredBookings = bookings.filter((booking) => {
-    if (routeFilter && booking.route !== routeFilter) return false;
-    if (dateFilter) {
-      const bookingDate = new Date(booking.date).toISOString().split('T')[0];
-      if (bookingDate !== dateFilter) return false;
-    }
-    if (searchQuery) {
-      const searchIn = `${booking.name} ${booking.phone}`.toLowerCase();
-      if (!searchIn.includes(searchQuery.toLowerCase())) return false;
-    }
-    return true;
-  });
-
-  const handleDeleteBooking = async (id: number) => {
-    if (!confirm('Ви впевнені, що хочете видалити це бронювання?')) return;
-    try {
-      await apiClient.deleteBooking(id);
-      loadBookings();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Помилка видалення');
     }
   };
 
@@ -1202,17 +1157,6 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const stats = {
-    total: filteredBookings.length,
-    kyivMalyn: filteredBookings.filter((b) => b.route.includes('Kyiv-Malyn')).length,
-    malynKyiv: filteredBookings.filter((b) => b.route.includes('Malyn-Kyiv')).length,
-    malynZhytomyr: filteredBookings.filter((b) => b.route.includes('Malyn-Zhytomyr')).length,
-    zhytomyrMalyn: filteredBookings.filter((b) => b.route.includes('Zhytomyr-Malyn')).length,
-    korostenMalyn: filteredBookings.filter((b) => b.route.includes('Korosten-Malyn')).length,
-    malynKorosten: filteredBookings.filter((b) => b.route.includes('Malyn-Korosten')).length,
-    totalSeats: filteredBookings.reduce((sum, b) => sum + b.seats, 0),
-  };
-
   const routeOptions = [...adminTripRoutes]
     .sort((a, b) => a.labelUk.localeCompare(b.labelUk, 'uk') || a.slug.localeCompare(b.slug))
     .map((r) => ({
@@ -1337,133 +1281,7 @@ export const AdminPage: React.FC = () => {
         {error && <Alert variant="error">{error}</Alert>}
         {success && <Alert variant="success">{success}</Alert>}
 
-        {activeTab === 'bookings' && (
-          <div className="tab-content">
-            <div className="stats">
-              <div className="stat-card">
-                <h3>Всього бронювань</h3>
-                <div className="stat-value">{stats.total}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Київ → Малин</h3>
-                <div className="stat-value">{stats.kyivMalyn}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Малин → Київ</h3>
-                <div className="stat-value">{stats.malynKyiv}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Малин → Житомир</h3>
-                <div className="stat-value">{stats.malynZhytomyr}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Житомир → Малин</h3>
-                <div className="stat-value">{stats.zhytomyrMalyn}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Коростень → Малин</h3>
-                <div className="stat-value">{stats.korostenMalyn}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Малин → Коростень</h3>
-                <div className="stat-value">{stats.malynKorosten}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Всього місць</h3>
-                <div className="stat-value">{stats.totalSeats}</div>
-              </div>
-            </div>
-
-            <div className="admin-controls">
-              <div className="admin-controls-filters">
-                <Select
-                  options={[
-                    { value: '', label: 'Всі маршрути' },
-                    ...routeOptions,
-                  ]}
-                  value={routeFilter}
-                  onChange={(e) => setRouteFilter(e.target.value)}
-                />
-                <input
-                  type="date"
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value)}
-                  className="control-input"
-                  aria-label="Дата"
-                />
-                <input
-                  type="text"
-                  placeholder="Пошук..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="control-input control-input--search"
-                  aria-label="Пошук по імені або телефону"
-                />
-              </div>
-              <div className="admin-controls-actions">
-                <Button onClick={loadBookings}>Оновити</Button>
-                <Button variant="secondary" onClick={() => { setRouteFilter(''); setDateFilter(''); setSearchQuery(''); }}>
-                  Очистити
-                </Button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="admin-loading" aria-live="polite">Завантаження...</div>
-            ) : filteredBookings.length === 0 ? (
-              <div className="admin-empty">
-                <p className="admin-empty-text">Немає бронювань за обраними фільтрами</p>
-                <Button variant="secondary" onClick={() => { setRouteFilter(''); setDateFilter(''); setSearchQuery(''); }}>
-                  Очистити фільтри
-                </Button>
-              </div>
-            ) : (
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Маршрут</th>
-                      <th>Дата</th>
-                      <th>Час</th>
-                      <th>Місця</th>
-                      <th>Ім'я</th>
-                      <th>Телефон</th>
-                      <th>Створено</th>
-                      <th>Дії</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredBookings.map((booking) => (
-                      <tr key={booking.id}>
-                        <td>#{booking.id}</td>
-                        <td>
-                          <span className={`badge ${getRouteBadgeClass(booking.route)}`}>
-                            {getBookingRouteDisplayLabel(booking.route, booking.source)}
-                          </span>
-                        </td>
-                        <td>{new Date(booking.date).toLocaleDateString('uk-UA')}</td>
-                        <td><strong>{booking.departureTime}</strong></td>
-                        <td>{booking.seats}</td>
-                        <td>{booking.name}</td>
-                        <td>{formatPhoneDisplay(booking.phone)}</td>
-                        <td>{new Date(booking.createdAt).toLocaleString('uk-UA')}</td>
-                        <td>
-                          <Button
-                            variant="danger"
-                            onClick={() => handleDeleteBooking(booking.id)}
-                          >
-                            Видалити
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === 'bookings' && <BookingsTab />}
 
         {activeTab === 'schedules' && (
           <div className="tab-content">

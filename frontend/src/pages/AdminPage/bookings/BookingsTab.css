@@ -1,0 +1,125 @@
+/* Вкладка «Бронювання» (bookings/BookingsTab.tsx) на спільному наборі kit/: дні поїздок, одне бронювання — один рядок */
+
+.bookings-tab .admin-kit-tiles {
+  margin-bottom: 12px;
+}
+.bookings-tab .admin-kit-tile-value small {
+  display: block;
+}
+.bookings-muted {
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+.bookings-danger {
+  color: var(--pb-danger, #c5221f) !important;
+}
+
+.bookings-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+.bookings-input {
+  padding: 6px 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+  font: inherit;
+  font-size: 0.875rem;
+}
+.bookings-input--grow {
+  flex: 1 1 220px;
+  max-width: 340px;
+}
+
+.bookings-day {
+  margin: 14px 0 0;
+}
+.bookings-day__title {
+  margin: 0 0 6px;
+  font-size: 0.9375rem;
+}
+.bookings-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.bookings-row {
+  display: grid;
+  grid-template-columns: 56px 190px 70px minmax(0, 1.4fr) 200px minmax(0, 1fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 8px 12px;
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  font-size: 0.875rem;
+}
+.bookings-row:first-child {
+  border-top: 0;
+}
+.bookings-time {
+  font-variant-numeric: tabular-nums;
+}
+.bookings-route {
+  justify-self: start;
+  white-space: normal;
+}
+.bookings-seats {
+  font-variant-numeric: tabular-nums;
+}
+.bookings-who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  min-width: 0;
+}
+.bookings-phone {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.bookings-tag--ride {
+  background: #e7f6ec;
+  color: #1e6b3a;
+}
+.bookings-created {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1000px) {
+  .bookings-row {
+    grid-template-columns: 56px minmax(0, 1fr) 70px auto;
+  }
+  .bookings-who {
+    grid-column: 2 / -1;
+  }
+  .bookings-row > .sched-tags,
+  .bookings-created {
+    grid-column: 2 / span 2;
+  }
+}
+
+@media (max-width: 560px) {
+  .bookings-row {
+    grid-template-columns: 48px minmax(0, 1fr) auto;
+  }
+  .bookings-route {
+    grid-column: 2;
+  }
+  .bookings-row > .bookings-danger {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .bookings-seats {
+    grid-column: 2;
+  }
+  .bookings-who,
+  .bookings-row > .sched-tags,
+  .bookings-created {
+    grid-column: 2 / -1;
+  }
+}
