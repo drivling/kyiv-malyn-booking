@@ -4,6 +4,8 @@
  * - ролик не закривається й не перемотується (noSeek.ts), без пульта, картинки в картинці й AirPlay;
  * - поля навколо 9:16 продовжують краї кадру (edgeFill.ts), рядок браузера й фон сторінки — у колір верхнього краю;
  * - звук без дотику браузери не вмикають: пробуємо грати одразу, а ні — фірмова крапка «▶ Дивитися» (AdPlayButton);
+ *   з `silentStart` (міні-тизер) ролик у такому разі одразу йде без звуку, а звук вмикає кнопка «Увімкнути звук»
+ *   (AdSoundButton); «▶ Дивитися» лишається на випадок, коли браузер не дає грати навіть без звуку;
  * - сторінка відкривається колом (`openIris`) — «склейка через крапку», як у ролику.
  * Що показати після ролику (талон, одразу сторінка), вирішує той, хто вбудовує. Тут — стан і помічники; розмітка —
  * AdVideo.tsx.
@@ -61,13 +63,24 @@ export type AdVideoHandlers = {
   onFailed: () => void;
 };
 
-/** Стан ролика й обробники для `<AdVideoLayer>`; `start(true)` — з дотику людини, `replay()` — спочатку */
-export function useAdVideo(handlers: AdVideoHandlers) {
+export type AdVideoOptions = {
+  /** Браузер не дав грати зі звуком без дотику — почати без звуку (не чекати на «▶ Дивитися») */
+  silentStart?: boolean;
+};
+
+/**
+ * Стан ролика й обробники для `<AdVideoLayer>`; `start(true)` — з дотику людини, `replay()` — спочатку,
+ * `unmute()` — увімкнути звук ролика, що пішов без нього (лише з дотику людини)
+ */
+export function useAdVideo(handlers: AdVideoHandlers, options: AdVideoOptions = {}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fillRef = useRef<HTMLCanvasElement>(null);
   const guard = useRef<NoSeek | null>(null);
   const [phase, setPhase] = useState<AdPhase>('starting');
   const [waiting, setWaiting] = useState(false);
+  /** Грає без звуку, бо браузер не дав інакше (silentStart) */
+  const [muted, setMuted] = useState(false);
+  const silentStart = !!options.silentStart;
   /** Колір верхнього краю кадру (edgeFill.ts) — для theme-color і фону сторінки */
   const [tone, setTone] = useState(WHITE);
   const cb = useRef(handlers);
@@ -85,25 +98,49 @@ export function useAdVideo(handlers: AdVideoHandlers) {
     (fromGesture: boolean) => {
       const video = videoRef.current;
       if (!video) return;
+      const play = (): Promise<void> => {
+        try {
+          return Promise.resolve(video.play());
+        } catch (e) {
+          return Promise.reject(e);
+        }
+      };
+      const errorName = (e: unknown) => (e as { name?: string } | null)?.name;
+      const playing = () => setPhase((p) => (p === 'ended' || p === 'failed' ? p : 'playing'));
       video.muted = false;
-      let result: Promise<void> | undefined;
-      try {
-        result = video.play();
-      } catch (e) {
-        result = Promise.reject(e);
-      }
-      Promise.resolve(result).then(
-        () => setPhase((p) => (p === 'ended' || p === 'failed' ? p : 'playing')),
-        (e: unknown) => {
-          const name = (e as { name?: string } | null)?.name;
-          if (name === 'AbortError') return; // перервали самі (load/pause) — не помилка
-          if (name === 'NotAllowedError' && !fromGesture) setPhase('tap');
-          else fail();
-        },
-      );
+      setMuted(false);
+      play().then(playing, (e: unknown) => {
+        const name = errorName(e);
+        if (name === 'AbortError') return; // перервали самі (load/pause) — не помилка
+        if (name !== 'NotAllowedError' || fromGesture) return fail();
+        if (!silentStart) return setPhase('tap');
+        // зі звуком не можна — без звуку браузери грають і без дотику
+        video.muted = true;
+        play().then(
+          () => {
+            setMuted(true);
+            playing();
+          },
+          (e2: unknown) => {
+            const name2 = errorName(e2);
+            if (name2 === 'AbortError') return;
+            video.muted = false;
+            if (name2 === 'NotAllowedError') setPhase('tap');
+            else fail();
+          },
+        );
+      });
     },
-    [fail],
+    [fail, silentStart],
   );
+
+  /** Увімкнути звук ролика, що пішов без нього; браузер дозволяє це лише в обробнику дотику */
+  const unmute = useCallback(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    video.muted = false;
+    setMuted(false);
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -166,7 +203,7 @@ export function useAdVideo(handlers: AdVideoHandlers) {
     onError: () => fail(),
   };
 
-  return { videoRef, fillRef, videoProps, phase, waiting, tone, start, replay };
+  return { videoRef, fillRef, videoProps, phase, waiting, tone, muted, start, replay, unmute };
 }
 
 /** Дірка в оверлеї: крізь неї видно сторінку під ним */
