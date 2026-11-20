@@ -499,6 +499,19 @@ model ViberRideEvent {
 }
 
 /// Помилки відправки через персональний акаунт (send_message.py): PRIVACY_PREMIUM_REQUIRED тощо
+/// Журнал відправок від особистого Telegram-акаунта (без контакту й тексту — лише лічильники для адмінки «Сповіщення»)
+model TelegramUserSendLog {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  /// match | authorConfirmation | admin | promo | other
+  purpose   String
+  /// username | id | phone — чим дійшло; null — не дійшло
+  method    String?
+  ok        Boolean
+
+  @@index([createdAt])
+}
+
 model TelegramUserSendError {
   id          Int      @id @default(autoincrement())
   contact     String   // Телефон або @username
@@ -585,6 +598,14 @@ model NotificationSettings {
   turboSmsToken                 String?
   /// Зареєстроване альфа-ім'я відправника TurboSMS
   turboSmsSender                String?
+  /// Особистий Telegram-акаунт (безкоштовно, перед SMS): повідомлення про збіг пари
+  tgUserMatchEnabled              Boolean @default(true)
+  /// Особистий акаунт: підтвердження автору щойно створеного оголошення
+  tgUserAuthorConfirmationEnabled Boolean @default(true)
+  /// Писати незнайомим за числовим id (автор без номера й @username) — див. telegram-user-dm-guard.ts
+  tgUserByIdEnabled               Boolean @default(true)
+  /// Скільки таких DM за київську добу; null — зі змінної TELEGRAM_USER_DM_BY_ID_DAILY_CAP або 20
+  tgUserByIdDailyCap              Int?
   updatedAt                     DateTime @updatedAt
 }
 

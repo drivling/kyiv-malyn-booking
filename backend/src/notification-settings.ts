@@ -24,9 +24,15 @@ export const NOTIFICATION_SETTINGS_DEFAULTS = {
   smsMonthlyCap: 1000,
   turboSmsToken: null as string | null,
   turboSmsSender: null as string | null,
+  tgUserMatchEnabled: true,
+  tgUserAuthorConfirmationEnabled: true,
+  tgUserByIdEnabled: true,
+  tgUserByIdDailyCap: null as number | null,
 };
 
 const CAP_MAX = 100_000;
+/** Писати незнайомим за id більше кількох десятків на добу — ризик втратити особистий акаунт */
+export const TG_ID_CAP_MAX = 200;
 const CACHE_TTL_MS = 30_000;
 
 let cache: { value: NotificationSettings; expiresAt: number } | null = null;
@@ -64,6 +70,11 @@ export type NotificationSettingsPatch = Partial<{
   smsMonthlyCap: number;
   turboSmsToken: string | null;
   turboSmsSender: string | null;
+  tgUserMatchEnabled: boolean;
+  tgUserAuthorConfirmationEnabled: boolean;
+  tgUserByIdEnabled: boolean;
+  /** null — повернути типове (змінна середовища або 20) */
+  tgUserByIdDailyCap: number | null;
 }>;
 
 function coerceBool(v: unknown, field: string): boolean {
@@ -116,6 +127,19 @@ export async function updateNotificationSettings(
       'smsChannelPromoEnabled'
     );
 
+  for (const key of ['tgUserMatchEnabled', 'tgUserAuthorConfirmationEnabled', 'tgUserByIdEnabled'] as const) {
+    if (key in patch) data[key] = coerceBool(patch[key], key);
+  }
+  if ('tgUserByIdDailyCap' in patch) {
+    const v = patch.tgUserByIdDailyCap;
+    if (v == null) data.tgUserByIdDailyCap = null;
+    else {
+      const n = Number(v);
+      if (!Number.isInteger(n) || n < 0 || n > TG_ID_CAP_MAX) throw new Error(`tgUserByIdDailyCap: ціле число від 0 до ${TG_ID_CAP_MAX}`);
+      data.tgUserByIdDailyCap = n;
+    }
+  }
+
   if ('smsMatchTypeThreshold' in patch) {
     const t = String(patch.smsMatchTypeThreshold);
     if (!SMS_MATCH_TYPE_THRESHOLDS.includes(t as SmsMatchTypeThreshold)) {
@@ -155,7 +179,7 @@ export async function updateNotificationSettings(
   return value;
 }
 
-function kyivMonthStart(): Date {
+export function kyivMonthStart(): Date {
   const s = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Kyiv',
     year: 'numeric',
@@ -166,7 +190,7 @@ function kyivMonthStart(): Date {
   return new Date(Date.UTC(y, m - 1, 1));
 }
 
-function kyivDayStart(): Date {
+export function kyivDayStart(): Date {
   const s = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Kyiv',
     year: 'numeric',

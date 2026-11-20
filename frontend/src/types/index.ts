@@ -1010,6 +1010,12 @@ export interface NotificationSettings {
   turboSmsSender: string | null;
   hasToken: boolean;
   tokenHint: string | null;
+  /** Особистий Telegram-акаунт (безкоштовно, перед SMS): збіги пар, підтвердження автору, листи за id */
+  tgUserMatchEnabled: boolean;
+  tgUserAuthorConfirmationEnabled: boolean;
+  tgUserByIdEnabled: boolean;
+  /** null — типове (змінна середовища або 20) */
+  tgUserByIdDailyCap: number | null;
   updatedAt: string;
 }
 
@@ -1026,6 +1032,10 @@ export type NotificationSettingsPatch = Partial<{
   turboSmsSender: string | null;
   /** Порожній рядок / маска → бекенд не чіпає наявний токен; null → очищення. */
   turboSmsToken: string | null;
+  tgUserMatchEnabled: boolean;
+  tgUserAuthorConfirmationEnabled: boolean;
+  tgUserByIdEnabled: boolean;
+  tgUserByIdDailyCap: number | null;
 }>;
 
 export interface SmsSendLogEntry {
@@ -1040,12 +1050,30 @@ export interface SmsSendLogEntry {
   sentAt: string | null;
 }
 
+/** Відправлено / не дійшло */
+export interface SendTally {
+  sent: number;
+  failed: number;
+}
+
 export interface NotificationSettingsUsage {
   sentToday: number;
   capToday: number;
   sentThisMonth: number;
   capThisMonth: number;
   recent: SmsSendLogEntry[];
+  /** SMS цього місяця за сценарієм (`useCase`); немає у старішого бекенда */
+  smsByUseCase?: Record<string, SendTally>;
+  /** Особистий Telegram-акаунт (журнал TelegramUserSendLog); немає у старішого бекенда */
+  telegramUser?: {
+    configured: boolean;
+    today: SendTally;
+    month: SendTally;
+    /** match | authorConfirmation | promo | other — цього місяця */
+    byPurpose: Record<string, SendTally>;
+    byId: { enabled: boolean; lockedBy: string | null; cap: number; defaultCap: number; usedToday: number; flooded: boolean };
+    recentErrors: Array<{ id: number; contactType: string; errorCode: number; errorText: string | null; createdAt: string }>;
+  };
 }
 
 /** Наклейка зупинки: a | b — бік дороги, s — одна наклейка з обома боками (backend/src/sticker-scans.ts) */
