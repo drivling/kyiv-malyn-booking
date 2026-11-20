@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Міні-тизер «Крапка»: сцена</title>
+<!--
+  Сцена міні-тизерів із крапкою (scripts/teaser/render.mjs знімає її кадр за кадром; відкрити в браузері — ?play=1).
+  ?mode=welcome — крапка «друкує» текст (?l1=…&l2=…, типово «Вітаємо / в Малині») і стає крапкою в кінці;
+  ?mode=credit  — лише підпис компанії на прозорому тлі: його накладають на готовий ролик «Крапка».
+  Рух крапки знято з ролика public/ads/hint-711724d9.mp4 покадрово (поява, «серцебиття» в такт музиці, стрибок на
+  94-му кадрі, приземлення на 116 / 130 / 144 / 159-му, два кільця з 159-го і 188-го), тож звук того ролика лягає
+  на цю сцену без змін. Усе залежить лише від номера кадру — жодних таймерів.
+-->
+<style>
+html,body{margin:0;background:transparent}
+svg{display:block}
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
+<script>
+'use strict';
+const W = 1080, H = 1920, FPS = 30, FRAMES = 231;
+const BLUE = '#00A0FA', INK = '#003F53';
+const FONT = "'Golos Text', sans-serif";
+/** Не найжирніше, як у «Доведе.»: у Black літера «є» зливається в пляму */
+const WEIGHT = 800;
+const q = new URLSearchParams(location.search);
+const MODE = q.get('mode') === 'credit' ? 'credit' : 'welcome';
+const LINES = [q.get('l1') ?? 'Вітаємо', q.get('l2') ?? 'в Малині'];
+const stage = document.getElementById('stage');
+const NS = 'http://www.w3.org/2000/svg';
+const el = (name, attrs = {}, parent = stage) => {
+  const n = document.createElementNS(NS, name);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  parent.appendChild(n);
+  return n;
+};
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const smooth = (t) => { t = clamp(t); return t * t * (3 - 2 * t); };
+const backOut = (t) => { t = clamp(t); const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+
+/* ── Кадри оригіналу ─────────────────────────────────────────────────────────────────────────────────────────── */
+const POP = [8, 20, 36, 48, 52];                  // поява: діаметр на кадрах 5…9
+const BEATS = [[10, 7], [15, 9], [29, 9], [44, 9], [58, 9], [73, 9], [87, 9]]; // «серцебиття»: кадр, розмах
+const SMALL = 49, GROUND0 = 946;                  // мала крапка стоїть на цій лінії
+const TAKEOFF = 94, APEX = 108, LAND = [116, 130, 144, 159];
+/** Зліт: частка шляху до верхньої точки на кадрах 94…108 (з оригіналу: 893 → 485 px) */
+const ASCENT = [893, 812, 742, 684, 635, 595, 562, 537, 518, 503, 495, 490, 486, 486, 485].map((y) => (921 - y) / (921 - 485));
+const APEX_Y = 485;
+const RINGS = [159, 188], RING_LIFE = 29;
+const CREDIT = [150, 198];                        // підпис компанії: від прозорого до видимого
+
+/* ── Розкладка тексту ────────────────────────────────────────────────────────────────────────────────────────── */
+let layout = null;
+function measure() {
+  const ctx = document.createElement('canvas').getContext('2d');
+  const widths = (size) => { ctx.font = `${WEIGHT} ${size}px ${FONT}`; return LINES.map((t) => ctx.measureText(t).width); };
+  const SIDE = 96;                                // поле зліва і справа
+  const at100 = widths(100);
+  // крапка — 0.46 кегля, проміжок до неї — 0.055; ширший із двох рядків (другий — із крапкою) має влізти в кадр
+  const need = Math.max(at100[0], at100[1] + 5.5 + 46) / 100;
+  const size = Math.min(190, Math.floor((W - 2 * SIDE) / need));
+  ctx.font = `${WEIGHT} ${size}px ${FONT}`;
+  const D = Math.round(size * 0.46), gap = size * 0.055;
+  const w = LINES.map((t) => ctx.measureText(t).width);
+  const blockW = Math.max(w[0], w[1] + gap + D);
+  const x0 = (W - blockW) / 2;
+  const lead = size * 1.13;
+  const y1 = Math.round(905 - lead / 2 + size * 0.35), y2 = Math.round(y1 + lead); // блок по центру оригінальної крапки
+  const letters = LINES.map((t, k) => [...t].map((ch, i) => {
+    const before = ctx.measureText([...t].slice(0, i).join('')).width;
+    const upTo = ctx.measureText([...t].slice(0, i + 1).join('')).width;
+    return { ch, x: x0 + before, right: x0 + upTo, y: k ? y2 : y1 };
+  }).filter((l) => l.ch.trim()));
+  const R = D / 2;
+  return {
+    size, D, R, gap, letters,
+    a: { x: x0 - gap - R, y: y1 },                // початок першого рядка
+    b: { x: x0 + w[0] + gap + R, y: y1 },         // кінець першого
+    c: { x: x0 - gap - R, y: y2 },                // початок другого («каретка» повернулась)
+    e: { x: x0 + w[1] + gap + R, y: y2 },         // крапка в кінці
+  };
+}
+
+/* ── Крапка на кадрі f → { cx, cy, w, h } або null ───────────────────────────────────────────────────────────── */
+function smallDot(f) {
+  if (f < 5) return null;
+  if (f < 10) return POP[f - 5];
+  let d = SMALL;
+  for (const [b, amp] of BEATS) if (f >= b) d = SMALL + amp * Math.exp(-(f - b) / 2.6);
+  return d;
+}
+function dotAt(f, L) {
+  const still = (d, x = W / 2, ground = GROUND0) => ({ cx: x, cy: ground - d / 2, w: d, h: d });
+  if (f < TAKEOFF) { const d = smallDot(f); return d == null ? null : still(d); }
+  const { D, R } = L;
+  const squash = (p, k) => ({ cx: p.x, cy: p.y - (D * (1 - k * 0.9)) / 2, w: D * (1 + k), h: D * (1 - k * 0.9) });
+  if (f < LAND[0]) {                              // великий стрибок із центру до початку першого рядка
+    const t = (f - TAKEOFF) / (LAND[0] - TAKEOFF);
+    const g = 1 - (1 - clamp((f - TAKEOFF) / 11)) ** 2;
+    const d = 52 + (D - 52) * g;
+    const startY = GROUND0 - 26;
+    const cy = f <= APEX
+      ? startY + (APEX_Y - startY) * ASCENT[f - TAKEOFF]
+      : APEX_Y + (L.a.y - R - APEX_Y) * ((f - APEX) / (LAND[0] - APEX)) ** 2;
+    return { cx: W / 2 + (L.a.x - W / 2) * smooth(t * 1.04), cy, w: d, h: d };
+  }
+  if (f === LAND[0]) return squash(L.a, 0.18);
+  if (f < LAND[1]) {                              // пише перший рядок
+    const t = (f - LAND[0]) / (LAND[1] - LAND[0]);
+    return { cx: L.a.x + (L.b.x - L.a.x) * t, cy: L.a.y - R - 109 * 4 * t * (1 - t), w: D, h: D };
+  }
+  if (f === LAND[1]) return squash(L.b, 0.12);
+  if (f < LAND[2]) {                              // повернення каретки: з краю рядка вниз і назад під ним
+    const t = (f - LAND[1]) / (LAND[2] - LAND[1]);
+    const cy = L.b.y - R + (L.c.y - L.b.y) * (1 - (1 - t) ** 2.2);
+    return { cx: L.b.x + (L.c.x - L.b.x) * smooth((t - 0.12) / 0.88), cy, w: D, h: D };
+  }
+  if (f === LAND[2]) return squash(L.c, 0.08);
+  if (f < LAND[3]) {                              // пише другий рядок
+    const t = (f - LAND[2]) / (LAND[3] - LAND[2]);
+    return { cx: L.c.x + (L.e.x - L.c.x) * t, cy: L.c.y - R - 34 * 4 * t * (1 - t), w: D, h: D };
+  }
+  let pulse = 0;                                  // стоїть крапкою в кінці; з кожним кільцем трохи більшає
+  for (const b of RINGS) {
+    const a = f - b;
+    if (a >= 0) pulse = a < 2 ? a / 2 : a <= 19 ? 1 : clamp(1 - (a - 19) / 8);
+  }
+  const d = D * (1 + 0.13 * pulse);
+  return { cx: L.e.x, cy: L.e.y - R, w: d, h: d };
+}
+
+/* ── Сцена ───────────────────────────────────────────────────────────────────────────────────────────────────── */
+let nodes = null, creditNode = null;
+function build(creditSvg) {
+  const defs = el('defs');
+  const blur = el('filter', { id: 'glow', x: '-80%', y: '-80%', width: '260%', height: '260%' }, defs);
+  el('feGaussianBlur', { stdDeviation: 13 }, blur);
+  if (MODE === 'welcome') {
+    el('rect', { width: W, height: H, fill: '#fff' });
+    layout = measure();
+    const text = el('g', { fill: INK, 'font-family': FONT, 'font-weight': WEIGHT, 'font-size': layout.size });
+    const letterNodes = layout.letters.flat().map((l) => {
+      const t = el('text', { x: l.x, y: l.y, opacity: 0 }, text);
+      t.textContent = l.ch;
+      return { ...l, node: t, shown: null };
+    });
+    // літера з'являється, щойно крапка її проминула (лівий край крапки — за правим краєм літери)
+    for (let f = LAND[0]; f <= LAND[3]; f++) {
+      const d = dotAt(f, layout);
+      const row = f < LAND[1] ? layout.a.y : f >= LAND[2] ? layout.c.y : null;
+      for (const l of letterNodes) {
+        if (l.shown == null && l.y === row && d.cx - d.w / 2 >= l.right - layout.size * 0.2) l.shown = f;
+      }
+    }
+    for (const l of letterNodes) if (l.shown == null) l.shown = l.y === layout.a.y ? LAND[1] : LAND[3];
+    const rings = RINGS.map(() => el('circle', { fill: 'none', stroke: BLUE, opacity: 0 }));
+    const glow = el('ellipse', { fill: BLUE, opacity: 0, filter: 'url(#glow)' });
+    const dot = el('ellipse', { fill: BLUE, opacity: 0 });
+    nodes = { letterNodes, rings, glow, dot };
+  }
+  // підпис компанії — однаковий в обох роликах: знак і «ТОВ «Технології»» кривими (technologies-logo-uk-line.svg)
+  const inner = new DOMParser().parseFromString(creditSvg, 'image/svg+xml').documentElement;
+  const [, , cw, ch] = inner.getAttribute('viewBox').split(/\s+/).map(Number);
+  const k = 34 / ch;
+  creditNode = el('g', { opacity: 0 });
+  const box = el('g', { transform: `translate(${(W - cw * k) / 2} ${1668 - 17}) scale(${k})` }, creditNode);
+  for (const n of [...inner.childNodes]) box.appendChild(document.importNode(n, true));
+}
+
+function setFrame(f) {
+  const p = smooth((f - CREDIT[0]) / (CREDIT[1] - CREDIT[0]));
+  creditNode.setAttribute('opacity', p.toFixed(3));
+  creditNode.setAttribute('transform', `translate(0 ${((1 - p) * 14).toFixed(2)})`);
+  if (MODE !== 'welcome') return;
+  const { letterNodes, rings, glow, dot } = nodes;
+  for (const l of letterNodes) {
+    const t = clamp((f - l.shown + 1) / 5);
+    l.node.setAttribute('opacity', f >= l.shown ? clamp(t * 1.6).toFixed(3) : 0);
+    l.node.setAttribute('transform', `translate(0 ${((1 - backOut(t)) * 18).toFixed(2)})`);
+  }
+  const d = dotAt(f, layout);
+  for (const n of [glow, dot]) n.setAttribute('opacity', d ? (n === glow ? 0.3 : 1) : 0);
+  if (d) {
+    dot.setAttribute('cx', d.cx); dot.setAttribute('cy', d.cy); dot.setAttribute('rx', d.w / 2); dot.setAttribute('ry', d.h / 2);
+    glow.setAttribute('cx', d.cx); glow.setAttribute('cy', d.cy + d.h * 0.16); glow.setAttribute('rx', d.w / 2); glow.setAttribute('ry', d.h / 2);
+  }
+  const s = layout.D / 91;                        // кільця — у масштабі крапки (в оригіналі вона 91 px)
+  RINGS.forEach((born, i) => {
+    const a = f - born, ring = rings[i];
+    if (a < 0 || a > RING_LIFE) { ring.setAttribute('opacity', 0); return; }
+    ring.setAttribute('cx', layout.e.x); ring.setAttribute('cy', layout.e.y - layout.R);
+    ring.setAttribute('r', (47 + 3.6 * a) * s);
+    ring.setAttribute('stroke-width', (13 + 0.32 * a) * s);
+    ring.setAttribute('opacity', (0.95 * (1 - a / RING_LIFE) ** 1.15).toFixed(3));
+  });
+}
+
+window.teaser = {
+  FRAMES, FPS,
+  async init(creditSvg) {
+    if (MODE === 'welcome') {
+      await document.fonts.load(`${WEIGHT} 100px ${FONT}`, LINES.join(''));
+      const ok = [...document.fonts].some((x) => x.family.replace(/["']/g, '') === 'Golos Text' && x.status === 'loaded');
+      if (!ok) throw new Error('Golos Text не завантажився — потрібна мережа (Google Fonts)');
+    }
+    build(creditSvg);
+    setFrame(0);
+    return { mode: MODE, frames: FRAMES, fps: FPS, layout: layout && { size: layout.size, dot: layout.D } };
+  },
+  setFrame,
+};
+
+if (q.get('play')) {                              // перегляд у браузері: python3 -m http.server у scripts/teaser
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Golos+Text:wght@800&display=block';
+  document.head.appendChild(link);
+  link.onload = async () => {
+    await window.teaser.init(await (await fetch('technologies-logo-uk-line.svg')).text());
+    const t0 = performance.now();
+    const tick = () => { setFrame(Math.floor(((performance.now() - t0) / 1000) * FPS) % (FRAMES + 30)); requestAnimationFrame(tick); };
+    tick();
+  };
+}
+</script>
+</body>
+</html>

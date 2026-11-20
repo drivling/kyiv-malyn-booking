@@ -1,7 +1,9 @@
 /**
- * Ролики «Доведе» для сайту: `npm run dovede:intro -- <ролик.mp4> [--slot intro|hint] [--width 1080] [--crf 28] [--dry <тека>]`.
+ * Ролики «Доведе» для сайту: `npm run dovede:intro -- <ролик.mp4> [--slot intro|hint|welcome] [--width 1080] [--crf 28] [--dry <тека>]`.
  * - `intro` (типово) — ролик-вступ /dovede: `public/dovede/intro-<хеш>.*`, `src/pages/DovedePage/intro/introMedia.ts`;
- * - `hint` — міні-тизер перед табло зупинки після скану наклейки: `public/ads/hint-<хеш>.*`, `src/ads/hintMedia.ts`.
+ * - `hint` — міні-тизер перед табло зупинки після скану наклейки: `public/ads/hint-<хеш>.*`, `src/ads/hintMedia.ts`;
+ * - `welcome` — ролик-привітання замість тизера на зупинках зі списку `WELCOME_STOPS` (src/ads/stickerAd.ts):
+ *   `public/ads/welcome-<хеш>.*`, `src/ads/welcomeMedia.ts`.
  *
  * Локальний скрипт (потрібен ffmpeg; не для CI й не для Railway). Кодує тизер для вебу — H.264 High, `+faststart`
  * (грає, ще не докачавшись), колір bt709, AAC 128 кбіт/с — і знімає постер з першого кадру. Назва файлів — хеш
@@ -31,10 +33,11 @@ if (!src || !fs.existsSync(src)) {
 const SLOTS = {
   intro: { dir: 'dovede', prefix: 'intro', media: ['src', 'pages', 'DovedePage', 'intro', 'introMedia.ts'], name: 'INTRO', title: 'Ролик-вступ /dovede' },
   hint: { dir: 'ads', prefix: 'hint', media: ['src', 'ads', 'hintMedia.ts'], name: 'HINT', title: 'Міні-тизер перед табло зупинки' },
+  welcome: { dir: 'ads', prefix: 'welcome', media: ['src', 'ads', 'welcomeMedia.ts'], name: 'WELCOME', title: 'Ролик-привітання перед табло зупинки' },
 };
 const slot = SLOTS[opt('slot', 'intro')];
 if (!slot) {
-  console.error('--slot: intro | hint');
+  console.error('--slot: intro | hint | welcome');
   process.exit(1);
 }
 const width = Number(opt('width', '1080'));

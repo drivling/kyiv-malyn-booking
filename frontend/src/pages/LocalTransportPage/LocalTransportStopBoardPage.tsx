@@ -112,15 +112,15 @@ function formatWaitMins(mins: number): string {
   return m > 0 ? `${h} год ${m} хв` : `${h} год`;
 }
 
-/** Міні-тизер «Доведе» після скану наклейки (ads/stickerAd.ts) — окремим чанком, лише коли його показуємо */
+/** Ролик після скану наклейки — тизер «Доведе» чи привітання на вокзалі (ads/stickerAd.ts) — окремим чанком, лише коли його показуємо */
 const StickerAdIntro = lazy(() => import('@/ads/StickerAdIntro'));
 
 /** Поки чанк тизера вантажиться — білий екран замість табло, щоб воно не блимнуло перед роликом */
 const AD_COVER: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 2147483000, background: '#fff' };
 
 /**
- * Табло зупинки. Хто прийшов скануванням наклейки й ще не бачив міні-тизер «Доведе», спершу дивиться його (8 с) —
- * табло під ним уже вантажиться й відкривається колом, коли ролик закінчиться. Рішення — з першої адреси: скан
+ * Табло зупинки. Хто прийшов скануванням наклейки й ще не бачив ролик цієї зупинки (міні-тизер «Доведе», на вокзалі —
+ * привітання), спершу дивиться його (8 с) — табло під ним уже вантажиться й відкривається колом, коли ролик закінчиться. Рішення — з першої адреси: скан
  * одразу переписує `utm_source=sticker` на `reload` (stickerScan.ts).
  */
 export const LocalTransportStopBoardPage: React.FC = () => {
@@ -132,7 +132,7 @@ export const LocalTransportStopBoardPage: React.FC = () => {
       <StopBoard />
       {showAd && ad ? (
         <Suspense fallback={<div style={AD_COVER} aria-hidden="true" />}>
-          <StickerAdIntro stopId={ad.stopId} onDone={() => setShowAd(false)} />
+          <StickerAdIntro stopId={ad.stopId} video={ad.video} onDone={() => setShowAd(false)} />
         </Suspense>
       ) : null}
     </>

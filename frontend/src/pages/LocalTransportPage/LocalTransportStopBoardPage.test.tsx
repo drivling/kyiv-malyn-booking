@@ -12,7 +12,7 @@ import { TEST_API_URL } from '@/test/msw/handlers';
 import { invalidateTransportDatasetCache } from './dataset/useTransportDataset';
 import { tomorrowDateUrl } from './dateUrl';
 import { LocalTransportStopBoardPage } from './LocalTransportStopBoardPage';
-import { HINT_SEEN_KEY } from '@/ads/stickerAd';
+import { HINT_SEEN_KEY, WELCOME_SEEN_KEY } from '@/ads/stickerAd';
 
 // Карта: замість Leaflet — кнопка, що імітує тап по маркеру зупинки st_c
 vi.mock('./RouteMap', () => ({
@@ -434,6 +434,51 @@ describe('LocalTransportStopBoardPage: analytics events', () => {
       sessionStorage.clear();
       localStorage.removeItem('sticker-origin');
       localStorage.removeItem(HINT_SEEN_KEY);
+    }
+  });
+
+  it('скан наклейки на вокзалі Малина — замість тизера привітання «Вітаємо в Малині», зі своєю позначкою «бачив»', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    vi.stubGlobal('matchMedia', vi.fn((q: string) => ({ matches: q.includes('reduce'), media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    const ads: { placement: string; event: string; stopId?: string; video?: string }[] = [];
+    server.use(
+      http.post(`${TEST_API_URL}/transport/sticker-scans`, () => HttpResponse.json({ ok: true, counted: true }, { status: 201 })),
+      http.post(`${TEST_API_URL}/ads/events`, async ({ request }) => {
+        ads.push((await request.json()) as (typeof ads)[number]);
+        return HttpResponse.json({ ok: true, counted: true }, { status: 201 });
+      })
+    );
+    const url = '/transport/stop/st_0019?utm_source=sticker&utm_medium=qr&utm_campaign=st_0019-a';
+    // тизер «Крапка» цей браузер уже бачив на іншій зупинці — привітання на вокзалі це не скасовує
+    localStorage.setItem(HINT_SEEN_KEY, '2026-11-17T00:00:00.000Z');
+    try {
+      const first = renderBoard(url);
+      const dialog = await screen.findByRole('dialog', { name: 'Ролик «Вітаємо в Малині» перед розкладом зупинки' });
+      const video = dialog.querySelector('video') as HTMLVideoElement;
+      expect(video.getAttribute('src')).toMatch(/^\/ads\/welcome-[0-9a-f]{8}\.mp4$/);
+      await waitFor(() => expect(play).toHaveBeenCalled());
+      video.dispatchEvent(new Event('playing'));
+      video.dispatchEvent(new Event('ended'));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(localStorage.getItem(WELCOME_SEEN_KEY)).not.toBeNull();
+      await waitFor(() => expect(ads.map((a) => a.event)).toEqual(['shown', 'started', 'completed']));
+      expect(ads.every((a) => a.placement === 'sticker' && a.stopId === 'st_0019' && /^welcome-[0-9a-f]{8}$/.test(a.video ?? ''))).toBe(true);
+      // удруге на вокзалі — одразу табло, без «Крапки»
+      first.unmount();
+      sessionStorage.clear();
+      localStorage.removeItem(HINT_SEEN_KEY);
+      renderBoard(url);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+      sessionStorage.clear();
+      localStorage.removeItem('sticker-origin');
+      localStorage.removeItem(HINT_SEEN_KEY);
+      localStorage.removeItem(WELCOME_SEEN_KEY);
     }
   });
 
