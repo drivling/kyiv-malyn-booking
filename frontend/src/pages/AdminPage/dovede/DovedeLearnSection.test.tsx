@@ -162,6 +162,13 @@ const cityRadio = (name: string) => within(screen.getByRole('radiogroup', { name
 
 const mainRow = (day: string) => within(screen.getByRole('group', { name: `Години для кожного місця: ${day}` }));
 
+/**
+ * Форма «Нової кампанії» готова. Заготовки приходять поза `act`: React спершу малює їхні радіо, а параметри форми
+ * (і з ними кнопку «Оцінити») ставить ефект `[defaults]` окремою задачею планувальника. Під навантаженням (увесь
+ * `npm test` паралельно) між ними встигає завершитися `findByRole('radio')` — тож чекаємо саму кнопку.
+ */
+const formReady = () => screen.findByRole('button', { name: 'Оцінити' });
+
 const renderSection = () =>
   render(
     <MemoryRouter>
@@ -213,18 +220,20 @@ describe('DovedeLearnSection', () => {
     const user = userEvent.setup();
     renderSection();
     expect(await screen.findByText(/Кампаній ще не було/)).toBeInTheDocument();
-    await screen.findByRole('radio', { name: /Навчити місто/ });
+    const estimate = await formReady();
+    expect(screen.getByRole('radio', { name: /Навчити місто/ })).toBeChecked();
     expect(cityRadio('Житомир')).toHaveAttribute('aria-checked', 'true');
     expect(screen.queryByRole('radio', { name: /Види транспорту/ })).toBeNull();
     expect(mainRow('Будні').getByRole('button', { name: 'Будні 9:00' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.queryByRole('button', { name: /Почати/ })).toBeNull();
 
-    await user.click(screen.getByRole('button', { name: 'Оцінити' }));
+    await user.click(estimate);
+    // запит записує обробник MSW — лише після відповіді він точно вже в `calls`
+    const est = await screen.findByRole('group', { name: 'Оцінка кампанії' });
     expect(actions(calls)[0]).toEqual({
       path: 'preview',
       body: { preset: 'learn', city: 'Zhytomyr', options: { origins: ['zhytomyr.avtovokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 } },
     });
-    const est = await screen.findByRole('group', { name: 'Оцінка кампанії' });
     expect(within(est).getByText('184–550')).toBeInTheDocument();
     expect(screen.getByText(/Сьогодні Google: 10 з 500; 100 лишаємо людям/)).toBeInTheDocument();
     const budget = screen.getByLabelText('Погоджую запитів до Google');
@@ -246,8 +255,7 @@ describe('DovedeLearnSection', () => {
     const calls = mock();
     const user = userEvent.setup();
     renderSection();
-    await screen.findByRole('radio', { name: /Навчити місто/ });
-    await user.click(screen.getByRole('button', { name: 'Оцінити' }));
+    await user.click(await formReady());
     await screen.findByRole('group', { name: 'Оцінка кампанії' });
     await user.click(mainRow('Субота').getByRole('button', { name: 'Субота 11:00' }));
     expect(screen.queryByRole('group', { name: 'Оцінка кампанії' })).toBeNull();
