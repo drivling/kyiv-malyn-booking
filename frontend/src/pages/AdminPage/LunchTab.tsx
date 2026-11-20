@@ -1,64 +1,37 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Navigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
-import { Button } from '@/components/Button';
 import type { LunchDayPeople, LunchDaySummary, LunchOrderRow, LunchPerson, LunchReparseReport } from '@/types';
+import { AdminSectionHeader, AdminSectionNav, ChipGroup, EmptyState, StatTile, StatTiles, StatusPill } from './kit';
 import { LunchOcrCompare } from './LunchOcrCompare';
 import { LunchPeoplePanel } from './LunchPeoplePanel';
 import { LunchReparseReportView } from './LunchReparseReportView';
+import { LunchCatalog } from './lunch/LunchCatalog';
+import {
+  cashCount,
+  computeTrayCount,
+  conflictNorms,
+  dayStatus,
+  filterOrders,
+  formatOrderDishLabel,
+  isLunchSection,
+  isOrderFilter,
+  isUncheckedPayment,
+  kyivTime,
+  LUNCH_ADMIN_BASE,
+  lunchSections,
+  orderFilterCounts,
+  orderHasProblem,
+  PAYMENT_SOURCE_LABEL,
+  splitUnmatched,
+  trayRoleLabel,
+  type OrderFilter,
+} from './lunch/lunchText';
+import './SchedulesTab.css';
 import './LunchTab.css';
 
-/** Звідки взялась оплата — щоб оператор бачив, що перевіряти (посилання на чек суму не підтверджує). */
-const PAYMENT_SOURCE_LABEL: Record<string, string> = {
-  text: 'написав(ла) в чаті',
-  admin: 'кнопка «Оплатив»',
-  receipt: 'сума з чека (фото / PDF)',
-  link: 'посилання на чек — суму не перевірено',
-  claim: 'написав(ла), що оплатив(ла) — суму не перевірено',
-};
-
 const EXAMPLE_JSON = `{"items":[{"name":"Яйце з кабачковою ікрою","price":40},{"name":"Салат «Овочевий мікс»","price":45},{"name":"Пюре","price":45},{"name":"Котлети курячі","price":70}]}`;
-
-const TRAY_ROLE_LABEL: Record<string, string> = {
-  soup: 'суп',
-  second: 'друге',
-  salad: 'салат',
-};
-
-function splitUnmatched(text: string | null | undefined): string[] {
-  if (!text || !text.trim()) return [];
-  return text
-    .split(/[;\n]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-function computeTrayCount(roles: Array<{ trayRole?: string | null; qty?: number | null }>): number {
-  if (!roles.length) return 0;
-  let soupQty = 0;
-  let hasSecond = false;
-  for (const l of roles) {
-    const role = l.trayRole || 'second';
-    const qty = l.qty && l.qty > 0 ? l.qty : 1;
-    if (role === 'soup') soupQty += qty;
-    else if (role === 'second') hasSecond = true;
-  }
-  let trays = soupQty + (hasSecond ? 1 : 0);
-  if (roles.length === 1) trays = Math.max(trays, 1);
-  return trays;
-}
-
-function formatOrderDishLabel(
-  line: LunchOrderRow['lines'][number],
-  dishById: Map<number, { id: number; name: string; priceUah: number }>
-): string {
-  const dish = line.dishId != null ? dishById.get(line.dishId) : undefined;
-  const name = dish?.name || line.menuItemName || line.rawName || '?';
-  const price = line.lineTotalUah ?? dish?.priceUah ?? line.unitPriceUah;
-  const qty = line.qty > 1 ? `×${line.qty} ` : '';
-  const miss = line.unavailable ? ' (немає сьогодні)' : '';
-  return `${qty}${name} — ${price} грн${miss}`;
-}
 
 type EditLine = { dishId: number; asWritten: string };
 type EditState = {
@@ -71,11 +44,22 @@ type EditState = {
 };
 
 type LunchTabProps = {
+  /** другий сегмент адреси: '' — «Сьогодні», `menu`, `dishes`, `models` */
+  section?: string;
   /** тести передають маленький інтервал опитування задачі порівняння моделей */
   ocrComparePollMs?: number;
 };
 
-export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
+/**
+ * Вкладка «Столова» (`/admin/lunch/<розділ>`): угорі — плитки дня (замовлення, до столової, оплачено, борг, що
+ * перевірити, хто писав без замовлення), під ними розділи з власними адресами: «Сьогодні» (стан дня, замовлення
+ * рядками з фільтром `?only=`, хто писав у групі, оплати), «Меню» (меню дня, лоток, запасний імпорт JSON-ом),
+ * «Страви» (каталог і синоніми), «Моделі» (порівняння моделей розпізнавання). Запити ті самі, що були.
+ */
+export const LunchTab: React.FC<LunchTabProps> = ({ section = '', ocrComparePollMs }) => {
+  const [params, setParams] = useSearchParams();
+  const onlyParam = params.get('only');
+  const only: OrderFilter = isOrderFilter(onlyParam) ? onlyParam : 'all';
   const [summary, setSummary] = useState<LunchDaySummary | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -128,12 +112,7 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
     for (const d of summary?.dishes || []) m.set(d.id, d);
     for (const item of summary?.menuItems || []) {
       if (item.dishId && !m.has(item.dishId)) {
-        m.set(item.dishId, {
-          id: item.dishId,
-          name: item.name,
-          priceUah: item.priceUah,
-          trayRole: item.trayRole,
-        });
+        m.set(item.dishId, { id: item.dishId, name: item.name, priceUah: item.priceUah, trayRole: item.trayRole });
       }
     }
     return m;
@@ -141,27 +120,28 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
 
   const todayDishIds = useMemo(() => {
     const s = new Set<number>();
-    for (const item of summary?.menuItems || []) {
-      if (item.dishId) s.add(item.dishId);
-    }
+    for (const item of summary?.menuItems || []) if (item.dishId) s.add(item.dishId);
     return s;
   }, [summary?.menuItems]);
 
   const addDishOptions = useMemo(() => {
     const dishes = [...(summary?.dishes || [])].sort((a, b) => a.name.localeCompare(b.name, 'uk'));
-    return {
-      today: dishes.filter((d) => todayDishIds.has(d.id)),
-      rest: dishes.filter((d) => !todayDishIds.has(d.id)),
-    };
+    return { today: dishes.filter((d) => todayDishIds.has(d.id)), rest: dishes.filter((d) => !todayDishIds.has(d.id)) };
   }, [summary?.dishes, todayDishIds]);
 
+  const orders = useMemo(() => summary?.orders ?? [], [summary]);
+  const counts = useMemo(() => orderFilterCounts(orders), [orders]);
+  const shownOrders = useMemo(() => filterOrders(orders, only), [orders, only]);
+  // Скільки страв мають синонім, що лежить ще й на іншій страві (те саме число, що в фільтрі «З конфліктом»)
+  const conflictCount = useMemo(() => {
+    const norms = conflictNorms(summary?.dishes ?? []);
+    return (summary?.dishes ?? []).filter((d) => d.synonyms.some((x) => x.rawNorm && norms.has(x.rawNorm))).length;
+  }, [summary?.dishes]);
   const trayPrice = summary?.trayPriceUah ?? 5;
 
   const autoTrayFromEdit = useMemo(() => {
     if (!edit) return 0;
-    return computeTrayCount(
-      edit.lines.map((l) => ({ trayRole: dishById.get(l.dishId)?.trayRole, qty: 1 }))
-    );
+    return computeTrayCount(edit.lines.map((l) => ({ trayRole: dishById.get(l.dishId)?.trayRole, qty: 1 })));
   }, [edit, dishById]);
 
   const editPreviewFood = useMemo(() => {
@@ -169,8 +149,28 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
     return edit.lines.reduce((s, l) => s + (dishById.get(l.dishId)?.priceUah || 0), 0);
   }, [edit, dishById]);
 
+  if (!isLunchSection(section)) return <Navigate to={LUNCH_ADMIN_BASE} replace />;
+
   const editTrayCount = edit ? (edit.trayManual ? edit.trayCount : autoTrayFromEdit) : 0;
   const editPreviewTotal = editPreviewFood + editTrayCount * trayPrice;
+
+  const setOnly = (next: OrderFilter) => {
+    const p = new URLSearchParams(params);
+    if (next === 'all') p.delete('only');
+    else p.set('only', next);
+    setParams(p, { replace: true });
+  };
+
+  const begin = () => {
+    setSaving(true);
+    setError('');
+    setSuccess('');
+  };
+
+  const applySummary = (next?: LunchDaySummary) => {
+    if (next) setSummary(next);
+    else void load();
+  };
 
   const startEdit = (o: LunchOrderRow) => {
     const lines = o.lines
@@ -185,10 +185,7 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
           }
         }
         if (!dishId) return null;
-        return {
-          dishId,
-          asWritten: l.rawName && l.rawName !== l.menuItemName ? l.rawName : '',
-        };
+        return { dishId, asWritten: l.rawName && l.rawName !== l.menuItemName ? l.rawName : '' };
       })
       .filter((x): x is EditLine => x != null);
     setEdit({
@@ -211,29 +208,21 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
 
   const saveEdit = async () => {
     if (!edit) return;
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    begin();
     try {
-      const unmatchedText =
-        edit.unmatchedParts.length > 0 ? edit.unmatchedParts.join('; ') : null;
+      const unmatchedText = edit.unmatchedParts.length > 0 ? edit.unmatchedParts.join('; ') : null;
       const res = await apiClient.updateLunchOrder(edit.orderId, {
-        lines: edit.lines.map((l) => ({
-          dishId: l.dishId,
-          asWritten: l.asWritten,
-          qty: 1,
-        })),
+        lines: edit.lines.map((l) => ({ dishId: l.dishId, asWritten: l.asWritten, qty: 1 })),
         unmatchedText,
         trayCount: edit.trayManual ? edit.trayCount : null,
       });
-      const tg =
-        res.telegramError
-          ? ` Відповідь у групі не підправлено: ${res.telegramError}`
-          : res.hasReply
-            ? ' Відповідь у групі поставлено в чергу на правку.'
-            : res.telegramQueued
-              ? ' Уточнення в групу в черзі.'
-              : ' (немає id вашої відповіді — у групу не підправлено.)';
+      const tg = res.telegramError
+        ? ` Відповідь у групі не підправлено: ${res.telegramError}`
+        : res.hasReply
+          ? ' Відповідь у групі поставлено в чергу на правку.'
+          : res.telegramQueued
+            ? ' Уточнення в групу в черзі.'
+            : ' (немає id вашої відповіді — у групу не підправлено.)';
       setSuccess(`Замовлення оновлено.${tg}`);
       setEdit(null);
       if (res.summary) setSummary(res.summary);
@@ -246,31 +235,17 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
   };
 
   const importMenu = async () => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    begin();
     try {
-      const res = await apiClient.importLunchMenu({
-        rawJson: jsonText.trim(),
-        postToGroup,
-      });
+      const res = await apiClient.importLunchMenu({ rawJson: jsonText.trim(), postToGroup });
       const noticeN = res.notices?.length ?? 0;
       const extra = noticeN ? ` Сповіщено ${noticeN} осіб про страви, яких немає сьогодні.` : '';
-      if (!postToGroup) {
-        setSuccess(`Меню збережено (${res.menuItems.length} позицій).${extra}`);
-      } else if (res.postError) {
-        setSuccess(
-          `Меню збережено (${res.menuItems.length}), але пост у групу не вдався: ${res.postError}${extra}`
-        );
-      } else if (res.queued) {
-        setSuccess(
-          `Меню збережено (${res.menuItems.length}). Повідомлення в черзі — listener надішле в групу за кілька секунд.${extra}`
-        );
-      } else if (res.posted) {
-        setSuccess(`Меню збережено (${res.menuItems.length} позицій) і надіслано в групу.${extra}`);
-      } else {
-        setSuccess(`Меню збережено (${res.menuItems.length} позицій).${extra}`);
-      }
+      const n = res.menuItems.length;
+      if (!postToGroup) setSuccess(`Меню збережено (${n} позицій).${extra}`);
+      else if (res.postError) setSuccess(`Меню збережено (${n}), але пост у групу не вдався: ${res.postError}${extra}`);
+      else if (res.queued) setSuccess(`Меню збережено (${n}). Повідомлення в черзі — listener надішле в групу за кілька секунд.${extra}`);
+      else if (res.posted) setSuccess(`Меню збережено (${n} позицій) і надіслано в групу.${extra}`);
+      else setSuccess(`Меню збережено (${n} позицій).${extra}`);
       setJsonText('');
       await load();
     } catch (e) {
@@ -281,9 +256,7 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
   };
 
   const setStatus = async (status: 'ordering' | 'closed') => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    begin();
     try {
       await apiClient.setLunchStatus(status);
       setSuccess(status === 'closed' ? 'День закрито.' : 'День відкрито для замовлень.');
@@ -296,18 +269,12 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
   };
 
   const repost = async () => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    begin();
     try {
       const res = await apiClient.postLunchMenuToGroup();
-      if (!res.ok) {
-        setSuccess(res.postError || 'Не вдалося надіслати');
-      } else if ((res as { queued?: boolean }).queued) {
-        setSuccess('Меню в черзі — listener надішле в групу за кілька секунд.');
-      } else {
-        setSuccess('Меню надіслано в групу.');
-      }
+      if (!res.ok) setSuccess(res.postError || 'Не вдалося надіслати');
+      else if ((res as { queued?: boolean }).queued) setSuccess('Меню в черзі — listener надішле в групу за кілька секунд.');
+      else setSuccess('Меню надіслано в групу.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка посту');
     } finally {
@@ -316,9 +283,13 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
   };
 
   const reparse = async () => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    if (
+      !window.confirm(
+        'Розібрати весь день заново? Усі замовлення й оплати дня (разом з вашими ручними правками) буде скинуто й прочитано з групи наново. Меню лишається.'
+      )
+    )
+      return;
+    begin();
     try {
       const res = await apiClient.reparseLunchToday();
       const r = res.reparse || {};
@@ -337,15 +308,10 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
     }
   };
 
-  /** Розібрати одну людину: або за Telegram id (панель «Писали в групі»), або за учасником з таблиці. */
-  const reparsePerson = async (
-    who: { tgUserId: string } | { participantId: number },
-    label: string
-  ) => {
-    setSaving(true);
+  /** Розібрати одну людину: або за Telegram id (панель «Писали в групі»), або за учасником з замовлень. */
+  const reparsePerson = async (who: { tgUserId: string } | { participantId: number }, label: string) => {
+    begin();
     setBusyTgUserId('tgUserId' in who ? who.tgUserId : null);
-    setError('');
-    setSuccess('');
     try {
       const res = await apiClient.reparseLunchPerson(who, { notify: notifyGroup });
       const r = res.reparse || {};
@@ -353,9 +319,7 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
       if ((r.orders ?? 0) + (r.payments ?? 0) === 0) {
         setError(`${name}: нічого схожого на замовлення чи оплату не знайдено — деталі у звіті нижче.`);
       } else if (r.placeholder) {
-        setSuccess(
-          `${name}: повідомлення знайдено, але страви не збіглись з меню — додано порожнім рядком, натисни «Редагувати».`
-        );
+        setSuccess(`${name}: повідомлення знайдено, але страви не збіглись з меню — додано порожнім рядком, натисни «Редагувати».`);
       } else {
         setSuccess(`${name}: розібрано — замовлень ${r.orders ?? 0}, оплат ${r.payments ?? 0}.`);
       }
@@ -374,9 +338,7 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
 
   const removeOrder = async (o: LunchOrderRow) => {
     if (!window.confirm(`Прибрати замовлення «${o.displayName}» з сьогоднішнього дня? Оплати лишаться.`)) return;
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    begin();
     try {
       const res = await apiClient.deleteLunchOrder(o.id);
       setSuccess(`Замовлення «${o.displayName}» прибрано.`);
@@ -393,9 +355,7 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
 
   const markPaid = async (participantId: number, debtUah: number) => {
     if (debtUah <= 0) return;
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    begin();
     try {
       const res = await apiClient.payLunchDebt(participantId);
       const tg = res.telegramError
@@ -414,18 +374,12 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
   };
 
   const postTotals = async () => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    begin();
     try {
       const res = await apiClient.postLunchTotals();
-      if (!res.ok) {
-        setError(res.postError || 'Не вдалося надіслати підсумок');
-      } else if (res.queued) {
-        setSuccess('Підсумок у черзі — listener надішле в групу за кілька секунд.');
-      } else {
-        setSuccess('Підсумок надіслано в групу.');
-      }
+      if (!res.ok) setError(res.postError || 'Не вдалося надіслати підсумок');
+      else if (res.queued) setSuccess('Підсумок у черзі — listener надішле в групу за кілька секунд.');
+      else setSuccess('Підсумок надіслано в групу.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Помилка посту підсумку');
     } finally {
@@ -435,13 +389,11 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
 
   const saveTrayPrice = async () => {
     const n = Number(trayPriceDraft);
-    if (!Number.isFinite(n) || n < 0) {
+    if (!trayPriceDraft.trim() || !Number.isFinite(n) || n < 0) {
       setError('Некоректна ціна лотка');
       return;
     }
-    setSaving(true);
-    setError('');
-    setSuccess('');
+    begin();
     try {
       const res = await apiClient.updateLunchSettings(n);
       setSuccess(`Ціна лотка: ${n} грн.`);
@@ -454,784 +406,527 @@ export const LunchTab: React.FC<LunchTabProps> = ({ ocrComparePollMs }) => {
     }
   };
 
-  const applySummary = (next?: LunchDaySummary) => {
-    if (next) setSummary(next);
-    else void load();
-  };
-
-  const saveDish = async (dishId: number, priceUah: number, trayRole: string) => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
+  const catalogAction = async (run: () => Promise<{ summary?: LunchDaySummary }>, ok: string, fail: string) => {
+    begin();
     try {
-      const res = await apiClient.updateLunchDish(dishId, { priceUah, trayRole });
-      setSuccess('Страву оновлено.');
+      const res = await run();
+      setSuccess(ok);
       applySummary(res.summary);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Помилка страви');
+      setError(e instanceof Error ? e.message : fail);
     } finally {
       setSaving(false);
     }
   };
 
-  const addSynonym = async (dishId: number, rawText: string) => {
+  const addSynonym = (dishId: number, rawText: string) => {
     const raw = rawText.trim();
     if (!raw) {
       setError('Порожній синонім');
       return;
     }
-    setSaving(true);
-    setError('');
-    setSuccess('');
-    try {
-      const res = await apiClient.addLunchDishSynonym(dishId, raw);
-      setSuccess('Синонім додано.');
-      applySummary(res.summary);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Помилка синоніма');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const deleteSynonym = async (synonymId: number) => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
-    try {
-      const res = await apiClient.deleteLunchDishSynonym(synonymId);
-      setSuccess('Синонім прибрано.');
-      applySummary(res.summary);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Помилка синоніма');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const moveSynonym = async (synonymId: number, dishId: number) => {
-    setSaving(true);
-    setError('');
-    setSuccess('');
-    try {
-      const res = await apiClient.moveLunchDishSynonym(synonymId, dishId);
-      setSuccess('Синонім перенесено.');
-      applySummary(res.summary);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Помилка переносу синоніма');
-    } finally {
-      setSaving(false);
-    }
+    void catalogAction(() => apiClient.addLunchDishSynonym(dishId, raw), 'Синонім додано.', 'Помилка синоніма');
   };
 
   const editingOrder = summary?.orders.find((o) => o.id === edit?.orderId) || null;
+  const status = dayStatus(summary?.day?.status);
+  const debtors = counts.debt;
+  const cash = cashCount(orders);
+  const trays = orders.reduce((s, o) => s + (o.trayCount || 0), 0);
+  const peopleWithout = people?.people.filter((p) => !p.hasOrder).length ?? 0;
+  const unchecked = (summary?.payments ?? []).filter((p) => isUncheckedPayment(p.source)).length;
+
+  const editPanel = (o: LunchOrderRow) =>
+    edit && editingOrder ? (
+      <div className="lunch-edit" aria-label={`Правка: ${o.displayName}`}>
+        <div className="lunch-edit__col">
+          <strong>Страви</strong>
+          <ul className="lunch-edit-list">
+            {edit.lines.length === 0 && <li className="lunch-muted">Порожньо — додай з каталогу нижче</li>}
+            {edit.lines.map((line, idx) => {
+              const item = dishById.get(line.dishId);
+              return (
+                <li key={`${line.dishId}-${idx}`}>
+                  <span>
+                    {item?.name || `#${line.dishId}`}
+                    {item ? ` — ${item.priceUah} грн` : ''}
+                    {line.asWritten ? <span className="lunch-muted"> ({line.asWritten})</span> : null}
+                  </span>
+                  <button
+                    type="button"
+                    className="lunch-chip-x"
+                    aria-label="Прибрати страву"
+                    onClick={() => setEdit({ ...edit, lines: edit.lines.filter((_, i) => i !== idx) })}
+                  >
+                    ✕
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="lunch-edit-add">
+            <select
+              value={addDishId}
+              aria-label="Додати страву"
+              onChange={(e) => setAddDishId(e.target.value)}
+              disabled={!addDishOptions.today.length && !addDishOptions.rest.length}
+            >
+              <option value="">Додати страву…</option>
+              {addDishOptions.today.length > 0 && <option disabled>── сьогодні ──</option>}
+              {addDishOptions.today.map((d) => (
+                <option key={`t-${d.id}`} value={d.id}>
+                  {d.name} — {d.priceUah} грн
+                </option>
+              ))}
+              {addDishOptions.rest.length > 0 && <option disabled>── каталог ──</option>}
+              {addDishOptions.rest.map((d) => (
+                <option key={`c-${d.id}`} value={d.id}>
+                  {d.name} — {d.priceUah} грн
+                </option>
+              ))}
+            </select>
+            <input
+              className="lunch-input"
+              placeholder="як писала людина"
+              value={edit.asWrittenDraft}
+              onChange={(e) => setEdit({ ...edit, asWrittenDraft: e.target.value })}
+            />
+            <button
+              type="button"
+              className="admin-kit-btn admin-kit-btn--quiet"
+              disabled={!addDishId}
+              onClick={() => {
+                const id = Number(addDishId);
+                if (!id) return;
+                setEdit({ ...edit, lines: [...edit.lines, { dishId: id, asWritten: edit.asWrittenDraft.trim() }], asWrittenDraft: '' });
+                setAddDishId('');
+              }}
+            >
+              Додати
+            </button>
+          </div>
+          <div className="lunch-tray-edit">
+            <label className="lunch-check">
+              <input
+                type="checkbox"
+                checked={edit.trayManual}
+                onChange={(e) =>
+                  setEdit({ ...edit, trayManual: e.target.checked, trayCount: e.target.checked ? editTrayCount : autoTrayFromEdit })
+                }
+              />
+              Лотки вручну:
+            </label>
+            <input
+              type="number"
+              min={0}
+              className="lunch-input lunch-input--sm"
+              aria-label="Лотки"
+              disabled={!edit.trayManual}
+              value={edit.trayManual ? edit.trayCount : autoTrayFromEdit}
+              onChange={(e) => setEdit({ ...edit, trayCount: Number(e.target.value) || 0, trayManual: true })}
+            />
+            <span>
+              × {trayPrice} = {editTrayCount * trayPrice} грн
+            </span>
+          </div>
+          <p className="lunch-edit-total">
+            Нова сума: <strong>{editPreviewTotal} грн</strong>
+          </p>
+        </div>
+        <div className="lunch-edit__col">
+          <strong>Не розпізнано (можна прибрати)</strong>
+          <ul className="lunch-edit-list">
+            {edit.unmatchedParts.length === 0 && <li className="lunch-muted">Немає</li>}
+            {edit.unmatchedParts.map((part, idx) => (
+              <li key={`${part}-${idx}`}>
+                <span>{part}</span>
+                <button
+                  type="button"
+                  className="lunch-chip-x"
+                  aria-label="Прибрати фрагмент"
+                  onClick={() =>
+                    setEdit({
+                      ...edit,
+                      unmatchedParts: edit.unmatchedParts.filter((_, i) => i !== idx),
+                      asWrittenDraft: edit.asWrittenDraft || part,
+                    })
+                  }
+                >
+                  ✕
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="lunch-muted">
+            Хрестик прибирає фрагмент і підставляє його в «як писала людина».
+            {editingOrder.hasReply
+              ? ' Вашу відповідь у групі буде підправлено.'
+              : ' Id відповіді немає — чуже повідомлення людини редагувати не можна.'}
+          </p>
+          <details className="lunch-raw" open>
+            <summary>Оригінал повідомлення (тільки читання)</summary>
+            <pre>{editingOrder.rawText}</pre>
+          </details>
+        </div>
+        <div className="lunch-edit-actions">
+          <button type="button" className="admin-kit-btn" onClick={() => void saveEdit()} disabled={saving}>
+            {saving ? 'Збереження…' : 'Зберегти'}
+          </button>
+          <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={cancelEdit} disabled={saving}>
+            Скасувати
+          </button>
+        </div>
+      </div>
+    ) : null;
 
   return (
     <div className="lunch-tab">
-      <div className="lunch-tab__head">
-        <div>
-          <h2 className="lunch-tab__title">Столова — обіди</h2>
-          <p className="lunch-tab__sub">
-            Група «Обіди для НЕ бідних». Встав JSON з ChatGPT → збережи в БД і (опційно) напиши в групу від свого
-            акаунта. Каталог страв не обнуляється — імпорт лише вмикає доступні на сьогодні.
-          </p>
-        </div>
-        <Button type="button" variant="secondary" onClick={() => void load()} disabled={loading}>
-          Оновити
-        </Button>
-      </div>
+      <AdminSectionHeader
+        title="Столова"
+        purpose="Обіди групи «Обіди для НЕ бідних»: меню дня, хто що замовив і хто ще винен, база страв для розпізнавання."
+        actions={
+          <button type="button" className="admin-kit-btn" onClick={() => void load()} disabled={loading}>
+            Оновити
+          </button>
+        }
+      />
+
+      {summary && (
+        <StatTiles label={`День ${summary.date}`}>
+          <StatTile label="Замовлень" value={orders.length} sub={`лотків ${trays}`} />
+          <StatTile label="До столової" value={`${summary.totals.orderUah} грн`} />
+          <StatTile
+            label="Оплачено"
+            value={`${summary.totals.paidUah} грн`}
+            sub={`оплат ${summary.payments.length}${unchecked ? ` · без перевірки ${unchecked}` : ''}`}
+          />
+          <StatTile
+            label="Борг"
+            value={`${summary.totals.debtUah} грн`}
+            sub={`людей ${debtors}${cash ? ` · готівкою ${cash}` : ''}`}
+            tone={summary.totals.debtUah > 0 ? 'warn' : 'default'}
+            to={debtors ? `${LUNCH_ADMIN_BASE}?only=debt` : undefined}
+          />
+          <StatTile
+            label="Перевірити"
+            value={counts.problems}
+            sub="не розпізнано / немає в меню"
+            tone={counts.problems ? 'warn' : 'default'}
+            to={counts.problems ? `${LUNCH_ADMIN_BASE}?only=problems` : undefined}
+          />
+          <StatTile label="Писали без замовлення" value={peopleWithout} sub="у групі сьогодні" tone={peopleWithout ? 'warn' : 'default'} />
+        </StatTiles>
+      )}
+
+      <AdminSectionNav
+        base={LUNCH_ADMIN_BASE}
+        sections={lunchSections({ menu: summary?.menuItems.length ?? 0, conflicts: conflictCount })}
+        label="Розділи «Столова»"
+      />
 
       {error && <Alert variant="error">{error}</Alert>}
       {success && <Alert variant="success">{success}</Alert>}
+      {loading && !summary && <p className="lunch-muted">Завантаження…</p>}
 
-      <section className="lunch-card">
-        <h3 className="lunch-card__title">Імпорт меню (JSON з ChatGPT)</h3>
-        <p className="lunch-card__hint">
-          Промпт: <code>telegram-user/lunch/CHAT_GPT_PROMPT.md</code>. Формат:{' '}
-          <code>{'{"items":[{"name":"...","price":123}]}'}</code>
-        </p>
-        <textarea
-          className="lunch-json"
-          rows={10}
-          value={jsonText}
-          onChange={(e) => setJsonText(e.target.value)}
-          placeholder={EXAMPLE_JSON}
-          spellCheck={false}
-        />
-        <div className="lunch-actions">
-          <label className="lunch-check">
-            <input
-              type="checkbox"
-              checked={postToGroup}
-              onChange={(e) => setPostToGroup(e.target.checked)}
-            />
-            Надіслати читабельне меню в Telegram-групу
-          </label>
-          <Button type="button" onClick={() => void importMenu()} disabled={saving || !jsonText.trim()}>
-            {saving ? 'Збереження…' : 'Зберегти меню'}
-          </Button>
-        </div>
-      </section>
-
-      <section className="lunch-card">
-        <div className="lunch-card__row">
-          <h3 className="lunch-card__title">Сьогодні {summary?.date || '—'}</h3>
-          <div className="lunch-actions lunch-actions--tight">
-            <span className={`lunch-badge lunch-badge--${summary?.day?.status || 'none'}`}>
-              {summary?.day?.status || 'немає дня'}
-            </span>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => void setStatus('ordering')}
-              disabled={saving}
-            >
-              Відкрити
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => void setStatus('closed')} disabled={saving}>
-              Закрити
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => void repost()} disabled={saving}>
-              Повторити пост меню
-            </Button>
-            <Button type="button" onClick={() => void reparse()} disabled={saving}>
-              {saving ? 'Розбір…' : 'Розібрати поточний день'}
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => void postTotals()} disabled={saving}>
-              Ітог у групу
-            </Button>
-          </div>
-        </div>
-        <p className="lunch-card__hint" style={{ marginTop: 4 }}>
-          «Розібрати поточний день» — знову читає повідомлення з групи за сьогодні, скидає ВСІ замовлення й оплати
-          (разом з вашими ручними правками; меню лишається) і парсить заново. Якщо загубилась одна людина — не
-          чіпайте решту: кнопка «Розібрати» біля імені нижче розбере лише її. «Ітог у групу» — імʼя, страви, лотки,
-          сума. Чуже повідомлення людини в Telegram не редагується; підправляється ваша відповідь «Не розпізнав»,
-          якщо її id збережено.
-        </p>
-
-        {loading && !summary && <p className="lunch-muted">Завантаження…</p>}
-
-        {summary && (
-          <>
-            <div className="lunch-totals">
-              <div>
-                <span className="lunch-muted">До столової</span>
-                <strong>{summary.totals.orderUah} грн</strong>
-              </div>
-              <div>
-                <span className="lunch-muted">Оплачено</span>
-                <strong>{summary.totals.paidUah} грн</strong>
-              </div>
-              <div>
-                <span className="lunch-muted">Борг</span>
-                <strong>{summary.totals.debtUah} грн</strong>
-              </div>
-              {summary.day?.payeeCard && (
-                <div>
-                  <span className="lunch-muted">Картка</span>
-                  <strong>{summary.day.payeeCard}</strong>
-                </div>
+      {section === '' && summary && (
+        <>
+          <div className="lunch-daybar" role="group" aria-label="День">
+            <strong>Сьогодні {summary.date}</strong>
+            <StatusPill tone={status.tone}>{status.label}</StatusPill>
+            {summary.day?.payeeCard && <span className="lunch-muted">картка {summary.day.payeeCard}</span>}
+            <span className="lunch-daybar__actions">
+              {summary.day?.status === 'ordering' ? (
+                <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={() => void setStatus('closed')} disabled={saving}>
+                  Закрити день
+                </button>
+              ) : (
+                <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={() => void setStatus('ordering')} disabled={saving}>
+                  Відкрити день
+                </button>
               )}
+              <button
+                type="button"
+                className="admin-kit-btn admin-kit-btn--quiet"
+                onClick={() => void postTotals()}
+                disabled={saving}
+                title="Підсумок у групу: імʼя, страви, лотки, сума"
+              >
+                Ітог у групу
+              </button>
+              <button
+                type="button"
+                className="admin-kit-btn admin-kit-btn--quiet lunch-danger"
+                onClick={() => void reparse()}
+                disabled={saving}
+                title="Скидає всі замовлення й оплати дня разом з ручними правками й читає групу заново. Загубилась одна людина — «Розібрати» біля неї."
+              >
+                Розібрати весь день заново
+              </button>
+            </span>
+          </div>
+
+          <section className="lunch-block" aria-labelledby="lunch-orders-title">
+            <div className="lunch-block__head">
+              <h3 id="lunch-orders-title">Замовлення</h3>
+              <span className="lunch-muted">загубилась одна людина — «Розібрати» біля неї, решту не чіпає</span>
             </div>
-
-            <h4 className="lunch-section-title">Меню ({summary.menuItems.length})</h4>
-            {summary.menuItems.length === 0 ? (
-              <p className="lunch-muted">
-                Ще немає — встав JSON вище. До появи меню замовлення приймаються з учорашнього, а в редагуванні
-                можна додати страву з каталогу.
-              </p>
+            <ChipGroup
+              label="Які замовлення"
+              value={only}
+              onChange={setOnly}
+              options={[
+                { value: 'all', label: `Усі ${counts.all}` },
+                { value: 'problems', label: `Перевірити ${counts.problems}` },
+                { value: 'debt', label: `Винні ${counts.debt}` },
+              ]}
+            />
+            {shownOrders.length === 0 ? (
+              <EmptyState>{orders.length === 0 ? 'Замовлень поки немає.' : 'За цим фільтром нікого.'}</EmptyState>
             ) : (
-              <ul className="lunch-menu-list">
-                {summary.menuItems.map((m) => (
-                  <li key={m.id}>
-                    <span>
-                      {m.name}{' '}
-                      <span className="lunch-muted">({TRAY_ROLE_LABEL[m.trayRole || 'second'] || m.trayRole})</span>
-                    </span>
-                    <span>{m.priceUah} грн</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <ul className="lunch-menu-list" style={{ marginTop: 8, maxHeight: 'none' }}>
-              <li className="lunch-menu-tray">
-                <span>Лоток</span>
-                <span className="lunch-tray-edit">
-                  <input
-                    type="number"
-                    min={0}
-                    className="lunch-input lunch-input--sm"
-                    value={trayPriceDraft}
-                    onChange={(e) => setTrayPriceDraft(e.target.value)}
-                  />
-                  <span>грн</span>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={saving}
-                    onClick={() => void saveTrayPrice()}
-                  >
-                    Зберегти ціну лотка
-                  </Button>
-                </span>
-              </li>
-            </ul>
-
-            <h4 className="lunch-section-title">Замовлення ({summary.orders.length})</h4>
-            {summary.orders.length === 0 ? (
-              <p className="lunch-muted">Поки немає.</p>
-            ) : (
-              <div className="lunch-table-wrap">
-                <table className="lunch-table">
-                  <thead>
-                    <tr>
-                      <th>Хто</th>
-                      <th>Що</th>
-                      <th>Лотки</th>
-                      <th>Не розпізнано</th>
-                      <th>Сума</th>
-                      <th>Оплачено</th>
-                      <th>Борг</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {summary.orders.map((o) => (
-                      <React.Fragment key={o.id}>
-                        <tr
-                          className={
-                            o.unmatchedText || o.lines.some((l) => l.unavailable)
-                              ? 'lunch-row--warn'
-                              : undefined
-                          }
-                        >
-                          <td>{o.displayName}</td>
-                          <td className="lunch-dishes">
-                            {o.lines.length > 0 ? (
-                              <ul className="lunch-dish-list">
-                                {o.lines.map((l, idx) => (
-                                  <li
-                                    key={`${o.id}-${l.dishId ?? l.menuItemId ?? 'x'}-${idx}`}
-                                    className={l.unavailable ? 'lunch-dish--miss' : undefined}
-                                  >
-                                    {formatOrderDishLabel(l, dishById)}
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              '—'
-                            )}
-                            {o.rawText ? (
-                              <details className="lunch-raw">
-                                <summary>оригінал</summary>
-                                <pre>{o.rawText}</pre>
-                              </details>
-                            ) : null}
-                          </td>
-                          <td>
-                            {o.trayCount > 0
-                              ? `${o.trayCount} × ${trayPrice} = ${o.trayTotalUah} грн`
-                              : '—'}
-                          </td>
-                          <td className="lunch-unmatched">
-                            {o.unmatchedText ? (
-                              <span title={o.unmatchedText}>{o.unmatchedText}</span>
-                            ) : (
-                              <span className="lunch-muted">—</span>
-                            )}
-                          </td>
-                          <td>{o.totalUah}</td>
-                          <td>{o.paidUah}</td>
-                          <td className={o.debtUah > 0 ? 'lunch-debt' : ''}>
-                            {o.debtUah}
-                            {o.cashPromised && o.debtUah > 0 && (
-                              <span className="lunch-cash" title="Написав(ла), що віддасть готівкою">
-                                {' '}
-                                💵
+              <ul className="lunch-rows" aria-label="Замовлення">
+                {shownOrders.map((o) => {
+                  const problem = orderHasProblem(o);
+                  const missing = o.lines.filter((l) => l.unavailable);
+                  return (
+                    <li key={o.id} className={`lunch-order${problem ? ' is-problem' : ''}${edit?.orderId === o.id ? ' is-open' : ''}`} aria-label={o.displayName}>
+                      <div className="lunch-order__row">
+                        <span className="lunch-order__who">
+                          <strong>{o.displayName}</strong>
+                          {o.cashPromised && o.debtUah > 0 && (
+                            <span className="lunch-cash" title="Написав(ла), що віддасть готівкою">
+                              {' '}
+                              💵
+                            </span>
+                          )}
+                        </span>
+                        <span className="lunch-order__what">
+                          {o.lines.length > 0
+                            ? o.lines.map((l, idx) => (
+                                <span key={`${l.dishId ?? l.menuItemId ?? 'x'}-${idx}`} className={l.unavailable ? 'lunch-dish--miss' : undefined}>
+                                  {idx > 0 ? ' · ' : ''}
+                                  {formatOrderDishLabel(l, dishById)}
+                                </span>
+                              ))
+                            : '—'}
+                          <span className="sched-tags lunch-order__tags">
+                            {o.trayCount > 0 && (
+                              <span className="sched-tag">
+                                лотки {o.trayCount} × {trayPrice} = {o.trayTotalUah} грн
                               </span>
                             )}
-                          </td>
-                          <td className="lunch-row-actions">
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="lunch-pay-btn"
-                              disabled={saving}
-                              onClick={() => startEdit(o)}
-                            >
-                              Редагувати
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              className="lunch-pay-btn"
-                              disabled={saving}
-                              title="Заново знайти й розібрати повідомлення цієї людини за сьогодні (інших не чіпає)"
-                              onClick={() => void reparsePerson({ participantId: o.participantId }, o.displayName)}
-                            >
-                              Розібрати
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="danger"
-                              className="lunch-pay-btn"
-                              disabled={saving}
-                              title="Прибрати замовлення з дня (оплати лишаються)"
-                              onClick={() => void removeOrder(o)}
-                            >
-                              Прибрати
-                            </Button>
-                            {o.debtUah > 0 ? (
-                              <Button
-                                type="button"
-                                variant="secondary"
-                                className="lunch-pay-btn"
-                                disabled={saving}
-                                onClick={() => void markPaid(o.participantId, o.debtUah)}
-                              >
-                                Оплатив
-                              </Button>
-                            ) : (
-                              <span className="lunch-muted">✓</span>
+                            {missing.length > 0 && (
+                              <span className="sched-flag">немає сьогодні: {missing.map((l) => l.menuItemName || l.rawName).join(', ')}</span>
                             )}
-                          </td>
-                        </tr>
-                        {edit?.orderId === o.id && editingOrder && (
-                          <tr className="lunch-edit-row">
-                            <td colSpan={8}>
-                              <div className="lunch-edit">
-                                <div className="lunch-edit__col">
-                                  <strong>Страви</strong>
-                                  <ul className="lunch-edit-list">
-                                    {edit.lines.length === 0 && (
-                                      <li className="lunch-muted">Порожньо — додай з каталогу нижче</li>
-                                    )}
-                                    {edit.lines.map((line, idx) => {
-                                      const item = dishById.get(line.dishId);
-                                      return (
-                                        <li key={`${line.dishId}-${idx}`}>
-                                          <span>
-                                            {item?.name || `#${line.dishId}`}
-                                            {item ? ` — ${item.priceUah} грн` : ''}
-                                            {line.asWritten ? (
-                                              <span className="lunch-muted"> ({line.asWritten})</span>
-                                            ) : null}
-                                          </span>
-                                          <button
-                                            type="button"
-                                            className="lunch-chip-x"
-                                            onClick={() =>
-                                              setEdit({
-                                                ...edit,
-                                                lines: edit.lines.filter((_, i) => i !== idx),
-                                              })
-                                            }
-                                          >
-                                            ✕
-                                          </button>
-                                        </li>
-                                      );
-                                    })}
-                                  </ul>
-                                  <div className="lunch-edit-add">
-                                    <select
-                                      value={addDishId}
-                                      onChange={(e) => setAddDishId(e.target.value)}
-                                      disabled={!addDishOptions.today.length && !addDishOptions.rest.length}
-                                    >
-                                      <option value="">Додати страву…</option>
-                                      {addDishOptions.today.length > 0 && (
-                                        <option disabled>── сьогодні ──</option>
-                                      )}
-                                      {addDishOptions.today.map((d) => (
-                                        <option key={`t-${d.id}`} value={d.id}>
-                                          {d.name} — {d.priceUah} грн
-                                        </option>
-                                      ))}
-                                      {addDishOptions.rest.length > 0 && (
-                                        <option disabled>── каталог ──</option>
-                                      )}
-                                      {addDishOptions.rest.map((d) => (
-                                        <option key={`c-${d.id}`} value={d.id}>
-                                          {d.name} — {d.priceUah} грн
-                                        </option>
-                                      ))}
-                                    </select>
-                                    <input
-                                      className="lunch-input"
-                                      placeholder="як писала людина"
-                                      value={edit.asWrittenDraft}
-                                      onChange={(e) => setEdit({ ...edit, asWrittenDraft: e.target.value })}
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="secondary"
-                                      disabled={!addDishId}
-                                      onClick={() => {
-                                        const id = Number(addDishId);
-                                        if (!id) return;
-                                        setEdit({
-                                          ...edit,
-                                          lines: [
-                                            ...edit.lines,
-                                            { dishId: id, asWritten: edit.asWrittenDraft.trim() },
-                                          ],
-                                          asWrittenDraft: '',
-                                        });
-                                        setAddDishId('');
-                                      }}
-                                    >
-                                      Додати
-                                    </Button>
-                                  </div>
-                                  <label className="lunch-check">
-                                    <input
-                                      type="checkbox"
-                                      checked={edit.trayManual}
-                                      onChange={(e) =>
-                                        setEdit({
-                                          ...edit,
-                                          trayManual: e.target.checked,
-                                          trayCount: e.target.checked ? editTrayCount : autoTrayFromEdit,
-                                        })
-                                      }
-                                    />
-                                    Лотки вручну
-                                  </label>
-                                  <div className="lunch-tray-edit">
-                                    <span>Лотки:</span>
-                                    <input
-                                      type="number"
-                                      min={0}
-                                      className="lunch-input lunch-input--sm"
-                                      disabled={!edit.trayManual}
-                                      value={edit.trayManual ? edit.trayCount : autoTrayFromEdit}
-                                      onChange={(e) =>
-                                        setEdit({
-                                          ...edit,
-                                          trayCount: Number(e.target.value) || 0,
-                                          trayManual: true,
-                                        })
-                                      }
-                                    />
-                                    <span>
-                                      × {trayPrice} = {editTrayCount * trayPrice} грн
-                                    </span>
-                                  </div>
-                                  <p className="lunch-edit-total">
-                                    Нова сума: <strong>{editPreviewTotal} грн</strong>
-                                  </p>
-                                </div>
-                                <div className="lunch-edit__col">
-                                  <strong>Не розпізнано (можна прибрати)</strong>
-                                  <ul className="lunch-edit-list">
-                                    {edit.unmatchedParts.length === 0 && (
-                                      <li className="lunch-muted">Немає</li>
-                                    )}
-                                    {edit.unmatchedParts.map((part, idx) => (
-                                      <li key={`${part}-${idx}`}>
-                                        <span>{part}</span>
-                                        <button
-                                          type="button"
-                                          className="lunch-chip-x"
-                                          onClick={() =>
-                                            setEdit({
-                                              ...edit,
-                                              unmatchedParts: edit.unmatchedParts.filter(
-                                                (_, i) => i !== idx
-                                              ),
-                                              asWrittenDraft: edit.asWrittenDraft || part,
-                                            })
-                                          }
-                                        >
-                                          ✕
-                                        </button>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                  <p className="lunch-card__hint">
-                                    Хрестик прибирає фрагмент і підставляє його в «як писала людина».
-                                    {editingOrder.hasReply
-                                      ? ' Вашу відповідь у групі буде підправлено.'
-                                      : ' Id відповіді немає — чуже повідомлення людини редагувати не можна.'}
-                                  </p>
-                                  <details className="lunch-raw lunch-raw--open">
-                                    <summary>Оригінал повідомлення (тільки читання)</summary>
-                                    <pre>{editingOrder.rawText}</pre>
-                                  </details>
-                                </div>
-                                <div className="lunch-edit-actions">
-                                  <Button type="button" onClick={() => void saveEdit()} disabled={saving}>
-                                    {saving ? 'Збереження…' : 'Зберегти'}
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    variant="secondary"
-                                    onClick={cancelEdit}
-                                    disabled={saving}
-                                  >
-                                    Скасувати
-                                  </Button>
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            <h4 className="lunch-section-title">Борги ({summary.debts.length})</h4>
-            {summary.debts.length === 0 ? (
-              <p className="lunch-muted">Немає боржників.</p>
-            ) : (
-              <ul className="lunch-menu-list">
-                {summary.debts.map((d) => (
-                  <li key={d.id}>
-                    <span>{d.displayName}</span>
-                    <span className="lunch-debt">
-                      {d.debtUah} грн{d.cashPromised ? ' · 💵 готівкою' : ''}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <h4 className="lunch-section-title">Оплати ({summary.payments.length})</h4>
-            {summary.payments.length === 0 ? (
-              <p className="lunch-muted">Оплат ще немає.</p>
-            ) : (
-              <ul className="lunch-menu-list" aria-label="Оплати за день">
-                {summary.payments.map((p) => (
-                  <li key={p.id}>
-                    <span>
-                      {p.displayName}{' '}
-                      <span className="lunch-muted" title={p.rawText}>
-                        · {PAYMENT_SOURCE_LABEL[p.source ?? 'text']}
-                      </span>
-                    </span>
-                    <span>{p.amountUah} грн</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </>
-        )}
-      </section>
-
-      {report && (
-        <LunchReparseReportView title={report.title} report={report.data} onClose={() => setReport(null)} />
-      )}
-
-      <LunchOcrCompare defaultDate={summary?.date} pollIntervalMs={ocrComparePollMs} />
-
-      <LunchPeoplePanel
-        data={people}
-        loading={peopleLoading}
-        busyTgUserId={busyTgUserId}
-        disabled={saving}
-        notify={notifyGroup}
-        onNotifyChange={setNotifyGroup}
-        onReparse={(person: LunchPerson) => void reparsePerson({ tgUserId: person.tgUserId }, person.name)}
-        onRefresh={() => void loadPeople()}
-      />
-
-      <section className="lunch-card">
-        <h3 className="lunch-card__title">База страв ({summary?.dishes?.length || 0})</h3>
-        <p className="lunch-card__hint">
-          Каталог не стирається щодня. Роль лотка: суп — окремий лоток на порцію; друге — один спільний; салат —
-          без лотка (крім єдиної страви в заказі). Синоніми впливають на розпізнавання замовлень — хибні можна
-          прибрати або перенести на іншу страву. Червоним підсвічено текст, який лежить одразу на кількох стравах.
-          Автоматично синоніми більше не додаються — лише коли ви виправляєте замовлення вручну.
-        </p>
-        {!summary?.dishes?.length ? (
-          <p className="lunch-muted">Порожньо — зʼявиться після першого імпорту меню.</p>
-        ) : (
-          <CatalogTable
-            dishes={summary.dishes}
-            saving={saving}
-            onSave={saveDish}
-            onAddSynonym={addSynonym}
-            onDeleteSynonym={deleteSynonym}
-            onMoveSynonym={moveSynonym}
-          />
-        )}
-      </section>
-    </div>
-  );
-};
-
-const CatalogTable: React.FC<{
-  dishes: LunchDaySummary['dishes'];
-  saving: boolean;
-  onSave: (id: number, priceUah: number, trayRole: string) => void;
-  onAddSynonym: (dishId: number, rawText: string) => void;
-  onDeleteSynonym: (synonymId: number) => void;
-  onMoveSynonym: (synonymId: number, dishId: number) => void;
-}> = ({ dishes, saving, onSave, onAddSynonym, onDeleteSynonym, onMoveSynonym }) => {
-  const [drafts, setDrafts] = useState<Record<number, { price: string; role: string }>>({});
-  const [addDrafts, setAddDrafts] = useState<Record<number, string>>({});
-  // Той самий текст на кількох стравах: діє найновіший запис, решта — сміття (часто стара хибна автоприв'язка)
-  const conflictNorms = useMemo(() => {
-    const owners = new Map<string, Set<number>>();
-    for (const d of dishes) {
-      for (const syn of d.synonyms) {
-        if (!syn.rawNorm) continue;
-        const set = owners.get(syn.rawNorm) ?? new Set<number>();
-        set.add(d.id);
-        owners.set(syn.rawNorm, set);
-      }
-    }
-    return new Set([...owners.entries()].filter(([, ids]) => ids.size > 1).map(([norm]) => norm));
-  }, [dishes]);
-  useEffect(() => {
-    const next: Record<number, { price: string; role: string }> = {};
-    for (const d of dishes) next[d.id] = { price: String(d.priceUah), role: d.trayRole };
-    setDrafts(next);
-  }, [dishes]);
-
-  return (
-    <div className="lunch-table-wrap">
-      <table className="lunch-table">
-        <thead>
-          <tr>
-            <th>Страва</th>
-            <th>Ціна</th>
-            <th>Лоток</th>
-            <th>Синоніми</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {dishes.map((d) => {
-            const draft = drafts[d.id] || { price: String(d.priceUah), role: d.trayRole };
-            const addVal = addDrafts[d.id] || '';
-            return (
-              <tr key={d.id}>
-                <td>{d.name}</td>
-                <td>
-                  <input
-                    type="number"
-                    min={1}
-                    className="lunch-input lunch-input--sm"
-                    value={draft.price}
-                    onChange={(e) =>
-                      setDrafts({ ...drafts, [d.id]: { ...draft, price: e.target.value } })
-                    }
-                  />
-                </td>
-                <td>
-                  <select
-                    className="lunch-input"
-                    value={draft.role}
-                    onChange={(e) =>
-                      setDrafts({ ...drafts, [d.id]: { ...draft, role: e.target.value } })
-                    }
-                  >
-                    <option value="soup">суп</option>
-                    <option value="second">друге</option>
-                    <option value="salad">салат</option>
-                  </select>
-                </td>
-                <td className="lunch-synonyms">
-                  {d.synonyms.length > 0 ? (
-                    <div className="lunch-syn-list">
-                      {d.synonyms.map((s) => (
-                        <span
-                          key={s.id}
-                          className={`lunch-syn-chip${s.rawNorm && conflictNorms.has(s.rawNorm) ? ' lunch-syn-chip--conflict' : ''}`}
-                          title={
-                            s.rawNorm && conflictNorms.has(s.rawNorm)
-                              ? 'Цей текст є синонімом ще й іншої страви — діє найновіший запис. Видали зайвий.'
-                              : undefined
-                          }
-                        >
-                          <span className="lunch-syn-chip__text">{s.rawText}</span>
-                          <select
-                            className="lunch-syn-move"
-                            value=""
-                            disabled={saving}
-                            aria-label="Перенести синонім"
-                            onChange={(e) => {
-                              const id = Number(e.target.value);
-                              e.target.value = '';
-                              if (id) onMoveSynonym(s.id, id);
-                            }}
-                          >
-                            <option value="">на іншу…</option>
-                            {dishes
-                              .filter((other) => other.id !== d.id)
-                              .map((other) => (
-                                <option key={other.id} value={other.id}>
-                                  {other.name}
-                                </option>
-                              ))}
-                          </select>
+                            {o.unmatchedText?.trim() && (
+                              <span className="sched-flag" title={o.unmatchedText}>
+                                не розпізнано: {o.unmatchedText}
+                              </span>
+                            )}
+                          </span>
+                          {o.rawText ? (
+                            <details className="lunch-raw">
+                              <summary>оригінал</summary>
+                              <pre>{o.rawText}</pre>
+                            </details>
+                          ) : null}
+                        </span>
+                        <span className="lunch-order__money">
+                          <strong>{o.totalUah} грн</strong>
+                          {o.debtUah > 0 ? (
+                            <>
+                              <span className="lunch-debt">винен {o.debtUah}</span>
+                              {o.paidUah > 0 ? <span className="lunch-muted">оплачено {o.paidUah}</span> : null}
+                            </>
+                          ) : (
+                            <span className="lunch-paid">оплачено ✓</span>
+                          )}
+                        </span>
+                        <span className="lunch-order__actions">
+                          {o.debtUah > 0 && (
+                            <button type="button" className="admin-kit-btn" disabled={saving} onClick={() => void markPaid(o.participantId, o.debtUah)}>
+                              Оплатив
+                            </button>
+                          )}
+                          <button type="button" className="admin-kit-btn admin-kit-btn--quiet" disabled={saving} onClick={() => (edit?.orderId === o.id ? cancelEdit() : startEdit(o))}>
+                            Редагувати
+                          </button>
                           <button
                             type="button"
-                            className="lunch-chip-x"
+                            className="admin-kit-btn admin-kit-btn--quiet"
                             disabled={saving}
-                            aria-label="Прибрати синонім"
-                            onClick={() => onDeleteSynonym(s.id)}
+                            title="Заново знайти й розібрати повідомлення цієї людини за сьогодні (інших не чіпає)"
+                            onClick={() => void reparsePerson({ participantId: o.participantId }, o.displayName)}
                           >
-                            ✕
+                            Розібрати
+                          </button>
+                          <button
+                            type="button"
+                            className="admin-kit-linkbtn lunch-danger"
+                            disabled={saving}
+                            title="Прибрати замовлення з дня (оплати лишаються)"
+                            onClick={() => void removeOrder(o)}
+                          >
+                            Прибрати
                           </button>
                         </span>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="lunch-muted">—</span>
-                  )}
-                  <div className="lunch-syn-add">
-                    <input
-                      className="lunch-input"
-                      placeholder="додати синонім"
-                      value={addVal}
-                      disabled={saving}
-                      onChange={(e) => setAddDrafts({ ...addDrafts, [d.id]: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key !== 'Enter') return;
-                        e.preventDefault();
-                        if (!addVal.trim()) return;
-                        onAddSynonym(d.id, addVal);
-                        setAddDrafts({ ...addDrafts, [d.id]: '' });
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      className="lunch-pay-btn"
-                      disabled={saving || !addVal.trim()}
-                      onClick={() => {
-                        if (!addVal.trim()) return;
-                        onAddSynonym(d.id, addVal);
-                        setAddDrafts({ ...addDrafts, [d.id]: '' });
-                      }}
-                    >
-                      Додати
-                    </Button>
-                  </div>
-                </td>
-                <td>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    className="lunch-pay-btn"
-                    disabled={saving}
-                    onClick={() => onSave(d.id, Number(draft.price), draft.role)}
-                  >
-                    Зберегти
-                  </Button>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+                      </div>
+                      {edit?.orderId === o.id && editPanel(o)}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {report && <LunchReparseReportView title={report.title} report={report.data} onClose={() => setReport(null)} />}
+
+          <LunchPeoplePanel
+            data={people}
+            loading={peopleLoading}
+            busyTgUserId={busyTgUserId}
+            disabled={saving}
+            notify={notifyGroup}
+            onNotifyChange={setNotifyGroup}
+            onReparse={(person: LunchPerson) => void reparsePerson({ tgUserId: person.tgUserId }, person.name)}
+            onRefresh={() => void loadPeople()}
+          />
+
+          <section className="lunch-block" aria-labelledby="lunch-payments-title">
+            <div className="lunch-block__head">
+              <h3 id="lunch-payments-title">Оплати</h3>
+              <span className="lunch-muted">жовте — суму ніхто не бачив (посилання на чек або «скинула» без суми)</span>
+            </div>
+            {summary.payments.length === 0 ? (
+              <EmptyState>Оплат ще немає.</EmptyState>
+            ) : (
+              <ul className="lunch-rows" aria-label="Оплати за день">
+                {summary.payments.map((p) => (
+                  <li key={p.id} className="lunch-payment">
+                    <span className="lunch-muted">{kyivTime(p.createdAt)}</span>
+                    <strong>{p.displayName}</strong>
+                    <span className={isUncheckedPayment(p.source) ? 'sched-flag' : 'sched-tag'} title={p.rawText}>
+                      {PAYMENT_SOURCE_LABEL[p.source ?? 'text']}
+                    </span>
+                    <span className="lunch-payment__sum">{p.amountUah} грн</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
+      )}
+
+      {section === 'menu' && summary && (
+        <>
+          <section className="lunch-block" aria-labelledby="lunch-menu-title">
+            <div className="lunch-block__head">
+              <h3 id="lunch-menu-title">Меню на {summary.date}</h3>
+              <span className="lunch-muted">фото меню в групі читає Claude і додає страви саме; JSON — запасний шлях</span>
+              <button type="button" className="admin-kit-btn admin-kit-btn--quiet lunch-block__action" onClick={() => void repost()} disabled={saving}>
+                Повторити пост меню
+              </button>
+            </div>
+            {summary.menuItems.length === 0 ? (
+              <EmptyState>
+                Меню ще немає. До його появи замовлення приймаються з учорашнього, а в правці замовлення можна додати страву з каталогу.
+              </EmptyState>
+            ) : (
+              <ul className="lunch-rows" aria-label="Меню дня">
+                {summary.menuItems.map((m) => (
+                  <li key={m.id} className="lunch-menu-row">
+                    <span>{m.name}</span>
+                    <span className="sched-tag">{trayRoleLabel(m.trayRole)}</span>
+                    <span className="lunch-payment__sum">{m.priceUah} грн</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <form
+              className="lunch-tray-edit lunch-tray-price"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void saveTrayPrice();
+              }}
+            >
+              <label>
+                Лоток коштує
+                <input
+                  type="number"
+                  min={0}
+                  className="lunch-input lunch-input--sm"
+                  value={trayPriceDraft}
+                  onChange={(e) => setTrayPriceDraft(e.target.value)}
+                />
+                грн
+              </label>
+              <button
+                type="submit"
+                className="admin-kit-btn"
+                disabled={saving || trayPriceDraft.trim() === String(summary.trayPriceUah ?? 5)}
+              >
+                Зберегти ціну лотка
+              </button>
+            </form>
+          </section>
+
+          <details className="lunch-block lunch-import" open={summary.menuItems.length === 0}>
+            <summary>Вставити меню JSON-ом (з ChatGPT)</summary>
+            <p className="lunch-muted">
+              Промпт: <code>telegram-user/lunch/CHAT_GPT_PROMPT.md</code>. Формат: <code>{'{"items":[{"name":"...","price":123}]}'}</code>. Каталог
+              страв не обнуляється — імпорт лише вмикає доступні на сьогодні.
+            </p>
+            <textarea
+              className="lunch-json"
+              rows={8}
+              aria-label="Меню JSON"
+              value={jsonText}
+              onChange={(e) => setJsonText(e.target.value)}
+              placeholder={EXAMPLE_JSON}
+              spellCheck={false}
+            />
+            <div className="lunch-actions">
+              <label className="lunch-check">
+                <input type="checkbox" checked={postToGroup} onChange={(e) => setPostToGroup(e.target.checked)} />
+                Надіслати читабельне меню в Telegram-групу
+              </label>
+              <button type="button" className="admin-kit-btn" onClick={() => void importMenu()} disabled={saving || !jsonText.trim()}>
+                {saving ? 'Збереження…' : 'Зберегти меню'}
+              </button>
+            </div>
+          </details>
+        </>
+      )}
+
+      {section === 'dishes' && summary && (
+        <section className="lunch-block" aria-labelledby="lunch-dishes-title">
+          <div className="lunch-block__head">
+            <h3 id="lunch-dishes-title">База страв</h3>
+            <span className="lunch-muted">
+              каталог не стирається щодня; лоток: суп — окремий на порцію, друге — один спільний, салат — без лотка (крім єдиної
+              страви); синоніми вчать розпізнавання, червоні лежать на кількох стравах — зайвий прибрати
+            </span>
+          </div>
+          {!summary.dishes.length ? (
+            <EmptyState>Порожньо — зʼявиться після першого меню.</EmptyState>
+          ) : (
+            <LunchCatalog
+              dishes={summary.dishes}
+              todayIds={todayDishIds}
+              saving={saving}
+              onSave={(id, priceUah, trayRole) =>
+                void catalogAction(() => apiClient.updateLunchDish(id, { priceUah, trayRole }), 'Страву оновлено.', 'Помилка страви')
+              }
+              onAddSynonym={addSynonym}
+              onDeleteSynonym={(id) => void catalogAction(() => apiClient.deleteLunchDishSynonym(id), 'Синонім прибрано.', 'Помилка синоніма')}
+              onMoveSynonym={(id, dishId) =>
+                void catalogAction(() => apiClient.moveLunchDishSynonym(id, dishId), 'Синонім перенесено.', 'Помилка переносу синоніма')
+              }
+            />
+          )}
+        </section>
+      )}
+
+      {section === 'models' && <LunchOcrCompare defaultDate={summary?.date} pollIntervalMs={ocrComparePollMs} />}
     </div>
   );
 };
