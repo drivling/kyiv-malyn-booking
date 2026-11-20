@@ -12,6 +12,7 @@ import {
   scopeTotals,
   sortStopRows,
   stickerStopCatalog,
+  stopFilterCounts,
   stopStatRows,
 } from './scanStats';
 import { STICKER_DATASET } from './stickerTestDataset';
@@ -92,7 +93,7 @@ describe('ряди графіків', () => {
 
 describe('список зупинок', () => {
   const catalog = stickerStopCatalog(STICKER_DATASET);
-  const rows = stopStatRows(catalog, stats, (id) => (id === 'st_gone' ? 'Знята зупинка' : id));
+  const rows = stopStatRows(catalog, stats, (id) => (id === 'st_gone' ? 'Знята зупинка' : id), new Date('2026-10-10T12:00:00Z'));
   const byId = Object.fromEntries(rows.map((r) => [r.stopId, r]));
 
   it('усі зупинки з відправленнями + зупинки з історією, лічильники по наклейках і друк', () => {
@@ -107,13 +108,25 @@ describe('список зупинок', () => {
     expect(stopStatRows(catalog, null, (id) => id).every((r) => r.total === 0)).toBe(true);
   });
 
-  it('сортування, пошук і «лише з наклейками»', () => {
+  it('сортування, пошук і фільтри', () => {
     expect(sortStopRows(rows, 'popular').slice(0, 3).map((r) => r.stopId)).toEqual(['st_0015', 'st_0019', 'st_gone']);
     expect(sortStopRows(rows, 'recent')[0].stopId).toBe('st_0015');
     const names = sortStopRows(rows, 'name').map((r) => r.name);
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'uk')));
     expect(filterStopRows(rows, { query: 'ВОКЗ' }).map((r) => r.stopId)).toEqual(['st_0019']);
     expect(filterStopRows(rows, { query: 'st_0035' }).map((r) => r.stopId)).toEqual(['st_0035']);
-    expect(filterStopRows(rows, { onlyWithStickers: true }).map((r) => r.stopId).sort()).toEqual(['st_0015', 'st_0019', 'st_gone']);
+    expect(filterStopRows(rows, { only: 'stickers' }).map((r) => r.stopId).sort()).toEqual(['st_0015', 'st_0019', 'st_gone']);
+    expect(filterStopRows(rows, { only: 'none' }).map((r) => r.stopId)).not.toContain('st_0015');
+    expect(stopFilterCounts(rows)).toEqual({ all: 8, stickers: 3, silent: 0, none: 5 });
+  });
+
+  it('мовчазна наклейка: ≥ 14 діб без відкриттів після друку чи останнього скану цього боку', () => {
+    // бік a: друк 02.10, скан 05.10 → 19.10 12:00 — 14 діб; бік b: скан 06.10 → лише 13
+    const later = stopStatRows(catalog, stats, (id) => id, new Date('2026-10-19T12:00:00Z'));
+    const r = later.find((x) => x.stopId === 'st_0015');
+    expect(r?.silent).toEqual([{ side: 'a', days: 14 }]);
+    expect(filterStopRows(later, { only: 'silent' }).map((x) => x.stopId)).toEqual(['st_0015']);
+    // скани без друку не мовчать: друку не було — нема й наклейки, яку можна зірвати
+    expect(later.find((x) => x.stopId === 'st_gone')?.silent).toEqual([]);
   });
 });

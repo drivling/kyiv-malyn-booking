@@ -1,15 +1,19 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { apiClient } from '@/api/client';
-import { Button } from '@/components/Button';
+import { ChipGroup, StatTile, StatTiles } from '../kit';
 import { plural, whoHue } from '@/pages/StickerWallPage/stickerWall';
 import type { StickerPeopleStats, StickerStatsDays } from '@/types';
 import { ScanBars, type ScanBar, type ScanBarsUnit } from './ScanBars';
 import { dailySeries, dayLabels, kyivToday } from './scanStats';
 
-const PERIODS: StickerStatsDays[] = [1, 7, 30, 90];
-const periodChip = (d: StickerStatsDays) => (d === 1 ? 'Сьогодні' : `${d} днів`);
+const PERIODS = [
+  { value: 1 as const, label: 'Сьогодні' },
+  { value: 7 as const, label: '7 днів' },
+  { value: 30 as const, label: '30 днів' },
+  { value: 90 as const, label: '90 днів' },
+];
 const periodText = (d: StickerStatsDays) => (d === 1 ? 'сьогодні' : `за ${d} днів`);
-const pctOf = (part: number, whole: number) => (whole > 0 ? ` · ${Math.round((part / whole) * 100)} %` : '');
+const pctOf = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)} %` : undefined);
 const dayOf = (iso: string) => dayLabels(kyivToday(new Date(iso))).long;
 const NEW_PEOPLE: ScanBarsUnit = {
   label: (n) => `${n} ${plural(n, ['новий', 'нових', 'нових'])}`,
@@ -55,59 +59,25 @@ export function StickerPeoplePanel({ city, stopName }: { city?: string; stopName
     <section className="sticker-stats sticker-people" aria-labelledby="sticker-people-title">
       <div className="sticker-stats-head">
         <h3 id="sticker-people-title">Люди з наклейок</h3>
-        <div className="sticker-stats-chips" role="group" aria-label="Період">
-          {PERIODS.map((p) => (
-            <button key={p} type="button" className="sticker-chip" aria-pressed={days === p} onClick={() => setDays(p)}>
-              {periodChip(p)}
-            </button>
-          ))}
-        </div>
-        <Button type="button" variant="secondary" onClick={load}>
+        <ChipGroup label="Період" options={PERIODS} value={days} onChange={setDays} />
+        <button type="button" className="admin-kit-btn sticker-stats-reload" onClick={load}>
           Оновити
-        </Button>
+        </button>
       </div>
       <p className="sticker-tab-muted sticker-people-intro">
         Кожен браузер, що відкрив табло з наклейки, — пасажир із номером у місті (за порядком появи). Без імен і
-        телефонів: лише анонімний id браузера, як у статистиці відкриттів. Телефон людини памʼятає те саме — для майбутніх
-        привітань.
+        телефонів: лише анонімний id браузера.
       </p>
       {error && <p className="sticker-tab-status--error">{error}</p>}
       {stats && (
         <>
-          <dl className="sticker-stats-tiles" aria-label="Пасажири з наклейок">
-            <div>
-              <dt>Пасажирів усього</dt>
-              <dd>
-                {stats.total}
-                {stats.total > 0 && <span className="sticker-tab-muted"> · останній № {stats.total}</span>}
-              </dd>
-            </div>
-            <div>
-              <dt>Нових {periodText(days)}</dt>
-              <dd>{stats.newInPeriod}</dd>
-            </div>
-            <div>
-              <dt>Повертались</dt>
-              <dd>
-                {stats.returning}
-                <span className="sticker-tab-muted">{pctOf(stats.returning, stats.total)}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>На ≥ 2 зупинках</dt>
-              <dd>
-                {stats.multiStop}
-                <span className="sticker-tab-muted">{pctOf(stats.multiStop, stats.total)}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Досмотріли тизер «Доведе»</dt>
-              <dd>
-                {stats.teaser}
-                <span className="sticker-tab-muted">{pctOf(stats.teaser, stats.total)}</span>
-              </dd>
-            </div>
-          </dl>
+          <StatTiles label="Пасажири з наклейок">
+            <StatTile label="Пасажирів усього" value={stats.total} sub={stats.total > 0 ? `останній № ${stats.total}` : undefined} />
+            <StatTile label={`Нових ${periodText(days)}`} value={stats.newInPeriod} />
+            <StatTile label="Повертались" value={stats.returning} sub={pctOf(stats.returning, stats.total)} />
+            <StatTile label="На ≥ 2 зупинках" value={stats.multiStop} sub={pctOf(stats.multiStop, stats.total)} />
+            <StatTile label="Досмотріли тизер «Доведе»" value={stats.teaser} sub={pctOf(stats.teaser, stats.total)} />
+          </StatTiles>
           {days !== 1 && <ScanBars title={`Нові пасажири по днях ${periodText(days)}`} bars={bars} labelEvery={days === 7 ? 1 : days === 30 ? 5 : 15} unit={NEW_PEOPLE} />}
           <div className="sticker-people-cols">
             <div>

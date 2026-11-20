@@ -14,14 +14,6 @@
   color: var(--pb-error, #b91c1c);
 }
 
-.sticker-tab-intro {
-  margin: 0;
-  max-width: 760px;
-  color: var(--pb-text-muted);
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
 .sticker-tab-controls {
   display: flex;
   flex-wrap: wrap;
@@ -98,7 +90,7 @@
 }
 
 .sticker-tab-lines td {
-  padding: 8px;
+  padding: 5px 8px;
   vertical-align: middle;
   border-bottom: 1px solid var(--pb-border);
 }
@@ -124,14 +116,49 @@
   font-size: 0.8125rem;
 }
 
-.sticker-tab-assign,
 .sticker-tab-options {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 14px;
 }
 
-.sticker-tab-assign label,
+.sticker-tab-assign {
+  display: inline-flex;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sticker-tab-assign label {
+  position: relative;
+  padding: 4px 10px;
+  font-size: 0.8125rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sticker-tab-assign label + label {
+  border-left: 1px solid var(--pb-border, #e0e0e0);
+}
+
+/* радіокнопка лишається для клавіатури й читалки, але невидима: стан показує сегмент */
+.sticker-tab-assign input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sticker-tab-assign label:has(input:checked) {
+  background: var(--pb-primary, #1a73e8);
+  color: #fff;
+  font-weight: 600;
+}
+
+.sticker-tab-assign label:has(input:focus-visible) {
+  outline: 2px solid var(--pb-primary, #1a73e8);
+  outline-offset: -3px;
+}
+
 .sticker-tab-options label {
   display: inline-flex;
   align-items: center;
@@ -184,17 +211,17 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 14px 16px 16px;
-  border: 1px solid var(--pb-border);
-  border-radius: 12px;
-  background: #fcfcfb;
+  padding: 12px 16px 14px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  background: var(--pb-card-bg, #fff);
 }
 
 .sticker-stats-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
+  gap: 8px 14px;
 }
 
 .sticker-stats-head h3 {
@@ -202,64 +229,29 @@
   font-size: 1rem;
 }
 
-.sticker-stats-chips {
-  display: inline-flex;
-  gap: 6px;
-}
-
-.sticker-chip {
-  min-height: 32px;
-  padding: 4px 12px;
-  border: 1px solid var(--pb-border);
-  border-radius: 999px;
-  background: #fff;
-  font: inherit;
-  font-size: 0.8125rem;
-  cursor: pointer;
-}
-
-.sticker-chip[aria-pressed='true'] {
-  border-color: #1b1f2a;
-  background: #1b1f2a;
-  color: #fff;
-}
-
 .sticker-stats-check {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   cursor: pointer;
 }
 
-.sticker-stats-tiles {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
-  margin: 0;
+/* хвіст плитки («сьогодні 11», «табло 9 · вкладка 11») — окремим рядком, щоб не рвався посеред числа */
+.sticker-stats .admin-kit-tile-value small {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.3;
 }
 
-.sticker-stats-tiles > div {
-  padding: 10px 12px;
-  border: 1px solid var(--pb-border);
-  border-radius: 10px;
-  background: #fff;
-}
-
-.sticker-stats-tiles dt {
-  font-size: 0.8125rem;
-  color: var(--pb-text-muted);
-}
-
-.sticker-stats-tiles dd {
-  margin: 2px 0 0;
-  font-size: 1.375rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.sticker-stats-tiles--parts dd {
-  font-size: 1.125rem;
+/* «Оновити» — праворуч, другорядна */
+.sticker-stats-reload {
+  margin-left: auto;
+  border-color: var(--pb-border, #e0e0e0);
+  background: var(--pb-card-bg, #fff);
+  color: var(--pb-text, #1a1a1a);
 }
 
 /* ---- Стовпчики однієї серії (ScanBars): ≤ 24 px, верх округлено 4 px, проміжок 2 px */
@@ -385,7 +377,7 @@
 /* ---- Список зупинок ліворуч + редактор праворуч */
 .sticker-tab-body {
   display: grid;
-  grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -417,15 +409,46 @@
   font-size: 1.125rem;
 }
 
+.sticker-tab-editor-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.sticker-tab-sides {
+  margin-top: -8px;
+}
+
+.sticker-tab-pick {
+  margin: 0;
+  padding: 24px;
+  border: 1px dashed var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  text-align: center;
+}
+
+.sticker-tab-hint {
+  margin: 0;
+}
+
 .sticker-stops {
   display: flex;
   flex-direction: column;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--pb-border);
-  border-radius: 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius-lg, 12px);
+  background: var(--pb-card-bg, #fff);
   position: sticky;
   top: 12px;
+}
+
+.sticker-stops-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .sticker-stops h3 {
@@ -434,53 +457,48 @@
 }
 
 .sticker-stops-search,
-.sticker-stops-tools select {
-  min-height: 36px;
-  padding: 6px 10px;
-  border: 1px solid var(--pb-border);
+.sticker-stops-head select {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
   border-radius: 8px;
   font: inherit;
+  font-size: 0.8125rem;
   background: #fff;
 }
 
-.sticker-stops-tools {
-  display: flex;
+.sticker-stops .admin-kit-chips {
   flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-  font-size: 0.875rem;
-}
-
-.sticker-stops-tools label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.sticker-stops p {
-  margin: 0;
 }
 
 .sticker-stops-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   max-height: 70vh;
-  margin: 0;
+  margin: 0 -12px -12px;
   padding: 0;
   overflow-y: auto;
+  border-top: 1px solid var(--pb-border-light, #f0f0f0);
   list-style: none;
 }
 
+.sticker-stops-list > li + li {
+  border-top: 1px solid var(--pb-border-light, #f0f0f0);
+}
+
+.sticker-stops-none {
+  padding: 12px;
+}
+
+/* рядок: назва · відкриття / лінії · боки й друк / позначка «мовчить» на всю ширину */
 .sticker-stops-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px 8px;
+  gap: 3px 8px;
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid transparent;
-  border-radius: 8px;
+  padding: 7px 12px;
+  border: 0;
+  border-left: 3px solid transparent;
   background: transparent;
   font: inherit;
   text-align: left;
@@ -488,12 +506,17 @@
 }
 
 .sticker-stops-row:hover {
-  background: #f1f4f5;
+  background: var(--pb-bg-secondary, #f5f7f8);
+}
+
+.sticker-stops-row:focus-visible {
+  outline: 2px solid var(--pb-primary, #1a73e8);
+  outline-offset: -2px;
 }
 
 .sticker-stops-row[aria-pressed='true'] {
-  border-color: #2a78d6;
-  background: rgba(42, 120, 214, 0.08);
+  border-left-color: var(--pb-primary, #1a73e8);
+  background: rgba(26, 115, 232, 0.08);
 }
 
 .sticker-stops-name {
@@ -511,6 +534,7 @@
 .sticker-stops-lines {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 3px;
 }
 
@@ -528,12 +552,24 @@
 .sticker-stops-meta {
   font-size: 0.75rem;
   color: var(--pb-text-muted);
+  font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
 }
 
 .sticker-stops-printed {
-  color: #1b1f2a;
+  color: var(--pb-text, #1b1f2a);
+}
+
+.sticker-stops-flag {
+  grid-column: 1 / -1;
+  justify-self: start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 /* ---- «Віджет на стіну»: QR посилання для телефона (WallLinkDialog) */
@@ -585,12 +621,6 @@
 }
 
 /* Підвкладки «Наклейки | Люди» (?view=people) */
-.sticker-view-switch {
-  display: flex;
-  gap: 0.4rem;
-  margin-bottom: 0.9rem;
-}
-
 /* ---- «Люди» (stopSticker/StickerPeoplePanel.tsx) */
 .sticker-people-intro {
   margin: 0 0 0.75rem;
@@ -712,5 +742,34 @@
   .sticker-people-nums,
   .sticker-people-dates {
     grid-column: 2;
+  }
+}
+
+/* телефон: лінія — рядок «номер · рух · куди», вибір боку під ним; таблиця не ширша за екран */
+@media (max-width: 639px) {
+  .sticker-tab-lines thead {
+    display: none;
+  }
+
+  .sticker-tab-lines tr {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--pb-border);
+  }
+
+  .sticker-tab .sticker-tab-lines td {
+    padding: 0;
+    border: 0;
+  }
+
+  .sticker-tab-lines td:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .sticker-tab-fieldset {
+    padding: 10px 12px 12px;
   }
 }

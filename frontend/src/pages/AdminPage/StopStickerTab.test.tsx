@@ -45,7 +45,9 @@ function renderTab(url: string) {
 
 const previews = () => screen.queryAllByRole('figure').filter((f) => f.classList.contains('sticker-tab-preview'));
 const stopList = () => screen.getByRole('region', { name: 'Зупинки' });
-const listNames = () => within(stopList()).getAllByRole('button').map((b) => b.querySelector('.sticker-stops-name')?.textContent);
+/** Рядки списку (кнопки фільтрів над ним — окремо) */
+const stopRows = () => within(within(stopList()).getByRole('list')).getAllByRole('button');
+const listNames = () => stopRows().map((b) => b.querySelector('.sticker-stops-name')?.textContent);
 const tile = (group: string, label: string) => within(screen.getByLabelText(group)).getByText(label).nextElementSibling?.textContent;
 
 const today = kyivToday();
@@ -193,15 +195,15 @@ describe('StopStickerTab', () => {
     renderTab('/admin/stickers');
     await screen.findByRole('region', { name: 'Відкриття з QR' });
     const all = 'Підсумки: усі наклейки';
-    expect(tile(all, 'Усього')).toBe('15');
-    expect(tile(all, 'Сьогодні')).toBe('2');
+    expect(tile(all, 'Відкриттів усього')).toBe('15 сьогодні 2');
     expect(tile(all, 'За 7 днів')).toBe('4');
     expect(tile(all, 'За 30 днів')).toBe('12');
-    expect(tile(all, 'Наклейок надруковано')).toBe('1 · зі сканами 2');
-    const people = 'Люди з наклейок: усі наклейки';
-    expect(tile(people, 'Людей сканували')).toBe('8');
-    expect(tile(people, 'З них повертались')).toBe('3 · 38 %');
-    expect(tile(people, 'Повернень за 30 днів')).toBe('5 · вкладка табло 2 · відкрита вкладка 1 · сайт 2');
+    expect(tile(all, 'Наклейок надруковано')).toBe('1 зі сканами 2');
+    expect(tile(all, 'Людей сканували')).toBe('8 повертались 3 · 38 %');
+    expect(tile(all, 'Повернень за 30 днів')).toBe('5 табло 2 · вкладка 1 · сайт 2');
+    // наклейку Б1 «з-д «Прожектор»» надрукували 06.10 і відтоді не відкривали — плитка веде на фільтр
+    expect(tile(all, 'Мовчать ≥ 14 дн')).toBe('1 показати');
+    expect(within(screen.getByLabelText(all)).getByRole('link', { name: /Мовчать/ })).toHaveAttribute('href', '/admin/stickers?only=silent');
     expect(screen.getByRole('button', { name: `${dayLabels(today).long}: 7 відкриттів` })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: `${dayLabels(yesterday).long}: 1 відкриття` })).toBeInTheDocument();
     expect(statsRequests[statsRequests.length - 1]).toBe('?days=30');
@@ -209,11 +211,12 @@ describe('StopStickerTab', () => {
     await waitFor(() => expect(statsRequests[statsRequests.length - 1]).toBe('?days=7'));
 
     expect(screen.queryByLabelText('Частини доби')).not.toBeInTheDocument();
-    await user.click(screen.getByLabelText('По годинах доби'));
-    expect(tile('Частини доби', 'Ранок')).toBe('5 · 63 %');
-    expect(tile('Частини доби', 'День')).toBe('0 · 0 %');
-    expect(tile('Частини доби', 'Вечір')).toBe('2 · 25 %');
-    expect(tile('Частини доби', 'Ніч')).toBe('1 · 13 %');
+    await user.click(screen.getByRole('button', { name: 'По годинах доби' }));
+    expect(screen.queryByText(/^По днях за/)).not.toBeInTheDocument();
+    expect(tile('Частини доби', 'Ранок 05–11')).toBe('5 63 %');
+    expect(tile('Частини доби', 'День 11–17')).toBe('0 0 %');
+    expect(tile('Частини доби', 'Вечір 17–23')).toBe('2 25 %');
+    expect(tile('Частини доби', 'Ніч 23–05')).toBe('1 13 %');
     expect(screen.getByRole('button', { name: '08:00–09:00: 5 відкриттів' })).toBeInTheDocument();
   });
 
@@ -238,10 +241,10 @@ describe('StopStickerTab', () => {
     await user.click(screen.getByRole('button', { name: 'Сьогодні' }));
     await waitFor(() => expect(statsRequests[statsRequests.length - 1]).toBe('?days=1'));
     expect(screen.getByRole('button', { name: 'Сьогодні' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.queryByLabelText('По годинах доби')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'По годинах доби' })).not.toBeInTheDocument();
     expect(screen.queryByText(/^По днях/)).not.toBeInTheDocument();
     expect(screen.getAllByText('По годинах доби сьогодні · усі наклейки').length).toBeGreaterThan(0);
-    expect(tile('Частини доби', 'Ранок')).toBe('5 · 63 %');
+    expect(tile('Частини доби', 'Ранок 05–11')).toBe('5 63 %');
     expect(screen.getByRole('button', { name: '08:00–09:00: 5 відкриттів' })).toBeInTheDocument();
   });
 
@@ -251,15 +254,15 @@ describe('StopStickerTab', () => {
     await stickerReady('з-д «Прожектор»');
     await user.click(await screen.findByLabelText('Лише «з-д «Прожектор»»'));
     const one = 'Підсумки: зупинка «з-д «Прожектор»»';
-    expect(tile(one, 'Усього')).toBe('12');
-    expect(tile(one, 'Наклейок надруковано')).toBe('1 · зі сканами 1');
-    const people = 'Люди з наклейок: зупинка «з-д «Прожектор»»';
-    expect(tile(people, 'Людей сканували')).toBe('6');
-    expect(tile(people, 'З них повертались')).toBe('3 · 50 %');
-    expect(tile(people, 'Повернень за 30 днів')).toBe('5');
+    expect(tile(one, 'Відкриттів усього')).toBe('12 сьогодні 2');
+    expect(tile(one, 'Наклейок надруковано')).toBe('1 зі сканами 1');
+    expect(tile(one, 'Людей сканували')).toBe('6 повертались 3 · 50 %');
+    expect(tile(one, 'Повернень за 30 днів')).toBe('5');
+    // «мовчать» — про всю мережу, у підсумках однієї зупинки її немає
+    expect(within(screen.getByLabelText(one)).queryByText('Мовчать ≥ 14 дн')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: `${dayLabels(yesterday).long}: 0 відкриттів` })).toBeInTheDocument();
-    await user.click(screen.getByLabelText('По годинах доби'));
-    expect(tile('Частини доби', 'Ніч')).toBe('0 · 0 %');
+    await user.click(screen.getByRole('button', { name: 'По годинах доби' }));
+    expect(tile('Частини доби', 'Ніч 23–05')).toBe('0 0 %');
   });
 
   it('список усіх зупинок з відправленнями: популярні першими, лічильники, пошук, фільтр, вибір', async () => {
@@ -269,26 +272,36 @@ describe('StopStickerTab', () => {
     const names = listNames();
     expect(names).toHaveLength(7); // «Меркурій» без відправлень — не кандидат
     expect(names.slice(0, 2)).toEqual(['з-д «Прожектор»', 'Залізничний вокзал']);
-    const first = within(stopList()).getAllByRole('button')[0];
+    const first = stopRows()[0];
     expect(first).toHaveTextContent('12');
     expect(first).toHaveTextContent('+4 за 7 дн');
     expect(first).toHaveTextContent('Б1 12');
     expect(first).toHaveTextContent('друк 06.10');
-    expect(within(stopList()).getAllByRole('button')[1]).toHaveTextContent('Одна 3');
+    expect(first).toHaveTextContent(/мовчить Б1 \d+ дн/);
+    expect(stopRows()[1]).toHaveTextContent('Одна 3');
 
     await user.selectOptions(screen.getByLabelText('Сортування зупинок'), 'За назвою');
     expect(listNames()).toEqual([...names].sort((a, b) => (a ?? '').localeCompare(b ?? '', 'uk')));
 
-    await user.click(screen.getByLabelText('Лише з наклейками'));
+    await user.click(within(stopList()).getByRole('button', { name: 'З наклейками 2' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?only=stickers');
     expect(listNames()).toEqual(['Залізничний вокзал', 'з-д «Прожектор»'].sort((a, b) => a.localeCompare(b, 'uk')));
-    await user.click(screen.getByLabelText('Лише з наклейками'));
+    await user.click(within(stopList()).getByRole('button', { name: 'Мовчать 1' }));
+    expect(listNames()).toEqual(['з-д «Прожектор»']);
+    await user.click(within(stopList()).getByRole('button', { name: 'Без наклейки 5' }));
+    expect(listNames()).toHaveLength(5);
+    await user.click(within(stopList()).getByRole('button', { name: 'Усі 7' }));
+    expect(screen.getByTestId('location')).toHaveTextContent(/^\/admin\/stickers$/);
 
     await user.type(screen.getByLabelText('Пошук зупинки'), 'вокз');
     expect(listNames()).toEqual(['Залізничний вокзал']);
-    await user.click(within(stopList()).getByRole('button'));
+    await user.click(stopRows()[0]);
     expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?stop=st_0019');
     await stickerReady('Залізничний вокзал');
-    expect(within(stopList()).getByRole('button')).toHaveAttribute('aria-pressed', 'true');
+    expect(stopRows()[0]).toHaveAttribute('aria-pressed', 'true');
+    // шапка редактора: наклейки зупинки й посилання на табло без utm (щоб не рахувалось сканом)
+    expect(screen.getByLabelText('Наклейки зупинки')).toHaveTextContent('Одна наклейка: 3 відкр. · друку не записано');
+    expect(screen.getByRole('link', { name: 'Табло ↗' })).toHaveAttribute('href', 'https://malin.kiev.ua/transport/stop/st_0019');
   });
 
   it('«Люди»: перемикач у ?view=people — плитки, перші зупинки новеньких, постійні пасажири з історією; «Наклейки» — назад', async () => {
@@ -327,12 +340,12 @@ describe('StopStickerTab', () => {
       })
     );
     renderTab('/admin/stickers');
-    await user.click(await screen.findByRole('button', { name: 'Люди' }));
+    await user.click(await screen.findByRole('link', { name: 'Люди' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/admin/stickers?view=people');
     const panel = await screen.findByRole('region', { name: 'Люди з наклейок' });
     await waitFor(() => expect(tile('Пасажири з наклейок', 'Пасажирів усього')).toContain('12'));
     expect(tile('Пасажири з наклейок', 'Нових за 30 днів')).toBe('5');
-    expect(tile('Пасажири з наклейок', 'Повертались')).toBe('4 · 33 %');
+    expect(tile('Пасажири з наклейок', 'Повертались')).toBe('4 33 %');
     const first = within(within(panel).getByRole('list', { name: 'Перші зупинки нових пасажирів' })).getAllByRole('listitem');
     expect(first[0]).toHaveTextContent('Залізничний вокзал3');
     const people = within(within(panel).getByRole('list', { name: 'Постійні пасажири' })).getAllByRole('listitem');
@@ -343,7 +356,7 @@ describe('StopStickerTab', () => {
     expect(asked[0]).toContain('days=30');
     await user.click(within(panel).getByRole('button', { name: '7 днів' }));
     await waitFor(() => expect(asked[asked.length - 1]).toContain('days=7'));
-    await user.click(screen.getByRole('button', { name: 'Наклейки' }));
+    await user.click(screen.getByRole('link', { name: 'Наклейки' }));
     expect(screen.getByTestId('location')).toHaveTextContent(/^\/admin\/stickers$/);
   });
 });

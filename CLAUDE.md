@@ -190,8 +190,9 @@ of `dist` in a commit.
   (learning campaigns, see below) and `settings`; an unknown section redirects to Огляд. Shared admin pieces (section nav, header, stat tiles, status pill, empty state, setting row, `ChipGroup` for filters
   and periods; used by «Доведе», «Факт прибуття», «Графіки» (`AdminPage/SchedulesTab.tsx`: trips grouped by direction, one
   dense row per trip), «Маршрути» (`AdminPage/RoutesTab.tsx`: each corridor with its «через …» variants under it,
-  missing route points / car time as flags; cities with their flags and route count) and «Сповіщення»
-  (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS» below). Other admin tabs move to it one PR at
+  missing route points / car time as flags; cities with their flags and route count), «Сповіщення»
+  (`AdminPage/NotificationSettingsTab.tsx`, see «Personal account and SMS» below) and «Наклейки зупинок»
+  (`AdminPage/StopStickerTab.tsx`, see «Stop stickers» below). Other admin tabs move to it one PR at
   a time; **the map editor tab (`MapEditorTab`) is not to be
   touched** (owner's decision), `kit.css` on the
   `--pb-*` variables) live in `AdminPage/kit/`; below 640 px tables with `dovede-log-table--cards` become cards from
@@ -632,7 +633,9 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   Scans carry an anonymous browser id (`src/analytics/visitorId.ts`, also used by «Факт прибуття»); the
   browser remembers the first sticker and, when that person opens the site again after ≥ 30 min,
   `stickerReturn.ts` posts `POST /transport/sticker-returns` (`StickerReturn`, `via: reload | tab | direct`) —
-  «people from stickers who came back» tiles on the tab. The tab lists every stop with its counts,
+  «people from stickers who came back» tiles on the tab. The tab lists every stop with its counts (filter in `?only=`:
+  all / with stickers / `silent` / without a sticker; a printed side with no scan for `SILENT_DAYS` = 14 days after its
+  print or last scan is «мовчить» — check it on the spot; pure `stopStatRows` in `stopSticker/scanStats.ts`),
   daily / hourly charts (Kyiv time) and prints recorded in `StickerPrint` on print/SVG download
   (`GET /admin/transport/sticker-scans?days=1|7|30|90`, 1 = today since Kyiv midnight; `POST /admin/transport/sticker-prints`).
   Wall widget `/admin/wall?key=…` (`src/pages/StickerWallPage/`, rendered without NavBar): a phone in
