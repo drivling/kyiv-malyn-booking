@@ -126,6 +126,7 @@ function createApp(deps) {
         prisma,
         adminPassword: ADMIN_PASSWORD,
         sourceWatch: { notify: telegram_1.sendAdminAlertHtml, ...deps.sourceWatch },
+        ...(deps.now ? { now: deps.now } : {}),
     }));
     // Глобальний обробник помилок — завжди повертаємо JSON
     app.use((err, _req, res, _next) => {
