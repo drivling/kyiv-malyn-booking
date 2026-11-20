@@ -18,6 +18,7 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "dovede:intro": "node scripts/dovede-intro.mjs",
+    "dovede:teaser": "node scripts/teaser/render.mjs",
     "dovede:icons": "node scripts/dovede-icons.mjs",
     "dovede:ring": "node scripts/kyiv-ring-snapshot.mjs",
     "dovede:crawl": "node scripts/dovede-crawl.mjs"

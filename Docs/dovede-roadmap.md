@@ -134,6 +134,14 @@
   перевірка в головному бандлі, `StickerAdIntro.tsx` — окремий чанк у порталі поза `#root`, який тим часом `inert`),
   обгортка `LocalTransportStopBoardPage`. Файл — `public/ads/hint-<хеш>.mp4` (`npm run dovede:intro -- <файл> --slot hint`,
   `src/ads/hintMedia.ts`), кешується назавжди.
+  Унизу ролика з 5-ї секунди проявляється підпис компанії — знак і «ТОВ «Технології»». Його накладає
+  `npm run dovede:teaser -- credit --base <крапка без підпису.mp4>` (`frontend/scripts/teaser/`: сцена `scene.html`,
+  кадри знімає Chromium із Playwright, складає ffmpeg; результат у `out/`, на сайт — `dovede:intro --slot hint`). Чистий
+  ролик без підпису — у git: `git show 94195ac:frontend/public/ads/hint-711724d9.mp4`. Той самий скрипт у режимі
+  `welcome` робить ролик-привітання: та сама крапка, з тим самим звуком і в той самий такт, «друкує» два рядки
+  (типово «Вітаємо / в Малині», `--l1` / `--l2`) і стає крапкою в кінці; підпис компанії той самий. На сайті цього
+  ролика поки нема. Логотип українською (у «Technologies» на сайті компанії Poppins без кирилиці, тут слово —
+  Montserrat кривими) малює `scripts/teaser/lockup.py`.
 - **Спільна механіка ролика** — `frontend/src/ads/` (`useAdVideo.ts` — стан, без перемотки, поля, коло; `AdVideo.tsx` —
   розмітка; `adVideo.css`; `edgeFill.ts`, `noSeek.ts`, `seen.ts`). Вступ /dovede (талон) і тизер табло — обидва на ній.
 - **Облік** — таблиця `AdEvent` (подія на рядок, `viewId` — один перегляд, повтор `viewId + event` не пишеться):
