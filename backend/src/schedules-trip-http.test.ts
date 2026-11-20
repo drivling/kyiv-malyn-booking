@@ -4,6 +4,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal, type LocalServer } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { resetTelegramPrismaForTests, setTelegramPrismaForTests } from './telegram';
@@ -271,11 +272,11 @@ function createTripPrismaStub(store: {
   return stub as PrismaClient;
 }
 
-function appWith(store: { points: Point[]; schedules: Sched[]; bookings: any[] }) {
-  return createApp({ prisma: createTripPrismaStub(store), adminPassword: TEST_ADMIN_PASSWORD });
+async function appWith(store: { points: Point[]; schedules: Sched[]; bookings: any[] }) {
+  return listenLocal(createApp({ prisma: createTripPrismaStub(store), adminPassword: TEST_ADMIN_PASSWORD }));
 }
 
-async function adminToken(app: ReturnType<typeof createApp>) {
+async function adminToken(app: LocalServer) {
   const res = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD });
   assert.equal(res.status, 200);
   return res.body.token as string;
@@ -283,14 +284,14 @@ async function adminToken(app: ReturnType<typeof createApp>) {
 
 test('GET /trip-points returns catalog', async () => {
   const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
-  const res = await request(appWith(store)).get('/trip-points');
+  const res = await request(await appWith(store)).get('/trip-points');
   assert.equal(res.status, 200);
   assert.equal(res.body.length, 4);
 });
 
 test('GET /trip-points exposes hasLocalTransport (Malyn only)', async () => {
   const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
-  const res = await request(appWith(store)).get('/trip-points');
+  const res = await request(await appWith(store)).get('/trip-points');
   assert.equal(res.status, 200);
   const byCode = new Map(res.body.map((p: any) => [p.code, p.hasLocalTransport]));
   assert.equal(byCode.get('Malyn'), true);
@@ -299,7 +300,7 @@ test('GET /trip-points exposes hasLocalTransport (Malyn only)', async () => {
 
 test('PUT /trip-points updates hasLocalTransport, POST defaults it to false', async () => {
   const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
-  const app = appWith(store);
+  const app = await appWith(store);
   const token = await adminToken(app);
 
   const enabled = await request(app)
@@ -326,7 +327,7 @@ test('PUT /trip-points updates hasLocalTransport, POST defaults it to false', as
 
 test('POST /schedules creates marshrutka with points', async () => {
   const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
-  const app = appWith(store);
+  const app = await appWith(store);
   const token = await adminToken(app);
   const res = await request(app)
     .post('/schedules')
@@ -347,7 +348,7 @@ test('POST /schedules creates marshrutka with points', async () => {
 
 test('POST /schedules elektrichka requires ticket URL', async () => {
   const store = { points: seedPoints(), schedules: [] as Sched[], bookings: [] as any[] };
-  const app = appWith(store);
+  const app = await appWith(store);
   const token = await adminToken(app);
   const bad = await request(app)
     .post('/schedules')
@@ -405,7 +406,7 @@ test('POST /bookings rejects elektrichka', async () => {
     ] as Sched[],
     bookings: [] as any[],
   };
-  const res = await request(appWith(store)).post('/bookings').send({
+  const res = await request(await appWith(store)).post('/bookings').send({
     route: 'Korosten-Malyn',
     date: '2026-08-12',
     departureTime: '07:10',
@@ -423,7 +424,7 @@ test('POST /bookings: заблокований номер отримує 403 і 
   // Номер заборонено адміном за скаргою
   prisma.person.findUnique = async () => ({ id: 7, phoneBlockedAt: new Date(), blockedAttemptAt: null });
 
-  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const app = await listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }));
   const res = await request(app).post('/bookings').send({
     route: 'Korosten-Malyn',
     date: '2026-08-12',
@@ -443,7 +444,7 @@ test('POST /bookings: незаблокований номер не блокує�
   const prisma = createTripPrismaStub(store) as any;
   prisma.person.findUnique = async () => ({ id: 7, phoneBlockedAt: null, blockedAttemptAt: null });
 
-  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const app = await listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }));
   const res = await request(app).post('/bookings').send({
     route: 'Korosten-Malyn',
     date: '2026-08-12',
@@ -489,7 +490,7 @@ async function postBooking(store: { points: Point[]; schedules: Sched[]; booking
   // персону шукає/створює telegram.ts через власний клієнт
   setTelegramPrismaForTests(prisma);
   try {
-    return await request(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD })).post('/bookings').send({
+    return await request(await listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }))).post('/bookings').send({
       scheduleId,
       date: '2026-08-12',
       seats: 1,

@@ -499,7 +499,9 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
 
 Business logic takes its dependencies (Prisma client, admin password, etc.) as explicit parameters
 rather than reading module-level singletons, so tests can inject stubs/mocks. Key hooks:
-- `createApp({ prisma, adminPassword })` + `supertest` for HTTP-level tests, no `app.listen()`.
+- `createApp({ prisma, adminPassword })` + `supertest` for HTTP-level tests: always `request(await listenLocal(app))`
+  (`src/http-test-server.ts`, closed after each test), never `request(app)`. supertest listens on `::` but connects to
+  127.0.0.1, and on macOS another process holding that port on 127.0.0.1 answers instead (flaky 404s).
 - `telegram.ts` exposes `setTelegramPrismaForTests` / `setTelegramBotForTests` / `setSpawnForTests`
   (and matching `reset*`) to avoid hitting real Telegram/Postgres/child processes in unit tests.
 - `vitest.setup.ts` deletes `TELEGRAM_BOT_TOKEN` before any module loads, so importing `telegram.ts`

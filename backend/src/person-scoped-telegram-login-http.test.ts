@@ -7,6 +7,7 @@
 import { afterEach, test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { resetTelegramPrismaForTests, setTelegramPrismaForTests } from './telegram';
@@ -75,11 +76,11 @@ function makePrisma(opts: { person?: typeof PERSON | null; booking?: typeof BOOK
   return { prisma, calls };
 }
 
-function makeApp(opts: Parameters<typeof makePrisma>[0] = {}, botToken: string | null = BOT_TOKEN) {
+async function makeApp(opts: Parameters<typeof makePrisma>[0] = {}, botToken: string | null = BOT_TOKEN) {
   const { prisma, calls } = makePrisma(opts);
   // getPersonByTelegram шукає персону через власний клієнт telegram.ts
   setTelegramPrismaForTests(prisma);
-  return { app: createApp({ prisma, adminPassword: 'x', telegramBotToken: botToken }), calls };
+  return { app: await listenLocal(createApp({ prisma, adminPassword: 'x', telegramBotToken: botToken })), calls };
 }
 
 afterEach(() => resetTelegramPrismaForTests());
@@ -87,14 +88,14 @@ afterEach(() => resetTelegramPrismaForTests());
 // ---------- DELETE /bookings/:id/by-user ----------
 
 test('DELETE /bookings/:id/by-user без заголовка → 401, навіть з telegramUserId власника в тілі; нічого не видалено', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   const res = await request(app).delete('/bookings/7/by-user').send({ telegramUserId: ME }).expect(401);
   assert.equal(res.body.reason, 'missing');
   assert.deepEqual(calls, []);
 });
 
 test('DELETE /bookings/:id/by-user з підписом власника → 200, бронювання видалено', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   const res = await request(app).delete('/bookings/7/by-user').set(TELEGRAM_LOGIN_HEADER, loginHeader()).expect(200);
   assert.equal(res.body.success, true);
   assert.deepEqual(res.body.booking.id, 7);
@@ -102,7 +103,7 @@ test('DELETE /bookings/:id/by-user з підписом власника → 200,
 });
 
 test('DELETE /bookings/:id/by-user: чужий підпис → 403, telegramUserId власника в тілі не допомагає', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   await request(app)
     .delete('/bookings/7/by-user')
     .set(TELEGRAM_LOGIN_HEADER, loginHeader(OTHER))
@@ -114,14 +115,14 @@ test('DELETE /bookings/:id/by-user: чужий підпис → 403, telegramUse
 // ---------- PATCH /viber-listings/:id/by-user ----------
 
 test('PATCH /viber-listings/:id/by-user без заголовка → 401, оголошення не чіпали', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   const res = await request(app).patch('/viber-listings/11/by-user').send({ telegramUserId: ME, seats: 2 }).expect(401);
   assert.equal(res.body.reason, 'missing');
   assert.deepEqual(calls, []);
 });
 
 test('PATCH /viber-listings/:id/by-user з підписом → 200; власника шукають за id з підпису, а не з тіла', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   const res = await request(app)
     .patch('/viber-listings/11/by-user')
     .set(TELEGRAM_LOGIN_HEADER, loginHeader())
@@ -135,7 +136,7 @@ test('PATCH /viber-listings/:id/by-user з підписом → 200; власн�
 });
 
 test('PATCH /viber-listings/:id/by-user: підпис людини без цього оголошення → 404', async () => {
-  const { app, calls } = makeApp({ listing: null });
+  const { app, calls } = await makeApp({ listing: null });
   await request(app).patch('/viber-listings/11/by-user').set(TELEGRAM_LOGIN_HEADER, loginHeader(OTHER)).send({ seats: 2 }).expect(404);
   assert.ok(!calls.some((c) => c.op === 'update'));
 });
@@ -143,7 +144,7 @@ test('PATCH /viber-listings/:id/by-user: підпис людини без цьо
 // ---------- PATCH /viber-listings/:id/deactivate/by-user ----------
 
 test('PATCH /viber-listings/:id/deactivate/by-user: без заголовка 401, з підписом 200 (isActive: false)', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   await request(app).patch('/viber-listings/11/deactivate/by-user').send({ telegramUserId: ME }).expect(401);
   assert.deepEqual(calls, []);
   const res = await request(app).patch('/viber-listings/11/deactivate/by-user').set(TELEGRAM_LOGIN_HEADER, loginHeader()).expect(200);
@@ -155,14 +156,14 @@ test('PATCH /viber-listings/:id/deactivate/by-user: без заголовка 40
 // ---------- POST /rideshare/request ----------
 
 test('POST /rideshare/request без заголовка → 401, запит не створено', async () => {
-  const { app, calls } = makeApp();
+  const { app, calls } = await makeApp();
   const res = await request(app).post('/rideshare/request').send({ driverListingId: 11, telegramUserId: ME }).expect(401);
   assert.equal(res.body.reason, 'missing');
   assert.deepEqual(calls, []);
 });
 
 test('POST /rideshare/request: пасажир — з підпису, telegramUserId у тілі ігнорується; без driverListingId → 400', async () => {
-  const { app, calls } = makeApp({ person: { ...PERSON, phoneNormalized: '' } });
+  const { app, calls } = await makeApp({ person: { ...PERSON, phoneNormalized: '' } });
   await request(app).post('/rideshare/request').set(TELEGRAM_LOGIN_HEADER, loginHeader()).send({}).expect(400);
   assert.deepEqual(calls, []);
   // Персона без телефону → 400 «підключіть номер», але шукали її за id з підпису
@@ -178,7 +179,7 @@ test('POST /rideshare/request: пасажир — з підпису, telegramUse
 });
 
 test('без TELEGRAM_BOT_TOKEN на сервері особисті маршрути відповідають 503, а не пропускають', async () => {
-  const { app } = makeApp({}, null);
+  const { app } = await makeApp({}, null);
   assert.equal((await request(app).delete('/bookings/7/by-user').set(TELEGRAM_LOGIN_HEADER, loginHeader()).expect(503)).body.reason, 'unavailable');
   assert.equal((await request(app).post('/rideshare/request').set(TELEGRAM_LOGIN_HEADER, loginHeader()).send({ driverListingId: 11 }).expect(503)).body.reason, 'unavailable');
 });

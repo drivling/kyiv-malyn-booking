@@ -5,6 +5,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal, type LocalServer } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import {
@@ -27,7 +28,7 @@ type Return = { stopId: string; side: string; clientId: string; via: string; pag
 
 type Print = { stopId: string; side: string; size: string; createdAt: Date };
 
-function makeApp(initial: Scan[] = [], initialPrints: Print[] = [], initialReturns: Return[] = []) {
+async function makeApp(initial: Scan[] = [], initialPrints: Print[] = [], initialReturns: Return[] = []) {
   const returns: Return[] = [...initialReturns];
   const scans: Scan[] = [...initial];
   const prints: Print[] = [...initialPrints];
@@ -87,16 +88,16 @@ function makeApp(initial: Scan[] = [], initialPrints: Print[] = [], initialRetur
       },
     },
   } as unknown as PrismaClient;
-  return { app: createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }), prisma, scans, prints, returns };
+  return { app: await listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD })), prisma, scans, prints, returns };
 }
 
-async function token(app: ReturnType<typeof createApp>) {
+async function token(app: LocalServer) {
   const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
   return String(login.body.token);
 }
 
 test('POST /transport/sticker-scans: записує відкриття наклейки', async () => {
-  const { app, scans } = makeApp();
+  const { app, scans } = await makeApp();
   const res = await request(app).post('/transport/sticker-scans').send({ stopId: 'st_0015', side: 'a' }).expect(201);
   assert.deepEqual(res.body, { ok: true, counted: true });
   assert.equal(scans.length, 1);
@@ -104,7 +105,7 @@ test('POST /transport/sticker-scans: записує відкриття накл�
 });
 
 test('POST /transport/sticker-scans: невалідне тіло — 400, невідома зупинка — 404, нічого не пишеться', async () => {
-  const { app, scans } = makeApp();
+  const { app, scans } = await makeApp();
   await request(app).post('/transport/sticker-scans').send({ stopId: 'st_0015', side: 'x' }).expect(400);
   await request(app).post('/transport/sticker-scans').send({ stopId: '../etc', side: 'a' }).expect(400);
   await request(app).post('/transport/sticker-scans').send({}).expect(400);
@@ -113,7 +114,7 @@ test('POST /transport/sticker-scans: невалідне тіло — 400, нев
 });
 
 test('POST /transport/sticker-scans: повтор з того самого клієнта не рахується, з іншого — рахується', async () => {
-  const { app, scans } = makeApp();
+  const { app, scans } = await makeApp();
   const send = (ip: string, side = 'b') =>
     request(app).post('/transport/sticker-scans').set('X-Forwarded-For', `${ip}, 10.0.0.1`).set('User-Agent', 'Phone').send({ stopId: 'st_0015', side });
   await send('203.0.113.5').expect(201);
@@ -125,14 +126,14 @@ test('POST /transport/sticker-scans: повтор з того самого кл�
 });
 
 test('GET /admin/transport/sticker-scans: 401 без токена', async () => {
-  const { app } = makeApp();
+  const { app } = await makeApp();
   await request(app).get('/admin/transport/sticker-scans').expect(401);
 });
 
 test('GET /admin/transport/sticker-scans: агрегати по наклейках, популярні першими', async () => {
   const now = Date.now();
   const at = (daysAgo: number) => new Date(now - daysAgo * DAY);
-  const { app } = makeApp([
+  const { app } = await makeApp([
     { stopId: 'st_0015', side: 'a', createdAt: at(1) },
     { stopId: 'st_0015', side: 'a', createdAt: at(10) },
     { stopId: 'st_0015', side: 'a', createdAt: at(40) },
@@ -154,7 +155,7 @@ test('GET /admin/transport/sticker-scans: агрегати по наклейка
 });
 
 test('stickerScanStats: відкриття по київських добах і годинах доби, облік друку', async () => {
-  const { prisma } = makeApp(
+  const { prisma } = await makeApp(
     [
       // 21:30 UTC = 00:30 за Києвом (UTC+3 у жовтні) — уже наступна доба, година 0
       { stopId: 'st_0015', side: 'a', createdAt: new Date('2026-10-05T21:30:00Z') },
@@ -190,7 +191,7 @@ test('stickerScanStats: відкриття по київських добах і
 });
 
 test('stickerScanStats: «сьогодні» (days=1) — київська доба від півночі, а не останні 24 години', async () => {
-  const { prisma } = makeApp([
+  const { prisma } = await makeApp([
     { stopId: 'st_0015', side: 'a', createdAt: new Date('2026-10-05T20:30:00Z') }, // 23:30 05.10 за Києвом — учора
     { stopId: 'st_0015', side: 'a', createdAt: new Date('2026-10-05T21:10:00Z') }, // 00:10 06.10
     { stopId: 'st_0019', side: 's', createdAt: new Date('2026-10-06T06:45:00Z') }, // 09:45 06.10
@@ -213,7 +214,7 @@ test('stickerScanStats: «сьогодні» (days=1) — київська до�
 
 test('GET /admin/transport/sticker-scans: ?days= задає вікно графіків (1 | 7 | 30 | 90, інше — 30)', async () => {
   const now = Date.now();
-  const { app } = makeApp([
+  const { app } = await makeApp([
     { stopId: 'st_0015', side: 'a', createdAt: new Date(now - 2 * DAY) },
     { stopId: 'st_0019', side: 's', createdAt: new Date(now - 40 * DAY) },
   ]);
@@ -230,7 +231,7 @@ test('GET /admin/transport/sticker-scans: ?days= задає вікно граф�
 });
 
 test('POST /admin/transport/sticker-prints: auth, валідація, по рядку на наклейку', async () => {
-  const { app, prints } = makeApp();
+  const { app, prints } = await makeApp();
   await request(app).post('/admin/transport/sticker-prints').send({ stopId: 'st_0015', sides: ['a'], size: 'A5' }).expect(401);
   const auth = await token(app);
   for (const body of [
@@ -291,13 +292,13 @@ test('parseStickerReturn: обовʼязковий clientId, via reload|tab|dire
 });
 
 test('POST /transport/sticker-scans: зберігає анонімний id браузера', async () => {
-  const { app, scans } = makeApp();
+  const { app, scans } = await makeApp();
   await request(app).post('/transport/sticker-scans').send({ stopId: 'st_0015', side: 'a', clientId: 'abcd-1234-efgh' }).expect(201);
   assert.equal(scans[0].clientId, 'abcd-1234-efgh');
 });
 
 test('POST /transport/sticker-returns: записує повернення, повтор того самого id за 30 хв не рахується', async () => {
-  const { app, returns } = makeApp();
+  const { app, returns } = await makeApp();
   const body = { stopId: 'st_0015', side: 'a', clientId: 'abcd-1234-efgh', via: 'reload', page: 'transport' };
   await request(app).post('/transport/sticker-returns').send({ ...body, clientId: 'bad' }).expect(400);
   const first = await request(app).post('/transport/sticker-returns').send(body).expect(201);
@@ -312,7 +313,7 @@ test('GET /admin/transport/sticker-scans: люди з наклейок — ск�
   const now = Date.now();
   const at = (daysAgo: number) => new Date(now - daysAgo * DAY);
   const r = (clientId: string, via: string, daysAgo: number, stopId = 'st_0015', side = 'a'): Return => ({ stopId, side, clientId, via, page: 'transport', createdAt: at(daysAgo) });
-  const { app } = makeApp(
+  const { app } = await makeApp(
     [
       { stopId: 'st_0015', side: 'a', createdAt: at(1), clientId: 'aaaa-1111' },
       { stopId: 'st_0015', side: 'a', createdAt: at(2), clientId: 'aaaa-1111' },

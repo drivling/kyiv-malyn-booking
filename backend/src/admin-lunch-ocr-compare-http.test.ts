@@ -5,6 +5,7 @@
 import { describe, expect, test } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createAdminLunchRouter } from './routes/admin-lunch';
 import { adminAuthToken, setAdminPassword } from './middleware/require-admin';
@@ -25,7 +26,7 @@ type JobRow = {
   finishedAt: Date | null;
 };
 
-function setup(opts: { listener?: boolean; key?: string } = {}) {
+async function setup(opts: { listener?: boolean; key?: string } = {}) {
   const jobs: JobRow[] = [];
   const prisma = {
     lunchAdminJob: {
@@ -56,7 +57,7 @@ function setup(opts: { listener?: boolean; key?: string } = {}) {
       env: { ANTHROPIC_API_KEY: opts.key ?? 'sk-test' },
     }),
   );
-  return { app, jobs };
+  return { app: await listenLocal(app), jobs };
 }
 
 describe('parseOcrCompareRequest', () => {
@@ -82,13 +83,13 @@ describe('parseOcrCompareRequest', () => {
 
 describe('/admin/lunch/ocr-compare', () => {
   test('401 без токена', async () => {
-    const { app } = setup();
+    const { app } = await setup();
     await request(app).post('/admin/lunch/ocr-compare').send({}).expect(401);
     await request(app).get('/admin/lunch/ocr-compare/1').expect(401);
   });
 
   test('POST ставить задачу; друга, поки перша в роботі, — 409; GET віддає звіт лише готової', async () => {
-    const { app, jobs } = setup();
+    const { app, jobs } = await setup();
     const created = await request(app)
       .post('/admin/lunch/ocr-compare')
       .set(auth)
@@ -119,7 +120,7 @@ describe('/admin/lunch/ocr-compare', () => {
   });
 
   test('некоректні запити й чужі задачі', async () => {
-    const { app, jobs } = setup();
+    const { app, jobs } = await setup();
     await request(app).post('/admin/lunch/ocr-compare').set(auth).send({ date: 'вчора' }).expect(400);
     await request(app).post('/admin/lunch/ocr-compare').set(auth).send({ models: ['claude-opus-5-5'] }).expect(400);
     await request(app).get('/admin/lunch/ocr-compare/abc').set(auth).expect(400);
@@ -129,9 +130,9 @@ describe('/admin/lunch/ocr-compare', () => {
   });
 
   test('без слухача або без ключа Claude — 409 і задачі немає', async () => {
-    const off = setup({ listener: false });
+    const off = await setup({ listener: false });
     expect((await request(off.app).post('/admin/lunch/ocr-compare').set(auth).send({}).expect(409)).body.error).toMatch(/Слухач/);
-    const noKey = setup({ key: ' ' });
+    const noKey = await setup({ key: ' ' });
     expect((await request(noKey.app).post('/admin/lunch/ocr-compare').set(auth).send({}).expect(409)).body.error).toMatch(/ANTHROPIC_API_KEY/);
     expect(off.jobs).toEqual([]);
     expect(noKey.jobs).toEqual([]);

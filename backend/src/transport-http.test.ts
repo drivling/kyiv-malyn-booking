@@ -4,6 +4,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal, type LocalServer } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import type { TransportDataset } from './local-transport';
@@ -139,26 +140,26 @@ function sampleDataset(): TransportDataset {
   };
 }
 
-function appWithStore(store: Store) {
-  return createApp({
+async function appWithStore(store: Store) {
+  return listenLocal(createApp({
     prisma: createTransportPrismaStub(store),
     adminPassword: TEST_ADMIN_PASSWORD,
-  });
+  }));
 }
 
 test('GET /transport/dataset: empty store returns empty arrays', async () => {
-  const res = await request(appWithStore(emptyStore())).get('/transport/dataset').expect(200);
+  const res = await request(await appWithStore(emptyStore())).get('/transport/dataset').expect(200);
   assert.deepEqual(res.body.stops, []);
   assert.deepEqual(res.body.routes, []);
   assert.equal(res.headers['cache-control'], 'public, max-age=300');
 });
 
 test('PUT /transport/dataset: 401 without admin token', async () => {
-  await request(appWithStore(emptyStore())).put('/transport/dataset').send(sampleDataset()).expect(401);
+  await request(await appWithStore(emptyStore())).put('/transport/dataset').send(sampleDataset()).expect(401);
 });
 
 test('PUT /transport/dataset: 400 on invalid payload', async () => {
-  const app = appWithStore(emptyStore());
+  const app = await appWithStore(emptyStore());
   const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
   const res = await request(app)
     .put('/transport/dataset')
@@ -170,7 +171,7 @@ test('PUT /transport/dataset: 400 on invalid payload', async () => {
 
 test('PUT then GET /transport/dataset: round-trip', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
   const dataset = sampleDataset();
 
@@ -192,7 +193,7 @@ test('PUT then GET /transport/dataset: round-trip', async () => {
 
 test('PUT then GET /transport/dataset: unreliable flag round-trips, default false', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
   const dataset = sampleDataset();
   dataset.routes = [
@@ -214,7 +215,7 @@ test('PUT then GET /transport/dataset: unreliable flag round-trips, default fals
 
 test('PUT then GET /transport/dataset: trip start/end/arrival round-trip, empty → null', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
   const dataset = sampleDataset();
   dataset.trips = [
@@ -239,7 +240,7 @@ test('PUT then GET /transport/dataset: trip start/end/arrival round-trip, empty 
 });
 
 test('PUT /transport/dataset: 400 names the trip whose arrivalTime is invalid', async () => {
-  const app = appWithStore(emptyStore());
+  const app = await appWithStore(emptyStore());
   const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
   const dataset = sampleDataset();
   dataset.trips = [{ ...dataset.trips[0], arrivalTime: '06:00:00' }];
@@ -270,14 +271,14 @@ function variantSample(): TransportDataset {
   return ds;
 }
 
-async function adminToken(app: ReturnType<typeof appWithStore>): Promise<string> {
+async function adminToken(app: LocalServer): Promise<string> {
   const login = await request(app).post('/admin/login').send({ password: TEST_ADMIN_PASSWORD }).expect(200);
   return String(login.body.token);
 }
 
 test('PUT then GET /transport/dataset: variants, trip variantId and timepoints round-trip; counts.variants', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const token = await adminToken(app);
   const put = await request(app).put('/transport/dataset').set('Authorization', token).send(variantSample()).expect(200);
   assert.equal(put.body.counts.variants, 1);
@@ -295,7 +296,7 @@ test('PUT then GET /transport/dataset: variants, trip variantId and timepoints r
 
 test('PUT /transport/dataset: a route without the variants key keeps them (map editor save); [] clears them', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const token = await adminToken(app);
   await request(app).put('/transport/dataset').set('Authorization', token).send(variantSample()).expect(200);
 
@@ -313,7 +314,7 @@ test('PUT /transport/dataset: a route without the variants key keeps them (map e
 
 test('PUT /transport/dataset: stale baseRevision → 409; current one or none → 200 with the new revision', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const token = await adminToken(app);
   await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
   store.meta = { ...(store.meta as { id: number; payload: Record<string, unknown> }), updatedAt: new Date('2026-10-12T10:00:00Z') } as never;
@@ -351,14 +352,14 @@ function setRevision(store: Store, iso: string) {
 }
 
 test('GET /transport/gtfs.zip and /transport/gtfs/:file: 404 while the dataset is empty', async () => {
-  const app = appWithStore(emptyStore());
+  const app = await appWithStore(emptyStore());
   await request(app).get('/transport/gtfs.zip').expect(404);
   await request(app).get('/transport/gtfs/feed_info.txt').expect(404);
 });
 
 test('GET /transport/gtfs.zip: zip attachment with cache headers, ETag = revision, 304 on If-None-Match', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const token = await adminToken(app);
   await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
   setRevision(store, '2026-10-12T10:00:00Z');
@@ -382,7 +383,7 @@ test('GET /transport/gtfs.zip: zip attachment with cache headers, ETag = revisio
 
 test('GET /transport/gtfs/:file: single feed file as text, feed_version = revision; unknown name → 404', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const token = await adminToken(app);
   await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
   setRevision(store, '2026-10-12T10:00:00Z');
@@ -406,7 +407,7 @@ test('GET /transport/gtfs/:file: single feed file as text, feed_version = revisi
 
 test('GET /transport/gtfs.zip: cached per revision; a new revision rebuilds and drops unreliable routes', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const token = await adminToken(app);
   await request(app).put('/transport/dataset').set('Authorization', token).send(sampleDataset()).expect(200);
   setRevision(store, '2026-10-12T10:00:00Z');
@@ -435,7 +436,7 @@ test('GET /transport/gtfs.zip: cached per revision; a new revision rebuilds and 
 
 test('stop redirects: PUT /admin validates and bumps revision; GET /transport/stops/:id answers 200 / 301 / 404', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const token = await adminToken(app);
   await request(app).put('/admin/transport/stop-redirects').send({ redirects: { st_0042: 'st_0001' } }).expect(401);
   // Порожній датасет — нема куди писати
@@ -483,7 +484,7 @@ test('stop redirects: PUT /admin validates and bumps revision; GET /transport/st
 
 test('GET /transport/changes.rss and /transport/route/:id/calendar.ics come from the GTFS cache with ETag = revision', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   await request(app).get('/transport/changes.rss').expect(404);
   await request(app).get('/transport/route/2/calendar.ics').expect(404);
   const token = await adminToken(app);
@@ -520,7 +521,7 @@ test('GET /transport/changes.rss and /transport/route/:id/calendar.ics come from
 
 test('Revision journal: PUT dataset, stop redirects and GET /transport/revisions / changes.rss carry the diff', async () => {
   const store = emptyStore();
-  const app = appWithStore(store);
+  const app = await appWithStore(store);
   const empty = await request(app).get('/transport/revisions').expect(200);
   assert.deepEqual(empty.body, { revisions: [] });
   assert.equal(empty.headers['cache-control'], 'public, max-age=300');
@@ -589,7 +590,7 @@ test('Revision journal never blocks the write: a failing TransportRevision.upser
   (prisma as any).transportRevision.upsert = async () => {
     throw new Error('relation "TransportRevision" does not exist');
   };
-  const app = createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  const app = await listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }));
   const token = await adminToken(app);
   const errors: unknown[] = [];
   const original = console.error;

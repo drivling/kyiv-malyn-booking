@@ -5,6 +5,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
@@ -45,17 +46,17 @@ const prisma = {
   transportRoute: { findMany: async () => [] },
 } as unknown as PrismaClient;
 
-function appWith(access: Partial<DovedeAccessConfig>) {
-  return createApp({
+async function appWith(access: Partial<DovedeAccessConfig>) {
+  return listenLocal(createApp({
     prisma,
     adminPassword: ADMIN_PASSWORD,
     dovedeUnderstand: understand,
     dovedeAccess: { isPublic: () => false, password: () => null, ...access },
-  });
+  }));
 }
 
 test('без пароля в середовищі: сторінка закрита, вхід за паролем вимкнено, Claude — 401', async () => {
-  const app = appWith({});
+  const app = await appWith({});
   assert.deepEqual((await request(app).get('/dovede/access')).body, { open: false, allowed: false });
   const login = await request(app).post('/dovede/login').send({ password: 'будь-що' });
   assert.equal(login.status, 503);
@@ -63,7 +64,7 @@ test('без пароля в середовищі: сторінка закрит
 });
 
 test('пароль запрошених: невірний — 401, вірний — токен, з ним відкриваються сторінка й Claude', async () => {
-  const app = appWith({ password: () => GUEST_PASSWORD });
+  const app = await appWith({ password: () => GUEST_PASSWORD });
   const wrong = await request(app).post('/dovede/login').send({ password: 'не той' });
   assert.equal(wrong.status, 401);
   assert.equal(wrong.body.error, 'Невірний пароль');
@@ -83,7 +84,7 @@ test('пароль запрошених: невірний — 401, вірний 
 });
 
 test('токен гостя не відкриває адмінку, а токен від іншого пароля — «Доведе»', async () => {
-  const app = appWith({ password: () => GUEST_PASSWORD });
+  const app = await appWith({ password: () => GUEST_PASSWORD });
   const guest = dovedeAccessToken(GUEST_PASSWORD);
   assert.equal((await request(app).get('/admin/dovede/queries').set('Authorization', guest)).status, 401);
   assert.equal((await request(app).get('/admin/check').set('Authorization', guest)).status, 401);
@@ -95,13 +96,13 @@ test('токен гостя не відкриває адмінку, а токе�
 });
 
 test('токен адміна відкриває «Доведе» без пароля запрошених', async () => {
-  const app = appWith({});
+  const app = await appWith({});
   assert.deepEqual((await request(app).get('/dovede/access').set('Authorization', ADMIN)).body, { open: false, allowed: true });
   assert.equal((await request(app).post('/dovede/understand').set('Authorization', ADMIN).send(QUESTION)).status, 200);
 });
 
 test('DOVEDE_PUBLIC=ON: відкрито всім, без пароля й токена', async () => {
-  const app = appWith({ isPublic: () => true, password: () => GUEST_PASSWORD });
+  const app = await appWith({ isPublic: () => true, password: () => GUEST_PASSWORD });
   assert.deepEqual((await request(app).get('/dovede/access')).body, { open: true, allowed: true });
   assert.equal((await request(app).post('/dovede/understand').send(QUESTION)).status, 200);
   // журнал лишається адмінським
@@ -122,13 +123,14 @@ test(`після ${DOVEDE_LOGIN_MAX_FAILURES} невдалих паролів �
       access: { isPublic: () => false, password: () => GUEST_PASSWORD },
     }),
   );
+  const server = await listenLocal(app);
   for (let i = 0; i < DOVEDE_LOGIN_MAX_FAILURES; i++) {
-    assert.equal((await request(app).post('/dovede/login').send({ password: `спроба ${i}` })).status, 401);
+    assert.equal((await request(server).post('/dovede/login').send({ password: `спроба ${i}` })).status, 401);
   }
-  const blocked = await request(app).post('/dovede/login').send({ password: GUEST_PASSWORD });
+  const blocked = await request(server).post('/dovede/login').send({ password: GUEST_PASSWORD });
   assert.equal(blocked.status, 429);
   now += DOVEDE_LOGIN_WINDOW_MS;
-  assert.equal((await request(app).post('/dovede/login').send({ password: GUEST_PASSWORD })).status, 200);
+  assert.equal((await request(server).post('/dovede/login').send({ password: GUEST_PASSWORD })).status, 200);
 });
 
 test('змінні середовища: DOVEDE_PUBLIC лише ON / 1 / true / yes, порожній DOVEDE_PASSWORD — вимкнено', () => {

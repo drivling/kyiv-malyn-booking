@@ -6,6 +6,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 
 const posted = vi.hoisted(() => [] as Array<{ text: string; opts: Record<string, unknown> }>);
@@ -60,12 +61,12 @@ function payPrisma(opts: { replyMessageId?: bigint | null } = {}) {
   return { prisma, payments };
 }
 
-function appWith(prisma: PrismaClient) {
+async function appWith(prisma: PrismaClient) {
   const app = express();
   setAdminPassword(app, ADMIN_PASSWORD);
   app.use(express.json());
   app.use(createAdminLunchRouter({ prisma }));
-  return app;
+  return listenLocal(app);
 }
 
 beforeEach(() => {
@@ -98,7 +99,7 @@ describe('formatPaidLine', () => {
 describe('POST /admin/lunch/pay', () => {
   test('оплата всього боргу → правка нашої відповіді в групі з «✅ Оплатив», нової не пишемо', async () => {
     const { prisma, payments } = payPrisma();
-    const res = await request(appWith(prisma)).post('/admin/lunch/pay').set(auth).send({ participantId: 50 }).expect(200);
+    const res = await request(await appWith(prisma)).post('/admin/lunch/pay').set(auth).send({ participantId: 50 }).expect(200);
     expect(payments).toEqual([120]);
     expect(res.body).toMatchObject({ ok: true, hasReply: true, telegramQueued: true, telegramError: null });
     expect(res.body.payment).toMatchObject({ orderId: 9, amountUah: 120, debt: 0 });
@@ -111,13 +112,13 @@ describe('POST /admin/lunch/pay', () => {
 
   test('часткова оплата → у відповіді залишок', async () => {
     const { prisma } = payPrisma();
-    await request(appWith(prisma)).post('/admin/lunch/pay').set(auth).send({ participantId: 50, amountUah: 100 }).expect(200);
+    await request(await appWith(prisma)).post('/admin/lunch/pay').set(auth).send({ participantId: 50, amountUah: 100 }).expect(200);
     expect(posted[0].text).toMatch(/Разом: 120 грн\nОплатив 100 грн, залишок 20 грн$/);
   });
 
   test('нашої відповіді в групі немає → оплата є, у групу нічого не пишемо', async () => {
     const { prisma, payments } = payPrisma({ replyMessageId: null });
-    const res = await request(appWith(prisma)).post('/admin/lunch/pay').set(auth).send({ participantId: 50 }).expect(200);
+    const res = await request(await appWith(prisma)).post('/admin/lunch/pay').set(auth).send({ participantId: 50 }).expect(200);
     expect(payments).toEqual([120]);
     expect(res.body).toMatchObject({ ok: true, hasReply: false, telegramQueued: false });
     expect(posted).toEqual([]);
@@ -129,7 +130,7 @@ describe('POST /admin/lunch/pay · збій черги', () => {
     const { postTextToLunchGroup } = await import('./lunch-telegram');
     vi.mocked(postTextToLunchGroup).mockRejectedValueOnce(new Error('db down'));
     const { prisma, payments } = payPrisma();
-    const res = await request(appWith(prisma)).post('/admin/lunch/pay').set(auth).send({ participantId: 50 }).expect(200);
+    const res = await request(await appWith(prisma)).post('/admin/lunch/pay').set(auth).send({ participantId: 50 }).expect(200);
     expect(payments).toEqual([120]);
     expect(res.body).toMatchObject({ ok: true, hasReply: true, telegramQueued: false, telegramError: 'db down' });
   });

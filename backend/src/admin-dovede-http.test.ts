@@ -5,6 +5,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
@@ -95,7 +96,7 @@ function fakePrisma(callsToday = 0): { prisma: PrismaClient; rows: Row[]; countW
   return { prisma, rows, countWhere, synonymRows };
 }
 
-function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null; enabled?: boolean; cap?: number; driveTime?: DriveTimeFn; cityRoutes?: CityRoutes; guestPassword?: string }) {
+async function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null; enabled?: boolean; cap?: number; driveTime?: DriveTimeFn; cityRoutes?: CityRoutes; guestPassword?: string }) {
   const app = express();
   app.use(express.json());
   setAdminPassword(app, PASSWORD);
@@ -111,20 +112,20 @@ function appWith(opts: { prisma: PrismaClient; understand?: UnderstandFn | null;
       ...(opts.guestPassword ? { access: { isPublic: () => false, password: () => opts.guestPassword ?? null } } : {}),
     }),
   );
-  return app;
+  return listenLocal(app);
 }
 
 test('без токена адміна — 401, Claude не викликається', async () => {
   const { prisma, rows } = fakePrisma();
   let called = 0;
-  const app = createApp({
+  const app = await listenLocal(createApp({
     prisma,
     adminPassword: PASSWORD,
     dovedeUnderstand: async () => {
       called++;
       return okResult();
     },
-  });
+  }));
   const res = await request(app).post('/dovede/understand').send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 401);
   assert.equal(called, 0);
@@ -133,7 +134,7 @@ test('без токена адміна — 401, Claude не викликаєть
 
 test('createApp без ключа: 503 з fallback local', async () => {
   const { prisma } = fakePrisma();
-  const app = createApp({ prisma, adminPassword: PASSWORD, dovedeUnderstand: null });
+  const app = await listenLocal(createApp({ prisma, adminPassword: PASSWORD, dovedeUnderstand: null }));
   const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 503);
   assert.deepEqual(res.body, { fallback: 'local', reason: 'no_key' });
@@ -142,7 +143,7 @@ test('createApp без ключа: 503 з fallback local', async () => {
 test('успіх: намір, згода з місцевим розбором, рядок журналу з токенами', async () => {
   const { prisma, rows, countWhere } = fakePrisma();
   const seen: Array<{ text: string; now: unknown }> = [];
-  const app = appWith({
+  const app = await appWith({
     prisma,
     understand: async (text, now) => {
       seen.push({ text, now });
@@ -179,7 +180,7 @@ test('успіх: намір, згода з місцевим розбором, �
 
 test('розбіжність із місцевим розбором: agree = false', async () => {
   const { prisma, rows } = fakePrisma();
-  const app = appWith({ prisma, understand: async () => okResult({ ...INTENT, to: { id: 'malyn.avtostantsiya', text: 'автостанція' } }) });
+  const app = await appWith({ prisma, understand: async () => okResult({ ...INTENT, to: { id: 'malyn.avtostantsiya', text: 'автостанція' } }) });
   const res = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва на вокзал', local: INTENT });
   assert.equal(res.body.agree, false);
   assert.equal(rows[0].agree, false);
@@ -187,7 +188,7 @@ test('розбіжність із місцевим розбором: agree = fal
 
 test('місцевий розбір з чужим id не ламає запит: id переноситься в unknown', async () => {
   const { prisma, rows } = fakePrisma();
-  const app = appWith({ prisma });
+  const app = await appWith({ prisma });
   const res = await request(app)
     .post('/dovede/understand')
     .set('Authorization', AUTH)
@@ -201,7 +202,7 @@ test('місцевий розбір з чужим id не ламає запит:
 test('вимкнено (DOVEDE_ENABLED=0): 503 disabled, Claude не викликається, у журналі aiCalled немає', async () => {
   const { prisma, rows } = fakePrisma();
   let called = 0;
-  const app = appWith({
+  const app = await appWith({
     prisma,
     enabled: false,
     understand: async () => {
@@ -219,7 +220,7 @@ test('вимкнено (DOVEDE_ENABLED=0): 503 disabled, Claude не викли�
 test('денний ліміт вичерпано: 429 cap, Claude не викликається', async () => {
   const { prisma, rows } = fakePrisma(25);
   let called = 0;
-  const app = appWith({
+  const app = await appWith({
     prisma,
     cap: 25,
     understand: async () => {
@@ -236,7 +237,7 @@ test('денний ліміт вичерпано: 429 cap, Claude не викл�
 
 test('збій Claude: 503 з причиною, у журналі — виклик і помилка', async () => {
   const { prisma, rows } = fakePrisma();
-  const app = appWith({
+  const app = await appWith({
     prisma,
     understand: async () => ({ ok: false, failure: 'timeout', message: 'Claude не відповів вчасно', model: 'claude-opus-5-5', latencyMs: 8000, promptVersion: 'dovede-understand-v1' }),
   });
@@ -253,14 +254,14 @@ test('виняток усередині (зокрема збій журналу)
   (prisma.dovedeQuery as unknown as { count: () => Promise<number> }).count = async () => {
     throw new Error('db down');
   };
-  const res = await request(appWith({ prisma })).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
+  const res = await request(await appWith({ prisma })).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Києва в Малин' });
   assert.equal(res.status, 503);
   assert.deepEqual(res.body, { fallback: 'local', reason: 'api_error' });
 });
 
 test('порожнє й задовге питання — 400', async () => {
   const { prisma, rows } = fakePrisma();
-  const app = appWith({ prisma });
+  const app = await appWith({ prisma });
   assert.equal((await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: '   ' })).status, 400);
   assert.equal((await request(app).post('/dovede/understand').set('Authorization', AUTH).send({})).status, 400);
   assert.equal((await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'я'.repeat(301) })).status, 400);
@@ -281,7 +282,7 @@ test('зупинки міста з бази: Claude отримує їх усі, 
   const { prisma, rows } = fakePrisma();
   const seen: unknown[] = [];
   const withStop: TripIntent = { ...INTENT, from: { id: 'st_0071', text: 'поворот на коновальця' } };
-  const app = appWith({
+  const app = await appWith({
     prisma,
     understand: async (_text, _now, stops) => {
       seen.push(stops);
@@ -300,7 +301,7 @@ test('маршрути міста з бази: Claude отримує номер 
   const { prisma, rows } = fakePrisma();
   const seen: unknown[] = [];
   const about5: TripIntent = { ...INTENT, intent: 'route', from: null, to: null, routes: ['5', '99'], confidence: 'high' };
-  const app = appWith({
+  const app = await appWith({
     prisma,
     understand: async (_text, _now, _stops, routes) => {
       seen.push(routes);
@@ -352,7 +353,7 @@ const logRow = (over: Row): Row => ({
 
 test('журнал: без токена адміна — 401', async () => {
   const { prisma, findArgs } = logPrisma([]);
-  const res = await request(appWith({ prisma })).get('/admin/dovede/queries');
+  const res = await request(await appWith({ prisma })).get('/admin/dovede/queries');
   assert.equal(res.status, 401);
   assert.equal(findArgs.length, 0);
 });
@@ -365,7 +366,7 @@ test('журнал: зведення, позначки й невпізнані �
     logRow({ id: 2, agree: false, aiIntent: { ...INTENT, to: { id: 'malyn.tsentr', text: 'центр' } }, latencyMs: 1000 }),
     logRow({ id: 1 }),
   ]);
-  const res = await request(appWith({ prisma })).get('/admin/dovede/queries?days=7').set('Authorization', AUTH);
+  const res = await request(await appWith({ prisma })).get('/admin/dovede/queries?days=7').set('Authorization', AUTH);
   assert.equal(res.status, 200);
   assert.equal(res.headers['cache-control'], 'private, no-store');
   // 13.11 12:20Z → київська північ 12.11 22:00Z, мінус 6 днів
@@ -386,7 +387,7 @@ test('журнал: зведення, позначки й невпізнані �
 
 test('журнал: only=problems і only=<позначка> фільтрують таблицю, а не зведення; невідомий days → 7', async () => {
   const { prisma } = logPrisma([logRow({ id: 2, agree: false }), logRow({ id: 1 })]);
-  const app = appWith({ prisma });
+  const app = await appWith({ prisma });
   const problems = await request(app).get('/admin/dovede/queries?only=problems&days=abc').set('Authorization', AUTH);
   assert.equal(problems.body.days, 7);
   assert.equal(problems.body.summary.total, 2);
@@ -397,7 +398,7 @@ test('журнал: only=problems і only=<позначка> фільтруют�
 
 test('синоніми: лише адмін додає й видаляє; фраза нормалізується, місце має бути у словнику', async () => {
   const { prisma, synonymRows } = fakePrisma();
-  const app = appWith({ prisma });
+  const app = await appWith({ prisma });
   assert.equal((await request(app).post('/admin/dovede/synonyms').send({ phrase: 'епіцентр', placeId: 'malyn.tsentr' })).status, 401);
   assert.equal((await request(app).get('/admin/dovede/synonyms')).status, 401);
 
@@ -424,7 +425,7 @@ test('синоніми: лише адмін додає й видаляє; фра
 test('синоніми діють одразу: сторінка читає їх з /dovede/synonyms, Claude отримує з питанням', async () => {
   const { prisma } = fakePrisma();
   const seen: unknown[] = [];
-  const app = appWith({
+  const app = await appWith({
     prisma,
     understand: async (_text, _now, _stops, _routes, synonyms) => {
       seen.push(synonyms);
@@ -451,7 +452,7 @@ test('час у дорозі: лише з доступом; сталий час 
       },
     },
   } as unknown as PrismaClient;
-  const app = appWith({
+  const app = await appWith({
     prisma,
     driveTime: async ({ departAt, fixedMinutes }) => {
       asked.push({ departAt: departAt.toISOString(), fixed: fixedMinutes });
@@ -493,7 +494,7 @@ test('звідки забирають: лише адмін; примітки в�
       },
     },
   } as unknown as PrismaClient;
-  const app = appWith({ prisma });
+  const app = await appWith({ prisma });
   assert.equal((await request(app).get('/admin/dovede/pickups')).status, 401);
 
   const res = await request(app).get('/admin/dovede/pickups?days=30').set('Authorization', AUTH);
@@ -535,7 +536,7 @@ test('дорога містом: лише з доступом; час за Ки�
       return { ok: true, source: 'stored', city: q.city, fromLabel: 'автовокзал Житомир-1', toLabel: q.to, steps: [{ kind: 'walk', minutes: 4, meters: 300 }], minutes: 4, fetchedAt: '2026-11-17T08:00:00.000Z' };
     },
   } as unknown as CityRoutes;
-  const app = appWith({ prisma: {} as PrismaClient, cityRoutes });
+  const app = await appWith({ prisma: {} as PrismaClient, cityRoutes });
   const url = '/dovede/city-route?city=Zhytomyr&from=zhytomyr.avtovokzal&to=%D0%9F%D0%BE%D0%BB%D1%8C%D0%BE%D0%B2%D0%B0&date=2026-11-18&time=09:20';
   assert.equal((await request(app).get(url)).status, 401);
 
@@ -547,7 +548,7 @@ test('дорога містом: лише з доступом; час за Ки�
 
   // learn=1 — навчання без обліку попиту: лише з токеном адміна; гостеві прапорець нічого не дає
   assert.equal((await request(app).get(`${url}&learn=1`).set('Authorization', AUTH)).body.ok, true);
-  const guestApp = appWith({ prisma: {} as PrismaClient, cityRoutes, guestPassword: 'guest-pass' });
+  const guestApp = await appWith({ prisma: {} as PrismaClient, cityRoutes, guestPassword: 'guest-pass' });
   assert.equal((await request(guestApp).get(`${url}&learn=1`).set('X-Dovede-Token', dovedeAccessToken('guest-pass'))).body.ok, true);
   assert.deepEqual(background, [false, true, false]);
 
@@ -572,7 +573,7 @@ test('місто в адмінці: лише адмін; зведення, кр�
     archivePlace: async (city: string, key: string) => (!key || key.includes('.') ? null : (done.push(`place:archive:${city}:${key}`), { city, key: key.toLowerCase(), label: key, routes: 5 })),
     restorePlace: async (city: string, key: string) => (done.push(`place:restore:${city}:${key}`), { city, key: key.toLowerCase(), routes: 5 }),
   } as unknown as CityRoutes;
-  const app = appWith({ prisma: {} as PrismaClient, cityRoutes });
+  const app = await appWith({ prisma: {} as PrismaClient, cityRoutes });
   // архів одного місця: лише адмін; місто й дія перевіряються; id точки посадки — 400
   assert.equal((await request(app).get('/admin/dovede/city/places')).status, 401);
   assert.equal((await request(app).post('/admin/dovede/city/place/archive').send({ city: 'Kyiv', key: 'Охматдит', action: 'archive' })).status, 401);
@@ -617,7 +618,7 @@ test('Коростень (етап 2): city=Korosten — зупинки й ма�
   synonymRows.push({ id: 1, phrase: 'епіцентр', placeId: 'st_0071' });
   const seen: Array<{ stops: unknown; routes: unknown; synonyms: unknown; city: unknown }> = [];
   const korostenIntent: TripIntent = { ...INTENT, from: { id: 'st_1087', text: 'з Пашин' }, to: { id: 'st_1079', text: 'до міськлікарні' } };
-  const app = appWith({
+  const app = await appWith({
     prisma,
     understand: async (_text, _now, stops, routes, synonyms, city) => {
       seen.push({ stops, routes, synonyms, city });

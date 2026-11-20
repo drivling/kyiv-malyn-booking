@@ -3,6 +3,7 @@
  */
 import { expect, test, vi } from 'vitest';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { bookedSeatsBySchedule } from './poputky-search';
@@ -80,7 +81,7 @@ function buildPrisma() {
 
 test('повертає попутки без телефону, розклад на OD-пару й вільні місця одним запитом', async () => {
   const { prisma, viberFindMany, scheduleFindMany, bookingFindMany } = buildPrisma();
-  const res = await request(createApp({ prisma, adminPassword: 'x' }))
+  const res = await request(await listenLocal(createApp({ prisma, adminPassword: 'x' })))
     .get('/poputky/search?from=kyiv&to=Malyn&date=2026-12-01')
     .expect(200);
 
@@ -113,7 +114,7 @@ test('повертає попутки без телефону, розклад н
 
 test('пошук Ірпінь→Малин: водій через Ірпінь — так, водій прямого коридору — ні', async () => {
   const { prisma } = buildPrisma();
-  const res = await request(createApp({ prisma, adminPassword: 'x' }))
+  const res = await request(await listenLocal(createApp({ prisma, adminPassword: 'x' })))
     .get('/poputky/search?from=Irpin&to=Malyn&date=2026-12-01')
     .expect(200);
   expect(res.body.listings.map((l: { id: number }) => l.id)).toEqual([8, 9]);
@@ -121,7 +122,7 @@ test('пошук Ірпінь→Малин: водій через Ірпінь �
 
 test('невідоме місто → порожній результат, погана дата → 400', async () => {
   const { prisma } = buildPrisma();
-  const app = createApp({ prisma, adminPassword: 'x' });
+  const app = await listenLocal(createApp({ prisma, adminPassword: 'x' }));
   const empty = await request(app).get('/poputky/search?from=Kyiv&to=Nowhere&date=2026-12-01').expect(200);
   expect(empty.body).toMatchObject({ listings: [], schedules: [], availability: {} });
   await request(app).get('/poputky/search?from=Kyiv&to=Malyn&date=01.12.2026').expect(400);
