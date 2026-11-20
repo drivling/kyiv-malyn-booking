@@ -1,0 +1,208 @@
+/* Вкладка «Попутки» (viber/ViberTab.tsx) на спільному наборі kit/: одне оголошення — один рядок */
+
+.viber-tab .admin-kit-tiles {
+  margin-bottom: 12px;
+}
+.viber-tab .admin-kit-tile-value small {
+  display: block;
+}
+.viber-muted {
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+}
+.viber-danger {
+  color: var(--pb-danger, #c5221f) !important;
+}
+
+.viber-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+.viber-input {
+  padding: 6px 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+  font-size: 0.875rem;
+}
+.viber-input--grow {
+  flex: 1 1 220px;
+  max-width: 340px;
+}
+.viber-count {
+  margin: 4px 0 6px;
+}
+
+.viber-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.viber-row {
+  display: grid;
+  grid-template-columns: 70px 110px minmax(0, 2fr) minmax(0, 1.3fr) 150px auto;
+  gap: 4px 12px;
+  align-items: start;
+  padding: 8px 12px;
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  font-size: 0.875rem;
+}
+.viber-row:first-child {
+  border-top: 0;
+}
+.viber-row.is-off {
+  background: var(--pb-bg-secondary, #fafafa);
+  color: var(--pb-text-hint, #737373);
+}
+.viber-kind {
+  justify-self: start;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.viber-kind--driver {
+  background: #e7f6ec;
+  color: #1e6b3a;
+}
+.viber-kind--passenger {
+  background: #e8f0fe;
+  color: #185abc;
+}
+.viber-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 6px;
+  font-variant-numeric: tabular-nums;
+}
+.viber-what,
+.viber-who,
+.viber-state {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.viber-route {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.viber-notes {
+  color: var(--pb-text-muted, #5f6368);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+.viber-who > .sched-flag {
+  align-self: flex-start;
+}
+.viber-who .viber-muted {
+  overflow-wrap: anywhere;
+}
+.viber-state .admin-kit-pill {
+  align-self: flex-start;
+}
+.viber-notified {
+  color: #1e6b3a;
+  font-size: 0.8125rem;
+}
+.viber-channel--telegram {
+  background: #e3f2fd;
+  color: #0b5394;
+}
+.viber-channel--viber {
+  background: #f1e8fd;
+  color: #5b2a9e;
+}
+.viber-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+.viber-id {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Вікна створення й правки */
+.viber-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.viber-form__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 12px;
+}
+.viber-form__grid--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.viber-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+.viber-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--pb-border, #ddd);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+  font-weight: 400;
+  resize: vertical;
+}
+.viber-textarea--mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+.viber-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .viber-row {
+    grid-template-columns: 70px 110px minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .viber-state {
+    grid-column: 3;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .viber-actions {
+    grid-column: 4;
+  }
+}
+
+@media (max-width: 720px) {
+  .viber-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .viber-what,
+  .viber-who,
+  .viber-state,
+  .viber-actions {
+    grid-column: 1 / -1;
+  }
+  .viber-actions {
+    justify-content: flex-start;
+  }
+  .viber-form__grid,
+  .viber-form__grid--4 {
+    grid-template-columns: 1fr 1fr;
+  }
+}

@@ -515,7 +515,8 @@ manual runs. Details and rules: `RAILWAY_CRON_REMINDERS.md`.
 - `ViberListing.source` is only the coarse channel (`Viber1` / `telegram1`; also feeds the ingest hash). Where a
   Telegram listing came from is in `sourceChat` / `sourceTopicId` / `sourceMessageId` (first source wins on merge,
   filled only if empty); `serializeViberListing` adds `sourceUrl` (`telegram-source-link.ts`) for the admin list and
-  the admin-chat notification. Public DTOs (`PUBLIC_LISTING_SELECT`) never expose them.
+  the admin-chat notification. Public DTOs (`PUBLIC_LISTING_SELECT`) never expose them. The admin list is the «Viber»
+  tab (`AdminPage/viber/ViberTab.tsx`, own state, pure filters in `viberText.ts`; `?issue=notime|nophone|noroute|unnotified`).
 
 ### Testability pattern
 

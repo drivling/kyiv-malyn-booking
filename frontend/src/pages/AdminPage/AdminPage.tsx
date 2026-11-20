@@ -9,7 +9,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Booking, Schedule, ScheduleFormData, AdminViberListing, ViberListingType, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
+import type { Booking, Schedule, ScheduleFormData, PersonWithCounts, ViberClientBehavior, ViberAnalyticsPromoScenariosResponse, BehaviorPromoScenarioKey, RefreshPersonNamesResponse, TelegramUserSendError, TripPoint, TripRoute, PhoneLookupReport, TimetablePreviewResponse } from '@/types';
 import { getRouteLabel, getRouteBadgeClass, getBookingRouteDisplayLabel, formatPhoneDisplay } from '@/utils/constants';
 import { KYIV_MALYN_FARE_UAH } from '@/utils/fares';
 import { MapEditorTab } from './MapEditorTab';
@@ -19,6 +19,7 @@ import { ArrivalReportsTab } from './ArrivalReportsTab';
 import { TransportCityBar } from './TransportCityBar';
 import { transportCitySearch, useAdminTransportCity } from './useAdminTransportCity';
 import { ReferralTab } from './referrals/ReferralTab';
+import { ViberTab } from './viber/ViberTab';
 import { LunchTab } from './LunchTab';
 import { DzhuraTab } from './DzhuraTab';
 import { NotificationSettingsTab } from './NotificationSettingsTab';
@@ -112,7 +113,6 @@ export const AdminPage: React.FC = () => {
     hasLocalTransport: false,
     quickDirectPointIds: [] as number[],
   });
-  const [viberListings, setViberListings] = useState<AdminViberListing[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -151,20 +151,6 @@ export const AdminPage: React.FC = () => {
   const [timetableSelectedIds, setTimetableSelectedIds] = useState<Set<number>>(new Set());
   const [timetableHtmlByUrl, setTimetableHtmlByUrl] = useState<Record<string, string>>({});
 
-  // Viber listings
-  const [isViberModalOpen, setIsViberModalOpen] = useState(false);
-  const [viberMessage, setViberMessage] = useState('');
-  const [viberActiveFilter, setViberActiveFilter] = useState(true);
-  const [viberRouteFilter, setViberRouteFilter] = useState('');
-  const [viberDateFilter, setViberDateFilter] = useState('');
-  const [viberTypeFilter, setViberTypeFilter] = useState<'driver' | 'passenger' | ''>('');
-  const [viberSearchQuery, setViberSearchQuery] = useState('');
-  const [viberNoPhoneFilter, setViberNoPhoneFilter] = useState(false);
-  const [viberNoDepartureTimeFilter, setViberNoDepartureTimeFilter] = useState(false);
-  const [viberSortBy, setViberSortBy] = useState<'id' | 'date'>('id');
-  const [viberSortOrder, setViberSortOrder] = useState<'asc' | 'desc'>('desc');
-  const [editingViberListing, setEditingViberListing] = useState<AdminViberListing | null>(null);
-  const [tripRoutesForViber, setTripRoutesForViber] = useState<TripRoute[]>([]);
   // Реклама каналу: база = без Telegram бота; вибір = усі / до кого не комунікували / не знайдено в Telegram
   type PromoFilter = 'no_telegram' | 'no_communication' | 'promo_not_found';
   const [promoFilter, setPromoFilter] = useState<PromoFilter>('no_communication');
@@ -199,33 +185,6 @@ export const AdminPage: React.FC = () => {
   const [reminderViaUserLoading, setReminderViaUserLoading] = useState(false);
   const [reminderViaUserMessage, setReminderViaUserMessage] = useState('');
   const [reminderViaUserError, setReminderViaUserError] = useState('');
-  const [viberEditForm, setViberEditForm] = useState<{
-    rawMessage: string;
-    senderName: string;
-    listingType: ViberListingType;
-    route: string;
-    tripRouteId: string;
-    date: string;
-    departureTime: string;
-    seats: string;
-    priceUah: string;
-    phone: string;
-    notes: string;
-    isActive: boolean;
-  }>({
-    rawMessage: '',
-    senderName: '',
-    listingType: 'driver' as ViberListingType,
-    route: '',
-    tripRouteId: '',
-    date: '',
-    departureTime: '',
-    seats: '',
-    priceUah: '',
-    phone: '',
-    notes: '',
-    isActive: true,
-  });
 
   // Управління даними (Person)
   const [persons, setPersons] = useState<PersonWithCounts[]>([]);
@@ -282,9 +241,6 @@ export const AdminPage: React.FC = () => {
       loadSchedules();
     } else if (activeTab === 'routes') {
       loadRoutesTab();
-    } else if (activeTab === 'viber') {
-      loadViberListings();
-      apiClient.getTripRoutes().then(setTripRoutesForViber).catch(() => setTripRoutesForViber([]));
     } else if (activeTab === 'promo') {
       loadPromoPersons();
       loadTelegramReminderPersons();
@@ -909,49 +865,6 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const loadViberListings = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await apiClient.getViberListings(); // завантажуємо всі, фільтрація клієнтська
-      setViberListings(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка завантаження');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredViberListings = viberListings
-    .filter((listing) => {
-      if (viberActiveFilter && !listing.isActive) return false;
-      if (viberRouteFilter && !listing.route.toLowerCase().includes(viberRouteFilter.toLowerCase())) return false;
-      if (viberDateFilter) {
-        const listingDate = listing.date.slice(0, 10);
-        if (listingDate !== viberDateFilter) return false;
-      }
-      if (viberTypeFilter && listing.listingType !== viberTypeFilter) return false;
-      if (viberNoPhoneFilter && listing.phone?.trim()) return false;
-      if (viberNoDepartureTimeFilter && listing.departureTime?.trim()) return false;
-      if (viberSearchQuery) {
-        const searchIn = `${listing.phone} ${listing.senderName ?? ''} ${listing.notes ?? ''} ${listing.rawMessage}`.toLowerCase();
-        if (!searchIn.includes(viberSearchQuery.toLowerCase())) return false;
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      const mult = viberSortOrder === 'asc' ? 1 : -1;
-      if (viberSortBy === 'id') {
-        return (a.id - b.id) * mult;
-      }
-      const dateA = a.date.slice(0, 10);
-      const dateB = b.date.slice(0, 10);
-      if (dateA !== dateB) return (dateA.localeCompare(dateB)) * mult;
-      const timeA = (a.departureTime || '').trim() || '00:00';
-      const timeB = (b.departureTime || '').trim() || '00:00';
-      return (timeA.localeCompare(timeB)) * mult;
-    });
-
   const filteredBookings = bookings.filter((booking) => {
     if (routeFilter && booking.route !== routeFilter) return false;
     if (dateFilter) {
@@ -1289,114 +1202,6 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleCreateViberListing = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setSuccess('');
-    try {
-      // Перевіряємо чи це багато повідомлень (містить декілька заголовків)
-      const messageCount = (viberMessage.match(/\[.*?\]/g) || []).length;
-      
-      if (messageCount > 1) {
-        // Масове створення
-        const result = await apiClient.createViberListingsBulk(viberMessage);
-        setSuccess(`✅ Створено ${result.created} оголошень з ${result.total}`);
-      } else {
-        // Одне повідомлення
-        await apiClient.createViberListing({ rawMessage: viberMessage });
-        setSuccess('✅ Оголошення створено!');
-      }
-      
-      setViberMessage('');
-      setIsViberModalOpen(false);
-      loadViberListings();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка створення');
-    }
-  };
-
-  const handleDeleteViberListing = async (id: number) => {
-    if (!confirm('Ви впевнені, що хочете видалити це оголошення?')) return;
-    try {
-      await apiClient.deleteViberListing(id);
-      loadViberListings();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Помилка видалення');
-    }
-  };
-
-  const handleDeactivateViberListing = async (id: number) => {
-    try {
-      await apiClient.deactivateViberListing(id);
-      loadViberListings();
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Помилка деактивації');
-    }
-  };
-
-  const openEditViberListing = (listing: AdminViberListing) => {
-    const dateStr = listing.date.slice(0, 10);
-    setViberEditForm({
-      rawMessage: listing.rawMessage,
-      senderName: listing.senderName ?? '',
-      listingType: listing.listingType,
-      route: listing.route,
-      tripRouteId: listing.tripRouteId != null ? String(listing.tripRouteId) : '',
-      date: dateStr,
-      departureTime: listing.departureTime ?? '',
-      seats: listing.seats != null ? String(listing.seats) : '',
-      priceUah: listing.priceUah != null ? String(listing.priceUah) : '',
-      phone: listing.phone,
-      notes: listing.notes ?? '',
-      isActive: listing.isActive,
-    });
-    setEditingViberListing(listing);
-  };
-
-  const handleUpdateViberListing = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingViberListing) return;
-    setError('');
-    setSuccess('');
-    try {
-      const tripRouteId = viberEditForm.tripRouteId.trim()
-        ? parseInt(viberEditForm.tripRouteId, 10)
-        : null;
-      await apiClient.updateViberListing(editingViberListing.id, {
-        rawMessage: viberEditForm.rawMessage,
-        senderName: viberEditForm.senderName || null,
-        listingType: viberEditForm.listingType,
-        route: viberEditForm.route,
-        tripRouteId,
-        date: viberEditForm.date,
-        departureTime: viberEditForm.departureTime || null,
-        seats: viberEditForm.seats ? parseInt(viberEditForm.seats, 10) : null,
-        priceUah: viberEditForm.priceUah ? parseInt(viberEditForm.priceUah, 10) : null,
-        phone: viberEditForm.phone,
-        notes: viberEditForm.notes || null,
-        isActive: viberEditForm.isActive,
-      });
-      setSuccess('✅ Оголошення оновлено!');
-      setEditingViberListing(null);
-      loadViberListings();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка оновлення');
-    }
-  };
-
-  const handleCleanupOldViberListings = async () => {
-    if (!confirm('Деактивувати всі старі оголошення?')) return;
-    setError('');
-    setSuccess('');
-    try {
-      const result = await apiClient.cleanupOldViberListings();
-      setSuccess(result.message);
-      loadViberListings();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка очищення');
-    }
-  };
-
   const stats = {
     total: filteredBookings.length,
     kyivMalyn: filteredBookings.filter((b) => b.route.includes('Kyiv-Malyn')).length,
@@ -1701,385 +1506,7 @@ export const AdminPage: React.FC = () => {
         )}
 
         {/* Viber оголошення */}
-        {activeTab === 'viber' && (
-          <div className="tab-content">
-            <div className="stats">
-              <div className="stat-card">
-                <h3>Всього (за фільтром)</h3>
-                <div className="stat-value">{filteredViberListings.length}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Активні</h3>
-                <div className="stat-value">{filteredViberListings.filter((l) => l.isActive).length}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Водії</h3>
-                <div className="stat-value">{filteredViberListings.filter((l) => l.listingType === 'driver').length}</div>
-              </div>
-              <div className="stat-card">
-                <h3>Пасажири</h3>
-                <div className="stat-value">{filteredViberListings.filter((l) => l.listingType === 'passenger').length}</div>
-              </div>
-            </div>
-
-            <div className="admin-controls admin-controls--viber">
-              <div className="admin-controls-filters">
-                <Select
-                  options={[
-                    { value: '', label: 'Всі типи' },
-                    { value: 'driver', label: 'Водій' },
-                    { value: 'passenger', label: 'Пасажир' },
-                  ]}
-                  value={viberTypeFilter}
-                  onChange={(e) => setViberTypeFilter(e.target.value as 'driver' | 'passenger' | '')}
-                />
-                <input type="text" placeholder="Маршрут" value={viberRouteFilter} onChange={(e) => setViberRouteFilter(e.target.value)} className="control-input" aria-label="Маршрут" />
-                <input type="date" value={viberDateFilter} onChange={(e) => setViberDateFilter(e.target.value)} className="control-input" aria-label="Дата" />
-                <input type="text" placeholder="Пошук..." value={viberSearchQuery} onChange={(e) => setViberSearchQuery(e.target.value)} className="control-input control-input--search" aria-label="Пошук" />
-                <label className="admin-checkbox">
-                  <input type="checkbox" checked={viberActiveFilter} onChange={(e) => setViberActiveFilter(e.target.checked)} />
-                  <span>Активні</span>
-                </label>
-                <label className="admin-checkbox">
-                  <input type="checkbox" checked={viberNoPhoneFilter} onChange={(e) => setViberNoPhoneFilter(e.target.checked)} />
-                  <span>Без телефону</span>
-                </label>
-                <label className="admin-checkbox">
-                  <input type="checkbox" checked={viberNoDepartureTimeFilter} onChange={(e) => setViberNoDepartureTimeFilter(e.target.checked)} />
-                  <span>Без часу</span>
-                </label>
-              </div>
-              <div className="admin-controls-actions">
-                <Button onClick={loadViberListings}>Оновити</Button>
-                <Button onClick={() => setIsViberModalOpen(true)}>Додати оголошення</Button>
-                <Button variant="secondary" onClick={handleCleanupOldViberListings}>Очистити старі</Button>
-                <Button variant="secondary" onClick={() => { setViberRouteFilter(''); setViberDateFilter(''); setViberTypeFilter(''); setViberSearchQuery(''); setViberNoPhoneFilter(false); setViberNoDepartureTimeFilter(false); setViberSortBy('id'); setViberSortOrder('desc'); }}>Очистити</Button>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="admin-loading" aria-live="polite">Завантаження...</div>
-            ) : filteredViberListings.length === 0 ? (
-              <div className="admin-empty">
-                <p className="admin-empty-text">Немає оголошень за фільтрами</p>
-                <Button variant="secondary" onClick={() => { setViberRouteFilter(''); setViberDateFilter(''); setViberTypeFilter(''); setViberSearchQuery(''); setViberNoPhoneFilter(false); setViberNoDepartureTimeFilter(false); }}>
-                  Очистити фільтри
-                </Button>
-                <Button onClick={() => setIsViberModalOpen(true)}>Додати оголошення</Button>
-              </div>
-            ) : (
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th
-                        className="sortable"
-                        onClick={() => {
-                          setViberSortBy('id');
-                          setViberSortOrder((o) => (viberSortBy === 'id' ? (o === 'asc' ? 'desc' : 'asc') : 'desc'));
-                        }}
-                        title="Сортувати по ID"
-                      >
-                        ID {viberSortBy === 'id' && (viberSortOrder === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th>Тип</th>
-                      <th>Маршрут</th>
-                      <th>TripRoute</th>
-                      <th
-                        className="sortable"
-                        onClick={() => {
-                          setViberSortBy('date');
-                          setViberSortOrder((o) => (viberSortBy === 'date' ? (o === 'asc' ? 'desc' : 'asc') : 'desc'));
-                        }}
-                        title="Сортувати по даті та часу"
-                      >
-                        Дата + час {viberSortBy === 'date' && (viberSortOrder === 'asc' ? '↑' : '↓')}
-                      </th>
-                      <th>Місця</th>
-                      <th>Ціна (грн)</th>
-                      <th>Телефон</th>
-                      <th>Відправник</th>
-                      <th>Статус</th>
-                      <th>Дії</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredViberListings.map((listing) => (
-                      <tr key={listing.id} style={{ opacity: listing.isActive ? 1 : 0.5 }}>
-                        <td>#{listing.id}</td>
-                        <td>
-                          <span className={`badge ${listing.listingType === 'driver' ? 'badge-success' : 'badge-info'}`}>
-                            {listing.listingType === 'driver' ? 'Водій' : 'Пасажир'}
-                          </span>
-                        </td>
-                        <td>{listing.route}</td>
-                        <td style={{ fontSize: 12, maxWidth: 180 }}>
-                          {(() => {
-                            const tr = tripRoutesForViber.find((r) => r.id === listing.tripRouteId);
-                            if (!tr) return listing.tripRouteId != null ? `#${listing.tripRouteId}` : '—';
-                            return (
-                              <span title={tr.slug}>
-                                {tr.labelUk}
-                                {tr.corridorTripRouteId ? ' · v' : ' · c'}
-                              </span>
-                            );
-                          })()}
-                        </td>
-                        <td>
-                          {new Date(listing.date).toLocaleDateString('uk-UA')}
-                          {listing.departureTime ? ` ${listing.departureTime}` : ''}
-                        </td>
-                        <td>{listing.seats ?? '-'}</td>
-                        <td>{listing.priceUah != null ? `${listing.priceUah} грн` : '—'}</td>
-                        <td><strong>{formatPhoneDisplay(listing.phone)}</strong></td>
-                        <td>
-                          {listing.senderName || '-'}
-                          {listing.sourceChat && (
-                            <div style={{ fontSize: 11, marginTop: 2, color: '#666' }}>
-                              {listing.sourceUrl ? (
-                                <a href={listing.sourceUrl} target="_blank" rel="noopener noreferrer">
-                                  📍 {listing.sourceChat}
-                                  {listing.sourceTopicId ? `/${listing.sourceTopicId}` : ''}
-                                </a>
-                              ) : (
-                                <>
-                                  📍 {listing.sourceChat}
-                                  {listing.sourceTopicId ? `/${listing.sourceTopicId}` : ''}
-                                </>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                        <td>
-                          <span className={`badge ${listing.isActive ? 'badge-success' : 'badge-secondary'}`}>
-                            {listing.isActive ? 'Активне' : 'Неактивне'}
-                          </span>
-                          <div style={{ fontSize: 11, marginTop: 4, color: listing.authorNotifiedAt ? '#2e7d32' : '#999' }}>
-                            {listing.authorNotifiedAt
-                              ? `✅ автора сповіщено ${new Date(listing.authorNotifiedAt).toLocaleDateString('uk-UA')}`
-                              : '— автора не сповіщено'}
-                          </div>
-                        </td>
-                        <td>
-                          <Button
-                            variant="secondary"
-                            onClick={() => openEditViberListing(listing)}
-                            style={{ marginRight: '8px' }}
-                          >
-                            Редагувати
-                          </Button>
-                          {listing.isActive && (
-                            <Button
-                              variant="secondary"
-                              onClick={() => handleDeactivateViberListing(listing.id)}
-                              style={{ marginRight: '8px' }}
-                            >
-                              Деактивувати
-                            </Button>
-                          )}
-                          <Button
-                            variant="danger"
-                            onClick={() => handleDeleteViberListing(listing.id)}
-                          >
-                            Видалити
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Модальне вікно для Viber оголошення */}
-        {isViberModalOpen && (
-          <div className="modal" onClick={(e) => e.target === e.currentTarget && setIsViberModalOpen(false)}>
-            <div className="modal-content">
-              <div className="modal-header">
-                <h2>Додати Viber оголошення</h2>
-                <button className="close-btn" onClick={() => setIsViberModalOpen(false)}>
-                  &times;
-                </button>
-              </div>
-              <form onSubmit={handleCreateViberListing}>
-                <div style={{ marginBottom: '16px' }}>
-                  <label htmlFor="viberMessage" style={{ display: 'block', marginBottom: '8px', fontWeight: 500 }}>
-                    Повідомлення з Viber чату *
-                  </label>
-                  <textarea
-                    id="viberMessage"
-                    value={viberMessage}
-                    onChange={(e) => setViberMessage(e.target.value)}
-                    placeholder={'Приклад:\n[ 9 лютого 2026 р. 12:55 ] ⁨Ковальчук Інна⁩: 2 пасажира\nСьогодні (9.02) \nКиїв(академ)-Малин\n18:00-18:30\n0730392680'}
-                    rows={10}
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid #ddd',
-                      borderRadius: '4px',
-                      fontFamily: 'monospace',
-                      fontSize: '14px'
-                    }}
-                  />
-                  <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-                    💡 Підказка: Можна вставити одразу декілька повідомлень - вони будуть створені автоматично
-                  </div>
-                </div>
-                <div className="form-actions">
-                  <Button type="button" variant="secondary" onClick={() => setIsViberModalOpen(false)}>
-                    Скасувати
-                  </Button>
-                  <Button type="submit">Створити</Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Модальне вікно редагування Viber оголошення */}
-        {editingViberListing && (
-          <div className="modal" onClick={(e) => e.target === e.currentTarget && setEditingViberListing(null)}>
-            <div className="modal-content">
-              <div className="modal-header">
-                <h2>Редагувати Viber оголошення #{editingViberListing.id}</h2>
-                <button className="close-btn" onClick={() => setEditingViberListing(null)}>
-                  &times;
-                </button>
-              </div>
-              <form onSubmit={handleUpdateViberListing}>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Повідомлення (raw)</label>
-                  <textarea
-                    value={viberEditForm.rawMessage}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, rawMessage: e.target.value }))}
-                    rows={3}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  <Input
-                    label="Відправник"
-                    value={viberEditForm.senderName}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, senderName: e.target.value }))}
-                  />
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Тип</label>
-                    <Select
-                      value={viberEditForm.listingType}
-                      onChange={(e) => setViberEditForm((f) => ({ ...f, listingType: e.target.value as ViberListingType }))}
-                      options={[
-                        { value: 'driver', label: 'Водій' },
-                        { value: 'passenger', label: 'Пасажир' },
-                      ]}
-                    />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  <Input
-                    label="Маршрут (snapshot)"
-                    value={viberEditForm.route}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, route: e.target.value }))}
-                  />
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>TripRoute (corridor / variant)</label>
-                    <Select
-                      value={viberEditForm.tripRouteId}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        const tr = tripRoutesForViber.find((r) => String(r.id) === id);
-                        setViberEditForm((f) => ({
-                          ...f,
-                          tripRouteId: id,
-                          ...(tr ? { route: tr.slug } : {}),
-                        }));
-                      }}
-                      options={[
-                        { value: '', label: '— не привʼязано —' },
-                        ...tripRoutesForViber.map((r) => ({
-                          value: String(r.id),
-                          label: `${r.labelUk}${r.corridorTripRouteId ? ' (variant)' : ' (corridor)'} · ${r.slug}`,
-                        })),
-                      ]}
-                    />
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#666' }}>
-                      Для <b>водія</b>: variant (напр. Київ–Малин через Ірпінь) вмикає матчинг «по дорозі» —
-                      пасажир з OD на stops itinerary (Ірпінь→Малин) знайде цю поїздку. Для пасажира
-                      TripRoute майже не впливає — матч йде по exact OD (`fromPointId`/`toPointId`).
-                    </p>
-                  </div>
-                  <div>
-                    <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Дата поїздки</label>
-                    <input
-                      type="date"
-                      value={viberEditForm.date}
-                      onChange={(e) => setViberEditForm((f) => ({ ...f, date: e.target.value }))}
-                      required
-                      style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                    />
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '12px' }}>
-                  <Input
-                    label="Час відправлення"
-                    value={viberEditForm.departureTime}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, departureTime: e.target.value }))}
-                    placeholder="напр. 18:00 або 18:00-18:30"
-                  />
-                  <Input
-                    label="Місця"
-                    type="number"
-                    value={viberEditForm.seats}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, seats: e.target.value }))}
-                    placeholder="—"
-                  />
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <Input
-                    label="Ціна (грн)"
-                    type="number"
-                    value={viberEditForm.priceUah}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, priceUah: e.target.value }))}
-                    placeholder="—"
-                  />
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <Input
-                    label="Телефон *"
-                    value={viberEditForm.phone}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, phone: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div style={{ marginBottom: '12px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500 }}>Примітки</label>
-                  <textarea
-                    value={viberEditForm.notes}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, notes: e.target.value }))}
-                    rows={2}
-                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }}
-                  />
-                </div>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                  <input
-                    type="checkbox"
-                    checked={viberEditForm.isActive}
-                    onChange={(e) => setViberEditForm((f) => ({ ...f, isActive: e.target.checked }))}
-                  />
-                  <span>Активне оголошення</span>
-                </label>
-                <div className="form-actions">
-                  <Button type="button" variant="secondary" onClick={() => setEditingViberListing(null)}>
-                    Скасувати
-                  </Button>
-                  <Button type="submit">Зберегти</Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
+        {activeTab === 'viber' && <ViberTab />}
 
         {/* Реклама каналу (одноразово) */}
         {activeTab === 'promo' && (
