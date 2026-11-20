@@ -1,14 +1,15 @@
 /**
  * Ролик перед табло зупинки (stickerAd.ts): міні-тизер «Крапка» або привітання «Вітаємо в Малині» (8 с) на весь екран —
- * так само, як вступ /dovede (useAdVideo.ts: без перемотки, поля в колір кадру, «▶ Дивитися», коли браузер не дає
- * звук). Табло відкривається колом із тієї точки кадру, де ролик лишив крапку. Табло під роликом уже завантажується;
+ * так само, як вступ /dovede (useAdVideo.ts: без перемотки, поля в колір кадру). Після скану QR людина ще нічого не
+ * торкалась, тож звук браузер не дасть: ролик одразу йде без звуку (`silentStart`), а звук вмикає «Увімкнути звук»;
+ * «▶ Дивитися» — лише коли браузер не грає навіть без звуку. Табло відкривається колом із тієї точки кадру, де ролик лишив крапку. Табло під роликом уже завантажується;
  * поки ролик на екрані, сторінка (#root) недоступна для фокусу й читача екрана.
  * Облік: shown / started / completed → POST /ads/events (placement sticker, зупинка з наклейки, назва ролика).
  */
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AdPlayButton, AdVideoLayer, AdWait } from './AdVideo';
-import { framePoint, openIris, reducedMotion, useAdChrome, useAdVideo } from './useAdVideo';
+import { AdPlayButton, AdSoundButton, AdVideoLayer, AdWait } from './AdVideo';
+import { framePoint, openIris, reducedMotion, useAdChrome, useAdVideo, type AdVideoHandlers } from './useAdVideo';
 import { newViewId, trackAd } from './adEvents';
 import { HINT_NAME, HINT_POSTER, HINT_SECONDS, HINT_VIDEO } from './hintMedia';
 import { markSeen } from './seen';
@@ -52,7 +53,7 @@ export default function StickerAdIntro({ stopId, video = 'hint', onDone }: { sto
   done.current = onDone;
   const track = (event: 'shown' | 'started' | 'completed') => trackAd({ placement: 'sticker', event, viewId, video: clip.name, stopId });
 
-  const ad = useAdVideo({
+  const handlers: AdVideoHandlers = {
     onStarted: () => track('started'),
     onEnded: () => {
       markSeen(clip.seenKey);
@@ -72,7 +73,8 @@ export default function StickerAdIntro({ stopId, video = 'hint', onDone }: { sto
       setLeaving(true);
       window.setTimeout(() => done.current(), FADE_MS);
     },
-  });
+  };
+  const ad = useAdVideo(handlers, { silentStart: true });
 
   useAdChrome(!opening && !leaving, ad.tone);
   useRootInert(true);
@@ -96,6 +98,7 @@ export default function StickerAdIntro({ stopId, video = 'hint', onDone }: { sto
     >
       <AdVideoLayer src={clip.src} poster={clip.poster} label={`${clip.title} (${clip.seconds} с), далі — розклад зупинки`} fillRef={ad.fillRef} videoProps={ad.videoProps} />
       {opening ? null : <AdPlayButton phase={ad.phase} seconds={clip.seconds} onStart={() => ad.start(true)} />}
+      <AdSoundButton show={ad.muted && ad.phase === 'playing' && !opening && !leaving} onUnmute={ad.unmute} />
       <AdWait show={ad.waiting && ad.phase === 'playing'} />
     </div>,
     document.body,

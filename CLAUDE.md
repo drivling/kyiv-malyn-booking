@@ -169,7 +169,11 @@ of `dist` in a commit.
   logo as outlines); on the stops of `WELCOME_STOPS` in `stickerAd.ts` (Malyn's railway station `st_0019`) the greeting
   plays **instead of** the dot teaser — file `public/ads/welcome-<hash>.mp4` (`dovede:intro --slot welcome` →
   `src/ads/welcomeMedia.ts`), its own once-per-browser flag `malyn-welcome:v1`, so the two videos do not cancel each other
-  and the dot is never shown at the station; a new greeting text or size = re-measure the dot point in `StickerAdIntro.tsx`; views and `/dovede` visits with access go to `AdEvent` via `POST /ads/events`, the wall
+  and the dot is never shown at the station; a new greeting text or size = re-measure the dot point in `StickerAdIntro.tsx`;
+  both stop videos start without a touch: when the browser refuses sound (after a QR scan it nearly always does) they play
+  muted with an «Увімкнути звук» button (`useAdVideo(…, { silentStart: true })`, `AdSoundButton`), and «▶ Дивитися» is
+  left for a browser that will not play even muted — the /dovede intro still waits for «▶ Дивитися»; in Playwright any
+  `evaluate` / locator poll before the video starts counts as a user gesture and lets sound through; views and `/dovede` visits with access go to `AdEvent` via `POST /ads/events`, the wall
   widget's «Реклама» tab reads `GET /ads/wall`): a person asks in plain words and gets a story of cards built in the browser
   (`frontend/src/pages/DovedePage/`: `nlu/parseLocal` dictionary parse → `compose/` with `/poputky/search`, anchors
   and the Malyn RAPTOR planner → template text). **AI only understands the text, it never names a time, route or

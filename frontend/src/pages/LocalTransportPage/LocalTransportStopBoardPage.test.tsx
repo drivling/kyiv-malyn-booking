@@ -437,6 +437,55 @@ describe('LocalTransportStopBoardPage: analytics events', () => {
     }
   });
 
+  it('браузер не дає звук без дотику — ролик одразу йде без звуку, «Увімкнути звук» вмикає його; не дає й без звуку — «Дивитися»', async () => {
+    const blocked = () => Promise.reject(Object.assign(new Error('autoplay'), { name: 'NotAllowedError' }));
+    let silentAllowed = true;
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockImplementation(function (this: HTMLMediaElement) {
+      return this.muted && silentAllowed ? Promise.resolve() : blocked();
+    });
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    vi.stubGlobal('matchMedia', vi.fn((q: string) => ({ matches: q.includes('reduce'), media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    server.use(
+      http.post(`${TEST_API_URL}/transport/sticker-scans`, () => HttpResponse.json({ ok: true, counted: true }, { status: 201 })),
+      http.post(`${TEST_API_URL}/ads/events`, () => HttpResponse.json({ ok: true, counted: true }, { status: 201 }))
+    );
+    const user = userEvent.setup();
+    const url = '/transport/stop/st_a?utm_source=sticker&utm_medium=qr&utm_campaign=st_a-b';
+    try {
+      const first = renderBoard(url);
+      const dialog = await screen.findByRole('dialog', { name: 'Ролик «Доведе.» перед розкладом зупинки' });
+      const video = dialog.querySelector('video') as HTMLVideoElement;
+      // спроба зі звуком, потім без нього — і ролик іде, кнопки «Дивитися» немає
+      const sound = await within(dialog).findByRole('button', { name: 'Увімкнути звук' });
+      expect(play).toHaveBeenCalledTimes(2);
+      expect(video.muted).toBe(true);
+      expect(within(dialog).queryByRole('button', { name: /Дивитися ролик/ })).not.toBeInTheDocument();
+      await user.click(sound);
+      expect(video.muted).toBe(false);
+      expect(within(dialog).queryByRole('button', { name: 'Увімкнути звук' })).not.toBeInTheDocument();
+      // звук увімкнули дотиком — ролик не перезапускали
+      expect(play).toHaveBeenCalledTimes(2);
+      first.unmount();
+
+      // режим енергозбереження iPhone: не грає й без звуку — лишається «Дивитися», і вона запускає зі звуком
+      silentAllowed = false;
+      sessionStorage.clear();
+      renderBoard(url);
+      const again = await screen.findByRole('dialog', { name: 'Ролик «Доведе.» перед розкладом зупинки' });
+      const tap = await within(again).findByRole('button', { name: 'Дивитися ролик, 8 с, зі звуком' });
+      expect((again.querySelector('video') as HTMLVideoElement).muted).toBe(false);
+      expect(within(again).queryByRole('button', { name: 'Увімкнути звук' })).not.toBeInTheDocument();
+      expect(tap).toBeVisible();
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+      sessionStorage.clear();
+      localStorage.removeItem('sticker-origin');
+      localStorage.removeItem(HINT_SEEN_KEY);
+    }
+  });
+
   it('скан наклейки на вокзалі Малина — замість тизера привітання «Вітаємо в Малині», зі своєю позначкою «бачив»', async () => {
     const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
     vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});

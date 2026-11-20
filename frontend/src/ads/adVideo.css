@@ -122,6 +122,38 @@
   font-size: 19px;
   font-weight: 700;
 }
+/* «Увімкнути звук» — під кадром чи внизу кадру, нижче за підпис компанії; ролик тим часом уже йде */
+.dv-intro__sound {
+  position: absolute;
+  left: 50%;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 20px 0 16px;
+  border: 1px solid rgba(5, 71, 82, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 6px 18px rgba(5, 71, 82, 0.14);
+  color: var(--dvi-ink);
+  font: inherit;
+  font-size: 17px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dv-intro__sound svg {
+  color: var(--dvi-accent);
+}
+.dv-intro__sound:active {
+  transform: translateX(-50%) scale(0.97);
+}
+.dv-intro__sound:focus-visible {
+  outline: 3px solid var(--dvi-ink);
+  outline-offset: 3px;
+}
 .dv-intro__sub {
   margin-top: -8px;
   font-size: 14px;
