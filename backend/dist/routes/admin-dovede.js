@@ -32,6 +32,7 @@ const city_route_1 = require("../dovede/city-route");
 const viber_listing_expiry_1 = require("../viber-listing-expiry");
 const city_campaign_1 = require("../dovede/city-campaign");
 const city_quality_1 = require("../dovede/city-quality");
+const learn_cities_1 = require("../dovede/learn-cities");
 const page_data_1 = require("../dovede/page-data");
 exports.DOVEDE_MAX_TEXT = 300;
 /** Як довго тримаємо список зупинок міста в памʼяті: нова зупинка з адмінки стає відомою Claude за цей час */
@@ -297,8 +298,8 @@ function createAdminDovedeRouter(deps) {
         const to = String(req.query.to ?? '').trim();
         const date = String(req.query.date ?? '').trim();
         const time = String(req.query.time ?? '').trim();
-        if ((city !== 'Kyiv' && city !== 'Zhytomyr') || !from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
-            res.status(400).json({ error: 'city (Kyiv | Zhytomyr), from, to, date (YYYY-MM-DD) і time (HH:MM) обовʼязкові' });
+        if (!(0, learn_cities_1.isLearnCity)(city) || !from || !to || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
+            res.status(400).json({ error: `city (${learn_cities_1.LEARN_CITY_LIST}), from, to, date (YYYY-MM-DD) і time (HH:MM) обовʼязкові` });
             return;
         }
         const [y, m, d] = date.split('-').map(Number);
@@ -312,6 +313,10 @@ function createAdminDovedeRouter(deps) {
             console.error('❌ GET /dovede/city-route:', e);
             res.json({ ok: false, fallback: 'maps', reason: 'error' });
         }
+    });
+    /** Міста навчання (реєстр `learn-cities.ts`): адмінка бере список звідси, а не з власного переліку */
+    r.get('/admin/dovede/city/cities', require_admin_1.requireAdmin, (_req, res) => {
+        res.json({ cities: learn_cities_1.LEARN_CITIES.map((c) => ({ code: c.code, name: c.name, genitive: c.genitive })) });
     });
     /** Адмінка «Місто: що вже знаємо»: лічильники, попит, архів */
     r.get('/admin/dovede/city', require_admin_1.requireAdmin, async (_req, res) => {
@@ -429,12 +434,12 @@ function createAdminDovedeRouter(deps) {
     /** Звіт якості (крок 8): підозрілі дороги в базі; `?city=Kyiv|Zhytomyr`, без нього — обидва міста */
     r.get('/admin/dovede/city/quality', require_admin_1.requireAdmin, async (req, res) => {
         const raw = String(req.query.city ?? '');
-        if (raw && raw !== 'Kyiv' && raw !== 'Zhytomyr') {
-            res.status(400).json({ error: 'city: Kyiv або Zhytomyr' });
+        if (raw && !(0, learn_cities_1.isLearnCity)(raw)) {
+            res.status(400).json({ error: `city: ${learn_cities_1.LEARN_CITY_CODES.join(' або ')}` });
             return;
         }
         try {
-            res.json(await quality.report(raw ? raw : undefined));
+            res.json(await quality.report(raw && (0, learn_cities_1.isLearnCity)(raw) ? raw : undefined));
         }
         catch (e) {
             console.error('❌ GET /admin/dovede/city/quality:', e);
@@ -444,8 +449,8 @@ function createAdminDovedeRouter(deps) {
     /** «Нормально» у звіті якості: `{ city, key, ok }` — місце більше не показується серед підозрілих (ok: false — знову) */
     r.post('/admin/dovede/city/place/ok', require_admin_1.requireAdmin, async (req, res) => {
         const b = (req.body ?? {});
-        if ((b.city !== 'Kyiv' && b.city !== 'Zhytomyr') || typeof b.key !== 'string' || !b.key.trim() || typeof b.ok !== 'boolean') {
-            res.status(400).json({ error: 'city (Kyiv | Zhytomyr), key і ok (true | false) обовʼязкові' });
+        if (!(0, learn_cities_1.isLearnCity)(b.city) || typeof b.key !== 'string' || !b.key.trim() || typeof b.ok !== 'boolean') {
+            res.status(400).json({ error: `city (${learn_cities_1.LEARN_CITY_LIST}), key і ok (true | false) обовʼязкові` });
             return;
         }
         try {
@@ -555,8 +560,8 @@ function createAdminDovedeRouter(deps) {
     r.get('/admin/dovede/city/place/routes', require_admin_1.requireAdmin, async (req, res) => {
         const city = String(req.query.city ?? '');
         const key = String(req.query.key ?? '').trim();
-        if ((city !== 'Kyiv' && city !== 'Zhytomyr') || !key || key.length > 200) {
-            res.status(400).json({ error: 'city (Kyiv | Zhytomyr) і key обовʼязкові' });
+        if (!(0, learn_cities_1.isLearnCity)(city) || !key || key.length > 200) {
+            res.status(400).json({ error: `city (${learn_cities_1.LEARN_CITY_LIST}) і key обовʼязкові` });
             return;
         }
         try {
@@ -572,8 +577,8 @@ function createAdminDovedeRouter(deps) {
     r.get('/admin/dovede/city/demand', require_admin_1.requireAdmin, async (req, res) => {
         const city = String(req.query.city ?? '');
         const only = String(req.query.only ?? '');
-        if ((city && city !== 'Kyiv' && city !== 'Zhytomyr') || (only && only !== 'unanswered')) {
-            res.status(400).json({ error: 'city: Kyiv | Zhytomyr; only: unanswered' });
+        if ((city && !(0, learn_cities_1.isLearnCity)(city)) || (only && only !== 'unanswered')) {
+            res.status(400).json({ error: `city: ${learn_cities_1.LEARN_CITY_LIST}; only: unanswered` });
             return;
         }
         try {
@@ -603,8 +608,8 @@ function createAdminDovedeRouter(deps) {
         const city = String(req.body?.city ?? '');
         const key = typeof req.body?.key === 'string' ? req.body.key : '';
         const action = String(req.body?.action ?? '');
-        if ((city !== 'Kyiv' && city !== 'Zhytomyr') || (action !== 'archive' && action !== 'restore')) {
-            res.status(400).json({ error: 'city: Kyiv | Zhytomyr, action: archive | restore' });
+        if (!(0, learn_cities_1.isLearnCity)(city) || (action !== 'archive' && action !== 'restore')) {
+            res.status(400).json({ error: `city: ${learn_cities_1.LEARN_CITY_LIST}, action: archive | restore` });
             return;
         }
         try {

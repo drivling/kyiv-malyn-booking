@@ -1520,7 +1520,14 @@ export interface DovedeSettingView {
 }
 
 /** «Доведе» · кампанії навчання міста (backend/src/dovede/city-campaign.ts) */
-export type DovedeCampaignCity = 'Kyiv' | 'Zhytomyr';
+/** Код міста навчання — із сервера (`GET /admin/dovede/city/cities`), тому рядок, а не перелік */
+export type DovedeCampaignCity = string;
+/** Місто навчання: код, назва й родовий («до Києва») */
+export interface DovedeLearnCity {
+  code: string;
+  name: string;
+  genitive: string;
+}
 export type DovedeCampaignDir = 'to' | 'from';
 
 /** Що власник може поміняти в заготовці; години — `weekday@09,saturday@11` */

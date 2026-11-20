@@ -1193,8 +1193,13 @@ class ApiClient {
     return this.request('/admin/dovede/city/campaigns', { method: 'POST', body: JSON.stringify(input) });
   }
 
+  /** Адмін: міста навчання (реєстр на сервері) — для списків міст у вкладці */
+  async getDovedeLearnCities(): Promise<{ cities: import('@/types').DovedeLearnCity[] }> {
+    return this.request('/admin/dovede/city/cities');
+  }
+
   /** Адмін: звіт якості — підозрілі дороги в базі (місто або обидва) */
-  async getDovedeCityQuality(city?: 'Kyiv' | 'Zhytomyr'): Promise<import('@/types').DovedeQualityReport> {
+  async getDovedeCityQuality(city?: string): Promise<import('@/types').DovedeQualityReport> {
     return this.request(`/admin/dovede/city/quality${city ? `?city=${city}` : ''}`);
   }
 

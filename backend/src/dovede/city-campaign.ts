@@ -34,6 +34,7 @@ import {
   type CrawlDir,
 } from './crawl-core';
 import { LEARN_PLACES } from './learn-places';
+import { LEARN_CITY_CODES, byLearnCity, learnCity } from './learn-cities';
 import { CITY_NAME, MODE_PAIRS, nextSlot, storedPoint, type CityRouteQuery, type CityRoutes } from './city-route';
 import { ZT_OWN } from './zhytomyr-own-data';
 import { PRIMARY_SITE, siteUrl } from '../site-domains';
@@ -132,7 +133,7 @@ export interface CampaignPreset {
   id: string;
   title: string;
   help: string;
-  cities: CrawlCity[];
+  cities: readonly CrawlCity[];
   /** власник пише свій список місць */
   custom?: boolean;
   /** години — свої в кожного місця (власник їх не вибирає) */
@@ -141,7 +142,7 @@ export interface CampaignPreset {
   seeds: (ctx: PresetCtx) => Promise<CampaignSeed[]>;
 }
 
-const DEFAULT_ORIGINS: Record<CrawlCity, string[]> = { Kyiv: ['kyiv.akadem', 'kyiv.pas'], Zhytomyr: ['zhytomyr.avtovokzal'] };
+const DEFAULT_ORIGINS: Record<CrawlCity, string[]> = byLearnCity((c) => [...c.defaultOrigins]);
 
 /** Точка висадки або станція метро (`MODE_PAIRS`) — кінець пари, від якого навчаємось */
 const isPointKey = (city: CrawlCity, key: string): boolean => ARRIVAL_POINTS[city].includes(key) || key.startsWith('kyiv.m.');
@@ -199,7 +200,7 @@ const refill = (id: string, title: string, help: string, main: string): Campaign
   id,
   title,
   help,
-  cities: ['Kyiv', 'Zhytomyr'],
+  cities: LEARN_CITY_CODES,
   defaults: (city) => ({ origins: ARRIVAL_POINTS[city], dirs: ['to', 'from'], main, extra: '', maxDepth: 0 }),
   seeds: ({ prisma, city }) => knownSeeds(prisma, city),
 });
@@ -209,8 +210,8 @@ export const CAMPAIGN_PRESETS: readonly CampaignPreset[] = [
     id: 'learn',
     title: 'Навчити місто',
     help: 'Від точки висадки до місць, куди їдуть найчастіше (лікарні, вокзали, ринки…), і назад; для Житомира — ще й до кінцевих усіх маршрутів. Питання людей без відповіді — теж. Зупинки й кінцеві з відповідей стають новими місцями.',
-    cities: ['Kyiv', 'Zhytomyr'],
-    defaults: (city) => ({ origins: DEFAULT_ORIGINS[city], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: city === 'Zhytomyr' ? 2 : 1 }),
+    cities: LEARN_CITY_CODES,
+    defaults: (city) => ({ origins: DEFAULT_ORIGINS[city], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: learnCity(city).maxDepth }),
     seeds: async ({ prisma, city }) => [
       ...LEARN_PLACES[city].map((place) => ({ place, via: 'list' })),
       ...(city === 'Zhytomyr' ? zhytomyrTerminals().map((place) => ({ place, via: 'terminal' })) : []),
@@ -224,7 +225,7 @@ export const CAMPAIGN_PRESETS: readonly CampaignPreset[] = [
     id: 'refresh',
     title: 'Освіжити застаріле',
     help: 'Відповіді Google, старші за строк свіжості, — питаємо знову на той самий тип дня й годину. Нових місць не додає.',
-    cities: ['Kyiv', 'Zhytomyr'],
+    cities: LEARN_CITY_CODES,
     ownSlots: true,
     defaults: (city) => ({ origins: ARRIVAL_POINTS[city], dirs: ['to', 'from'], main: 'weekday@09', extra: '', maxDepth: 0 }),
     seeds: ({ prisma, city, now, freshDays }) => staleSeeds(prisma, city, now, freshDays),
@@ -233,7 +234,7 @@ export const CAMPAIGN_PRESETS: readonly CampaignPreset[] = [
     id: 'unanswered',
     title: 'Питання людей без відповіді',
     help: 'Лише пари, які питали люди й не отримали дороги. Новими місцями обхід іде на один крок.',
-    cities: ['Kyiv', 'Zhytomyr'],
+    cities: LEARN_CITY_CODES,
     defaults: (city) => ({ origins: ARRIVAL_POINTS[city], dirs: ['to', 'from'], main: 'weekday@09', extra: '', maxDepth: 1 }),
     seeds: ({ prisma, city }) => unansweredSeeds(prisma, city),
   },
@@ -249,7 +250,7 @@ export const CAMPAIGN_PRESETS: readonly CampaignPreset[] = [
     id: 'custom',
     title: 'Свій список',
     help: 'Місця, які ви напишете, — по одному в рядку, так, як написала б людина після «до Києва до …».',
-    cities: ['Kyiv', 'Zhytomyr'],
+    cities: LEARN_CITY_CODES,
     custom: true,
     defaults: (city) => ({ origins: DEFAULT_ORIGINS[city], dirs: ['to', 'from'], main: 'weekday@09', extra: '', maxDepth: 0 }),
     seeds: async ({ options }) =>

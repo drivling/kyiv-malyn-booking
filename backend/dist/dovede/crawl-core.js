@@ -34,11 +34,9 @@ exports.summarizeRecords = summarizeRecords;
  * має бути тим самим, а ядро — без залежностей від сервера, щоб його можна було зібрати в локальну команду.
  */
 const cityDetail_1 = require("./cityDetail");
+const learn_cities_1 = require("./learn-cities");
 /** Куди привозять (і звідки забирають) міжміські рейси — ті самі id, що шле сторінка */
-exports.ARRIVAL_POINTS = {
-    Kyiv: ['kyiv.akadem', 'kyiv.sviatoshyn', 'kyiv.zhytomyrska', 'kyiv.pas', 'kyiv.borshch'],
-    Zhytomyr: ['zhytomyr.avtovokzal'],
-};
+exports.ARRIVAL_POINTS = (0, learn_cities_1.byLearnCity)((c) => [...c.arrivalPoints]);
 exports.POINT_LABEL = {
     'kyiv.akadem': 'метро «Академмістечко»',
     'kyiv.sviatoshyn': 'метро «Святошин»',
@@ -151,7 +149,7 @@ function seedFromIntent(intent) {
     const refs = (intent ?? {});
     for (const [role, dir] of [['to', 'to'], ['from', 'from']]) {
         const ref = refs[role];
-        const city = ref?.id === 'city.Kyiv' ? 'Kyiv' : ref?.id === 'city.Zhytomyr' ? 'Zhytomyr' : null;
+        const city = (0, learn_cities_1.learnCityByPlaceId)(ref?.id);
         if (city && typeof ref?.detail === 'string' && ref.detail.trim())
             return { city, place: ref.detail.trim(), dir };
     }

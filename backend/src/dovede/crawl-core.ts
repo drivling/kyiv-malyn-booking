@@ -11,8 +11,9 @@
  * має бути тим самим, а ядро — без залежностей від сервера, щоб його можна було зібрати в локальну команду.
  */
 import { detailForm } from './cityDetail';
+import { byLearnCity, learnCityByPlaceId, type LearnCityCode } from './learn-cities';
 
-export type CrawlCity = 'Kyiv' | 'Zhytomyr';
+export type CrawlCity = LearnCityCode;
 export type CrawlDayType = 'weekday' | 'saturday' | 'sunday';
 export type CrawlDir = 'to' | 'from';
 
@@ -88,10 +89,7 @@ export interface CrawlResult {
 }
 
 /** Куди привозять (і звідки забирають) міжміські рейси — ті самі id, що шле сторінка */
-export const ARRIVAL_POINTS: Record<CrawlCity, string[]> = {
-  Kyiv: ['kyiv.akadem', 'kyiv.sviatoshyn', 'kyiv.zhytomyrska', 'kyiv.pas', 'kyiv.borshch'],
-  Zhytomyr: ['zhytomyr.avtovokzal'],
-};
+export const ARRIVAL_POINTS: Record<CrawlCity, string[]> = byLearnCity((c) => [...c.arrivalPoints]);
 
 export const POINT_LABEL: Record<string, string> = {
   'kyiv.akadem': 'метро «Академмістечко»',
@@ -206,7 +204,7 @@ export function seedFromIntent(intent: unknown): { city: CrawlCity; place: strin
   const refs = (intent ?? {}) as { from?: IntentRef | null; to?: IntentRef | null };
   for (const [role, dir] of [['to', 'to'], ['from', 'from']] as const) {
     const ref = refs[role];
-    const city: CrawlCity | null = ref?.id === 'city.Kyiv' ? 'Kyiv' : ref?.id === 'city.Zhytomyr' ? 'Zhytomyr' : null;
+    const city: CrawlCity | null = learnCityByPlaceId(ref?.id);
     if (city && typeof ref?.detail === 'string' && ref.detail.trim()) return { city, place: ref.detail.trim(), dir };
   }
   return null;

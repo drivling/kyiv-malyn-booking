@@ -9,6 +9,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { ARRIVAL_POINTS, POINT_LABEL, type CrawlCity } from './crawl-core';
 import type { CityStep } from './city-route';
+import { isLearnCity } from './learn-cities';
 
 export type QualityCode = 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only';
 
@@ -57,7 +58,7 @@ const pointLabel = (key: string, label: string) => POINT_LABEL[key] ?? label;
 export function findSuspicious(rows: QualityRouteRow[], skip: Set<string> = new Set()): QualityItem[] {
   const byPlace = new Map<string, QualityItem>();
   for (const r of rows) {
-    if (r.cityCode !== 'Kyiv' && r.cityCode !== 'Zhytomyr') continue;
+    if (!isLearnCity(r.cityCode)) continue;
     const fromPoint = isPoint(r.cityCode, r.fromKey);
     if (fromPoint === isPoint(r.cityCode, r.toKey)) continue;
     const [key, label, origin, originLabel, dir] = fromPoint

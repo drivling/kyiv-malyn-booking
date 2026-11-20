@@ -20,11 +20,10 @@ import {
   type DayType,
 } from "./hours";
 import { num } from "./campaignText";
+import { useLearnCities } from "../useLearnCities";
 
-const CITIES: Array<{ id: DovedeCampaignCity; name: string }> = [
-  { id: "Zhytomyr", name: "Житомир" },
-  { id: "Kyiv", name: "Київ" },
-];
+/** місто, з якого форма починає; у ряду воно перше */
+const FIRST_CITY: DovedeCampaignCity = "Zhytomyr";
 const MAX_BUDGET = 20_000;
 
 interface FormState {
@@ -103,7 +102,12 @@ export const NewCampaign: React.FC<{
   onStarted: (c: DovedeCampaign) => void;
 }> = ({ onStarted }) => {
   const [presets, setPresets] = useState<DovedeCampaignPreset[] | null>(null);
-  const [city, setCity] = useState<DovedeCampaignCity>("Zhytomyr");
+  const [city, setCity] = useState<DovedeCampaignCity>(FIRST_CITY);
+  const learnCities = useLearnCities();
+  const cities = useMemo(
+    () => [...learnCities].sort((a, b) => Number(b.code === FIRST_CITY) - Number(a.code === FIRST_CITY)),
+    [learnCities],
+  );
   const [presetId, setPresetId] = useState("learn");
   const [form, setForm] = useState<FormState | null>(null);
   const [preview, setPreview] = useState<DovedeCampaignPreview | null>(null);
@@ -229,14 +233,14 @@ export const NewCampaign: React.FC<{
         <div className="dv-learn-new-grid">
           <div className="dv-learn-new-form">
             <div className="dv-learn-seg" role="radiogroup" aria-label="Місто">
-              {CITIES.map((c) => (
+              {cities.map((c) => (
                 <button
-                  key={c.id}
+                  key={c.code}
                   type="button"
                   role="radio"
-                  aria-checked={city === c.id}
-                  className={city === c.id ? "is-on" : ""}
-                  onClick={() => setCity(c.id)}
+                  aria-checked={city === c.code}
+                  className={city === c.code ? "is-on" : ""}
+                  onClick={() => setCity(c.code)}
                 >
                   {c.name}
                 </button>
@@ -273,7 +277,7 @@ export const NewCampaign: React.FC<{
                   <label className="dv-learn-field">
                     <span>
                       Місця — по одному в рядку, як написала б людина після «до{" "}
-                      {city === "Kyiv" ? "Києва" : "Житомира"} до …»
+                      {cities.find((c) => c.code === city)?.genitive ?? city} до …»
                     </span>
                     <textarea
                       rows={5}

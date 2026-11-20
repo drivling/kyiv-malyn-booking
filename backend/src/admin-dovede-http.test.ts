@@ -588,6 +588,13 @@ test('місто в адмінці: лише адмін; зведення, кр�
   }
   assert.deepEqual(done.splice(0), ['place:archive:Kyiv:Охматдит', 'place:restore:Kyiv:Охматдит']);
   assert.equal((await request(app).get('/admin/dovede/city')).status, 401);
+  // список міст навчання — з реєстру, лише адмінові; чуже місто — 400 з тим самим текстом, що й до реєстру
+  assert.equal((await request(app).get('/admin/dovede/city/cities')).status, 401);
+  assert.deepEqual((await request(app).get('/admin/dovede/city/cities').set('Authorization', AUTH)).body, { cities: [{ code: 'Kyiv', name: 'Київ', genitive: 'Києва' }, { code: 'Zhytomyr', name: 'Житомир', genitive: 'Житомира' }] });
+  const badCity = await request(app).get('/admin/dovede/city/demand?city=Korosten').set('Authorization', AUTH);
+  assert.equal(badCity.status, 400);
+  assert.equal(badCity.body.error, 'city: Kyiv | Zhytomyr; only: unanswered');
+  assert.equal((await request(app).get('/admin/dovede/city/quality?city=Malyn').set('Authorization', AUTH)).body.error, 'city: Kyiv або Zhytomyr');
   assert.equal((await request(app).post('/admin/dovede/city/archive').send({ action: 'archive' })).status, 401);
   assert.equal((await request(app).get('/admin/dovede/city').set('Authorization', AUTH)).body.callsToday, 3);
   assert.deepEqual((await request(app).post('/admin/dovede/city/learn').set('Authorization', AUTH)).body, { asked: 2, learned: 1 });

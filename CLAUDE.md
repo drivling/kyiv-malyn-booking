@@ -362,6 +362,10 @@ of `dist` in a commit.
   (`googleError: { at, status, message }`). A 429, a 403, our cap or a Google failure stops the learning tick and marks
   nothing; the crawl never journals such failures, so the question stays in its queue. Admin block «Місто: що вже знаємо»
   (`AdminPage/DovedeCityPanel.tsx`, `GET /admin/dovede/city`). Golden `scope: city`.
+  **Learning cities** are one registry, `backend/src/dovede/learn-cities.ts` (code, name, genitive, place id, arrival
+  points, default origins, depth): `CityCode` / `CrawlCity`, `CITY_NAME`, `ARRIVAL_POINTS`, preset cities and every `city`
+  check in the router derive from it, and the admin reads `GET /admin/dovede/city/cities` (`dovede/useLearnCities.ts`).
+  A new city = an entry there plus its points in `KNOWN_POINTS` / `POINT_LABEL` and its list in `learn-places.ts`.
   **Learning campaigns** (admin plan step 6, `Docs/dovede-admin-roadmap.md` «Крок 6»; `src/dovede/city-campaign.ts`): the
   owner picks a preset («Навчити місто», «Дообучити: вечір / вихідні / ранок», «Питання людей без відповіді», «Види
   транспорту», «Свій список»), sees the estimate (`POST /admin/dovede/city/campaigns/preview`: level 0 exactly from the DB via
