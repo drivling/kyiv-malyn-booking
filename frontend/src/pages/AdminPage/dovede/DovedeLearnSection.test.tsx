@@ -13,6 +13,7 @@ import type { DovedeCampaign, DovedeCampaignPreset, DovedeCampaignPreview, Doved
 import { DovedeLearnSection } from './DovedeLearnSection';
 import { formatHours, hoursText, parseHours } from './learn/hours';
 import { humanLink } from './learn/campaignText';
+import { resetLearnCities } from './useLearnCities';
 
 const QUALITY: DovedeQualityReport = {
   places: 120,
@@ -176,7 +177,10 @@ const renderSection = () =>
     </MemoryRouter>,
   );
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  resetLearnCities();
+});
 
 describe('години кампанії', () => {
   it('рядок ↔ набір ↔ текст', () => {
@@ -249,6 +253,35 @@ describe('DovedeLearnSection', () => {
     expect(await screen.findByRole('article', { name: 'Навчити місто — Житомир' })).toBeInTheDocument();
     // оцінку використано — почати вдруге те саме не можна, поки не оцінено знову
     expect(screen.queryByRole('button', { name: /Почати/ })).toBeNull();
+  });
+
+  it('міста — із сервера: нове місто реєстру зʼявляється в ряду й у фільтрі якості; без відповіді — Київ і Житомир', async () => {
+    mock();
+    renderSection();
+    await formReady();
+    // сервер списку не віддав (у тестах його немає) — запасні два, Житомир перший
+    expect(within(screen.getByRole('radiogroup', { name: 'Місто' })).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Житомир', 'Київ']);
+    expect(await screen.findByRole('radio', { name: 'Обидва міста' })).toBeTruthy();
+  });
+
+  it('міста — із сервера: третє місто', async () => {
+    mock();
+    server.use(
+      http.get(`${TEST_API_URL}/admin/dovede/city/cities`, () =>
+        HttpResponse.json({
+          cities: [
+            { code: 'Kyiv', name: 'Київ', genitive: 'Києва' },
+            { code: 'Zhytomyr', name: 'Житомир', genitive: 'Житомира' },
+            { code: 'Korosten', name: 'Коростень', genitive: 'Коростеня' },
+          ],
+        }),
+      ),
+    );
+    renderSection();
+    await formReady();
+    await waitFor(() => expect(within(screen.getByRole('radiogroup', { name: 'Місто' })).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Житомир', 'Київ', 'Коростень']));
+    expect(await screen.findByRole('radio', { name: 'Усі міста' })).toBeTruthy();
+    expect(screen.getAllByRole('radio', { name: 'Коростень' })).toHaveLength(2);
   });
 
   it('зміна параметрів скидає оцінку; Київ — свої точки й заготовки; «Свій список» — лише з місцями', async () => {

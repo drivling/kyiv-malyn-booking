@@ -4,6 +4,7 @@ exports.FAR_SUM_MIN = exports.ASYM_MIN = exports.WALK_ONLY_MIN = exports.NEAR_MI
 exports.findSuspicious = findSuspicious;
 exports.createCityQuality = createCityQuality;
 const crawl_core_1 = require("./crawl-core");
+const learn_cities_1 = require("./learn-cities");
 /** Дорога з такою кількістю хвилин від точки — «одразу поруч»: Google, мабуть, знайшов саму точку */
 exports.NEAR_MIN = 5;
 /** Лише пішки від стількох хвилин — транспорту Google не знайшов */
@@ -24,7 +25,7 @@ const pointLabel = (key, label) => crawl_core_1.POINT_LABEL[key] ?? label;
 function findSuspicious(rows, skip = new Set()) {
     const byPlace = new Map();
     for (const r of rows) {
-        if (r.cityCode !== 'Kyiv' && r.cityCode !== 'Zhytomyr')
+        if (!(0, learn_cities_1.isLearnCity)(r.cityCode))
             continue;
         const fromPoint = isPoint(r.cityCode, r.fromKey);
         if (fromPoint === isPoint(r.cityCode, r.toKey))

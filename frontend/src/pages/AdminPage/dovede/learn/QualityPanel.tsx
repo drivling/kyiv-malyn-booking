@@ -1,18 +1,14 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import type { DovedeQualityItem, DovedeQualityReport } from '@/types';
 import { EmptyState } from '../../kit';
 import { hoursText } from './hours';
 import { humanLink, num } from './campaignText';
+import { learnCityName, useLearnCities } from '../useLearnCities';
 
-type CityFilter = '' | 'Kyiv' | 'Zhytomyr';
-const FILTERS: Array<{ id: CityFilter; label: string }> = [
-  { id: '', label: 'Обидва міста' },
-  { id: 'Kyiv', label: 'Київ' },
-  { id: 'Zhytomyr', label: 'Житомир' },
-];
-const CITY: Record<string, string> = { Kyiv: 'Київ', Zhytomyr: 'Житомир' };
+/** '' — усі міста */
+type CityFilter = string;
 /** скільки місць показати одразу */
 const SHOW = 30;
 
@@ -24,6 +20,11 @@ const SHOW = 30;
  */
 export const QualityPanel: React.FC = () => {
   const [city, setCity] = useState<CityFilter>('');
+  const cities = useLearnCities();
+  const filters = useMemo(
+    () => [{ id: '', label: cities.length === 2 ? 'Обидва міста' : 'Усі міста' }, ...cities.map((c) => ({ id: c.code, label: c.name }))],
+    [cities],
+  );
   const [data, setData] = useState<DovedeQualityReport | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -54,7 +55,7 @@ export const QualityPanel: React.FC = () => {
   const drop = (item: DovedeQualityItem) => setData((d) => (d ? { ...d, items: d.items.filter((x) => !(x.city === item.city && x.key === item.key)) } : d));
 
   const act = async (item: DovedeQualityItem, what: 'ok' | 'archive') => {
-    const where = `«${item.label}» (${CITY[item.city] ?? item.city})`;
+    const where = `«${item.label}» (${learnCityName(cities, item.city)})`;
     if (what === 'archive' && !window.confirm(`Прибрати ${where} в архів? Сервер більше не відповідатиме про це місце й не питатиме Google — людина побачить кнопку карти. Повернути можна в розділі «Місто» → «Місця».`)) return;
     setBusy(`${item.city}|${item.key}`);
     setNote('');
@@ -82,7 +83,7 @@ export const QualityPanel: React.FC = () => {
       <div className="dv-learn-quality-head">
         <h3 id="dv-learn-quality-title">Якість: підозрілі дороги</h3>
         <div className="dv-learn-seg" role="radiogroup" aria-label="Місто звіту">
-          {FILTERS.map((f) => (
+          {filters.map((f) => (
             <button key={f.id || 'all'} type="button" role="radio" aria-checked={city === f.id} className={city === f.id ? 'is-on' : ''} onClick={() => setCity(f.id)}>
               {f.label}
             </button>
@@ -119,7 +120,7 @@ export const QualityPanel: React.FC = () => {
             return (
               <li key={id}>
                 <div className="dv-learn-quality-title">
-                  <strong>{item.label}</strong> <span className="dovede-log-dim">{CITY[item.city] ?? item.city}</span>
+                  <strong>{item.label}</strong> <span className="dovede-log-dim">{learnCityName(cities, item.city)}</span>
                 </div>
                 <ul className="dv-learn-quality-reasons">
                   {item.reasons.map((r) => (

@@ -1,20 +1,17 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
-import type { DovedeCityDemandRow, DovedeCityStats } from '@/types';
+import type { DovedeCityDemandRow, DovedeCityStats, DovedeLearnCity } from '@/types';
+import { learnCityName, useLearnCities } from './dovede/useLearnCities';
 import { DovedeCityPlaces } from './DovedeCityPlaces';
 import { StatTile, StatTiles } from './kit';
 import { googleErrorLine, quotaTime } from './dovede/googleError';
 import { dovedePath } from './dovede/sections';
 import './dovede/learn/learn.css';
 
-type CityTab = 'Kyiv' | 'Zhytomyr';
-const CITIES: Array<{ id: CityTab; name: string }> = [
-  { id: 'Kyiv', name: 'Київ' },
-  { id: 'Zhytomyr', name: 'Житомир' },
-];
-/** `?misto=` з адреси: Житомир, інакше Київ */
-const cityFrom = (raw: string | null): CityTab => (raw === 'Zhytomyr' ? 'Zhytomyr' : 'Kyiv');
+type CityTab = string;
+/** `?misto=` з адреси: місто навчання з таким кодом, інакше перше (Київ) */
+const cityFrom = (raw: string | null, cities: readonly DovedeLearnCity[]): CityTab => cities.find((c) => c.code === raw)?.code ?? cities[0].code;
 
 const SOURCE: Record<string, string> = { google: 'з Google', own: 'свої', open: 'відкриті дані' };
 /** скільки пар попиту показати одразу */
@@ -96,7 +93,8 @@ const CityDemand: React.FC<{ city: CityTab; version: number }> = ({ city, versio
  */
 export const DovedeCityPanel: React.FC = () => {
   const [params, setParams] = useSearchParams();
-  const city = cityFrom(params.get('misto'));
+  const cities = useLearnCities();
+  const city = cityFrom(params.get('misto'), cities);
   const [data, setData] = useState<DovedeCityStats | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -183,14 +181,14 @@ export const DovedeCityPanel: React.FC = () => {
           </p>
 
           <div className="dv-learn-seg dovede-city-switch" role="radiogroup" aria-label="Місто">
-            {CITIES.map((c) => (
-              <button key={c.id} type="button" role="radio" aria-checked={city === c.id} className={city === c.id ? 'is-on' : ''} onClick={() => setCity(c.id)}>
+            {cities.map((c) => (
+              <button key={c.code} type="button" role="radio" aria-checked={city === c.code} className={city === c.code ? 'is-on' : ''} onClick={() => setCity(c.code)}>
                 {c.name}
               </button>
             ))}
           </div>
 
-          <StatTiles label={`Що знаємо: ${CITIES.find((c) => c.id === city)?.name}`}>
+          <StatTiles label={`Що знаємо: ${learnCityName(cities, city)}`}>
             <StatTile label="Дорог у базі" value={num(byCity.reduce((n, r) => n + r.count, 0))} sub={byCity.length ? byCity.map((r) => `${num(r.count)} ${SOURCE[r.source] ?? r.source}`).join(', ') : undefined} />
             <StatTile label="Ліній" value={num(count(data.lines, city))} />
             <StatTile label="Зупинок" value={num(count(data.stops, city))} />

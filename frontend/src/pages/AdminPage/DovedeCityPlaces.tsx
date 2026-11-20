@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { DovedeCityPlace, DovedeCityPlaceRoute } from '@/types';
+import { learnCityName, useLearnCities } from './dovede/useLearnCities';
 
-const CITY: Record<string, string> = { Kyiv: 'Київ', Zhytomyr: 'Житомир' };
 /** місць на сторінці */
 export const PLACES_PAGE = 30;
 
@@ -74,6 +74,7 @@ const PlaceRoutes: React.FC<{ place: DovedeCityPlace }> = ({ place }) => {
  * кнопку карти. Нічого не видаляється; «Повернути» скасовує.
  */
 export const DovedeCityPlaces: React.FC<{ city?: string; onChange?: () => void }> = ({ city, onChange }) => {
+  const cities = useLearnCities();
   const [places, setPlaces] = useState<DovedeCityPlace[] | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -115,7 +116,7 @@ export const DovedeCityPlaces: React.FC<{ city?: string; onChange?: () => void }
   const shown = found.slice(current * PLACES_PAGE, (current + 1) * PLACES_PAGE);
 
   const act = async (p: DovedeCityPlace, action: 'archive' | 'restore') => {
-    const name = `«${p.label}» (${CITY[p.city] ?? p.city})`;
+    const name = `«${p.label}» (${learnCityName(cities, p.city)})`;
     if (
       action === 'archive' &&
       !window.confirm(`Прибрати місце ${name} в архів? Його дороги (${p.routes}) лишаться в базі, але у відповіді не підуть, і Google про це місце більше не питатимемо — людина побачить кнопку карти. Повернути можна кнопкою «Повернути».`)
@@ -162,7 +163,7 @@ export const DovedeCityPlaces: React.FC<{ city?: string; onChange?: () => void }
                   <li key={id} className={p.archivedAt ? 'is-archived' : undefined}>
                     <div className="dovede-city-place-row">
                       <span>
-                        {city ? null : `${CITY[p.city] ?? p.city} · `}
+                        {city ? null : `${learnCityName(cities, p.city)} · `}
                         <strong>{p.label}</strong>{' '}
                         <span className="dovede-log-dim">
                           {p.archivedAt

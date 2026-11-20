@@ -48,6 +48,7 @@ const isValidDailyCap = (v) => typeof v === 'number' && Number.isInteger(v) && v
 exports.isValidDailyCap = isValidDailyCap;
 const TIMEOUT_MS = 4000;
 const zhytomyr_own_1 = require("./zhytomyr-own");
+const learn_cities_1 = require("./learn-cities");
 const settings_1 = require("./settings");
 const zhytomyr_own_data_1 = require("./zhytomyr-own-data");
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
@@ -67,7 +68,7 @@ const FIELD_MASK = [
     'routes.legs.steps.transitDetails.transitLine.vehicle.type',
     'routes.legs.steps.transitDetails.transitLine.agencies.name',
 ].join(',');
-exports.CITY_NAME = { Kyiv: 'Київ', Zhytomyr: 'Житомир' };
+exports.CITY_NAME = (0, learn_cities_1.byLearnCity)((c) => c.name);
 const DAY_TYPES = ['weekday', 'saturday', 'sunday'];
 /** Точки, які «Доведе» знає за id: куди привозять міжміські рейси */
 const KNOWN_POINTS = {
@@ -557,7 +558,7 @@ function createCityRoutes(deps) {
         const freshFrom = await freshSince();
         const queue = [
             ...demand
-                .filter((d) => d.cityCode === 'Kyiv' || d.cityCode === 'Zhytomyr')
+                .filter((d) => (0, learn_cities_1.isLearnCity)(d.cityCode))
                 .map((d) => ({ city: d.cityCode, from: storedPoint(d.fromKey, d.fromLabel), to: storedPoint(d.toKey, d.toLabel), demandId: d.id })),
             ...exports.SEED_PAIRS,
         ];
@@ -623,7 +624,7 @@ function createCityRoutes(deps) {
                     break;
                 if ((await callsToday()) >= (await learnCap()))
                     break;
-                if ((row.cityCode !== 'Kyiv' && row.cityCode !== 'Zhytomyr') || !DAY_TYPES.includes(row.dayType)) {
+                if (!(0, learn_cities_1.isLearnCity)(row.cityCode) || !DAY_TYPES.includes(row.dayType)) {
                     await giveUp(row.id);
                     continue;
                 }

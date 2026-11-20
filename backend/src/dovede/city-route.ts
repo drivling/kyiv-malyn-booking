@@ -55,6 +55,7 @@ export const CITY_DAILY_CAP_MAX = 5000;
 export const isValidDailyCap = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= CITY_DAILY_CAP_MIN && v <= CITY_DAILY_CAP_MAX;
 const TIMEOUT_MS = 4000;
 import { ownZhytomyrRoute } from './zhytomyr-own';
+import { byLearnCity, isLearnCity, type LearnCityCode } from './learn-cities';
 import { createDovedeSettings, type DovedeSettings } from './settings';
 import { ZT_OWN } from './zhytomyr-own-data';
 
@@ -76,8 +77,8 @@ const FIELD_MASK = [
   'routes.legs.steps.transitDetails.transitLine.agencies.name',
 ].join(',');
 
-export type CityCode = 'Kyiv' | 'Zhytomyr';
-export const CITY_NAME: Record<CityCode, string> = { Kyiv: 'Київ', Zhytomyr: 'Житомир' };
+export type CityCode = LearnCityCode;
+export const CITY_NAME: Record<CityCode, string> = byLearnCity((c) => c.name);
 
 export type DayType = 'weekday' | 'saturday' | 'sunday';
 const DAY_TYPES: readonly DayType[] = ['weekday', 'saturday', 'sunday'];
@@ -694,7 +695,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     const freshFrom = await freshSince();
     const queue: Array<{ city: CityCode; from: string; to: string; demandId?: number }> = [
       ...demand
-        .filter((d) => d.cityCode === 'Kyiv' || d.cityCode === 'Zhytomyr')
+        .filter((d) => isLearnCity(d.cityCode))
         .map((d) => ({ city: d.cityCode as CityCode, from: storedPoint(d.fromKey, d.fromLabel), to: storedPoint(d.toKey, d.toLabel), demandId: d.id })),
       ...SEED_PAIRS,
     ];
@@ -750,7 +751,7 @@ export function createCityRoutes(deps: CityRoutesDeps) {
       for (const row of rows) {
         if (asked >= batch) break;
         if ((await callsToday()) >= (await learnCap())) break;
-        if ((row.cityCode !== 'Kyiv' && row.cityCode !== 'Zhytomyr') || !DAY_TYPES.includes(row.dayType as DayType)) {
+        if (!isLearnCity(row.cityCode) || !DAY_TYPES.includes(row.dayType as DayType)) {
           await giveUp(row.id);
           continue;
         }
