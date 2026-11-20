@@ -121,7 +121,13 @@ export type StopStatRow = StopCatalogEntry & {
   /** Наклейки, які друкували, і коли востаннє */
   printedSides: StickerSide[];
   lastPrintAt: string | null;
+  /** Надруковані наклейки, які мовчать ≥ SILENT_DAYS діб після друку чи останнього скану: може, її зірвали */
+  silent: { side: StickerSide; days: number }[];
 };
+
+/** Скільки діб без жодного відкриття після друку чи останнього скану — привід перевірити наклейку на місці */
+export const SILENT_DAYS = 14;
+const DAY_MS = 86_400_000;
 
 const maxIso = (a: string | null, b: string | null) => (!a ? b : !b ? a : a > b ? a : b);
 
@@ -129,14 +135,18 @@ const maxIso = (a: string | null, b: string | null) => (!a ? b : !b ? a : a > b 
  * Рядки списку зупинок: усі кандидати з каталогу + зупинки, що мають скани чи друк, але вже без
  * ліній (маршрут змінили) — щоб історія не губилась.
  */
-export function stopStatRows(catalog: StopCatalogEntry[], stats: StickerScanStats | null, stopName: (id: string) => string): StopStatRow[] {
-  const byId = new Map<string, StopStatRow>(
-    catalog.map((c) => [c.stopId, { ...c, sides: {}, total: 0, last7d: 0, lastScanAt: null, printedSides: [], lastPrintAt: null }])
-  );
+export function stopStatRows(
+  catalog: StopCatalogEntry[],
+  stats: StickerScanStats | null,
+  stopName: (id: string) => string,
+  now: Date = new Date()
+): StopStatRow[] {
+  const empty = { sides: {}, total: 0, last7d: 0, lastScanAt: null, printedSides: [], lastPrintAt: null, silent: [] };
+  const byId = new Map<string, StopStatRow>(catalog.map((c) => [c.stopId, { ...c, ...empty, sides: {}, printedSides: [], silent: [] }]));
   const row = (stopId: string) => {
     let r = byId.get(stopId);
     if (!r) {
-      r = { stopId, name: stopName(stopId), lines: [], sides: {}, total: 0, last7d: 0, lastScanAt: null, printedSides: [], lastPrintAt: null };
+      r = { stopId, name: stopName(stopId), lines: [], ...empty, sides: {}, printedSides: [], silent: [] };
       byId.set(stopId, r);
     }
     return r;
@@ -153,7 +163,34 @@ export function stopStatRows(catalog: StopCatalogEntry[], stats: StickerScanStat
     if (!r.printedSides.includes(p.side)) r.printedSides.push(p.side);
     r.lastPrintAt = maxIso(r.lastPrintAt, p.lastAt);
   }
+  // мовчить: від друку цього боку (або останнього його скану, якщо пізніше) минуло ≥ SILENT_DAYS діб
+  const lastScan = new Map((stats?.rows ?? []).map((s) => [`${s.stopId}|${s.side}`, s.lastAt]));
+  for (const p of stats?.printed ?? []) {
+    const since = maxIso(p.lastAt, lastScan.get(`${p.stopId}|${p.side}`) ?? null);
+    if (!since) continue;
+    const days = Math.floor((now.getTime() - Date.parse(since)) / DAY_MS);
+    const r = row(p.stopId);
+    if (days >= SILENT_DAYS && !r.silent.some((x) => x.side === p.side)) r.silent.push({ side: p.side, days });
+  }
   return [...byId.values()];
+}
+
+/** Фільтр списку зупинок: усі, з наклейками (друкували або є скани), мовчазні, без наклейки */
+export type StopFilter = 'all' | 'stickers' | 'silent' | 'none';
+
+const hasSticker = (r: StopStatRow) => r.printedSides.length > 0 || r.total > 0;
+const FILTERS: Record<StopFilter, (r: StopStatRow) => boolean> = {
+  all: () => true,
+  stickers: hasSticker,
+  silent: (r) => r.silent.length > 0,
+  none: (r) => !hasSticker(r),
+};
+
+/** Скільки зупинок під кожним фільтром — для підписів «З наклейками 12» */
+export function stopFilterCounts(rows: StopStatRow[]): Record<StopFilter, number> {
+  const out = { all: 0, stickers: 0, silent: 0, none: 0 };
+  for (const r of rows) for (const k of Object.keys(FILTERS) as StopFilter[]) if (FILTERS[k](r)) out[k] += 1;
+  return out;
 }
 
 export type StopSort = 'popular' | 'name' | 'recent';
@@ -166,14 +203,11 @@ export function sortStopRows(rows: StopStatRow[], sort: StopSort): StopStatRow[]
   return out.sort((a, b) => b.total - a.total || b.last7d - a.last7d || byName(a, b));
 }
 
-/** Пошук за назвою або id; «лише з наклейками» — надруковано або вже є скани */
-export function filterStopRows(rows: StopStatRow[], opts: { query?: string; onlyWithStickers?: boolean }): StopStatRow[] {
+/** Пошук за назвою або id і фільтр (`stickers` — надруковано або вже є скани) */
+export function filterStopRows(rows: StopStatRow[], opts: { query?: string; only?: StopFilter }): StopStatRow[] {
   const q = (opts.query ?? '').trim().toLowerCase();
-  return rows.filter(
-    (r) =>
-      (!q || r.name.toLowerCase().includes(q) || r.stopId.toLowerCase().includes(q)) &&
-      (!opts.onlyWithStickers || r.printedSides.length > 0 || r.total > 0)
-  );
+  const keep = FILTERS[opts.only ?? 'all'];
+  return rows.filter((r) => (!q || r.name.toLowerCase().includes(q) || r.stopId.toLowerCase().includes(q)) && keep(r));
 }
 
 /** Верх шкали графіка: «круглий» максимум (1, 2, 5 × 10ⁿ), щоб позначка осі читалась */

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { apiClient } from '@/api/client';
 import { siteForCityCode } from '@/site/siteConfig';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
@@ -24,10 +24,13 @@ import {
   type StickerSideKey,
 } from './stopSticker/stickerSheets';
 import { renderStickerSvg, type StickerSize } from './stopSticker/stickerSvg';
-import { stickerStopCatalog, stopStatRows } from './stopSticker/scanStats';
+import { stickerStopCatalog, stopFilterCounts, stopStatRows, type StopFilter } from './stopSticker/scanStats';
 import { StickerPeoplePanel } from './stopSticker/StickerPeoplePanel';
 import { StickerStatsPanel } from './stopSticker/StickerStatsPanel';
 import { StickerStopList } from './stopSticker/StickerStopList';
+import { WallLinkDialog } from './stopSticker/WallLinkDialog';
+import { AdminSectionHeader } from './kit';
+import './SchedulesTab.css';
 import './StopStickerTab.css';
 import { routeNo } from '@/utils/routeNames';
 import { textColorOn } from '@/pages/LocalTransportPage/routeColors';
@@ -47,6 +50,12 @@ function fareOf(dataset: TransportDataset | null): number | null {
 }
 
 const SIDE_LABEL: Record<StickerAssign, string> = { a: 'Бік 1', b: 'Бік 2', off: 'Не друкувати' };
+const SIDE_NAME: Record<StickerSide, string> = { a: 'Бік 1', b: 'Бік 2', s: 'Одна наклейка' };
+const STOP_FILTERS: StopFilter[] = ['all', 'stickers', 'silent', 'none'];
+
+function shortDate(iso: string | null): string {
+  return iso ? new Date(iso).toLocaleDateString('uk-UA', { timeZone: 'Europe/Kyiv', day: '2-digit', month: '2-digit' }) : '';
+}
 /**
  * «Наклейки зупинок» (/admin/stickers?stop=<id>): наклейка на фізичну зупинку у стилі схеми —
  * назва, лінії з напрямком, QR на табло. Датасет часто описує обидва боки дороги однією
@@ -61,6 +70,10 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
   const stopId = searchParams.get('stop') ?? '';
   // підвкладка: наклейки (за замовчуванням) або люди з наклейок (?view=people)
   const view = searchParams.get('view') === 'people' ? 'people' : 'stickers';
+  // фільтр списку зупинок у адресі (?only=silent) — на нього веде плитка «Мовчать»
+  const onlyParam = searchParams.get('only') as StopFilter | null;
+  const only: StopFilter = onlyParam && STOP_FILTERS.includes(onlyParam) ? onlyParam : 'all';
+  const [wallOpen, setWallOpen] = useState(false);
   const [dataset, setDataset] = useState<TransportDataset | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -111,6 +124,16 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
     return stopStatRows(catalog, scans, (id) => names.get(id) ?? id);
   }, [catalog, scans, dataset]);
 
+  const silentCount = useMemo(() => stopFilterCounts(stopRows).silent, [stopRows]);
+  const withParam = (key: string, value: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set(key, value);
+    else next.delete(key);
+    return next;
+  };
+  const silentHref = `?${withParam('only', 'silent').toString()}`;
+  const setOnly = (f: StopFilter) => setSearchParams(withParam('only', f === 'all' ? null : f), { replace: true });
+
   const stopNames = useMemo(() => new Map(dataset?.stops.map((s) => [s.id, prettyStopName(s.name)]) ?? []), [dataset]);
   const stopName = useCallback((id: string) => stopNames.get(id) ?? id, [stopNames]);
 
@@ -139,6 +162,9 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
     },
     [searchParams, setSearchParams]
   );
+  // відкриття й друк кожної наклейки обраної зупинки — у шапці редактора
+  const stopRow = stopRows.find((r) => r.stopId === stopId) ?? null;
+  const stopSides = (['a', 'b', 's'] as const).filter((k) => stopRow && (stopRow.sides[k] !== undefined || stopRow.printedSides.includes(k)));
 
   // колір назви — з ліній, що йдуть на друк (однаковий на наклейках обох боків)
   const printable = useMemo(() => lines.filter((l) => (assign[l.key] ?? 'off') !== 'off'), [lines, assign]);
@@ -190,21 +216,37 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
       .catch(() => undefined);
   };
 
-  const setView = (next: 'stickers' | 'people') => {
-    const params = new URLSearchParams(searchParams);
-    if (next === 'people') params.set('view', 'people');
-    else params.delete('view');
-    setSearchParams(params, { replace: true });
+  const viewHref = (next: 'stickers' | 'people') => {
+    const params = withParam('view', next === 'people' ? 'people' : null);
+    const q = params.toString();
+    return q ? `?${q}` : '?';
   };
-  const viewSwitch = (
-    <div className="sticker-view-switch" role="group" aria-label="Розділ">
-      <button type="button" className="sticker-chip" aria-pressed={view === 'stickers'} onClick={() => setView('stickers')}>
-        Наклейки
-      </button>
-      <button type="button" className="sticker-chip" aria-pressed={view === 'people'} onClick={() => setView('people')}>
-        Люди
-      </button>
-    </div>
+  const head = (
+    <>
+      <AdminSectionHeader
+        title="Наклейки зупинок"
+        purpose="QR-наклейки на зупинках: хто їх відкриває, які мовчать і друк наклейки для кожного боку дороги."
+        actions={
+          <button type="button" className="admin-kit-btn" onClick={() => setWallOpen(true)}>
+            📺 Віджет на стіну
+          </button>
+        }
+      />
+      {wallOpen && <WallLinkDialog city={city} onClose={() => setWallOpen(false)} />}
+      <nav className="admin-kit-nav" aria-label="Розділ">
+        {(['stickers', 'people'] as const).map((v) => (
+          <Link
+            key={v}
+            to={viewHref(v)}
+            replace
+            className={`admin-kit-nav-link${view === v ? ' is-active' : ''}`}
+            aria-current={view === v ? 'page' : undefined}
+          >
+            {v === 'people' ? 'Люди' : 'Наклейки'}
+          </Link>
+        ))}
+      </nav>
+    </>
   );
 
   if (loading) return <div className="sticker-tab-status">Завантаження зупинок…</div>;
@@ -213,7 +255,7 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
   if (view === 'people') {
     return (
       <div className="tab-content sticker-tab">
-        {viewSwitch}
+        {head}
         <StickerPeoplePanel city={city} stopName={stopName} />
       </div>
     );
@@ -221,12 +263,7 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
 
   return (
     <div className="tab-content sticker-tab">
-      {viewSwitch}
-      <p className="sticker-tab-intro">
-        Наклейка на зупинку у стилі схеми маршрутів: назва, лінії з напрямком і QR-код на табло цієї зупинки (найближчі
-        відправлення). Якщо обидва боки дороги в даних — одна зупинка, лінії розкладено на два боки за напрямком руху;
-        перевірте розподіл на місці.
-      </p>
+      {head}
 
       <StickerStatsPanel
         stats={scans}
@@ -235,16 +272,44 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
         onDays={setDays}
         stop={stop ? { id: stop.id, name: prettyStopName(stop.name) } : null}
         onReload={loadScans}
-        city={city}
+        silent={{ count: silentCount, href: silentHref }}
       />
 
       <div className="sticker-tab-body">
-        <StickerStopList rows={stopRows} selectedId={stopId} onSelect={selectStop} />
+        <StickerStopList rows={stopRows} selectedId={stopId} onSelect={selectStop} only={only} onOnly={setOnly} />
         <div className="sticker-tab-editor">
-          {!stop && <p className="sticker-tab-muted">Оберіть зупинку в списку — тут з'явиться її наклейка для друку.</p>}
+          {!stop && (
+            <p className="sticker-tab-muted sticker-tab-pick">
+              Оберіть зупинку в списку — тут з'явиться її наклейка для друку: назва, лінії з напрямком і QR на табло цієї
+              зупинки.
+            </p>
+          )}
           {stop && (
             <>
-              <h3 className="sticker-tab-editor-title">{prettyStopName(stop.name)}</h3>
+              <div className="sticker-tab-editor-head">
+                <h3 className="sticker-tab-editor-title">{prettyStopName(stop.name)}</h3>
+                <a className="admin-kit-linkbtn" href={`https://${domain}/transport/stop/${encodeURIComponent(stop.id)}`} target="_blank" rel="noopener noreferrer">
+                  Табло ↗
+                </a>
+                <span className="sticker-tab-muted">{stop.id}</span>
+              </div>
+              {stopRow && (
+                <div className="sched-tags sticker-tab-sides" aria-label="Наклейки зупинки">
+                  {stopSides.map((k) => (
+                    <span key={k} className="sched-tag">
+                      {SIDE_NAME[k]}: <b>{stopRow.sides[k] ?? 0}</b> відкр.
+                      {stopRow.printedSides.includes(k) ? '' : ' · друку не записано'}
+                    </span>
+                  ))}
+                  {stopRow.lastPrintAt && <span className="sched-tag">друк {shortDate(stopRow.lastPrintAt)}</span>}
+                  {stopRow.silent.map((x) => (
+                    <span key={x.side} className="sched-flag">
+                      {SIDE_NAME[x.side]} мовчить {x.days} дн
+                    </span>
+                  ))}
+                  {!stopSides.length && <span className="sched-tag">наклейки ще немає</span>}
+                </div>
+              )}
               <div className="sticker-tab-controls">
                 <label className="sticker-tab-field sticker-tab-field--wide">
                   <span>Назва на наклейці</span>
@@ -278,6 +343,10 @@ export const StopStickerTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRA
 
               <fieldset className="sticker-tab-fieldset">
                 <legend>Лінії й боки дороги</legend>
+                <p className="sticker-tab-muted sticker-tab-hint">
+                  Обидва боки дороги в даних часто одна зупинка — лінії розкладено на два боки за напрямком руху. Перевірте
+                  розподіл на місці.
+                </p>
                 <table className="sticker-tab-lines">
                   <thead>
                     <tr>

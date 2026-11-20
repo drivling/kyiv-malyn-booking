@@ -1,20 +1,27 @@
 import { useMemo, useState } from 'react';
-import { Button } from '@/components/Button';
 import type { StickerScanStats, StickerStatsDays } from '@/types';
+import { ChipGroup, StatTile, StatTiles } from '../kit';
 import { ScanBars, type ScanBar } from './ScanBars';
-import { WallLinkDialog } from './WallLinkDialog';
-import { dailySeries, dayLabels, dayParts, hourBuckets, kyivToday, scopeAudience, scopeTotals } from './scanStats';
+import { dailySeries, dayLabels, dayParts, hourBuckets, kyivToday, scopeAudience, scopeTotals, SILENT_DAYS } from './scanStats';
 
-const PERIODS: StickerStatsDays[] = [1, 7, 30, 90];
+const PERIODS = [
+  { value: 1 as const, label: 'Сьогодні' },
+  { value: 7 as const, label: '7 днів' },
+  { value: 30 as const, label: '30 днів' },
+  { value: 90 as const, label: '90 днів' },
+];
+const CHARTS = [
+  { value: 'days' as const, label: 'По днях' },
+  { value: 'hours' as const, label: 'По годинах доби' },
+];
 const pad = (n: number) => String(n).padStart(2, '0');
-const periodChip = (d: StickerStatsDays) => (d === 1 ? 'Сьогодні' : `${d} днів`);
 const periodText = (d: StickerStatsDays) => (d === 1 ? 'сьогодні' : `за ${d} днів`);
+const pct = (part: number, whole: number) => (whole > 0 ? `${Math.round((part / whole) * 100)} %` : '');
 
 /**
- * «Статистика відкриттів з QR» угорі вкладки наклейок: плитки підсумків, графік по днях за
- * 7 / 30 / 90 днів, галочкою — по годинах доби з частинами доби. «Сьогодні» (київська доба від
- * півночі) — одразу по годинах: стовпчик по днях там був би один. Обсяг — уся мережа або обрана
- * зупинка (коли вона є).
+ * «Відкриття з QR» угорі вкладки наклейок: один ряд плиток (відкриття, люди, друк, мовчазні наклейки), графік по днях
+ * за 7 / 30 / 90 днів або по годинах доби з частинами доби. «Сьогодні» (київська доба від півночі) — одразу по
+ * годинах: стовпчик по днях там був би один. Обсяг — уся мережа або обрана зупинка (коли вона є).
  */
 export function StickerStatsPanel({
   stats,
@@ -23,7 +30,7 @@ export function StickerStatsPanel({
   onDays,
   stop,
   onReload,
-  city,
+  silent,
 }: {
   stats: StickerScanStats | null;
   error: string;
@@ -32,14 +39,13 @@ export function StickerStatsPanel({
   /** Обрана зупинка — можна звузити статистику до неї */
   stop: { id: string; name: string } | null;
   onReload: () => void;
-  /** Місто наклейок — віджет на стіну показує його відкриття */
-  city?: string;
+  /** Мовчазні наклейки по всій мережі й посилання на них у списку зупинок */
+  silent: { count: number; href: string };
 }) {
   const [onlyStop, setOnlyStop] = useState(false);
-  const [byHours, setByHours] = useState(false);
-  const [wallOpen, setWallOpen] = useState(false);
+  const [chart, setChart] = useState<'days' | 'hours'>('days');
   const today = days === 1;
-  const showHours = byHours || today;
+  const showHours = chart === 'hours' || today;
   const scopeId = onlyStop && stop ? stop.id : '';
   const scope = scopeId ? { stopId: scopeId } : undefined;
 
@@ -62,113 +68,65 @@ export function StickerStatsPanel({
     <section className="sticker-stats" aria-labelledby="sticker-stats-title">
       <div className="sticker-stats-head">
         <h3 id="sticker-stats-title">Відкриття з QR</h3>
-        <div className="sticker-stats-chips" role="group" aria-label="Період графіків">
-          {PERIODS.map((p) => (
-            <button key={p} type="button" className="sticker-chip" aria-pressed={days === p} onClick={() => onDays(p)}>
-              {periodChip(p)}
-            </button>
-          ))}
-        </div>
+        <ChipGroup label="Період графіків" options={PERIODS} value={days} onChange={onDays} />
+        {!today && <ChipGroup label="Графік" options={CHARTS} value={chart} onChange={setChart} />}
         {stop && (
           <label className="sticker-stats-check">
             <input type="checkbox" checked={onlyStop} onChange={(e) => setOnlyStop(e.target.checked)} />
             Лише «{stop.name}»
           </label>
         )}
-        <Button type="button" variant="secondary" onClick={onReload}>
+        <button type="button" className="admin-kit-btn sticker-stats-reload" onClick={onReload}>
           Оновити
-        </Button>
-        <Button type="button" variant="secondary" onClick={() => setWallOpen(true)}>
-          📺 Віджет на стіну
-        </Button>
+        </button>
       </div>
-      {wallOpen && <WallLinkDialog city={city} onClose={() => setWallOpen(false)} />}
       {error && <p className="sticker-tab-status--error">{error}</p>}
       {totals && (
-        <dl className="sticker-stats-tiles" aria-label={`Підсумки: ${scopeName}`}>
-          <div>
-            <dt>Усього</dt>
-            <dd>{totals.total}</dd>
-          </div>
-          <div>
-            <dt>Сьогодні</dt>
-            <dd>{totals.today}</dd>
-          </div>
-          <div>
-            <dt>За 7 днів</dt>
-            <dd>{totals.last7d}</dd>
-          </div>
-          <div>
-            <dt>За 30 днів</dt>
-            <dd>{totals.last30d}</dd>
-          </div>
-          <div>
-            <dt>Наклейок надруковано</dt>
-            <dd>
-              {totals.printed}
-              <span className="sticker-tab-muted"> · зі сканами {totals.scanned}</span>
-            </dd>
-          </div>
-        </dl>
+        <StatTiles label={`Підсумки: ${scopeName}`}>
+          <StatTile label="Відкриттів усього" value={totals.total} sub={`сьогодні ${totals.today}`} />
+          <StatTile label="За 7 днів" value={totals.last7d} />
+          <StatTile label="За 30 днів" value={totals.last30d} />
+          {people && (
+            <StatTile
+              label="Людей сканували"
+              value={people.scanners}
+              sub={`повертались ${people.returning}${people.scanners ? ` · ${pct(people.returning, people.scanners)}` : ''}`}
+            />
+          )}
+          {people && (
+            <StatTile
+              label={`Повернень ${periodText(days)}`}
+              value={people.returns}
+              sub={people.byVia ? `табло ${people.byVia.reload} · вкладка ${people.byVia.tab ?? 0} · сайт ${people.byVia.direct}` : undefined}
+            />
+          )}
+          <StatTile label="Наклейок надруковано" value={totals.printed} sub={`зі сканами ${totals.scanned}`} />
+          {!scope && (
+            <StatTile
+              label={`Мовчать ≥ ${SILENT_DAYS} дн`}
+              value={silent.count}
+              sub={silent.count ? 'показати' : undefined}
+              tone={silent.count ? 'warn' : 'default'}
+              to={silent.count ? silent.href : undefined}
+            />
+          )}
+        </StatTiles>
       )}
-      {people && (
-        <dl className="sticker-stats-tiles" aria-label={`Люди з наклейок: ${scopeName}`}>
-          <div>
-            <dt>Людей сканували</dt>
-            <dd>{people.scanners}</dd>
-          </div>
-          <div>
-            <dt>З них повертались</dt>
-            <dd>
-              {people.returning}
-              {people.scanners > 0 && (
-                <span className="sticker-tab-muted"> · {Math.round((people.returning / people.scanners) * 100)} %</span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt>Повернень {periodText(days)}</dt>
-            <dd>
-              {people.returns}
-              {people.byVia && (
-                <span className="sticker-tab-muted">
-                  {' '}
-                  · вкладка табло {people.byVia.reload} · відкрита вкладка {people.byVia.tab ?? 0} · сайт {people.byVia.direct}
-                </span>
-              )}
-            </dd>
-          </div>
-        </dl>
-      )}
-      {stats && !today && (
+      {stats && !showHours && (
         <ScanBars
           title={`По днях ${periodText(days)} · ${scopeName}`}
           bars={dayBars}
           labelEvery={days === 7 ? 1 : days === 30 ? 5 : 15}
         />
       )}
-      {stats && !today && (
-        <label className="sticker-stats-check">
-          <input type="checkbox" checked={byHours} onChange={(e) => setByHours(e.target.checked)} />
-          По годинах доби
-        </label>
-      )}
       {stats && showHours && (
         <>
-          <dl className="sticker-stats-tiles sticker-stats-tiles--parts" aria-label="Частини доби">
-            {parts.map((p) => (
-              <div key={p.key}>
-                <dt>
-                  {p.label} <span className="sticker-tab-muted">{p.range}</span>
-                </dt>
-                <dd>
-                  {p.count}
-                  {partsTotal > 0 && <span className="sticker-tab-muted"> · {Math.round((p.count / partsTotal) * 100)} %</span>}
-                </dd>
-              </div>
-            ))}
-          </dl>
           <ScanBars title={`По годинах доби ${periodText(days)} · ${scopeName}`} bars={hourBars} labelEvery={3} />
+          <StatTiles label="Частини доби">
+            {parts.map((p) => (
+              <StatTile key={p.key} label={`${p.label} ${p.range}`} value={p.count} sub={pct(p.count, partsTotal) || undefined} />
+            ))}
+          </StatTiles>
         </>
       )}
     </section>
