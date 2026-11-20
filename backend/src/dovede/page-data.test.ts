@@ -6,6 +6,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import express from 'express';
 import request from 'supertest';
+import { listenLocal } from '../http-test-server';
 import { Prisma, type PrismaClient } from '@prisma/client';
 import { createDovedePageData, examplesProblem, ringExtraProblem, serviceProblem, shuttleProblem } from './page-data';
 import { createAdminDovedeRouter } from '../routes/admin-dovede';
@@ -105,22 +106,23 @@ test('HTTP: сторінка читає з доступом «Доведе», м
       driveTime: async () => ({ minutes: 95, source: 'fixed' }),
     }),
   );
-  assert.equal((await request(app).get('/dovede/page-data')).status, 401);
-  assert.equal((await request(app).put('/admin/dovede/page-data').send({ key: 'metro.shuttle', value: null })).status, 401);
-  assert.equal((await request(app).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'metro.shuttle' })).status, 400);
-  const bad = await request(app).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'metro.shuttle', value: { ...SHUTTLE, line: 'M9' } });
+  const server = await listenLocal(app);
+  assert.equal((await request(server).get('/dovede/page-data')).status, 401);
+  assert.equal((await request(server).put('/admin/dovede/page-data').send({ key: 'metro.shuttle', value: null })).status, 401);
+  assert.equal((await request(server).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'metro.shuttle' })).status, 400);
+  const bad = await request(server).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'metro.shuttle', value: { ...SHUTTLE, line: 'M9' } });
   assert.equal(bad.status, 400);
   assert.match(bad.body.error, /line/);
-  const ok = await request(app).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'metro.service', value: { openMins: 330, closeMins: 1380, fareUah: 35 } });
+  const ok = await request(server).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'metro.service', value: { openMins: 330, closeMins: 1380, fareUah: 35 } });
   assert.equal(ok.status, 200);
   assert.equal(ok.body.changed, true);
   // гість із паролем запрошених — як сторінка
-  const page = await request(app).get('/dovede/page-data').set('X-Dovede-Token', dovedeAccessToken('guest'));
+  const page = await request(server).get('/dovede/page-data').set('X-Dovede-Token', dovedeAccessToken('guest'));
   assert.equal(page.status, 200);
   assert.deepEqual(page.body, { values: { 'metro.service': { openMins: 330, closeMins: 1380, fareUah: 35 } } });
-  const admin = await request(app).get('/admin/dovede/page-data').set('Authorization', AUTH);
+  const admin = await request(server).get('/admin/dovede/page-data').set('Authorization', AUTH);
   assert.equal(admin.body.items.length, 4);
   // приклади — пробіли стиснуто
-  const ex = await request(app).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'examples', value: { malyn: ['  з   Києва до Малина '] } });
+  const ex = await request(server).put('/admin/dovede/page-data').set('Authorization', AUTH).send({ key: 'examples', value: { malyn: ['  з   Києва до Малина '] } });
   assert.deepEqual(ex.body.value, { malyn: ['з Києва до Малина'] });
 });

@@ -5,6 +5,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from './sticker-wall';
@@ -77,7 +78,7 @@ test('stickerWallSnapshot: київська доба, учора на цю по�
 });
 
 test('GET /transport/sticker-wall: лише з ключем; ключ видає адмін-ендпоінт', async () => {
-  const app = createApp({ prisma: stub(ROWS), adminPassword: ADMIN });
+  const app = await listenLocal(createApp({ prisma: stub(ROWS), adminPassword: ADMIN }));
   await request(app).get('/transport/sticker-wall').expect(403);
   await request(app).get('/transport/sticker-wall?key=0123456789abcdef0123456789abcdef').expect(403);
   await request(app).get('/admin/transport/sticker-wall-key').expect(401);

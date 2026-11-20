@@ -6,6 +6,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
@@ -193,15 +194,15 @@ test('адмінка «Люди»: нові за вікно, по добах і 
 });
 
 const ADMIN = 'people-test-admin';
-function app() {
+async function app() {
   const store = createTransportTestStore({
     transportStop: [{ cityCode: 'Malyn', id: 'st_0015', name: 'з-д «Прожектор»', lat: 50.77, lng: 29.24 }],
   });
-  return { store, app: createApp({ prisma: store.prisma, adminPassword: ADMIN }) };
+  return { store, app: await listenLocal(createApp({ prisma: store.prisma, adminPassword: ADMIN })) };
 }
 
 test('POST /transport/sticker-scans з id браузера — `person` з номером; повтор за 2 хв — та сама людина, не нова', async () => {
-  const { app: a, store } = app();
+  const { app: a, store } = await app();
   const first = await request(a).post('/transport/sticker-scans').send({ stopId: 'st_0015', side: 'a', clientId: A }).expect(201);
   assert.deepEqual({ ...first.body.person, firstAt: undefined }, { number: 1, scans: 1, stops: 1, firstStopId: 'st_0015', firstAt: undefined, isNew: true });
   const repeat = await request(a).post('/transport/sticker-scans').send({ stopId: 'st_0015', side: 'a', clientId: A }).expect(200);
@@ -221,7 +222,7 @@ test('POST /transport/sticker-scans з id браузера — `person` з но�
 });
 
 test('GET /transport/sticker-wall/people — лише з ключем стіни, без кешу; GET /admin/transport/sticker-people — лише адмін', async () => {
-  const { app: a } = app();
+  const { app: a } = await app();
   await request(a).post('/transport/sticker-scans').send({ stopId: 'st_0015', side: 'a', clientId: A }).expect(201);
   await request(a).get('/transport/sticker-wall/people').expect(403);
   const wall = await request(a).get(`/transport/sticker-wall/people?key=${stickerWallKey(ADMIN)}`).expect(200);

@@ -7,6 +7,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal, type LocalServer } from './http-test-server';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
 import { kyivClock } from './arrival-reports';
@@ -59,7 +60,7 @@ function korostenRows(): Record<string, StoreRow[]> {
   };
 }
 
-async function setup(opts: { korosten?: boolean; korostenPublished?: boolean } = {}): Promise<{ store: TransportTestStore; app: ReturnType<typeof createApp> }> {
+async function setup(opts: { korosten?: boolean; korostenPublished?: boolean } = {}): Promise<{ store: TransportTestStore; app: LocalServer }> {
   const store = createTransportTestStore({
     ...(opts.korosten ? korostenRows() : {}),
     tripPoint: [
@@ -67,7 +68,7 @@ async function setup(opts: { korosten?: boolean; korostenPublished?: boolean } =
       { id: 2, code: 'Korosten', nameUk: 'Коростень', hasLocalTransport: opts.korostenPublished === true, sortOrder: 40 },
     ],
   });
-  const app = createApp({ prisma: store.prisma, adminPassword: ADMIN });
+  const app = await listenLocal(createApp({ prisma: store.prisma, adminPassword: ADMIN }));
   await request(app).put('/transport/dataset').set(auth).send(malynDataset()).expect(200);
   return { store, app };
 }

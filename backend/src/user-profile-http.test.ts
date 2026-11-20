@@ -4,6 +4,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { TELEGRAM_LOGIN_HEADER, encodeTelegramLoginHeader, signTelegramLogin } from './telegram-login-auth';
@@ -61,20 +62,20 @@ function makePrisma(rows: Partial<Record<string, unknown[]>> = {}) {
   return { prisma, calls };
 }
 
-function makeApp(rows: Partial<Record<string, unknown[]>> = {}, opts: { botToken?: string | null; notifyAdmin?: (html: string) => Promise<unknown> } = {}) {
+async function makeApp(rows: Partial<Record<string, unknown[]>> = {}, opts: { botToken?: string | null; notifyAdmin?: (html: string) => Promise<unknown> } = {}) {
   const { prisma, calls } = makePrisma(rows);
-  const app = createApp({ prisma, adminPassword: 'x', telegramBotToken: opts.botToken === undefined ? BOT_TOKEN : opts.botToken });
+  const app = await listenLocal(createApp({ prisma, adminPassword: 'x', telegramBotToken: opts.botToken === undefined ? BOT_TOKEN : opts.botToken }));
   return { app, calls };
 }
 
 test('GET /user/profile без заголовка → 401 missing; старий спосіб ?telegramUserId= більше не працює', async () => {
-  const { app } = makeApp({ person: [PERSON] });
+  const { app } = await makeApp({ person: [PERSON] });
   const res = await request(app).get('/user/profile?telegramUserId=123456789').expect(401);
   assert.equal(res.body.reason, 'missing');
 });
 
 test('GET /user/profile: підроблений підпис → 401 invalid; прострочений → 401 expired; вхід за телефоном (hash порожній) → 401', async () => {
-  const { app } = makeApp({ person: [PERSON] });
+  const { app } = await makeApp({ person: [PERSON] });
   const tampered = encodeTelegramLoginHeader({ id: 987, first_name: 'Іван', auth_date: REAL_SEC(), hash: signTelegramLogin({ id: 1, first_name: 'Іван', auth_date: REAL_SEC() }, BOT_TOKEN) });
   assert.equal((await request(app).get('/user/profile').set(TELEGRAM_LOGIN_HEADER, tampered).expect(401)).body.reason, 'invalid');
   const old = loginHeader({ auth_date: REAL_SEC() - 3 * 24 * 3600 });
@@ -84,13 +85,13 @@ test('GET /user/profile: підроблений підпис → 401 invalid; п
 });
 
 test('без TELEGRAM_BOT_TOKEN на сервері → 503, а не пропуск без перевірки', async () => {
-  const { app } = makeApp({ person: [PERSON] }, { botToken: null });
+  const { app } = await makeApp({ person: [PERSON] }, { botToken: null });
   const res = await request(app).get('/user/profile').set(TELEGRAM_LOGIN_HEADER, loginHeader()).expect(503);
   assert.equal(res.body.reason, 'unavailable');
 });
 
 test('GET /user/profile з коректним підписом → профіль за id з підпису', async () => {
-  const { app } = makeApp({ person: [PERSON] });
+  const { app } = await makeApp({ person: [PERSON] });
   const res = await request(app).get('/user/profile').set(TELEGRAM_LOGIN_HEADER, loginHeader()).expect(200);
   assert.equal(res.body.person.id, 42);
   assert.equal(res.body.person.telegramUserId, '123456789');
@@ -98,7 +99,7 @@ test('GET /user/profile з коректним підписом → профіл�
 });
 
 test('PUT /user/profile/name: ім\'я з тіла, людина — з підпису', async () => {
-  const { app, calls } = makeApp({ person: [PERSON] });
+  const { app, calls } = await makeApp({ person: [PERSON] });
   const res = await request(app).put('/user/profile/name').set(TELEGRAM_LOGIN_HEADER, loginHeader()).send({ fullName: '  Іванко ' }).expect(200);
   assert.deepEqual(res.body, { success: true, fullName: 'Іванко' });
   assert.ok(calls.some((c) => c.model === 'person' && c.op === 'update'));
@@ -106,7 +107,7 @@ test('PUT /user/profile/name: ім\'я з тіла, людина — з підп
 });
 
 test('GET /user/export → JSON файлом з Content-Disposition; 404 коли нема жодного запису', async () => {
-  const { app } = makeApp({ person: [PERSON] });
+  const { app } = await makeApp({ person: [PERSON] });
   const res = await request(app).get('/user/export').set(TELEGRAM_LOGIN_HEADER, loginHeader()).expect(200);
   assert.match(res.headers['content-type'], /application\/json/);
   assert.match(res.headers['content-disposition'], /^attachment; filename="malin-kiev-ua-my-data-\d{4}-\d{2}-\d{2}\.json"$/);
@@ -117,7 +118,7 @@ test('GET /user/export → JSON файлом з Content-Disposition; 404 кол�
   assert.equal(data.telegramUserId, '123456789');
   assert.ok(!('telegramChatId' in data.person));
 
-  const empty = makeApp({});
+  const empty = await makeApp({});
   const res404 = await request(empty.app).get('/user/export').set(TELEGRAM_LOGIN_HEADER, loginHeader()).expect(404);
   assert.match(res404.body.error, /немає жодного запису/);
   await request(empty.app).get('/user/export').expect(401);
@@ -126,7 +127,7 @@ test('GET /user/export → JSON файлом з Content-Disposition; 404 кол�
 test('DELETE /user: без confirm → 400; з confirm → знеособлення, підсумок, повідомлення адміну', async () => {
   const admin: string[] = [];
   const { prisma, calls } = makePrisma({ person: [PERSON], booking: [{ id: 1 }] });
-  const app = createApp({ prisma, adminPassword: 'x', telegramBotToken: BOT_TOKEN });
+  const app = await listenLocal(createApp({ prisma, adminPassword: 'x', telegramBotToken: BOT_TOKEN }));
   // notifyAdmin з create-app — реальний sendAdminAlertHtml без бота лише логує; тут перевіряємо через власний роутер нижче
   await request(app).delete('/user').set(TELEGRAM_LOGIN_HEADER, loginHeader()).send({}).expect(400);
   await request(app).delete('/user').send({ confirm: true, telegramUserId: '123456789' }).expect(401);
@@ -149,7 +150,8 @@ test('DELETE /user: власний notifyAdmin отримує HTML-підсум�
   const app = express();
   app.use(express.json());
   app.use(createUserProfileRouter({ prisma, telegramBotToken: BOT_TOKEN, notifyAdmin: async (h) => void admin.push(h), now: () => NOW }));
-  const res = await request(app).delete('/user').set(TELEGRAM_LOGIN_HEADER, loginHeader({}, NOW_SEC)).send({ confirm: true }).expect(200);
+  const server = await listenLocal(app);
+  const res = await request(server).delete('/user').set(TELEGRAM_LOGIN_HEADER, loginHeader({}, NOW_SEC)).send({ confirm: true }).expect(200);
   assert.equal(res.body.erasedAt, NOW.toISOString());
   assert.equal(admin.length, 1);
   assert.match(admin[0], /Person #42, tg 123456789/);
@@ -158,5 +160,6 @@ test('DELETE /user: власний notifyAdmin отримує HTML-підсум�
   const app2 = express();
   app2.use(express.json());
   app2.use(createUserProfileRouter({ prisma: empty.prisma, telegramBotToken: BOT_TOKEN, now: () => NOW }));
-  await request(app2).delete('/user').set(TELEGRAM_LOGIN_HEADER, loginHeader({}, NOW_SEC)).send({ confirm: true }).expect(404);
+  const server2 = await listenLocal(app2);
+  await request(server2).delete('/user').set(TELEGRAM_LOGIN_HEADER, loginHeader({}, NOW_SEC)).send({ confirm: true }).expect(404);
 });

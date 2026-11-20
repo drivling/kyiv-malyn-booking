@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
@@ -301,7 +302,7 @@ test('HTTP: /admin/transport/sources* лише для адміна; check зап
   const ADMIN = 'source-watch-test-password';
   const { prisma } = stubPrisma();
   const h = harness({ 'https://example.org/p': page(R1, R6) }, [HTML_SOURCE]);
-  const app = createApp({ prisma, adminPassword: ADMIN, sourceWatch: h.deps });
+  const app = await listenLocal(createApp({ prisma, adminPassword: ADMIN, sourceWatch: h.deps }));
   const auth = { Authorization: adminAuthToken(ADMIN) };
 
   assert.equal((await request(app).get('/admin/transport/sources')).status, 401);

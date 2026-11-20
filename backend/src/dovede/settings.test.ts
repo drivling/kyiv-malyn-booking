@@ -7,6 +7,7 @@ import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import express from 'express';
 import request from 'supertest';
+import { listenLocal } from '../http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { DOVEDE_SETTINGS, createDovedeSettings } from './settings';
 import { createAdminDovedeRouter } from '../routes/admin-dovede';
@@ -104,11 +105,12 @@ test('HTTP: лише адмін; список із групами; одне зн
   setAdminPassword(app, PASSWORD);
   const settings = createDovedeSettings({ prisma: db.prisma, env: {}, now: () => NOW });
   app.use(createAdminDovedeRouter({ prisma: db.prisma, understand: null, settings, cityRoutes: {} as CityRoutes, driveTime: async () => ({ minutes: 95, source: 'fixed' }) }));
+  const server = await listenLocal(app);
 
-  assert.equal((await request(app).get('/admin/dovede/settings')).status, 401);
-  assert.equal((await request(app).put('/admin/dovede/settings').send({ key: 'ai.dailyCap', value: 10 })).status, 401);
+  assert.equal((await request(server).get('/admin/dovede/settings')).status, 401);
+  assert.equal((await request(server).put('/admin/dovede/settings').send({ key: 'ai.dailyCap', value: 10 })).status, 401);
 
-  const list = await request(app).get('/admin/dovede/settings').set('Authorization', AUTH);
+  const list = await request(server).get('/admin/dovede/settings').set('Authorization', AUTH);
   assert.equal(list.headers['cache-control'], 'private, no-store');
   assert.equal(list.body.items.length, 12);
   assert.deepEqual(list.body.groups, { ai: 'ШІ (Claude)', google: 'Google', learning: 'Фонове навчання' });
@@ -129,7 +131,7 @@ test('HTTP: лише адмін; список із групами; одне зн
     lockedBy: null,
   });
 
-  const put = (body: object) => request(app).put('/admin/dovede/settings').set('Authorization', AUTH).send(body);
+  const put = (body: object) => request(server).put('/admin/dovede/settings').set('Authorization', AUTH).send(body);
   assert.deepEqual([(await put({ key: 'learn.sharePct', value: 30 })).body.value, await settings.int('learn.sharePct')], [30, 30]);
   assert.equal((await put({ key: 'learn.sharePct', value: null })).body.value, 50);
   assert.equal((await put({ key: 'ai.enabled', value: false })).body.value, false);
@@ -138,6 +140,6 @@ test('HTTP: лише адмін; список із групами; одне зн
   }
 
   // ШІ вимкнено в налаштуваннях — розбір відповідає «словником» без виклику Claude
-  const off = await request(app).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Малина до Києва завтра' });
+  const off = await request(server).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Малина до Києва завтра' });
   assert.deepEqual([off.status, off.body.reason], [503, 'disabled']);
 });

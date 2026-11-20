@@ -5,48 +5,49 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 
 const TEST_ADMIN_PASSWORD = 'http-test-admin-password-x7';
 
-function appWith(row: { phone: string; isActive: boolean } | null) {
+async function appWith(row: { phone: string; isActive: boolean } | null) {
   const prisma = {
     viberListing: { findUnique: async () => row },
   } as unknown as PrismaClient;
-  return createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD });
+  return listenLocal(createApp({ prisma, adminPassword: TEST_ADMIN_PASSWORD }));
 }
 
 test('віддає контакт активного оголошення без авторизації', async () => {
-  const res = await request(appWith({ phone: '380679551952', isActive: true }))
+  const res = await request(await appWith({ phone: '380679551952', isActive: true }))
     .get('/viber-listings/42/contact')
     .expect(200);
   assert.equal(res.body.contact, '380679551952');
 });
 
 test('віддає @username так само, як телефон', async () => {
-  const res = await request(appWith({ phone: '@driver_ua', isActive: true }))
+  const res = await request(await appWith({ phone: '@driver_ua', isActive: true }))
     .get('/viber-listings/42/contact')
     .expect(200);
   assert.equal(res.body.contact, '@driver_ua');
 });
 
 test('404 для неактивного оголошення — знятий або заблокований автор', async () => {
-  await request(appWith({ phone: '380679551952', isActive: false }))
+  await request(await appWith({ phone: '380679551952', isActive: false }))
     .get('/viber-listings/42/contact')
     .expect(404);
 });
 
 test('404, якщо оголошення немає', async () => {
-  await request(appWith(null)).get('/viber-listings/999/contact').expect(404);
+  await request(await appWith(null)).get('/viber-listings/999/contact').expect(404);
 });
 
 test('404, якщо контакт порожній', async () => {
-  await request(appWith({ phone: '   ', isActive: true }))
+  await request(await appWith({ phone: '   ', isActive: true }))
     .get('/viber-listings/42/contact')
     .expect(404);
 });
 
 test('400 на нечисловий id', async () => {
-  await request(appWith(null)).get('/viber-listings/abc/contact').expect(400);
+  await request(await appWith(null)).get('/viber-listings/abc/contact').expect(400);
 });

@@ -4,6 +4,7 @@
 import { describe, expect, test } from 'vitest';
 import express from 'express';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createAdminLunchRouter } from './routes/admin-lunch';
 import { adminAuthToken, setAdminPassword } from './middleware/require-admin';
@@ -62,22 +63,22 @@ function makePrisma() {
   return { prisma: prisma as unknown as PrismaClient, queries };
 }
 
-function appWith(prisma: PrismaClient) {
+async function appWith(prisma: PrismaClient) {
   const app = express();
   setAdminPassword(app, ADMIN_PASSWORD);
   app.use(express.json());
   app.use(createAdminLunchRouter({ prisma }));
-  return app;
+  return listenLocal(app);
 }
 
 describe('GET /admin/lunch/history', () => {
   test('401 без токена', async () => {
-    await request(appWith(makePrisma().prisma)).get('/admin/lunch/history').expect(401);
+    await request(await appWith(makePrisma().prisma)).get('/admin/lunch/history').expect(401);
   });
 
   test('віддає меню, замовлення й прапорець touchedAfterCreate, без імен', async () => {
     const { prisma, queries } = makePrisma();
-    const res = await request(appWith(prisma))
+    const res = await request(await appWith(prisma))
       .get('/admin/lunch/history?from=2026-10-01&to=2026-10-02')
       .set(auth)
       .expect(200);
@@ -101,7 +102,7 @@ describe('GET /admin/lunch/history', () => {
 
   test('за замовчуванням — останні 14 днів', async () => {
     const { prisma, queries } = makePrisma();
-    await request(appWith(prisma)).get('/admin/lunch/history').set(auth).expect(200);
+    await request(await appWith(prisma)).get('/admin/lunch/history').set(auth).expect(200);
     const where = queries[0].where as { date: { gte: Date; lte: Date } };
     const days = Math.round((where.date.lte.getTime() - where.date.gte.getTime()) / 86_400_000) + 1;
     expect(days).toBe(14);
@@ -109,7 +110,7 @@ describe('GET /admin/lunch/history', () => {
 
   test('некоректні дати й задовгий період → 400', async () => {
     const { prisma } = makePrisma();
-    const app = appWith(prisma);
+    const app = await appWith(prisma);
     await request(app).get('/admin/lunch/history?from=abc&to=2026-10-02').set(auth).expect(400);
     await request(app).get('/admin/lunch/history?from=2026-10-05&to=2026-10-01').set(auth).expect(400);
     await request(app).get('/admin/lunch/history?from=2026-01-01&to=2026-10-02').set(auth).expect(400);

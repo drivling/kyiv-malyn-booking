@@ -3,6 +3,7 @@
  */
 import { describe, expect, test } from 'vitest';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
@@ -171,8 +172,8 @@ function makeStub() {
   return { prisma, chats, jobs, updates, messageQueries, queueUpdates };
 }
 
-function app(prisma: PrismaClient) {
-  return createApp({ prisma, adminPassword: 'x' });
+async function app(prisma: PrismaClient) {
+  return listenLocal(createApp({ prisma, adminPassword: 'x' }));
 }
 
 const auth = { Authorization: adminAuthToken('x') };
@@ -180,13 +181,13 @@ const auth = { Authorization: adminAuthToken('x') };
 describe('/admin/dzhura', () => {
   test('401 без токена', async () => {
     const { prisma } = makeStub();
-    await request(app(prisma)).get('/admin/dzhura/chats').expect(401);
-    await request(app(prisma)).get('/admin/dzhura/status').expect(401);
+    await request(await app(prisma)).get('/admin/dzhura/chats').expect(401);
+    await request(await app(prisma)).get('/admin/dzhura/status').expect(401);
   });
 
   test('GET status: heartbeat свіжий, BigInt як рядок', async () => {
     const { prisma } = makeStub();
-    const res = await request(app(prisma)).get('/admin/dzhura/status').set(auth).expect(200);
+    const res = await request(await app(prisma)).get('/admin/dzhura/status').set(auth).expect(200);
     expect(res.body.heartbeatFresh).toBe(true);
     expect(res.body.meTgUserId).toBe('438099');
     expect(typeof res.body.listenerWanted).toBe('boolean');
@@ -195,7 +196,7 @@ describe('/admin/dzhura', () => {
 
   test('GET messages: сторінка з пошуком і курсором, BigInt як рядки', async () => {
     const { prisma, messageQueries } = makeStub();
-    const a = app(prisma);
+    const a = await app(prisma);
     const res = await request(a).get('/admin/dzhura/chats/2/messages?q=hi&limit=20').set(auth).expect(200);
     expect(res.body.nextBeforeId).toBeNull();
     expect(res.body.messages).toHaveLength(1);
@@ -219,7 +220,7 @@ describe('/admin/dzhura', () => {
 
   test('POST queue/retry-failed повертає невдалі дублі в чергу', async () => {
     const { prisma, queueUpdates } = makeStub();
-    const res = await request(app(prisma)).post('/admin/dzhura/queue/retry-failed').set(auth).expect(200);
+    const res = await request(await app(prisma)).post('/admin/dzhura/queue/retry-failed').set(auth).expect(200);
     expect(res.body).toEqual({ requeued: 2 });
     expect(queueUpdates[0]).toMatchObject({
       where: { target: 'saved', status: 'failed' },
@@ -229,14 +230,14 @@ describe('/admin/dzhura', () => {
 
   test('GET chats: групи за замовчуванням, з лічильником', async () => {
     const { prisma } = makeStub();
-    const res = await request(app(prisma)).get('/admin/dzhura/chats').set(auth).expect(200);
+    const res = await request(await app(prisma)).get('/admin/dzhura/chats').set(auth).expect(200);
     expect(res.body).toHaveLength(2);
     expect(res.body[0]).toMatchObject({ id: 1, tgChatId: '-5427750954', isLunchGroup: true, messagesCount: 40 });
   });
 
   test('PATCH: групу обідів не можна перестати читати', async () => {
     const { prisma } = makeStub();
-    const res = await request(app(prisma))
+    const res = await request(await app(prisma))
       .patch('/admin/dzhura/chats/1')
       .set(auth)
       .send({ captureEnabled: false })
@@ -246,7 +247,7 @@ describe('/admin/dzhura', () => {
 
   test('PATCH: ввімкнути читання і дубль; вимкнення читання скидає дубль', async () => {
     const { prisma, updates } = makeStub();
-    const a = app(prisma);
+    const a = await app(prisma);
     const on = await request(a)
       .patch('/admin/dzhura/chats/2')
       .set(auth)
@@ -261,7 +262,7 @@ describe('/admin/dzhura', () => {
 
   test('PATCH автовідповідь: лише особистий чат із «Читати»; секунди й підказка', async () => {
     const { prisma, updates } = makeStub();
-    const a = app(prisma);
+    const a = await app(prisma);
     const list = await request(a).get('/admin/dzhura/chats?kind=all').set(auth).expect(200);
     expect(list.body[2]).toMatchObject({ id: 3, autoReplyEnabled: false, autoReplyDelaySec: 80, autoReplyNote: null });
 
@@ -298,7 +299,7 @@ describe('/admin/dzhura', () => {
 
   test('POST jobs autoreply_preview: особистий чат із «Читати» і ключем Claude', async () => {
     const { prisma, chats } = makeStub();
-    const a = app(prisma);
+    const a = await app(prisma);
     const prevKey = process.env.ANTHROPIC_API_KEY;
     const send = (chatId: number) => request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'autoreply_preview', chatId });
     try {
@@ -322,7 +323,7 @@ describe('/admin/dzhura', () => {
 
   test('POST jobs: sync_dialogs і backfill з валідацією', async () => {
     const { prisma, jobs } = makeStub();
-    const a = app(prisma);
+    const a = await app(prisma);
     const sync = await request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'sync_dialogs' }).expect(201);
     expect(sync.body.job).toMatchObject({ id: 1, type: 'sync_dialogs', status: 'pending', params: null });
 
@@ -351,13 +352,13 @@ describe('/admin/dzhura', () => {
       status: 'running',
       paramsJson: null,
     });
-    const res = await request(app(prisma)).post('/admin/dzhura/jobs').set(auth).send({ type: 'sync_dialogs' }).expect(409);
+    const res = await request(await app(prisma)).post('/admin/dzhura/jobs').set(auth).send({ type: 'sync_dialogs' }).expect(409);
     expect(res.body.error).toMatch(/№7/);
   });
 
   test('GET export: файл JSON із заголовками, BigInt як рядки', async () => {
     const { prisma } = makeStub();
-    const res = await request(app(prisma))
+    const res = await request(await app(prisma))
       .get('/admin/dzhura/chats/2/export?from=2026-09-25&to=2026-09-25')
       .set(auth)
       .expect(200);
@@ -366,6 +367,6 @@ describe('/admin/dzhura', () => {
     const body = JSON.parse(res.text);
     expect(body.project).toBe('dzhura');
     expect(body.messages[0]).toMatchObject({ tgMessageId: '77', replyToTgMessageId: '70', sender: { tgUserId: '200' } });
-    await request(app(prisma)).get('/admin/dzhura/chats/2/export?from=bad&to=2026-09-25').set(auth).expect(400);
+    await request(await app(prisma)).get('/admin/dzhura/chats/2/export?from=bad&to=2026-09-25').set(auth).expect(400);
   });
 });

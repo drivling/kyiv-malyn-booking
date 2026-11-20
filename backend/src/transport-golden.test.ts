@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import { createApp } from './create-app';
 import { convertLegacyRuntime, replaceTransportDataset, validateTransportDataset } from './local-transport';
 import { recordTransportRevision } from './transport-revisions';
@@ -38,7 +39,7 @@ async function snapshot(): Promise<Golden> {
   await replaceTransportDataset(store.prisma, dataset);
   await recordTransportRevision(store.prisma, { source: 'seed', previous: null });
 
-  const app = createApp({ prisma: store.prisma, adminPassword: 'golden-test-password' });
+  const app = await listenLocal(createApp({ prisma: store.prisma, adminPassword: 'golden-test-password' }));
   const routeId = dataset.routes[0].id;
   const stopId = dataset.stops[0].id;
   const paths = [

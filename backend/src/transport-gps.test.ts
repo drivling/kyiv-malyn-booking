@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
 import request from 'supertest';
+import { listenLocal } from './http-test-server';
 import type { PrismaClient } from '@prisma/client';
 import { createApp } from './create-app';
 import { adminAuthToken } from './middleware/require-admin';
@@ -110,7 +111,7 @@ test('listGpsPositions + GET /admin/transport/gps: лише місто запи�
   assert.deepEqual(one.positions.map((p) => p.vehicleId), ['b']);
   assert.equal(all.truncated, false);
 
-  const app = createApp({ prisma, adminPassword: 'gps-test' });
+  const app = await listenLocal(createApp({ prisma, adminPassword: 'gps-test' }));
   await request(app).get('/admin/transport/gps?city=Korosten').expect(401);
   const res = await request(app)
     .get('/admin/transport/gps?city=Korosten&from=2026-11-17T00:00:00Z&to=2026-11-17T08:00:00Z&route=2%D0%91')
