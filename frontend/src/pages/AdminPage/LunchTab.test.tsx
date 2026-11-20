@@ -4,8 +4,9 @@
  * «Оплатив» і правка нашої відповіді в групі.
  */
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
@@ -95,7 +96,23 @@ async function peoplePanel(): Promise<HTMLElement> {
 }
 
 async function orderRow(name: string): Promise<HTMLElement> {
-  return (await screen.findByText(name, { selector: 'td' })).closest('tr') as HTMLElement;
+  return within(await screen.findByRole('list', { name: 'Замовлення' })).getByRole('listitem', { name });
+}
+
+function Shell({ ocrComparePollMs }: { ocrComparePollMs?: number }) {
+  const { section } = useParams<{ section?: string }>();
+  return <LunchTab section={section} ocrComparePollMs={ocrComparePollMs} />;
+}
+
+/** Вкладка на своїй адресі: `/admin/lunch`, `/admin/lunch/dishes`, `?only=debt` */
+function renderTab(path = '/admin/lunch', ocrComparePollMs?: number) {
+  return render(
+    <MemoryRouter initialEntries={[path]}>
+      <Routes>
+        <Route path="/admin/:tab?/:section?" element={<Shell ocrComparePollMs={ocrComparePollMs} />} />
+      </Routes>
+    </MemoryRouter>
+  );
 }
 
 function useHandlers(opts: { summary?: LunchDaySummary; people?: LunchDayPeople | 'fail' } = {}) {
@@ -115,7 +132,7 @@ describe('LunchTab · розбір окремої людини', () => {
   it('панель показує лише тих, у кого немає замовлення; «і з замовленням» розкриває решту', async () => {
     useHandlers();
     const user = userEvent.setup();
-    render(<LunchTab />);
+    renderTab();
 
     expect(await screen.findByText(/Писали в групі сьогодні · без замовлення \(1\)/)).toBeInTheDocument();
     const panel = screen.getByText(/Писали в групі сьогодні/).closest('section') as HTMLElement;
@@ -160,7 +177,7 @@ describe('LunchTab · розбір окремої людини', () => {
       })
     );
     const user = userEvent.setup();
-    render(<LunchTab />);
+    renderTab();
 
     await user.click(within(await peoplePanel()).getByRole('button', { name: 'Розібрати' }));
 
@@ -182,7 +199,7 @@ describe('LunchTab · розбір окремої людини', () => {
       })
     );
     const user = userEvent.setup();
-    render(<LunchTab />);
+    renderTab();
     const panel = await peoplePanel();
     await user.click(within(panel).getByRole('checkbox', { name: /Підтвердження в групі/ }));
     await user.click(within(panel).getByRole('button', { name: 'Розібрати' }));
@@ -207,7 +224,7 @@ describe('LunchTab · розбір окремої людини', () => {
       )
     );
     const user = userEvent.setup();
-    render(<LunchTab />);
+    renderTab();
     await user.click(within(await peoplePanel()).getByRole('button', { name: 'Розібрати' }));
     expect(await screen.findByText(/нічого схожого на замовлення чи оплату не знайдено/)).toBeInTheDocument();
   });
@@ -222,7 +239,7 @@ describe('LunchTab · розбір окремої людини', () => {
       })
     );
     const user = userEvent.setup();
-    render(<LunchTab />);
+    renderTab();
     const row = await orderRow('Діана');
     await user.click(within(row).getByRole('button', { name: 'Розібрати' }));
     await screen.findByText(/Діана: розібрано/);
@@ -240,7 +257,7 @@ describe('LunchTab · розбір окремої людини', () => {
     );
     const user = userEvent.setup();
     const confirm = vi.spyOn(window, 'confirm');
-    render(<LunchTab />);
+    renderTab();
     const row = await orderRow('Діана');
 
     confirm.mockReturnValueOnce(false);
@@ -255,9 +272,9 @@ describe('LunchTab · розбір окремої людини', () => {
 
   it('якщо Джура недоступна — вкладка працює, панель просто порожня', async () => {
     useHandlers({ people: 'fail' });
-    render(<LunchTab />);
+    renderTab();
     expect(await screen.findByText(/Писали в групі сьогодні · без замовлення \(0\)/)).toBeInTheDocument();
-    expect(screen.getByText('Діана', { selector: 'td' })).toBeInTheDocument();
+    expect(await orderRow('Діана')).toBeInTheDocument();
   });
 
   it('синонім, що лежить на двох стравах, підсвічений як конфлікт', async () => {
@@ -283,8 +300,8 @@ describe('LunchTab · розбір окремої людини', () => {
         },
       ]),
     });
-    const { container } = render(<LunchTab />);
-    await screen.findByText(/База страв \(3\)/);
+    const { container } = renderTab('/admin/lunch/dishes');
+    await screen.findByRole('list', { name: 'База страв' });
     const conflicts = container.querySelectorAll('.lunch-syn-chip--conflict');
     expect(conflicts).toHaveLength(2);
     expect(container.querySelectorAll('.lunch-syn-chip')).toHaveLength(3);
@@ -309,7 +326,7 @@ describe('LunchTab · наша відповідь у групі', () => {
       })
     );
     const user = userEvent.setup();
-    render(<LunchTab />);
+    renderTab();
 
     await user.click(within(await orderRow('Діана')).getByRole('button', { name: 'Оплатив' }));
 
@@ -332,7 +349,7 @@ describe('LunchTab · наша відповідь у групі', () => {
       )
     );
     const user = userEvent.setup();
-    render(<LunchTab />);
+    renderTab();
     await user.click(within(await orderRow('Діана')).getByRole('button', { name: 'Оплатив' }));
     expect(await screen.findByText(/нашої відповіді в групі немає/)).toBeInTheDocument();
   });
@@ -358,7 +375,7 @@ describe('LunchTab · наша відповідь у групі', () => {
       )
     );
     const user = userEvent.setup();
-    render(<LunchTab />);
+    renderTab();
     await user.click(within(await peoplePanel()).getByRole('button', { name: 'Розібрати' }));
     const report = await screen.findByRole('region', { name: 'Звіт розбору' });
     expect(within(report).getByText(/нашу відповідь у групі поставлено в чергу на правку/)).toBeInTheDocument();
@@ -381,10 +398,12 @@ describe('LunchTab · чеки, готівка і порівняння моде�
       http.get(`${API}/today`, () => HttpResponse.json(summary)),
       http.get(`${API}/day-people`, () => HttpResponse.json(people)),
     );
-    render(<LunchTab />);
-    const debts = (await screen.findByText(/Борги \(1\)/)).nextElementSibling as HTMLElement;
-    expect(within(debts).getByText(/45 грн · 💵 готівкою/)).toBeInTheDocument();
+    renderTab();
+    const debt = (await screen.findByText('Борг')).closest('a') as HTMLElement;
+    expect(debt).toHaveAttribute('href', '/admin/lunch?only=debt');
+    expect(debt).toHaveTextContent('45 грн людей 1 · готівкою 1');
     expect(screen.getByTitle('Написав(ла), що віддасть готівкою')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Винні 1' })).toBeInTheDocument();
     const payments = screen.getByRole('list', { name: 'Оплати за день' });
     expect(within(payments).getByText(/сума з чека \(фото \/ PDF\)/)).toBeInTheDocument();
     expect(within(payments).getByText(/посилання на чек — суму не перевірено/)).toBeInTheDocument();
@@ -441,9 +460,8 @@ describe('LunchTab · чеки, готівка і порівняння моде�
       }),
     );
     const user = userEvent.setup();
-    render(<LunchTab ocrComparePollMs={10} />);
-    await screen.findByText(/Борги \(1\)/);
-    expect(screen.getByLabelText('День для порівняння моделей')).toHaveValue('2026-10-02'); // день з адмінки
+    renderTab('/admin/lunch/models', 10);
+    await waitFor(() => expect(screen.getByLabelText('День для порівняння моделей')).toHaveValue('2026-10-02')); // день з адмінки
 
     await user.click(screen.getByRole('button', { name: 'Порівняти моделі' }));
     const table = await screen.findByRole('table', { name: 'Порівняння моделей за 2026-10-02' });
@@ -473,12 +491,85 @@ describe('LunchTab · чеки, готівка і порівняння моде�
       ),
     );
     const user = userEvent.setup();
-    render(<LunchTab ocrComparePollMs={10} />);
-    await screen.findByText(/Борги \(1\)/);
+    renderTab('/admin/lunch/models', 10);
+    await waitFor(() => expect(screen.getByLabelText('День для порівняння моделей')).toHaveValue('2026-10-02'));
     await user.click(screen.getByRole('button', { name: 'Порівняти моделі' }));
     expect(await screen.findByText('У бекенда немає ANTHROPIC_API_KEY')).toBeInTheDocument();
     fail = false;
     await user.click(screen.getByRole('button', { name: 'Порівняти моделі' }));
     expect(await screen.findByText('Не вдалося: слухача перезапущено — запустіть ще раз')).toBeInTheDocument();
+  });
+});
+
+describe('LunchTab · плитки, розділи й фільтри', () => {
+  const problem: LunchOrderRow = { ...order, id: 902, participantId: 52, displayName: 'Ігор', unmatchedText: 'компот', paidUah: 45, debtUah: 0 };
+
+  it('плитки дня, розділи з лічильниками й фільтр «Перевірити» з адреси', async () => {
+    useHandlers({ summary: summaryWith([order, problem]), people: 'fail' });
+    renderTab('/admin/lunch?only=problems');
+    const list = await screen.findByRole('list', { name: 'Замовлення' });
+    expect(within(list).getAllByRole('listitem').map((li) => li.getAttribute('aria-label'))).toEqual(['Ігор']);
+    expect(within(list).getByText('не розпізнано: компот')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Перевірити 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect((screen.getByText('Перевірити', { selector: '.admin-kit-tile-label' }).closest('a') as HTMLElement)).toHaveAttribute(
+      'href',
+      '/admin/lunch?only=problems'
+    );
+    const nav = screen.getByRole('navigation', { name: 'Розділи «Столова»' });
+    expect(within(nav).getAllByRole('link').map((a) => a.textContent)).toEqual(['Сьогодні', 'Меню 2', 'Страви', 'Моделі']);
+    expect(screen.getByRole('group', { name: 'День' })).toHaveTextContent('приймаємо замовлення');
+  });
+
+  it('«Закрити день» шле статус; «Розібрати весь день заново» спершу питає', async () => {
+    useHandlers({ people: 'fail' });
+    const statuses: unknown[] = [];
+    let reparsed = 0;
+    server.use(
+      http.post(`${API}/status`, async ({ request }) => {
+        statuses.push(await request.json());
+        return HttpResponse.json({ ok: true, day: { id: 1, date: '2026-10-02', status: 'closed' } });
+      }),
+      http.post(`${API}/reparse`, () => {
+        reparsed += 1;
+        return HttpResponse.json({ ok: true, reparse: {}, summary: summaryWith([order]) });
+      })
+    );
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const user = userEvent.setup();
+    renderTab();
+    await orderRow('Діана');
+    await user.click(screen.getByRole('button', { name: 'Розібрати весь день заново' }));
+    expect(confirm).toHaveBeenCalled();
+    expect(reparsed).toBe(0);
+    await user.click(screen.getByRole('button', { name: 'Закрити день' }));
+    await screen.findByText('День закрито.');
+    expect(statuses).toEqual([{ status: 'closed' }]);
+  });
+
+  it('база страв: фільтр конфліктів і пошук за синонімом', async () => {
+    useHandlers({
+      summary: summaryWith([], [
+        { id: 1, name: 'Пюре', priceUah: 40, trayRole: 'second', synonyms: [{ id: 9, rawText: 'картопля', rawNorm: 'картопля' }] },
+        { id: 2, name: 'Салат грецький', priceUah: 60, trayRole: 'salad', synonyms: [{ id: 10, rawText: 'олівʼє', rawNorm: 'оліве' }] },
+        { id: 3, name: "Салат Олів'є", priceUah: 50, trayRole: 'salad', synonyms: [{ id: 11, rawText: 'олівʼє', rawNorm: 'оліве' }] },
+      ]),
+      people: 'fail',
+    });
+    const user = userEvent.setup();
+    renderTab('/admin/lunch/dishes');
+    const names = () => within(screen.getByRole('list', { name: 'База страв' })).getAllByRole('listitem').map((li) => li.querySelector('strong')?.textContent);
+    await screen.findByRole('list', { name: 'База страв' });
+    expect(names()).toEqual(['Пюре', 'Салат грецький', "Салат Олів'є"]);
+    await user.click(screen.getByRole('button', { name: 'З конфліктом 2' }));
+    expect(names()).toEqual(['Салат грецький', "Салат Олів'є"]);
+    await user.click(screen.getByRole('button', { name: 'Усі 3' }));
+    await user.type(screen.getByRole('searchbox', { name: 'Пошук страви' }), 'картоп');
+    expect(names()).toEqual(['Пюре']);
+  });
+
+  it('невідомий розділ веде на «Сьогодні»', async () => {
+    useHandlers({ people: 'fail' });
+    renderTab('/admin/lunch/whatever');
+    expect(await orderRow('Діана')).toBeInTheDocument();
   });
 });

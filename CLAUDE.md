@@ -124,7 +124,9 @@ of `dist` in a commit.
   and is attached **inside** `lunch.listener` (one Telethon session per account, never a second
   process); Node only reads/flags via `src/dzhura.ts` + `routes/admin-dzhura.ts` (`/admin/dzhura`).
   The lunch admin tab reads the captured lunch-group messages too (`src/lunch-people.ts`: «who wrote today»
-  → per-person reparse job). Invariants: never call `send_read_acknowledge`/`mark_read`, typing or online status; never write
+  → per-person reparse job). That tab («Столова», `AdminPage/LunchTab.tsx` on the shared admin kit, pure helpers in
+  `AdminPage/lunch/lunchText.ts`) has sections `/admin/lunch` (day, orders with `?only=problems|debt`, who wrote, payments),
+  `menu`, `dishes`, `models`. Invariants: never call `send_read_acknowledge`/`mark_read`, typing or online status; never write
   into a captured chat. The only Telegram output is the shared `LunchOutboundMessage` queue, whose
   `target` column routes rows to the lunch group (`lunch`, markdown) or the owner's Saved Messages
   (`saved`, HTML).

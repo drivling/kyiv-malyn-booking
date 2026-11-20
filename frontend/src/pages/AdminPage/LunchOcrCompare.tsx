@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { apiClient } from '@/api/client';
-import { Button } from '@/components/Button';
 import type { LunchOcrCompareJob, LunchOcrCompareResult } from '@/types';
 
 /**
@@ -97,7 +96,7 @@ export const LunchOcrCompare: React.FC<Props> = ({ defaultDate, pollIntervalMs =
   const report = job?.status === 'done' ? job.result : null;
 
   return (
-    <section className="lunch-card">
+    <section className="lunch-block">
       <h3 className="lunch-card__title">Моделі розпізнавання: порівняти на фото дня</h3>
       <p className="lunch-card__hint">
         Фото меню, чеки й PDF з групи за вибраний день проходять через три моделі Claude. Видно, де дешева
@@ -113,9 +112,9 @@ export const LunchOcrCompare: React.FC<Props> = ({ defaultDate, pollIntervalMs =
             onChange={(e) => setDate(e.target.value)}
           />
         </label>
-        <Button type="button" variant="secondary" onClick={() => void start()} disabled={busy}>
+        <button type="button" className="admin-kit-btn" onClick={() => void start()} disabled={busy}>
           {busy ? 'Моделі працюють…' : 'Порівняти моделі'}
-        </Button>
+        </button>
       </div>
       {error && <p className="lunch-debt">{error}</p>}
       {job?.status === 'failed' && <p className="lunch-debt">Не вдалося: {job.error}</p>}
