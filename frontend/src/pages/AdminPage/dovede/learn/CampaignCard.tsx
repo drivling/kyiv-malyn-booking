@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { DovedeCampaign, DovedeCampaignDetail } from '@/types';
 import { StatusPill } from '../../kit';
-import { campaignState, isActive, isOpen, num, planText } from './campaignText';
+import { MAX_DAILY, campaignState, isActive, isOpen, num, planText } from './campaignText';
 import { hoursText } from './hours';
 
 const ASK_STATUS: Record<string, string> = {
@@ -112,19 +112,22 @@ const CampaignDetails: React.FC<{ id: number; version: string }> = ({ id, versio
 export const CampaignCard: React.FC<{ c: DovedeCampaign; onChange: (c: DovedeCampaign) => void }> = ({ c, onChange }) => {
   const [open, setOpen] = useState(false);
   const [extend, setExtend] = useState<string | null>(null);
+  // нова денна частка: null — поле згорнуте
+  const [daily, setDaily] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [tone, label, why] = campaignState(c);
   const pct = c.budget ? Math.min(100, Math.round((c.googleCalls / c.budget) * 100)) : 0;
   const reopenable = isOpen(c) || (c.status === 'done' && c.stopReason === 'budget');
 
-  const act = async (action: 'pause' | 'resume' | 'cancel' | 'extend' | 'archive', extra: { budget?: number } = {}) => {
+  const act = async (action: 'pause' | 'resume' | 'cancel' | 'extend' | 'archive', extra: { budget?: number; dailyBudget?: number } = {}) => {
     if (action === 'cancel' && !window.confirm(`Скасувати «${c.title}»? Знайдене лишиться в базі, продовжити кампанію вже не можна.`)) return;
     setBusy(true);
     setError('');
     try {
       const next = await apiClient.dovedeCampaignAction(c.id, action, extra);
       setExtend(null);
+      setDaily(null);
       onChange(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не вдалося');
@@ -135,6 +138,8 @@ export const CampaignCard: React.FC<{ c: DovedeCampaign; onChange: (c: DovedeCam
 
   const more = Number(extend);
   const extendOk = extend !== null && Number.isInteger(more) && more > 0;
+  const perDay = Number(daily);
+  const dailyOk = daily !== null && Number.isInteger(perDay) && perDay >= 1 && perDay <= MAX_DAILY && perDay !== c.dailyBudget;
 
   return (
     <article className={`dv-learn-card dv-learn-campaign${isActive(c) && !c.queuedBehind ? ' is-active' : ''}`} aria-label={c.title}>
@@ -198,6 +203,29 @@ export const CampaignCard: React.FC<{ c: DovedeCampaign; onChange: (c: DovedeCam
               <button type="button" className="admin-kit-linkbtn" onClick={() => setExtend(null)}>
                 скасувати
               </button>
+            </span>
+          )
+        ) : null}
+        {isOpen(c) ? (
+          daily === null ? (
+            <button type="button" className="dovede-log-chip" disabled={busy} onClick={() => setDaily(String(c.dailyBudget))}>
+              На добу
+            </button>
+          ) : (
+            <span className="dv-learn-extend">
+              <label>
+                на добу, не більше{' '}
+                <input type="number" inputMode="numeric" min={1} max={MAX_DAILY} value={daily} aria-label="Скільки запитів до Google на добу" aria-invalid={!dailyOk} onChange={(ev) => setDaily(ev.target.value)} />
+              </label>
+              <button type="button" className="admin-kit-btn" disabled={busy || !dailyOk} onClick={() => void act('extend', { dailyBudget: perDay })}>
+                Зберегти
+              </button>
+              <button type="button" className="admin-kit-linkbtn" onClick={() => setDaily(null)}>
+                скасувати
+              </button>
+              <small className="dv-learn-hint">
+                від 1 до {num(MAX_DAILY)}; сьогодні вже {num(c.spentToday)}. Понад загальний денний ліміт Google (мінус запас для людей) кампанія не піде — він у «Налаштуваннях».
+              </small>
             </span>
           )
         ) : null}

@@ -329,6 +329,25 @@ test('бюджет: вичерпано — кампанія завершена; 
   assert.equal(v.googleCalls, 3);
 });
 
+test('денна частка: підняли понад витрачене сьогодні — кампанія йде далі одразу; не вище витраченого — чекає', async () => {
+  const t = make(() => ({ answer: fail('no_route'), google: true }));
+  const c = await t.svc.create({ ...CUSTOM, options: { ...CUSTOM.options, places: 'А1 місце\nБ2 місце\nВ3 місце', extra: '' }, dailyBudget: 1 });
+  await untilIdle(t.svc);
+  let v = (await t.svc.get(c.id))!;
+  assert.deepEqual([v.status, v.waitReason, v.spentToday], ['waiting', 'daily', 1]);
+
+  // та сама частка, що вже витрачена, нічого не дає
+  const same = await t.svc.action(c.id, 'extend', { dailyBudget: 1 });
+  assert.equal(typeof same === 'object' && same?.status, 'waiting');
+  // більша — знімає очікування, і кампанія доходить до кінця того ж дня
+  const more = await t.svc.action(c.id, 'extend', { dailyBudget: 5 });
+  assert.deepEqual(typeof more === 'object' && more ? [more.status, more.waitUntil, more.dailyBudget] : null, ['running', null, 5]);
+  await untilIdle(t.svc);
+  v = (await t.svc.get(c.id))!;
+  assert.deepEqual([v.status, v.googleCalls], ['done', 3]);
+  assert.equal(await t.svc.action(c.id, 'extend', { dailyBudget: 0 }), 'На добу: ціле від 1 до 5000');
+});
+
 test('денна частка: витрачено — чекаємо до півночі за Києвом; наступного дня — далі', async () => {
   const t = make(() => ({ answer: fail('no_route'), google: true }));
   const c = await t.svc.create({ ...CUSTOM, options: { ...CUSTOM.options, places: 'А1 місце\nБ2 місце', extra: '' }, dailyBudget: 1 });

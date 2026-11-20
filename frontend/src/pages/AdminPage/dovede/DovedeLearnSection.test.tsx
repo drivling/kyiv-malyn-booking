@@ -144,10 +144,10 @@ function mock(campaigns: DovedeCampaign[] = []) {
       return HttpResponse.json(c, { status: 201 });
     }),
     http.post(`${TEST_API_URL}/admin/dovede/city/campaigns/:id/action`, async ({ request, params }) => {
-      const body = (await request.json()) as { action: string; budget?: number };
+      const body = (await request.json()) as { action: string; budget?: number; dailyBudget?: number };
       calls.push({ path: `action:${params.id}`, body });
       const c = list.find((x) => x.id === Number(params.id))!;
-      const next = { ...c, ...(body.action === 'pause' ? { status: 'paused' } : body.action === 'cancel' ? { status: 'cancelled', stopReason: 'cancelled' } : body.action === 'extend' ? { budget: body.budget!, status: 'running', stopReason: null } : {}) };
+      const next = { ...c, ...(body.action === 'pause' ? { status: 'paused' } : body.action === 'cancel' ? { status: 'cancelled', stopReason: 'cancelled' } : body.action === 'extend' ? { budget: body.budget ?? c.budget, dailyBudget: body.dailyBudget ?? c.dailyBudget, waitReason: null, waitUntil: null, status: 'running', stopReason: null } : {}) };
       list = list.map((x) => (x.id === c.id ? next : x));
       return HttpResponse.json(next);
     }),
@@ -309,6 +309,35 @@ describe('DovedeLearnSection', () => {
     // знову відкрита — переїхала до відкритих
     await waitFor(() => expect(within(screen.getByRole('article', { name: 'Дообучити: вечір — Київ' })).getByText('Іде')).toBeInTheDocument());
     expect(screen.queryByRole('heading', { name: 'Завершені' })).toBeNull();
+  });
+
+  it('«На добу»: денну частку кампанії, що чекає до завтра, можна підняти — і вона йде далі', async () => {
+    const calls = mock([campaign({ id: 7, title: 'Дообучити: вихідні — Київ', status: 'waiting', waitReason: 'daily', waitUntil: '2026-11-20T22:01:00.000Z', budget: 5070, dailyBudget: 980, googleCalls: 980, spentToday: 980 })]);
+    const user = userEvent.setup();
+    renderSection();
+    const card = await screen.findByRole('article', { name: 'Дообучити: вихідні — Київ' });
+    expect(within(card).getByText('сьогодні 980 з 980')).toBeInTheDocument();
+    expect(within(card).getByText(/денну частку кампанії витрачено/)).toBeInTheDocument();
+
+    await user.click(within(card).getByRole('button', { name: 'На добу' }));
+    const field = within(card).getByLabelText('Скільки запитів до Google на добу');
+    // поле відкривається з поточним числом; те саме число, нуль і понад межу зберегти не можна
+    expect(field).toHaveValue(980);
+    const save = within(card).getByRole('button', { name: 'Зберегти' });
+    expect(save).toBeDisabled();
+    for (const bad of ['0', '5001', '12.5']) {
+      await user.clear(field);
+      await user.type(field, bad);
+      expect(save, bad).toBeDisabled();
+    }
+    await user.clear(field);
+    await user.type(field, '2000');
+    await user.click(save);
+    await waitFor(() => expect(actions(calls)).toEqual([{ path: 'action:7', body: { action: 'extend', dailyBudget: 2000 } }]));
+    expect(await within(card).findByText('Іде')).toBeInTheDocument();
+    expect(within(card).getByText('сьогодні 980 з 2 000')).toBeInTheDocument();
+    // поле згорнулося
+    expect(within(card).queryByLabelText('Скільки запитів до Google на добу')).toBeNull();
   });
 
   it('«Освіжити застаріле»: годин і глибини не вибирають — як у застарілих відповідях', async () => {
