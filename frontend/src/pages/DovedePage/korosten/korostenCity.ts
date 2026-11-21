@@ -13,8 +13,9 @@ import type { GazetteerPlace } from '../nlu/gazetteer';
 import type { StopLike, StopPlace } from '../nlu/stopPlaces';
 import { resolvePlace } from '../nlu/places';
 import { tokenize } from '../nlu/normalize';
+import { DETAIL_FROM_PREPS, FROM_PREPS, NOT_DETAIL_RE, TO_PREPS, nominative } from '../nlu/cityDetail';
 import type { ParseSpan, PlaceRef, TripIntent } from '../nlu/types';
-import type { TripShape } from '../compose/composeStories';
+import type { CityEndRef, TripShape } from '../compose/composeStories';
 import { KOROSTEN_ALIASES, korostenStopGroups } from './korostenPlaces';
 
 export { KOROSTEN_ALIASES } from './korostenPlaces';
@@ -199,13 +200,91 @@ function remapRef(ref: PlaceRef | null, unknown: string[]): PlaceRef | null {
   if (resolvePlace(ref.id)?.city === KOROSTEN) return ref;
   const mapped = MALYN_TO_KOROSTEN[ref.id];
   if (mapped) return { ...ref, id: mapped };
-  // місто Коростень саме по собі («в Коростені») — не точка поїздки; решта (малинські місця, вулиці, Київ) — невідоме
-  if (ref.id !== 'city.Korosten') unknown.push(ref.text);
+  // місто Коростень саме по собі («в Коростені») — не точка поїздки; з місцем словами (`detail`) — кінець, до якого
+  // дорогу дає сервер; решта (малинські місця, вулиці, Київ) — невідоме
+  if (ref.id === 'city.Korosten') return ref.detail ? ref : null;
+  unknown.push(ref.text);
   return null;
 }
 
+/** Слова, що після прийменника означають транспорт, час чи мету, а не місце в місті */
+const NOT_PLACE_RE = /^(маршрут|автобус|автобуc|електричк|электричк|попутк|таксі|такси|пішки|пешком|годин|хвилин|минут|роботу|работу|додому|домой|рейс|час|зупинк|остановк|місті|городе)/;
+const MAX_PLACE_WORDS = 5;
+
+interface SaidPlace {
+  role: 'from' | 'to';
+  /** слова людини як є (для підсвітки й невідомих слів) */
+  raw: string;
+  /** те саме в називному відмінку — це йде серверу */
+  words: string;
+}
+
+/**
+ * Місця, названі словами після «з / від» і «до / на / в»: до пʼяти слів до наступного прийменника чи слова про час і
+ * транспорт. Місто тут мається на увазі (режим Коростеня), тому назви міста не шукаємо.
+ */
+export function saidPlaces(text: string): SaidPlace[] {
+  const toks = tokenize(text);
+  const out: SaidPlace[] = [];
+  for (let i = 0; i < toks.length - 1; i++) {
+    const role = DETAIL_FROM_PREPS.has(toks[i].n) ? 'from' : TO_PREPS.has(toks[i].n) ? 'to' : null;
+    if (!role) continue;
+    let j = i + 1;
+    while (j < toks.length && j - i <= MAX_PLACE_WORDS) {
+      const n = toks[j].n;
+      if (FROM_PREPS.has(n) || TO_PREPS.has(n) || NOT_DETAIL_RE.test(n) || NOT_PLACE_RE.test(n) || /^\d{1,2}[:.]\d{2}$/.test(n)) break;
+      j++;
+    }
+    if (j === i + 1) continue;
+    const raw = text.slice(toks[i + 1].start, toks[j - 1].end).replace(/\s+/g, ' ').trim();
+    // місце — це хоча б одне слово з літер (не «на 9», не «до 5»)
+    if (!/\p{L}{3,}/u.test(raw)) continue;
+    out.push({ role, raw, words: raw.replace(/[\p{L}'’ʼ]+/gu, nominative) });
+    i = j - 1;
+  }
+  return out;
+}
+
+const covers = (ref: PlaceRef | null, raw: string): boolean => Boolean(ref) && ref!.text.toLowerCase().includes(raw.toLowerCase().split(' ')[0]);
+
+/**
+ * Кінець поїздки, якого словник Коростеня не знає (адреса, магазин), — місце словами: `city.Korosten` + `detail`.
+ * Дорогу до нього дає сервер (`/dovede/city-route`, крок 3 плану навчання). Слова беремо з фрази після прийменника,
+ * а коли її немає — єдине невідоме слово розбору (так його віддає і Claude). Кінці, які словник знає, не чіпаємо.
+ */
+export function withKorostenWords(intent: TripIntent, text: string): TripIntent {
+  if (intent.from && intent.to) return intent;
+  if (intent.intent === 'route' || intent.intent === 'price' || intent.intent === 'contact' || intent.intent === 'other') return intent;
+  const said = saidPlaces(text).filter((p) => !covers(intent.from, p.raw) && !covers(intent.to, p.raw));
+  let from = intent.from;
+  let to = intent.to;
+  const used: string[] = [];
+  const take = (role: 'from' | 'to'): PlaceRef | null => {
+    const p = said.find((x) => x.role === role);
+    if (!p) return null;
+    used.push(p.raw.toLowerCase());
+    return { id: 'city.Korosten', text: p.raw, detail: p.words };
+  };
+  if (!from) from = take('from');
+  if (!to) to = take('to');
+  // фрази немає, а невідоме слово одне й порожній кінець один — це воно
+  if (intent.unknown.length === 1 && !used.length && Boolean(from) !== Boolean(to)) {
+    const word = intent.unknown[0].replace(/\s+/g, ' ').trim();
+    const ref: PlaceRef = { id: 'city.Korosten', text: word, detail: word.replace(/[\p{L}'’ʼ]+/gu, nominative) };
+    if (word.length >= 2) {
+      used.push(word.toLowerCase());
+      if (!from) from = ref;
+      else to = ref;
+    }
+  }
+  if (from === intent.from && to === intent.to) return intent;
+  const unknown = intent.unknown.filter((w) => !used.some((u) => u.includes(w.toLowerCase()) || w.toLowerCase().includes(u)));
+  return { ...intent, from, to, unknown };
+}
+
 /** Намір словника → намір у Коростені: місця лише коростенські, маршрути — номери Коростеня (їх `parseLocal` бере з `routes`) */
-export function remapForKorosten(intent: TripIntent): TripIntent {
+export function remapForKorosten(intent: TripIntent, text?: string): TripIntent {
+  if (text != null) return withKorostenWords(remapForKorosten(intent), text);
   const unknown = [...intent.unknown];
   const from = remapRef(intent.from, unknown);
   const to = remapRef(intent.to, unknown);
@@ -216,13 +295,30 @@ export function remapForKorosten(intent: TripIntent): TripIntent {
 
 /** Форма відповіді для питання в Коростені: поїздка містом, картка маршруту або уточнення */
 export function korostenShape(intent: TripIntent): TripShape {
-  const from = intent.from ? resolvePlace(intent.from.id) ?? null : null;
-  const to = intent.to ? resolvePlace(intent.to.id) ?? null : null;
+  // місце словами (`city.Korosten` + `detail`) — не зупинка: для планувальника цього кінця немає
+  const stop = (ref: PlaceRef | null): GazetteerPlace | null => {
+    const p = ref ? resolvePlace(ref.id) ?? null : null;
+    return p && !p.isCity ? p : null;
+  };
+  const end = (ref: PlaceRef | null): CityEndRef | null => {
+    const p = stop(ref);
+    if (p) return { id: p.id };
+    const words = ref?.id === 'city.Korosten' ? (ref.detail ?? '').trim() : '';
+    return words ? { words } : null;
+  };
+  const from = stop(intent.from);
+  const to = stop(intent.to);
   const routeIds = intent.routes ?? [];
   if (routeIds.length && (intent.intent === 'route' || !(from && to))) {
     return { kind: 'route_info', routeIds, stop: from ?? to ?? null };
   }
   if (intent.intent === 'price' || intent.intent === 'contact' || intent.intent === 'other') return { kind: 'not_trip', intent: 'other' };
+  // хоча б один кінець названо словами — дорогу містом дає сервер
+  const a = end(intent.from);
+  const b = end(intent.to);
+  if (a && b && ('words' in a || 'words' in b) && !('words' in a && 'words' in b && a.words.toLowerCase() === b.words.toLowerCase())) {
+    return { kind: 'city', far: 'Korosten', from: a, to: b };
+  }
   if (intent.unknown.length && (!from || !to)) return { kind: 'unknown_place', words: intent.unknown };
   if (!to) return { kind: 'ask_to' };
   if (!from) return { kind: 'ask_from', dest: to };

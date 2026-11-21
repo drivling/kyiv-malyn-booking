@@ -165,7 +165,7 @@ export type StoryLeg =
     }
   | { kind: 'wait'; text: string };
 
-export type CityCode = 'Kyiv' | 'Zhytomyr';
+export type CityCode = 'Kyiv' | 'Zhytomyr' | 'Korosten';
 
 /** Що питаємо в сервера: точка — id («zhytomyr.avtovokzal», «kyiv.akadem») або слова людини */
 export interface CityAsk {

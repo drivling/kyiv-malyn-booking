@@ -1016,7 +1016,8 @@ function cityEndOf(far: CityAsk['city'], ref: CityEndRef): CityEnd {
   const place = resolvePlace(ref.id);
   const label = point?.label ?? (place ? placeLabel(place) : ref.id);
   const maps = point?.mapsQuery ?? `${label}, ${cityName}`;
-  const serverKnows = Boolean(point?.metro) || ref.id === 'kyiv.borshch';
+  // Коростень: зупинку датасету сервер знає за її id (з координатами)
+  const serverKnows = Boolean(point?.metro) || ref.id === 'kyiv.borshch' || (far === 'Korosten' && /^st_\d+$/.test(ref.id));
   return { ask: serverKnows ? ref.id : maps.replace(new RegExp(`,\\s*${cityName}$`), ''), label, maps };
 }
 

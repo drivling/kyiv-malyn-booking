@@ -22,6 +22,7 @@ import {
   mentionsOtherCity,
   namesKorostenAsEnd,
   remapForKorosten,
+  saidPlaces,
 } from './korostenCity';
 
 const routes = routesFile.routes as RouteLike[];
@@ -77,6 +78,46 @@ describe('«Доведе» в Коростені: місця й форма ві�
     expect(intent.from).toBeNull();
     expect(intent.to?.id).toBe('st_1001');
     expect(shape.kind).toBe('unknown_place');
+  });
+
+  it('місце словами (крок 3 навчання): зупинка + адреса — форма `city`, дорогу дає сервер; обидві зупинки — як і було', () => {
+    const said = (q: string) => {
+      const intent = remapForKorosten(parseLocal(q, now, index, routes).intent, q);
+      return { intent, shape: korostenShape(intent) };
+    };
+    // зупинка своїм id, адреса — словами в називному; маленькі літери теж
+    expect(said('з вокзалу на грушевського 22').shape).toEqual({ kind: 'city', far: 'Korosten', from: { id: 'st_1001' }, to: { words: 'грушевського 22' } });
+    expect(said('як доїхати від Шевченка 60 до вокзалу').shape).toEqual({ kind: 'city', far: 'Korosten', from: { words: 'Шевченка 60' }, to: { id: 'st_1001' } });
+    // обидва кінці словами
+    expect(said('з Шевченка 60 на Грушевського 22').shape).toEqual({ kind: 'city', far: 'Korosten', from: { words: 'Шевченка 60' }, to: { words: 'Грушевського 22' } });
+    // місце, якого словник Коростеня не знає («Царське село» — малинське), тепер теж іде серверу словами
+    const tsar = said('з Царського села до вокзалу');
+    expect(tsar.shape).toMatchObject({ kind: 'city', far: 'Korosten', to: { id: 'st_1001' } });
+    expect(tsar.intent.unknown).toEqual([]);
+    // обидва кінці — зупинки: свій планувальник, сервер не питаємо
+    expect(said('з Пашин до міськлікарні').shape).toMatchObject({ kind: 'intra' });
+    // куди є, звідки не сказано; маршрут; час і транспорт — не місця
+    expect(said('як доїхати до Грозиного').shape).toMatchObject({ kind: 'ask_from' });
+    expect(said('коли №4 на Грозине').shape).toMatchObject({ kind: 'route_info' });
+    expect(said('з вокзалу на 9 ранку').shape).toMatchObject({ kind: 'ask_to' });
+    expect(said('з вокзалу на автобусі').shape).toMatchObject({ kind: 'ask_to' });
+    expect(said('до вокзалу на завтра').shape).toMatchObject({ kind: 'ask_from' });
+  });
+
+  it('фрази після прийменників: до пʼяти слів, у називному відмінку; посилання з fd / td дає ту саму форму', () => {
+    expect(saidPlaces('з Шевченка 60 на Грушевського 22')).toEqual([
+      { role: 'from', raw: 'Шевченка 60', words: 'Шевченка 60' },
+      { role: 'to', raw: 'Грушевського 22', words: 'Грушевського 22' },
+    ]);
+    // відмінок знімає те саме правило, що й у Києві (`nominative`): «на Польову» → «Польова», решту шукає Google
+    expect(saidPlaces('до аптеки завтра о 9')).toEqual([{ role: 'to', raw: 'аптеки', words: 'аптеки' }]);
+    expect(saidPlaces('на Польову 12')[0].words).toBe('Польова 12');
+    expect(saidPlaces('привіт')).toEqual([]);
+    // так намір повертається з адреси (`paramsToIntent`): city.Korosten + detail
+    const fromUrl = { intent: 'trip' as const, from: { id: 'st_1001', text: 'вокзал' }, to: { id: 'city.Korosten', text: 'Коростень', detail: 'Грушевського 22' }, when: { day: 'today' as const, kind: 'depart' as const }, modes: [], unknown: [], confidence: 'high' as const };
+    expect(korostenShape(remapForKorosten(fromUrl))).toEqual({ kind: 'city', far: 'Korosten', from: { id: 'st_1001' }, to: { words: 'Грушевського 22' } });
+    // «в Коростені» без місця — як і раніше, не кінець поїздки
+    expect(korostenShape(remapForKorosten({ ...fromUrl, to: { id: 'city.Korosten', text: 'Коростень' } }))).toEqual({ kind: 'ask_to' });
   });
 
   it('куди — без звідки: питаємо звідки', () => {

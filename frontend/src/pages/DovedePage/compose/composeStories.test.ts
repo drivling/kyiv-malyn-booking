@@ -792,6 +792,37 @@ describe('У межах одного міста: місце словами — �
     expect(classify(intentOf({ id: 'kyiv.m.khreshchatyk', text: 'Хрещатик' }, { id: 'kyiv.akadem', text: 'Академмістечко' })).kind).toBe('kyiv');
   });
 
+  it('Коростень (крок 3 навчання): зупинка йде серверу своїм id, адреса — словами; відповідь — картка містом, без неї — посилання', () => {
+    const intent = intentOf({ id: 'st_1001', text: 'з вокзалу' }, { id: 'city.Korosten', text: 'Грушевського 22', detail: 'Грушевського 22' });
+    const shape = { kind: 'city', far: 'Korosten', from: { id: 'st_1001' }, to: { words: 'Грушевського 22' } } as const;
+    const run = (cityRoutes?: ReadonlyMap<string, CityRoute | null>) => composeStories({ intent, now: NOW, date: resolveDate(intent.when.day, NOW), schedules: [], planner: null, cityRoutes }, shape);
+    const first = run();
+    if (first.kind !== 'stories') throw new Error(first.kind);
+    const leg = cityLeg(first.stories[0]);
+    expect(leg.ask).toEqual({ city: 'Korosten', from: 'st_1001', to: 'Грушевського 22', date: '2026-11-13', time: '14:20' });
+    expect(cityAsks(first)).toEqual([leg.ask]);
+    expect(decodeURIComponent(leg.mapsUrl.replace(/\+/g, ' '))).toContain('destination=Грушевського 22, Коростень');
+    // сервер відповів: маршрутка й пішки — картками міста, без київського метро
+    const answer: CityRoute = {
+      source: 'google',
+      fromLabel: 'зупинка «Залізничний вокзал»',
+      toLabel: 'Грушевського 22',
+      minutes: 10,
+      fetchedAt: '2026-11-13T08:00:00.000Z',
+      steps: [
+        { kind: 'transit', minutes: 2, mode: 'SHARE_TAXI', line: '7', fromStop: 'Залізничний вокзал', toStop: 'Міський Центральний ринок', stops: 1 },
+        { kind: 'walk', minutes: 7, meters: 530 },
+      ],
+    };
+    const got = run(new Map([[cityAskKey(leg.ask), answer]]));
+    if (got.kind !== 'stories') throw new Error(got.kind);
+    expect(kinds(got.stories[0])).toEqual(['cityRide', 'walk']);
+    expect(got.stories[0].mode).toBe('city');
+    // сервер дороги не знає — панель із посиланням на карту, а не «не знаю, де це»
+    const none = run(new Map([[cityAskKey(leg.ask), null]]));
+    expect(none).toMatchObject({ kind: 'city_link', cityName: 'Коростень', toLabel: 'Грушевського 22' });
+  });
+
   it('відповіді ще не питали — історія з одним кроком і список «що спитати»: слова людини в обидва кінці, час «зараз»', () => {
     const out = compose(asked);
     if (out.kind !== 'stories') throw new Error(out.kind);
