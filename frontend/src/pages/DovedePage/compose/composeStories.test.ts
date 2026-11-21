@@ -1017,6 +1017,48 @@ describe('Коростень ↔ Малин — від дверей до две�
     expect(intercity(s).boardLabel).toBe('з вокзалу Коростеня');
   });
 
+  describe('попутка Малин → Коростень з названим місцем: від вокзалу Коростеня («зазвичай»)', () => {
+    const driver = { id: 31, senderName: 'Олег', listingType: 'driver', route: 'Malyn-Korosten', date: NOW.date, departureTime: '17:00', seats: 2, notes: 'є місця', priceUah: 150, isActive: true, createdAt: '', updatedAt: '' } as ViberListing;
+    const rideRun = (detail: string | null, extra: Partial<Parameters<typeof composeStories>[0]> = {}) => {
+      const parsed = parseLocal('з Малина в Коростень', NOW).intent;
+      const intent = { ...parsed, to: parsed.to && detail ? { ...parsed.to, detail } : parsed.to };
+      const out = composeStories({ intent, now: NOW, date: NOW.date, schedules: fromMalyn, planner: malynP, farPlanner: korostenP, farStop, listings: [driver], driveMinutes: () => ({ minutes: 60, traffic: false }), ...extra });
+      const story = stories(out).find((x) => x.mode === 'poputka');
+      if (!story) throw new Error('попутки немає');
+      return { out, story };
+    };
+    const rideLeg = (s: Story) => s.legs.find((l): l is Extract<StoryLeg, { kind: 'ride' }> => l.kind === 'ride')!;
+
+    it('місце без зупинки — дорогу від вокзалу питаємо в сервера на час прибуття водія; з відповіддю час «≈»', () => {
+      const { out, story } = rideRun('Грушевського 22');
+      const ask = { city: 'Korosten', from: 'korosten.vokzal', to: 'Грушевського 22', date: NOW.date, time: '18:00' };
+      expect(cityAsks(out)).toContainEqual(ask);
+      expect(rideLeg(story)).toMatchObject({ alightLabel: 'на вокзалі Коростеня', alightAssumed: true, arrMins: hm(18, 0) });
+      expect([story.arriveMins, story.endLabel, story.endNote]).toEqual([hm(18, 0), 'Коростень, Грушевського 22', 'час — до висадки на вокзалі Коростеня']);
+      const route: CityRoute = { source: 'google', fromLabel: 'вокзал Коростеня', toLabel: 'Грушевського 22', minutes: 12, fetchedAt: '2026-11-13T08:00:00.000Z', steps: [{ kind: 'walk', minutes: 12, meters: 900 }] };
+      const answered = rideRun('Грушевського 22', { cityRoutes: new Map([[cityAskKey(ask), route]]) }).story;
+      expect([answered.arriveMins, answered.arriveApprox, answered.endLabel, answered.endNote ?? null]).toEqual([hm(18, 12), true, 'Коростень, Грушевського 22', null]);
+    });
+
+    it('місце — зупинка датасету: автобус Коростеня від вокзалу, сервер не питаємо', () => {
+      const { out, story } = rideRun('Міськлікарня');
+      expect(cityAsks(out).filter((a) => a.from === 'korosten.vokzal' && a.to === 'Міськлікарня')).toEqual([]);
+      expect(kinds(story).slice(-3)).toEqual(['ride', 'wait', 'bus']);
+      const bus = buses(story).at(-1)!;
+      // водій о 18:00 на вокзалі + 3 хв запасу → автобус 18:21
+      expect([bus.city, bus.routeId, bus.depMins, bus.toName]).toEqual(['Korosten', '2', hm(18, 21), 'Міськлікарня']);
+      expect(story.legs.at(-2)).toEqual({ kind: 'wait', text: 'Попросіть висадити на вокзалі Коростеня (≈18:00) і пересядьте на міський автобус Коростеня.' });
+      expect([story.endLabel, rideLeg(story).alightLabel]).toEqual(['Коростень, Міськлікарня', 'на вокзалі Коростеня']);
+    });
+
+    it('без місця — як і було: «у Коростені», без кроку містом', () => {
+      const { out, story } = rideRun(null);
+      expect(cityAsks(out)).toEqual([]);
+      expect(kinds(story).at(-1)).toBe('ride');
+      expect([rideLeg(story).alightLabel, story.endLabel]).toEqual(['у Коростені', 'Коростень']);
+    });
+  });
+
   it('пара для дошки попуток і ціни — Малин ↔ Коростень; маршрутки в розкладі нема — і рядка про неї нема', () => {
     expect(corridorCities(classify(parseLocal('з Малина в Коростень', NOW).intent))).toEqual({ from: 'Malyn', to: 'Korosten' });
     const price = composeStories({ intent: parseLocal('скільки коштує квиток з Малина в Коростень', NOW).intent, now: NOW, date: NOW.date, schedules: fromMalyn, planner: malynP });

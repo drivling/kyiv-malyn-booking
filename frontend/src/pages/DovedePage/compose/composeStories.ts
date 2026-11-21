@@ -1210,13 +1210,23 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     let end = arr;
     let endLabel = kyivText ? `Київ, ${kyivText.name}` : CITY_LABEL[far];
     let endNote: string | null = null;
-    const dropPoint = shape.detail ? farPoint(far, kyiv ?? null) : null;
-    if (shape.detail && dropPoint) {
+    // Коростень: де висадить водій, примітки не кажуть — рахуємо від вокзалу («зазвичай»), далі як після електрички:
+    // зупинка датасету — нашим планувальником, місце без зупинки — дорогою із сервера
+    const k: KorostenLeg = far === 'Korosten' && shape.detail ? korostenLeg(input, shape.detail, 'from', arr, arr + RIDE_LATE, true) : { kind: 'none' };
+    const dropAt = k.kind === 'legs' || k.kind === 'city' ? KOROSTEN_STATION.at : (kyivText?.at ?? farUsual.at);
+    const dropPoint = !shape.detail ? null : k.kind === 'city' ? KOROSTEN_POINT : farPoint(far, kyiv ?? null);
+    if (k.kind === 'legs') {
+      const walk = k.legs[1]?.kind === 'walk';
+      const ask: StoryLeg = { kind: 'wait', text: `Попросіть висадити ${KOROSTEN_STATION.at} (${clock(arr, true)}) і ${walk ? 'йдіть пішки' : 'пересядьте на міський автобус Коростеня'}.` };
+      kyivLegs = k.legs.length ? [ask, ...k.legs.slice(1)] : [];
+      endLabel = `${CITY_LABEL[far]}, ${k.label}`;
+      end = k.arrive;
+    } else if (shape.detail && dropPoint) {
       const step = cityStep(input, far, dropPoint, shape.detail, 'from', arr);
       kyivLegs = step.legs;
       endLabel = `${CITY_LABEL[far]}, ${shape.detail}`;
       if (step.minutes) end = arr + step.minutes;
-      else endNote = `час — до висадки ${kyivText?.at ?? farUsual.at}`;
+      else endNote = `час — до висадки ${dropAt}`;
     } else if (kyiv && target && target !== kyiv) {
       const step = kyivStep(kyiv, target, 'from', arr, date, `Далі до: ${KYIV_POINTS[target]?.label ?? 'місця'}`, { approx: true });
       kyivLegs = step.legs;
@@ -1226,7 +1236,7 @@ function rideStory(input: ComposeInput, shape: Extract<TripShape, { kind: 'to_ma
     } else if (kyiv && !target) {
       kyivLegs = [{ kind: 'kyiv', text: 'Далі по Києву', mapsUrl: mapsTransitUrl(KYIV_POINTS[kyiv].mapsQuery, null) }];
     }
-    const legs: StoryLeg[] = [...before, leg(from, malyn.assumed && !door, kyivText?.at ?? farUsual.at, !kyiv), ...kyivLegs];
+    const legs: StoryLeg[] = [...before, leg(from, malyn.assumed && !door, dropAt, !kyiv), ...kyivLegs];
     const story = makeStory(`ride-${l.id}`, 'poputka', date, placeLabel(origin), shape.detail ? `${CITY_LABEL[far]}, ${shape.detail}` : shape.kyivPoint ? placeLabel(resolvePlace(shape.kyivPoint)!) : CITY_LABEL[far], legs, {
       leave,
       arrive: end,

@@ -500,7 +500,9 @@ of `dist` in a commit.
   the driver's note (`nlu/notePlaces.ts`, needs the listing's direction: streets are ignored, a bare «вокзал» is Malyn's
   only with the preposition of its own end, «заберу по місту» = no city leg; Kyiv points via `kyivNotePoint`); no Malyn
   place named → centre «Промінь» marked as an assumption, and the city leg to it is planned like for a marshrutka; no
-  Kyiv point named → «зазвичай метро «Академмістечко»». `/admin/dovede` has «Звідки забирають попутки»
+  Kyiv point named → «зазвичай метро «Академмістечко»»; a ride Malyn → Korosten with a named place is counted from the
+  Korosten station as an assumption and continues with the same `korostenLeg` as after the train (drivers' notes name
+  no Korosten places). `/admin/dovede` has «Звідки забирають попутки»
   (`GET /admin/dovede/pickups`: notes only, links / nicknames / phones stripped by `pickupNote`; parsed in the browser by `dovedePickups.ts`).
 
 ### In-process scheduled jobs (no external cron)
