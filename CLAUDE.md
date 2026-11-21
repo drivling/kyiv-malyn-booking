@@ -155,10 +155,14 @@ of `dist` in a commit.
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; the admin tab
   redesign and server-side learning runs are planned in `Docs/dovede-admin-roadmap.md` (plan of plans, read it first); what
   comes next in learning — Korosten, sources besides Google, a better algorithm — in `Docs/dovede-learning-roadmap.md`;
-  voice input (plan of plans in `Docs/dovede-voice-roadmap.md`: phase 1 is browser-only and admin-only — Whisper
-  `base` / `small` via `@huggingface/transformers` plus Web Speech API, lab at `/admin/dovede/voice`, `AdminPage/dovede/voice/`;
-  the library is only ever `import()`ed on the admin's click and its chunks / ≈ 27 MB wasm are excluded from the
-  service-worker precache — never import it statically; phase 2 is cloud speech-to-text, later); research in
+  voice input (plan of plans in `Docs/dovede-voice-roadmap.md`: phase 1 is browser-only and admin-only — a mic button in
+  `QueryField` on the Web Speech API (`DovedePage/voice/`: `useVoiceInput`, `webSpeech.ts`, `heardFixes.ts` — spoken numbers →
+  digits and known mishearings, shown only when the admin token is in `localStorage` and the browser has Web Speech;
+  recognised text goes into the field and searches at once), plus a lab at `/admin/dovede/voice` (`AdminPage/dovede/voice/`)
+  that scores engines on the owner's 41 phrases; Whisper in the browser lost badly (21–31 % vs Web Speech 77 %) and is not
+  developed further; its library is only ever `import()`ed on the admin's click and its chunks / ≈ 27 MB wasm are
+  excluded from the service-worker precache — never import it statically; phase 2 is cloud speech-to-text, for
+  comparison and for browsers without Web Speech); research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
   opens the page — `DovedePage/intro/`, flag `dovede-intro:v2`, file `public/dovede/intro-<hash>.mp4` from
   `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends
