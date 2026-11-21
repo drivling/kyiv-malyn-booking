@@ -1444,6 +1444,11 @@ class ApiClient {
     return this.request(`/admin/transport/arrival-reports/${id}${cityQuery(city)}`, { method: 'DELETE' });
   }
 
+  /** Адмін: час у дорозі між зупинками за GPS-треками проти наших сегментів (лише читання) */
+  async getGpsRunTimes(city: string, days = 7): Promise<import('@/types').GpsRunTimesReport> {
+    return this.request(`/admin/transport/gps/run-times?city=${encodeURIComponent(city)}&days=${days}`);
+  }
+
   /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */
   async getWatchedSources(): Promise<{ sources: WatchedSource[] }> {
     return this.request('/admin/transport/sources');

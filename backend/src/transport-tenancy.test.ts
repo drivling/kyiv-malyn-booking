@@ -116,6 +116,7 @@ test('кожен запит до транспортних таблиць нес�
   await request(app).get('/admin/transport/sticker-scans').set(auth).expect(200);
   await request(app).get('/admin/transport/sticker-people').set(auth).expect(200);
   await request(app).get('/admin/transport/gps').set(auth).expect(200);
+  await request(app).get('/admin/transport/gps/run-times').set(auth).expect(200);
   const key = (await request(app).get('/admin/transport/sticker-wall-key').set(auth).expect(200)).body.key;
   await request(app).get(`/transport/sticker-wall?key=${key}`).expect(200);
   await request(app).get(`/transport/sticker-wall/people?key=${key}`).expect(200);

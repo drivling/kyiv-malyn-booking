@@ -5,6 +5,7 @@ import { Input } from '@/components/Input';
 import { apiClient } from '@/api/client';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { SourceWatchPanel } from './SourceWatchPanel';
+import { GpsRunTimesPanel } from './GpsRunTimesPanel';
 import { datasetSaveErrorMessage, type TransportDataset, type TransportRouteDto, type TransportTripDto } from '@/api/transportDataset';
 import { broadcastTransportDatasetInvalidate } from '../LocalTransportPage/dataset/useTransportDataset';
 import {
@@ -440,6 +441,7 @@ export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_
   return (
     <div className="tab-content schedule-editor-tab">
       <SourceWatchPanel />
+      <GpsRunTimesPanel city={city} />
       <div className="schedule-editor-controls">
         <div className="schedule-editor-select">
           <Select
