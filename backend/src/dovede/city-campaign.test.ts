@@ -219,6 +219,19 @@ test('план: «Навчити Житомир» — список, кінцев
   assert.equal(new Set(places.map((p) => `${p.origin}|${p.dir}|${p.placeKey}`)).size, places.length);
 });
 
+test('план «Навчити місто» для Коростеня: від вокзалу до місць стартового списку й назад, без житомирських кінцевих', async () => {
+  const db = fakeDb();
+  const { plan } = await buildPlan(db.prisma, { preset: 'learn', city: 'Korosten' });
+  assert.deepEqual(plan.origins, ['korosten.vokzal']);
+  assert.equal(plan.maxDepth, 1);
+  assert.ok(!plan.seeds.some((s) => s.via === 'terminal'));
+  const places = expandSeeds(plan);
+  assert.equal(places.length, LEARN_PLACES.Korosten.length * 2);
+  assert.ok(places.every((p) => p.origin === 'korosten.vokzal'));
+  // точка не з Коростеня — помилка
+  await assert.rejects(buildPlan(db.prisma, { preset: 'learn', city: 'Korosten', options: { origins: ['kyiv.pas'] } }), (e: unknown) => e instanceof CampaignInputError);
+});
+
 test('план: зміни власника й помилки', async () => {
   const db = fakeDb();
   const { plan } = await buildPlan(db.prisma, { preset: 'learn', city: 'Kyiv', options: { origins: ['kyiv.akadem'], dirs: ['from'], main: 'weekday@07,saturday@11', extra: 'weekday@07,sunday@17', maxDepth: 0 } });

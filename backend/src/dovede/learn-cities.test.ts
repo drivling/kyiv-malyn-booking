@@ -27,23 +27,23 @@ describe('реєстр міст навчання', () => {
 
   it('пресети кампаній беруть типові точки й глибину з реєстру', () => {
     const learn = CAMPAIGN_PRESETS.find((p) => p.id === 'learn')!;
-    expect(learn.cities).toEqual(['Kyiv', 'Zhytomyr']);
+    expect(learn.cities).toEqual(['Kyiv', 'Zhytomyr', 'Korosten']);
+    expect(learn.defaults('Korosten')).toEqual({ origins: ['korosten.vokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 1 });
     expect(learn.defaults('Kyiv')).toEqual({ origins: ['kyiv.akadem', 'kyiv.pas'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 1 });
     expect(learn.defaults('Zhytomyr')).toEqual({ origins: ['zhytomyr.avtovokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 });
     expect(CAMPAIGN_PRESETS.find((p) => p.id === 'modes')!.cities).toEqual(['Kyiv']);
-    // «Навчити місто» — лише містам зі стартовим списком місць: у Коростеня його ще немає (крок 4)
     for (const id of ['refill-evening', 'refresh', 'unanswered', 'custom']) {
       expect(CAMPAIGN_PRESETS.find((p) => p.id === id)!.cities, id).toEqual(['Kyiv', 'Zhytomyr', 'Korosten']);
     }
     expect(CAMPAIGN_PRESETS.find((p) => p.id === 'custom')!.defaults('Korosten').origins).toEqual(['korosten.vokzal']);
   });
 
-  it('кожне місто повне: точки мають підпис, типові точки — серед точок прибуття; стартові місця — у Києва й Житомира', () => {
+  it('кожне місто повне: точки мають підпис, типові точки — серед точок прибуття, є стартові місця', () => {
     for (const city of LEARN_CITIES) {
       expect(city.arrivalPoints.length, city.code).toBeGreaterThan(0);
       for (const id of city.arrivalPoints) expect(POINT_LABEL[id], id).toBeTruthy();
       for (const id of city.defaultOrigins) expect(city.arrivalPoints, id).toContain(id);
-      if (city.code !== 'Korosten') expect(LEARN_PLACES[city.code].length, city.code).toBeGreaterThan(0);
+      expect(LEARN_PLACES[city.code].length, city.code).toBeGreaterThan(0);
       expect(learnCity(city.code)).toBe(city);
     }
     expect(new Set(LEARN_CITIES.map((c) => c.placeId)).size).toBe(LEARN_CITIES.length);

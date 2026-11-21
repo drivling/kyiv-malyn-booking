@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.LEARN_PLACES = exports.ZHYTOMYR_LEARN_PLACES = exports.KYIV_LEARN_PLACES = void 0;
+const korosten_learn_places_1 = require("./korosten-learn-places");
 exports.KYIV_LEARN_PLACES = [
     // Лікарні
     'Охматдит',
@@ -105,5 +106,5 @@ exports.ZHYTOMYR_LEARN_PLACES = [
     'Гідропарк',
     'Замкова гора',
 ];
-/** Коростень: стартового списку ще немає (крок 4) — місто вчиться з питань людей і «Свого списку» */
-exports.LEARN_PLACES = { Kyiv: exports.KYIV_LEARN_PLACES, Zhytomyr: exports.ZHYTOMYR_LEARN_PLACES, Korosten: [] };
+/** Коростень — згенерований список (`korosten-learn-places.ts`): місця з OpenStreetMap і вулиці з переліку зупинок ради */
+exports.LEARN_PLACES = { Kyiv: exports.KYIV_LEARN_PLACES, Zhytomyr: exports.ZHYTOMYR_LEARN_PLACES, Korosten: korosten_learn_places_1.KOROSTEN_LEARN_PLACES };
