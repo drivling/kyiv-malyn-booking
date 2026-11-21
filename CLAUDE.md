@@ -370,6 +370,10 @@ of `dist` in a commit.
   points, default origins, depth): `CityCode` / `CrawlCity`, `CITY_NAME`, `ARRIVAL_POINTS`, preset cities and every `city`
   check in the router derive from it, and the admin reads `GET /admin/dovede/city/cities` (`dovede/useLearnCities.ts`).
   A new city = an entry there plus its points in `KNOWN_POINTS` / `POINT_LABEL` and its list in `learn-places.ts`.
+  Korosten is the third city (arrival point `korosten.vokzal`, no starter list yet, so no «Навчити місто» preset): its own
+  dataset stays the main source and the server is asked only about places without a stop. A passenger stop of a city's
+  dataset (`st_…`) is a known point with coordinates (`resolvePoint` in `city-route.ts`, technical points refused), and a
+  point with coordinates goes to Google as `location.latLng` (`waypoint`), not as an address string.
   **Learning campaigns** (admin plan step 6, `Docs/dovede-admin-roadmap.md` «Крок 6»; `src/dovede/city-campaign.ts`): the
   owner picks a preset («Навчити місто», «Дообучити: вечір / вихідні / ранок», «Питання людей без відповіді», «Види
   транспорту», «Свій список»), sees the estimate (`POST /admin/dovede/city/campaigns/preview`: level 0 exactly from the DB via

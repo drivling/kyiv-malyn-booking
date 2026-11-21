@@ -44,6 +44,7 @@ exports.POINT_LABEL = {
     'kyiv.pas': 'вокзал Київ-Пасажирський',
     'kyiv.borshch': 'платформа «Борщагівка»',
     'zhytomyr.avtovokzal': 'автовокзал Житомир-1',
+    'korosten.vokzal': 'залізничний вокзал Коростеня',
 };
 exports.DAY_TYPES = ['weekday', 'saturday', 'sunday'];
 exports.DEFAULT_FRESH_DAYS = 30;
@@ -75,7 +76,7 @@ function resolveOrigins(city, spec) {
             ids = all;
         else if (isPointId(w))
             ids = [w];
-        else if (city === 'Zhytomyr')
+        else if (city !== 'Kyiv')
             ids = all;
         else if (n.includes('академ'))
             ids = ['kyiv.akadem'];
@@ -193,6 +194,9 @@ function usableName(name) {
 function siteForm(city, name) {
     if (looksLikeMetro(name))
         return null;
+    // «місце словами» сторінка розбирає для Києва й Житомира; іншому місту назва йде як є
+    if (city !== 'Kyiv' && city !== 'Zhytomyr')
+        return name;
     const form = (0, cityDetail_1.detailForm)(city, name);
     if (!form)
         return null;

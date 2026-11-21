@@ -23,6 +23,16 @@ exports.LEARN_CITIES = [
         defaultOrigins: ['zhytomyr.avtovokzal'],
         maxDepth: 2,
     },
+    {
+        // свій датасет лишається головним: сервер питають лише про місця без зупинки (крок 3 плану навчання)
+        code: 'Korosten',
+        name: 'Коростень',
+        genitive: 'Коростеня',
+        placeId: 'city.Korosten',
+        arrivalPoints: ['korosten.vokzal'],
+        defaultOrigins: ['korosten.vokzal'],
+        maxDepth: 1,
+    },
 ];
 exports.LEARN_CITY_CODES = exports.LEARN_CITIES.map((c) => c.code);
 const isLearnCity = (value) => typeof value === 'string' && exports.LEARN_CITY_CODES.includes(value);

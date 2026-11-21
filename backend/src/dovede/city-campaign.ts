@@ -210,7 +210,8 @@ export const CAMPAIGN_PRESETS: readonly CampaignPreset[] = [
     id: 'learn',
     title: 'Навчити місто',
     help: 'Від точки висадки до місць, куди їдуть найчастіше (лікарні, вокзали, ринки…), і назад; для Житомира — ще й до кінцевих усіх маршрутів. Питання людей без відповіді — теж. Зупинки й кінцеві з відповідей стають новими місцями.',
-    cities: LEARN_CITY_CODES,
+    // лише міста зі стартовим списком місць
+    cities: LEARN_CITY_CODES.filter((c) => LEARN_PLACES[c].length > 0),
     defaults: (city) => ({ origins: DEFAULT_ORIGINS[city], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: learnCity(city).maxDepth }),
     seeds: async ({ prisma, city }) => [
       ...LEARN_PLACES[city].map((place) => ({ place, via: 'list' })),

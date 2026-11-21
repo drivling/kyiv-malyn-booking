@@ -124,7 +124,8 @@ exports.CAMPAIGN_PRESETS = [
         id: 'learn',
         title: 'Навчити місто',
         help: 'Від точки висадки до місць, куди їдуть найчастіше (лікарні, вокзали, ринки…), і назад; для Житомира — ще й до кінцевих усіх маршрутів. Питання людей без відповіді — теж. Зупинки й кінцеві з відповідей стають новими місцями.',
-        cities: learn_cities_1.LEARN_CITY_CODES,
+        // лише міста зі стартовим списком місць
+        cities: learn_cities_1.LEARN_CITY_CODES.filter((c) => learn_places_1.LEARN_PLACES[c].length > 0),
         defaults: (city) => ({ origins: DEFAULT_ORIGINS[city], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: (0, learn_cities_1.learnCity)(city).maxDepth }),
         seeds: async ({ prisma, city }) => [
             ...learn_places_1.LEARN_PLACES[city].map((place) => ({ place, via: 'list' })),

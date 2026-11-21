@@ -105,4 +105,5 @@ exports.ZHYTOMYR_LEARN_PLACES = [
     'Гідропарк',
     'Замкова гора',
 ];
-exports.LEARN_PLACES = { Kyiv: exports.KYIV_LEARN_PLACES, Zhytomyr: exports.ZHYTOMYR_LEARN_PLACES };
+/** Коростень: стартового списку ще немає (крок 4) — місто вчиться з питань людей і «Свого списку» */
+exports.LEARN_PLACES = { Kyiv: exports.KYIV_LEARN_PLACES, Zhytomyr: exports.ZHYTOMYR_LEARN_PLACES, Korosten: [] };

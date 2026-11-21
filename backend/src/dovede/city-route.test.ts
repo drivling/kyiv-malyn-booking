@@ -9,7 +9,7 @@ import { listenLocal } from '../http-test-server';
 import { createDovedeSettings } from './settings';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
-import { MODE_PAIRS, SEED_PAIRS, createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, type CityRouteQuery } from './city-route';
+import { MODE_PAIRS, SEED_PAIRS, createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, waypoint, type CityRouteQuery } from './city-route';
 
 type Row = Record<string, unknown>;
 
@@ -157,12 +157,83 @@ test('розбір відповіді Google: сусідня піша злива
   assert.equal(parseGoogleRoute({ routes: [{ duration: '90000s', legs: [{ steps: [{ travelMode: 'WALK', staticDuration: '90000s', distanceMeters: 9 }] }] }] }), null);
 });
 
+test('Коростень (крок 3): зупинка датасету й вокзал — точки з координатами, слова — адресою; чужі й технічні точки — ні', async () => {
+  // вокзал Коростеня — відома точка з координатами; слова — «…, Коростень, Україна»
+  assert.deepEqual(resolveCityPoint('Korosten', 'korosten.vokzal'), { key: 'korosten.vokzal', label: 'залізничний вокзал Коростеня', address: 'Залізничний вокзал, Коростень, Україна', lat: 50.956595, lng: 28.6342028 });
+  assert.equal(resolveCityPoint('Kyiv', 'korosten.vokzal'), null);
+  assert.equal(resolveCityPoint('Korosten', 'Грушевського 22')?.address, 'Грушевського 22, Коростень, Україна');
+  assert.deepEqual(waypoint({ key: 'a', label: 'a', address: 'десь' }), { address: 'десь' });
+  assert.deepEqual(waypoint({ key: 'a', label: 'a', address: 'десь', lat: 50.9, lng: 28.6 }), { location: { latLng: { latitude: 50.9, longitude: 28.6 } } });
+  // id зупинки лишається id і при оновленні збереженої відповіді
+  assert.equal(storedPoint('st_1079', 'зупинка «Міськлікарня»'), 'st_1079');
+
+  const asked: string[] = [];
+  const stopPoint = async (city: string, id: string) => {
+    asked.push(`${city}:${id}`);
+    return city === 'Korosten' && id === 'st_1079' ? { name: 'Міськлікарня', lat: 50.9601, lng: 28.6502 } : null;
+  };
+  const t = make({ stopPoint });
+  const q: CityRouteQuery = { city: 'Korosten', from: 'st_1079', to: 'Грушевського 22', date: '2026-11-18', time: '09:20', departAt: new Date('2026-11-18T07:20:00.000Z') };
+  const first = await t.svc.find(q);
+  assert.equal(first.ok && first.source, 'google');
+  assert.equal(first.ok && first.fromLabel, 'зупинка «Міськлікарня»');
+  assert.deepEqual(t.calls[0].origin, { location: { latLng: { latitude: 50.9601, longitude: 28.6502 } } });
+  assert.deepEqual(t.calls[0].destination, { address: 'Грушевського 22, Коростень, Україна' });
+  assert.deepEqual([t.dovedeCityRoute.rows[0].cityCode, t.dovedeCityRoute.rows[0].fromKey, t.dovedeCityRoute.rows[0].toKey], ['Korosten', 'st_1079', 'грушевського 22']);
+  // удруге — з бази
+  const second = await t.svc.find({ ...q, date: '2026-11-19' });
+  assert.equal(second.ok && second.source, 'stored');
+  assert.equal(t.calls.length, 1);
+  // вокзал своїм id — теж координатами
+  await t.svc.find({ ...q, from: 'korosten.vokzal', to: 'Сільпо' });
+  assert.deepEqual(t.calls[1].origin, { location: { latLng: { latitude: 50.956595, longitude: 28.6342028 } } });
+
+  // зупинки з таким id у місті немає (чужа чи технічна точка лінії) — дороги немає, Google не питаємо
+  const none = await t.svc.find({ ...q, from: 'st_9999' });
+  assert.deepEqual([none.ok, !none.ok && none.reason], [false, 'no_route']);
+  assert.deepEqual((await t.svc.find({ ...Q, from: 'st_1079' })).ok, false);
+  assert.equal(t.calls.length, 2);
+  assert.ok(asked.includes('Zhytomyr:st_1079'));
+});
+
+test('зупинки датасету з бази: лише пасажирські й лише свого міста, одним читанням на 5 хв', async () => {
+  let reads = 0;
+  const db = fakeDb();
+  const prisma = {
+    ...(db.prisma as unknown as Record<string, unknown>),
+    transportStop: {
+      findMany: async ({ where }: { where: { cityCode: string } }) => {
+        reads++;
+        return where.cityCode === 'Korosten'
+          ? [
+              { id: 'st_1001', name: 'Залізничний вокзал', lat: 50.9566, lng: 28.6342 },
+              { id: 'st_3001', name: '№1 т.1', lat: 50.957, lng: 28.635 },
+            ]
+          : [];
+      },
+    },
+    transportRouteStop: {
+      findMany: async ({ where }: { where: { cityCode: string; mapOnly: boolean } }) => (where.cityCode === 'Korosten' && where.mapOnly === false ? [{ stopId: 'st_1001' }] : []),
+    },
+  } as unknown as PrismaClient;
+  const net = fakeFetch();
+  const svc = createCityRoutes({ prisma, key: () => 'k', fetchImpl: net.fetchImpl, now: () => NOW, enabled: () => true, store: () => true, dailyCap: () => 10, ownRoute: () => null });
+  const q: CityRouteQuery = { city: 'Korosten', from: 'st_1001', to: 'Сільпо', date: '2026-11-18', time: '09:20', departAt: new Date('2026-11-18T07:20:00.000Z') };
+  assert.equal((await svc.find(q)).ok, true);
+  assert.deepEqual(net.calls[0].origin, { location: { latLng: { latitude: 50.9566, longitude: 28.6342 } } });
+  // технічна точка лінії — не місце для людини
+  assert.equal((await svc.find({ ...q, from: 'st_3001' })).ok, false);
+  assert.equal(reads, 1);
+});
+
 test('перший запит — від Google і в базу: маршрут, лінія, зупинки, попит; другий — з бази без Google', async () => {
   const t = make();
   const first = await t.svc.find(Q);
   assert.equal(first.ok && first.source, 'google');
   assert.equal(t.calls.length, 1);
   assert.deepEqual([t.calls[0].travelMode, (t.calls[0].destination as { address: string }).address, t.calls[0].departureTime], ['TRANSIT', 'Польова 12, Житомир, Україна', '2026-11-18T07:20:00.000Z']);
+  // Київ і Житомир питаємо адресою, як і до координат зупинок
+  assert.deepEqual(t.calls[0].origin, { address: 'Автовокзал Житомир-1, вул. Київська 93, Житомир, Україна' });
   assert.equal(t.dovedeCityRoute.rows.length, 1);
   assert.deepEqual([t.dovedeCityRoute.rows[0].fromKey, t.dovedeCityRoute.rows[0].toKey, t.dovedeCityRoute.rows[0].dayType, t.dovedeCityRoute.rows[0].hour, t.dovedeCityRoute.rows[0].source], ['zhytomyr.avtovokzal', 'польова 12', 'weekday', 9, 'google']);
   assert.deepEqual(t.dovedeCityLine.rows.map((r) => [r.mode, r.name, r.agency]), [['BUS', '121', 'ФОП Тест']]);
