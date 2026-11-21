@@ -457,8 +457,8 @@ function DovedeSearch({
           await answer(id, q, withIntent(parse, chosen), chosen, now);
           return;
         }
-        const local = remapForKorosten(parse.intent);
-        const fromAi = (ai: TripIntent | undefined | null) => (usableAiIntent(ai) ? remapForKorosten(ai) : null);
+        const local = remapForKorosten(parse.intent, q);
+        const fromAi = (ai: TripIntent | undefined | null) => (usableAiIntent(ai) ? remapForKorosten(ai, q) : null);
         if (localIsSure(parse)) {
           void apiClient.dovedeUnderstand(q, local, undefined, KOROSTEN).then((r) => {
             const ai = fromAi(r?.intent);

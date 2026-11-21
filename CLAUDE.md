@@ -374,6 +374,10 @@ of `dist` in a commit.
   dataset stays the main source and the server is asked only about places without a stop. A passenger stop of a city's
   dataset (`st_…`) is a known point with coordinates (`resolvePoint` in `city-route.ts`, technical points refused), and a
   point with coordinates goes to Google as `location.latLng` (`waypoint`), not as an address string.
+  On the page, Korosten mode (`c=Korosten`) turns an end the dictionary does not know into «place in words»
+  (`saidPlaces` / `withKorostenWords` in `korosten/korostenCity.ts` → `city.Korosten` + `detail`), `korostenShape` answers
+  shape `city` (the stop goes to the server by its `st_…` id) and the same `cityOutcome` as for Kyiv draws it; two stops
+  still use the browser planner. The Malyn ↔ Korosten corridor still takes only stop names (`korostenLeg`).
   **Learning campaigns** (admin plan step 6, `Docs/dovede-admin-roadmap.md` «Крок 6»; `src/dovede/city-campaign.ts`): the
   owner picks a preset («Навчити місто», «Дообучити: вечір / вихідні / ранок», «Питання людей без відповіді», «Види
   транспорту», «Свій список»), sees the estimate (`POST /admin/dovede/city/campaigns/preview`: level 0 exactly from the DB via
