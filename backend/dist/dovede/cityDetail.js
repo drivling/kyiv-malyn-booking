@@ -7,7 +7,7 @@ exports.farDetails = farDetails;
 exports.kyivKnown = kyivKnown;
 exports.detailForm = detailForm;
 /**
- * «Місце словами» в далекому місті (Київ, Житомир): прийменники, межі назви й форма, у якій сторінка шле її серверу
+ * «Місце словами» в далекому місті (Київ, Житомир, Коростень): прийменники, межі назви й форма, у якій сторінка шле її серверу
  * («на Польову 12» → «Польова 12»). Цим користується `parseLocal`, а `detailForm` відповідає на питання «що надіслала
  * б сторінка» без повного розбору — для обходу, що наповнює базу доріг містом (`backend/src/dovede/crawl-core.ts`).
  * Побайтова копія — `backend/src/dovede/cityDetail.ts` (тест `cityDetail.test.ts` порівнює файли): міняйте обидва.
@@ -32,17 +32,17 @@ function prepBefore(toks, i) {
     }
     return null;
 }
-/** Міста, де «Доведе» веде далі до місця, названого словами (сервер: dovede/city-route.ts) */
 exports.FAR_CITY_RE = [
     [/^(київ|києва|києву|киев|киева|киеву)$/, 'city.Kyiv'],
     [/^(житомир|житомира|житомиру)$/, 'city.Zhytomyr'],
+    [/^(коростень|коростеня|коростеню)$/, 'city.Korosten'],
 ];
 exports.DETAIL_TO_PREPS = new Set(['на', 'до', 'біля', 'коло', 'возле', 'около', 'к']);
 exports.DETAIL_FROM_PREPS = new Set(['з', 'із', 'зі', 'від', 'с', 'со', 'из', 'от']);
 exports.STREET_WORDS = new Set(['вул', 'вулиця', 'вулицю', 'вулиці', 'улица', 'улицу', 'улицы', 'проспект', 'просп', 'площа', 'площу', 'площі', 'провулок', 'бульвар']);
 /** Слова, які після міста означають час, транспорт чи саме питання, а не місце в місті */
 exports.NOT_DETAIL_RE = /^(завтра|сьогодн|сегодн|післязавтр|послезавтр|зараз|сейчас|найближч|ближайш|понеділ|понедел|вівтор|вторн|серед|сред|четвер|п'ятниц|пятниц|субот|неділ|воскрес|ранок|ранку|зранку|вранц|утр|вечір|вечор|вечер|ввечер|обід|обед|вдень|днем|ноч|вихідн|выходн|годин|хвилин|минут|тижд|недел|маршрут|зубаст|електрич|електріч|электрич|кільцев|кольцев|експрес|экспресс|потяг|поїзд|поезд|автобус|попутк|попутн|блаблакар|машин|таксі|такси|коли|когда|скільки|сколько|кошту|стоит|ціна|цена|можна|можно|треба|надо|потрібно|нужно|доїхати|доехать|добратися|добраться|їхати|ехать|роботу|работу|навчання|учебу|гості|гости|справах|делам)|^(ніч|ночі|час|день|дня|авто|як|как|чим|чем|city|express|сіті|сити|міською|городской|малин[ауі]?|малине|київ|києв[аіу]|киев[ауе]?|житомир[ауі]?|житомире|коростен[ьяі])$/;
-/** «на автовокзал» у Житомирі — туди рейс і так приходить: це не окреме місце */
+/** «на автовокзал» у Житомирі, «на вокзал» у Коростені — туди рейс і так приходить: це не окреме місце */
 exports.STATION_WORD_RE = /^(автовокзал|автостанц|вокзал)/;
 /**
  * «на Польову» → «Польова», «до обласної лікарні» → «обласна лікарня»: назву показуємо й шукаємо в називному.
@@ -119,7 +119,8 @@ function farDetails(text, toks, known) {
         // після прийменника слова стоять у непрямому відмінку; «вул. Київська 77» без нього — вже в називному
         const said = text.slice(toks[first].start, toks[j - 1].end).replace(/\s+/g, ' ').trim();
         const body = first > i + 1 ? said.replace(/[\p{L}'’ʼ]+/gu, nominative) : said;
-        const station = cityId === 'city.Zhytomyr' && words === 1 && exports.STATION_WORD_RE.test(toks[j - 1].n);
+        // у Коростені рейс приходить на залізничний вокзал; автостанція там — окреме місце
+        const station = words === 1 && (cityId === 'city.Zhytomyr' ? exports.STATION_WORD_RE.test(toks[j - 1].n) : cityId === 'city.Korosten' && /^вокзал/.test(toks[j - 1].n));
         out.push({ role, cityId, text: station ? '' : body, start: toks[i + 1].start, end: toks[j - 1].end, skip });
     }
     return out;
@@ -132,7 +133,7 @@ function kyivKnown(toks, i) {
     const place = (0, gazetteer_1.findPlaceByToken)(toks[i].n);
     return Boolean(place && (place.city === 'Kyiv' || place.id === 'malyn.vokzal')) || Boolean((0, kyivMetro_1.matchMetro)(toks, i)) || Boolean((0, kyivRing_1.matchRing)(toks, i));
 }
-const CITY_GENITIVE = { Kyiv: 'Києва', Zhytomyr: 'Житомира' };
+const CITY_GENITIVE = { Kyiv: 'Києва', Zhytomyr: 'Житомира', Korosten: 'Коростеня' };
 /**
  * Що сторінка надіслала б серверу як місце в місті на питання «з Малина до <міста> до <name>» (`detail` розбору);
  * null — такого місця словами немає: місце сторінка знає сама (метро, вокзал, електричка) або назва не читається.
@@ -141,7 +142,7 @@ const CITY_GENITIVE = { Kyiv: 'Києва', Zhytomyr: 'Житомира' };
 function detailForm(city, name) {
     const text = `з Малина до ${CITY_GENITIVE[city]} до ${name}`;
     const toks = (0, normalize_1.tokenize)(text);
-    const cityId = city === 'Kyiv' ? 'city.Kyiv' : 'city.Zhytomyr';
+    const cityId = `city.${city}`;
     const details = farDetails(text, toks, (i, id) => id === 'city.Kyiv' && kyivKnown(toks, i));
     const detail = details.find((d) => d.role === 'to' && d.text && d.cityId === cityId);
     if (!detail)

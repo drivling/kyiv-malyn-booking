@@ -980,6 +980,43 @@ describe('Коростень ↔ Малин — від дверей до две�
     expect([s.arriveMins, s.endLabel, s.endNote]).toEqual([hm(18, 20), 'Коростень, Міськлікарня', 'час — до висадки на вокзалі Коростеня']);
   });
 
+  it('місце без зупинки в Коростені: дорогу від вокзалу питаємо в сервера; з відповіддю — крок містом і час «≈»', () => {
+    const first = run('з Паперової фабрики в Коростень', { to: 'Грушевського 22' }, fromMalyn);
+    const [s0] = stories(first);
+    expect(kinds(s0)).toEqual(['bus', 'wait', 'intercity', 'city']);
+    const ask = { city: 'Korosten', from: 'korosten.vokzal', to: 'Грушевського 22', date: NOW.date, time: '18:20' };
+    expect(cityAsks(first)).toEqual([ask]);
+    // без відповіді — час до висадки на вокзалі
+    expect([s0.arriveMins, s0.endLabel, s0.endNote]).toEqual([hm(18, 20), 'Коростень, Грушевського 22', 'час — до висадки на вокзалі Коростеня']);
+    const route: CityRoute = {
+      source: 'google',
+      fromLabel: 'вокзал Коростеня',
+      toLabel: 'Грушевського 22',
+      minutes: 12,
+      fetchedAt: '2026-11-13T08:00:00.000Z',
+      steps: [
+        { kind: 'transit', minutes: 5, mode: 'BUS', line: '7', fromStop: 'Залізничний вокзал', toStop: 'Ринок', stops: 2 },
+        { kind: 'walk', minutes: 7, meters: 500 },
+      ],
+    };
+    const out = run('з Паперової фабрики в Коростень', { to: 'Грушевського 22' }, fromMalyn, { cityRoutes: new Map([[cityAskKey(ask), route]]) });
+    const [s] = stories(out);
+    expect(cityAsks(out)).toEqual([]);
+    expect([s.arriveMins, s.arriveApprox, s.endLabel, s.endNote ?? null]).toEqual([hm(18, 32), true, 'Коростень, Грушевського 22', null]);
+    expect(kinds(s).slice(0, 3)).toEqual(['bus', 'wait', 'intercity']);
+  });
+
+  it('з місця без зупинки в Коростені: до вокзалу — сервер, із запасом 7 хв перед електричкою', () => {
+    const first = run('з Коростеня до Царського села', { from: 'Грушевського 22' }, toMalyn);
+    // електричка о 18:25: бути на вокзалі до 18:18; ще не знаємо, скільки їхати, — питаємо на 40 хв раніше
+    const ask = { city: 'Korosten', from: 'Грушевського 22', to: 'korosten.vokzal', date: NOW.date, time: '17:30' };
+    expect(cityAsks(first)).toEqual([ask]);
+    const route: CityRoute = { source: 'google', fromLabel: 'Грушевського 22', toLabel: 'вокзал Коростеня', minutes: 12, fetchedAt: '2026-11-13T08:00:00.000Z', steps: [{ kind: 'walk', minutes: 12, meters: 900 }] };
+    const [s] = stories(run('з Коростеня до Царського села', { from: 'Грушевського 22' }, toMalyn, { cityRoutes: new Map([[cityAskKey(ask), route]]) }));
+    expect([s.leaveMins, s.fromLabel]).toEqual([hm(18, 25) - 7 - 12, 'Коростень, Грушевського 22']);
+    expect(intercity(s).boardLabel).toBe('з вокзалу Коростеня');
+  });
+
   it('пара для дошки попуток і ціни — Малин ↔ Коростень; маршрутки в розкладі нема — і рядка про неї нема', () => {
     expect(corridorCities(classify(parseLocal('з Малина в Коростень', NOW).intent))).toEqual({ from: 'Malyn', to: 'Korosten' });
     const price = composeStories({ intent: parseLocal('скільки коштує квиток з Малина в Коростень', NOW).intent, now: NOW, date: NOW.date, schedules: fromMalyn, planner: malynP });

@@ -159,7 +159,10 @@ export function combineCorridor(malyn: TripIntent, korosten: TripIntent, index: 
   ).find(([r, p]) => p && r && r.text.toLowerCase() !== malynRef.text.toLowerCase());
   const place = found?.[1] ?? null;
   const said = malyn[side] ?? korosten[side] ?? found?.[0] ?? null;
-  const ref: PlaceRef = { id: 'city.Korosten', text: said?.text ?? 'Коростень', ...(place ? { detail: place.label } : {}) };
+  // зупинка датасету має перевагу; без неї лишаються слова людини («на Грушевського 22») — дорогу дасть сервер
+  const words = isKorostenCity(malyn[side]) ? malyn[side]?.detail : undefined;
+  const detail = place?.label ?? words;
+  const ref: PlaceRef = { id: 'city.Korosten', text: said?.text ?? 'Коростень', ...(detail ? { detail } : {}) };
   // слова, які малинський словник не впізнав, а коростенський — так («Пашин»), уже не невідомі
   const known = [korosten.from, korosten.to].filter((r): r is PlaceRef => Boolean(r && kp(r))).map((r) => r.text.toLowerCase()).join(' ');
   const unknown = malyn.unknown.filter((w) => !known.includes(w.toLowerCase()));

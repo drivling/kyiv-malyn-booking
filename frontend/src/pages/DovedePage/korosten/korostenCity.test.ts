@@ -217,6 +217,17 @@ describe('combineCorridor: два розбори одного питання →
     expect(ends('як з Малина доїхати до Коростеня до Грозиного')).toEqual(['city.Malyn', null, 'city.Korosten', 'Грозине', []]);
   });
 
+  it('місце без зупинки — слова людини лишаються `detail` (дорогу від вокзалу дасть сервер); зупинка має перевагу', () => {
+    expect(ends('з Малина в Коростень на Грушевського 22')).toEqual(['city.Malyn', null, 'city.Korosten', 'Грушевського 22', []]);
+    expect(ends('з Паперової фабрики до Коростеня до дитячої лікарні')).toEqual(['malyn.paperova', null, 'city.Korosten', 'дитяча лікарня', []]);
+    expect(ends('з Коростеня з Грушевського 22 до Паперової фабрики')).toEqual(['city.Korosten', 'Грушевського 22', 'malyn.paperova', null, []]);
+    // малинський розбір сам: слова після «в Коростень» — не малинська вулиця
+    const own = parseLocal('з Малина в Коростень на Грушевського 22', now, malynIndex, malynRoutes).intent;
+    expect([own.to?.id, own.to?.detail, own.unknown]).toEqual(['city.Korosten', 'Грушевського 22', []]);
+    // «на вокзал» — туди електричка й так приходить: зупинка датасету, не слова
+    expect(parseLocal('з Малина в Коростень на вокзал', now, malynIndex, malynRoutes).intent.to?.detail).toBeUndefined();
+  });
+
   it('«з вокзалу в Коростень» — вокзал малинський; без зупинки Коростеня кінець — місто', () => {
     expect(ends('з вокзалу в Коростень')).toEqual(['malyn.vokzal', null, 'city.Korosten', null, []]);
     expect(ends('з Коростеня до Паперової фабрики')).toEqual(['city.Korosten', null, 'malyn.paperova', null, []]);
