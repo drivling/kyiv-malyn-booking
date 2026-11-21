@@ -51,6 +51,7 @@ import { buildStopPlaces } from './nlu/stopPlaces';
 import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
 import { QueryField, type QueryFieldHandle } from './ui/QueryField';
+import { voiceAllowed } from './voice/useVoiceInput';
 import type { Schedule, ViberListing } from '@/types';
 import { ContactCard, PriceCard } from './ui/InfoCards';
 import { PoputkyCard } from './ui/RideBoard';
@@ -299,6 +300,8 @@ function DovedeSearch({
   const pending = useRef<{ q: string; chosen?: TripIntent } | null>(null);
   const seq = useRef(0);
   const inputRef = useRef<QueryFieldHandle>(null);
+  // Мікрофон — лише адміну й лише де є Web Speech (Docs/dovede-voice-roadmap.md, Ф1·2)
+  const voiceOn = useMemo(() => voiceAllowed(), []);
   const [sheet, setSheet] = useState<SlotKind | null>(null);
   // Після відповіді рядок «Розумію…» згортається «під кат» в один рядок-підсумок; розгортає сама людина
   const [slotsOpen, setSlotsOpen] = useState(false);
@@ -604,7 +607,14 @@ function DovedeSearch({
         <label htmlFor="dv-q" className="dv-sr-only">
           Куди вам потрібно доїхати?
         </label>
-        <QueryField ref={inputRef} value={text} spans={live?.spans ?? []} onChange={setText} onSubmit={() => ask(text)} />
+        <QueryField
+          ref={inputRef}
+          value={text}
+          spans={live?.spans ?? []}
+          onChange={setText}
+          onSubmit={() => ask(text)}
+          onVoice={voiceOn ? (t, final) => (setText(t), final ? ask(t) : undefined) : undefined}
+        />
         {shown ? (
           <div className={`dv-cut${collapsed ? ' is-collapsed' : ''}`}>
             <div className="dv-cut__inner">

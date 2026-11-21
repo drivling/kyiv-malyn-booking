@@ -1,6 +1,7 @@
 /**
- * «Доведе» · голос: Web Speech API браузера (Docs/dovede-voice-roadmap.md, Ф1·1). Безкоштовний, але слухає лише
- * живий мікрофон — готовий запис не приймає; Chrome шле звук до Google, Safari — до Apple, у Firefox його немає.
+ * «Доведе» · голос: Web Speech API браузера (Docs/dovede-voice-roadmap.md, Ф1·1 і Ф1·2). Безкоштовний, але слухає
+ * лише живий мікрофон — готовий запис не приймає; Chrome шле звук до Google, Safari — до Apple, у Firefox його немає.
+ * Спільний для лабораторії в адмінці й для мікрофона в полі питання.
  */
 
 interface SpeechAlternativeLike {
@@ -18,6 +19,8 @@ interface SpeechRecognitionLike {
   onresult: ((e: { results: ArrayLike<SpeechResultLike> }) => void) | null;
   onerror: ((e: { error?: string }) => void) | null;
   onend: (() => void) | null;
+  onstart: (() => void) | null;
+  onaudiostart: (() => void) | null;
   start(): void;
   stop(): void;
   abort(): void;
@@ -46,15 +49,26 @@ export interface WebSpeechSession {
   result: Promise<WebSpeechResult>;
 }
 
+export interface WebSpeechOptions {
+  lang?: string;
+  /** false — слухання саме завершується паузою (поле питання); true — до `stop()` (лабораторія) */
+  continuous?: boolean;
+  /** мікрофон справді слухає: тепер можна говорити (до цього початок фрази губиться) */
+  onReady?: () => void;
+  /** проміжний текст, поки людина ще говорить */
+  onInterim?: (text: string) => void;
+}
+
 /** Починає слухати; текст — те, що браузер визнав остаточним (або останнє проміжне, якщо остаточного не було) */
-export function startWebSpeech(lang = 'uk-UA'): WebSpeechSession {
+export function startWebSpeech(opts: WebSpeechOptions = {}): WebSpeechSession {
+  const { lang = 'uk-UA', continuous = true, onReady, onInterim } = opts;
   const Ctor = recognitionCtor();
   if (!Ctor) {
     return { stop: () => undefined, result: Promise.resolve({ text: '', error: 'unsupported' }) };
   }
   const rec = new Ctor();
   rec.lang = lang;
-  rec.continuous = true;
+  rec.continuous = continuous;
   rec.interimResults = true;
   rec.maxAlternatives = 1;
   let finals: string[] = [];
@@ -71,7 +85,16 @@ export function startWebSpeech(lang = 'uk-UA'): WebSpeechSession {
       }
       finals = done;
       interim = live;
+      if (onInterim) onInterim([...done, live].join(' ').replace(/\s+/g, ' ').trim());
     };
+    let ready = false;
+    const markReady = () => {
+      if (ready) return;
+      ready = true;
+      onReady?.();
+    };
+    rec.onaudiostart = markReady;
+    rec.onstart = markReady;
     rec.onerror = (e) => {
       error = e.error ?? 'error';
     };

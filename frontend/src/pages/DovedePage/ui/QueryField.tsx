@@ -2,6 +2,8 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState }
 import type { ParseSpan } from '../nlu/types';
 import { highlightParts } from './highlight';
 import { applySuggestion, suggestPlaces, type PlaceSuggestion } from './suggest';
+import { useVoiceInput } from '../voice/useVoiceInput';
+import { VoiceButton } from './VoiceButton';
 
 export interface QueryFieldHandle {
   focus(): void;
@@ -11,8 +13,18 @@ export interface QueryFieldHandle {
  * Поле питання (Docs/dovede-roadmap.md, фаза 3): росте разом із текстом, підсвічує розпізнані слова
  * (звідки / куди / коли / чим) шаром під прозорим textarea і підказує місця для слова під курсором.
  */
-export const QueryField = forwardRef<QueryFieldHandle, { value: string; spans: ParseSpan[]; onChange: (text: string) => void; onSubmit: () => void }>(
-  function QueryField({ value, spans, onChange, onSubmit }, ref) {
+export const QueryField = forwardRef<
+  QueryFieldHandle,
+  {
+    value: string;
+    spans: ParseSpan[];
+    onChange: (text: string) => void;
+    onSubmit: () => void;
+    /** мікрофон: є — кнопка показується (поки лише адміну); `final` — браузер визнав фразу остаточною, можна шукати */
+    onVoice?: (text: string, final: boolean) => void;
+  }
+>(
+  function QueryField({ value, spans, onChange, onSubmit, onVoice }, ref) {
     const input = useRef<HTMLTextAreaElement>(null);
     const mirror = useRef<HTMLDivElement>(null);
     const [caret, setCaret] = useState(0);
@@ -24,6 +36,10 @@ export const QueryField = forwardRef<QueryFieldHandle, { value: string; spans: P
     const nextCaret = useRef<number | null>(null);
 
     useImperativeHandle(ref, () => ({ focus: () => input.current?.focus() }), []);
+    const voice = useVoiceInput((text, final) => {
+      setClosed(true);
+      onVoice?.(text, final);
+    });
 
     // Поле росте разом із питанням (до 40% екрана)
     useEffect(() => {
@@ -111,10 +127,16 @@ export const QueryField = forwardRef<QueryFieldHandle, { value: string; spans: P
               }}
             />
           </div>
+          {onVoice ? <VoiceButton state={voice.state} onClick={voice.toggle} /> : null}
           <button className="dv-go" type="submit" onClick={() => setClosed(true)}>
             Знайти
           </button>
         </div>
+        {onVoice ? (
+          <p className="dv-voice-hint" role="status">
+            {voice.state === 'starting' ? 'Вмикаю мікрофон…' : voice.state === 'listening' ? 'Говоріть — питайте як у розмові' : (voice.error ?? '')}
+          </p>
+        ) : null}
         <div className="dv-suggest-list" id={listId} role="listbox" aria-label="Підказки місць">
           {suggestions.map((s, i) => (
             <button

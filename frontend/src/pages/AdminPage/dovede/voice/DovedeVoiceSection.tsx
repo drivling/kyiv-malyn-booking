@@ -12,7 +12,7 @@ import { clearTakes, getTake, listTakeKeys, saveTake, takeKey, type VoiceConditi
 import { recorderSupported, startRecorder, type RecorderSession } from './recorder';
 import { wordErrorRate } from './similarity';
 import { compareHeard } from './voiceMatch';
-import { startWebSpeech, webSpeechSupported, type WebSpeechSession } from './webSpeech';
+import { startWebSpeech, webSpeechSupported, type WebSpeechSession } from '@/pages/DovedePage/voice/webSpeech';
 import {
   WHISPER_MODES,
   WHISPER_MODELS,
