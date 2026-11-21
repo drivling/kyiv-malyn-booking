@@ -98,6 +98,7 @@ export const POINT_LABEL: Record<string, string> = {
   'kyiv.pas': 'вокзал Київ-Пасажирський',
   'kyiv.borshch': 'платформа «Борщагівка»',
   'zhytomyr.avtovokzal': 'автовокзал Житомир-1',
+  'korosten.vokzal': 'залізничний вокзал Коростеня',
 };
 
 export const DAY_TYPES: CrawlDayType[] = ['weekday', 'saturday', 'sunday'];
@@ -130,7 +131,7 @@ export function resolveOrigins(city: CrawlCity, spec?: string): string[] {
     let ids: string[];
     if (n === 'all' || n === 'усі' || n === 'все') ids = all;
     else if (isPointId(w)) ids = [w];
-    else if (city === 'Zhytomyr') ids = all;
+    else if (city !== 'Kyiv') ids = all;
     else if (n.includes('академ')) ids = ['kyiv.akadem'];
     else if (n.includes('святош')) ids = ['kyiv.sviatoshyn'];
     else if (n.includes('житомирськ') || n.includes('житомирск')) ids = ['kyiv.zhytomyrska'];
@@ -265,6 +266,8 @@ export function usableName(name: string): boolean {
  */
 export function siteForm(city: CrawlCity, name: string): string | null {
   if (looksLikeMetro(name)) return null;
+  // «місце словами» сторінка розбирає для Києва й Житомира; іншому місту назва йде як є
+  if (city !== 'Kyiv' && city !== 'Zhytomyr') return name;
   const form = detailForm(city, name);
   if (!form) return null;
   return normalizeKey(form) === normalizeKey(name) ? name : form;

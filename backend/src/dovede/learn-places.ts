@@ -129,4 +129,5 @@ export const ZHYTOMYR_LEARN_PLACES: readonly string[] = [
   'Замкова гора',
 ];
 
-export const LEARN_PLACES: Record<CrawlCity, readonly string[]> = { Kyiv: KYIV_LEARN_PLACES, Zhytomyr: ZHYTOMYR_LEARN_PLACES };
+/** Коростень: стартового списку ще немає (крок 4) — місто вчиться з питань людей і «Свого списку» */
+export const LEARN_PLACES: Record<CrawlCity, readonly string[]> = { Kyiv: KYIV_LEARN_PLACES, Zhytomyr: ZHYTOMYR_LEARN_PLACES, Korosten: [] };

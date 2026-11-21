@@ -4,6 +4,7 @@ exports.SEED_PAIRS = exports.MODE_PAIRS = exports.CITY_NAME = exports.isValidDai
 exports.resolveCityPoint = resolveCityPoint;
 exports.storedPoint = storedPoint;
 exports.nextSlot = nextSlot;
+exports.waypoint = waypoint;
 exports.parseGoogleRoute = parseGoogleRoute;
 exports.cityRoutesEnabled = cityRoutesEnabled;
 exports.cityStoreEnabled = cityStoreEnabled;
@@ -75,6 +76,8 @@ const KNOWN_POINTS = {
     'zhytomyr.avtovokzal': { label: 'автовокзал Житомир-1', address: 'Автовокзал Житомир-1, вул. Київська 93, Житомир, Україна', city: 'Zhytomyr' },
     'kyiv.pas': { label: 'вокзал Київ-Пасажирський', address: 'Приміський вокзал, Київ, Україна', city: 'Kyiv' },
     'kyiv.borshch': { label: 'платформа «Борщагівка»', address: 'зупинний пункт Борщагівка, Київ, Україна', city: 'Kyiv' },
+    // координати — зупинка «Залізничний вокзал» датасету Коростеня (st_1001), якір коридору Коростень ↔ Малин
+    'korosten.vokzal': { label: 'залізничний вокзал Коростеня', address: 'Залізничний вокзал, Коростень, Україна', city: 'Korosten', lat: 50.956595, lng: 28.6342028 },
 };
 /** Точка за id (автовокзал, станція метро) або словами людини («Польова 12», «Охматдит»); null — порожньо чи сміття */
 function resolveCityPoint(city, raw) {
@@ -83,7 +86,7 @@ function resolveCityPoint(city, raw) {
         return null;
     const known = KNOWN_POINTS[value];
     if (known)
-        return known.city === city ? { key: value, label: known.label, address: known.address } : null;
+        return known.city === city ? { key: value, label: known.label, address: known.address, ...(known.lat != null && known.lng != null ? { lat: known.lat, lng: known.lng } : {}) } : null;
     const metro = kyivMetroData_1.METRO_STATIONS.find((s) => s.id === value);
     if (metro)
         return city === 'Kyiv' ? { key: value, label: `метро «${metro.name}»`, address: `станція метро ${metro.name}, Київ, Україна` } : null;
@@ -96,7 +99,8 @@ function resolveCityPoint(city, raw) {
     return { key, label: value.replace(/\s+/g, ' '), address: `${value}, ${exports.CITY_NAME[city]}, Україна` };
 }
 /** id точки, яку «Доведе» знає сам (місце висадки, станція метро), — на відміну від слів людини */
-const isKnownPointId = (value) => Boolean(KNOWN_POINTS[value]) || kyivMetroData_1.METRO_STATIONS.some((s) => s.id === value);
+const STOP_ID_RE = /^st_\d+$/;
+const isKnownPointId = (value) => Boolean(KNOWN_POINTS[value]) || STOP_ID_RE.test(value) || kyivMetroData_1.METRO_STATIONS.some((s) => s.id === value);
 /** Що питати для збереженої пари: id лишається id, слова — як їх написала людина (підпис), а не ключ малими літерами */
 function storedPoint(key, label) {
     return isKnownPointId(key) || (0, crawl_core_1.normalizeKey)(label) !== key ? key : label;
@@ -115,6 +119,11 @@ function nextSlot(now, dayType, hour) {
     throw new Error(`Невідомий тип дня: ${dayType}`);
 }
 const seconds = (v) => Number(String(v ?? '').replace(/s$/, '')) || 0;
+const STOP_CACHE_MS = 5 * 60000;
+/** Точка для Google Routes: координатами, коли знаємо їх, інакше адресою */
+function waypoint(p) {
+    return p.lat != null && p.lng != null ? { location: { latLng: { latitude: p.lat, longitude: p.lng } } } : { address: p.address };
+}
 /** Відповідь Google → наші кроки: сусідні піші відрізки зливаються, дрібні (< 1 хв і < 60 м) відкидаються */
 function parseGoogleRoute(body) {
     const route = body?.routes?.[0];
@@ -227,6 +236,34 @@ function createCityRoutes(deps) {
     const enabled = async () => (deps.enabled ? deps.enabled() : settingsStore.bool('city.enabled'));
     const store = deps.store ?? (() => cityStoreEnabled());
     const ownRoute = deps.ownRoute ?? zhytomyr_own_1.ownZhytomyrRoute;
+    /** Пасажирські зупинки датасету міста (без технічних точок лінії) — відомі точки з координатами */
+    const stopCache = new Map();
+    async function datasetStop(city, id) {
+        if (deps.stopPoint)
+            return deps.stopPoint(city, id);
+        const hit = stopCache.get(city);
+        if (hit && now().getTime() - hit.at < STOP_CACHE_MS)
+            return hit.stops.get(id) ?? null;
+        const [rows, served] = await Promise.all([
+            prisma.transportStop.findMany({ where: { cityCode: city }, select: { id: true, name: true, lat: true, lng: true } }),
+            prisma.transportRouteStop.findMany({ where: { cityCode: city, mapOnly: false }, select: { stopId: true } }),
+        ]);
+        const passenger = new Set(served.map((r) => r.stopId));
+        const stops = new Map(rows.filter((s) => passenger.has(s.id)).map((s) => [s.id, { name: s.name, lat: s.lat, lng: s.lng }]));
+        stopCache.set(city, { at: now().getTime(), stops });
+        return stops.get(id) ?? null;
+    }
+    /** Точка питання: зупинка датасету міста за id (з координатами) або те, що знає `resolveCityPoint` */
+    async function resolvePoint(city, raw) {
+        const value = raw.trim();
+        if (!STOP_ID_RE.test(value))
+            return resolveCityPoint(city, raw);
+        const stop = await datasetStop(city, value).catch((e) => {
+            console.error('❌ city-route: зупинка датасету:', e);
+            return null;
+        });
+        return stop ? { key: value, label: `зупинка «${stop.name}»`, address: `${stop.name}, ${exports.CITY_NAME[city]}, Україна`, lat: stop.lat, lng: stop.lng } : null;
+    }
     // Власні дані Житомира: маршрути й зупинки із сайту власника, хвилини виправлено за Google
     const ownEnabled = async () => (deps.ownEnabled ? deps.ownEnabled() : settingsStore.bool('city.own'));
     // Лічильник і пауза — у базі (`DovedeCityGoogleDay`), спільні для всіх контейнерів. Памʼять — лише запас, коли база
@@ -442,7 +479,7 @@ function createCityRoutes(deps) {
             const res = await fetchImpl(ROUTES_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': FIELD_MASK },
-                body: JSON.stringify({ origin: { address: from.address }, destination: { address: to.address }, travelMode: 'TRANSIT', languageCode: 'uk', ...(future ? { departureTime: q.departAt.toISOString() } : {}) }),
+                body: JSON.stringify({ origin: waypoint(from), destination: waypoint(to), travelMode: 'TRANSIT', languageCode: 'uk', ...(future ? { departureTime: q.departAt.toISOString() } : {}) }),
                 signal: AbortSignal.timeout(TIMEOUT_MS),
             });
             if (res.ok)
@@ -483,8 +520,8 @@ function createCityRoutes(deps) {
     async function answer(q, background, force, trace) {
         if (!(await enabled()))
             return { ok: false, fallback: 'maps', reason: 'disabled' };
-        const from = resolveCityPoint(q.city, q.from);
-        const to = resolveCityPoint(q.city, q.to);
+        const from = await resolvePoint(q.city, q.from);
+        const to = await resolvePoint(q.city, q.to);
         const hour = Number(q.time.slice(0, 2));
         if (!from || !to || from.key === to.key || !Number.isInteger(hour))
             return { ok: false, fallback: 'maps', reason: 'no_route' };
@@ -573,8 +610,8 @@ function createCityRoutes(deps) {
                 break;
             if ((await callsToday()) >= (await learnCap()))
                 break;
-            const from = resolveCityPoint(pair.city, pair.from);
-            const to = resolveCityPoint(pair.city, pair.to);
+            const from = await resolvePoint(pair.city, pair.from);
+            const to = await resolvePoint(pair.city, pair.to);
             if (!from || !to)
                 continue;
             const q = { city: pair.city, from: pair.from, to: pair.to, date: at.date, time: '09:00', departAt: at.utc };
@@ -667,7 +704,7 @@ function createCityRoutes(deps) {
     async function peekMany(qs) {
         const own = await ownEnabled();
         const hidden = await archivedPlaces();
-        const resolved = qs.map((q) => ({ q, from: resolveCityPoint(q.city, q.from), to: resolveCityPoint(q.city, q.to), hour: Number(q.time.slice(0, 2)) }));
+        const resolved = await Promise.all(qs.map(async (q) => ({ q, from: await resolvePoint(q.city, q.from), to: await resolvePoint(q.city, q.to), hour: Number(q.time.slice(0, 2)) })));
         const keys = new Set();
         for (const r of resolved)
             if (r.from && r.to)
