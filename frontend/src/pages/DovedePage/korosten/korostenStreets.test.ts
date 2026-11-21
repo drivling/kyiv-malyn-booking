@@ -51,6 +51,10 @@ describe('korostenSpot: слова людини → місце з точкою',
     expect(streetPrecision(korostenSpot('Грушевського 67')!.id)).toBe('near');
     expect(streetPrecision(korostenSpot('Грушевського 9')!.id)).toBe('neighbour');
     expect(korostenSpot('вулиця Шевченка')).toMatchObject({ id: 'kstreet.shevchenka', label: 'вул. Шевченка' });
+    // тризначні номери: будинок із даних і будинок, якого в даних немає (середина вулиці)
+    expect(korostenSpot('Грушевського 106')?.id).toBe('kstreet.hrushevskoho:106');
+    expect(streetPrecision(korostenSpot('Грушевського 106')!.id)).toBe('near');
+    expect(streetPrecision(korostenSpot('Грушевського 900')!.id)).toBe('street');
   });
 
   it('провулок — лише коли сказано «провулок»', () => {

@@ -17,6 +17,18 @@ const parse = (text: string) => parseLocal(text, NOW, STOPS).intent;
 const street = (id: string) => STREETS.find((s) => s.id === id)!;
 
 describe('«Доведе» — вулиці без зупинок і адреси', () => {
+  it('тризначний номер будинку — той самий будинок, а не перші дві цифри', () => {
+    // у даних: вул. Степана Бандери, 112 (вулицю вписано в OSM) і вул. Городищанська, 100 (за розташуванням)
+    expect(parse('від вокзалу до вулиці Степана Бандери 112').to?.id).toBe('street.stepana-bandery:112');
+    expect(resolvePlace('street.stepana-bandery:112')).toMatchObject({ city: 'Malyn', label: 'вул. Степана Бандери, 112' });
+    expect(parse('з Городищанської 100 до вокзалу').from?.id).toBe('street.horodyshchanska:100');
+    expect(streetSpot(street('street.stepana-bandery'), '112').how).toBe('exact');
+    // «о 120» — не година: раніше читалось як «о 12»
+    expect(parse('з вокзалу до центру о 120').when.time ?? null).toBeNull();
+    // зупинка з числом у назві знаходиться, як і раніше
+    expect(parse('від вокзалу до Шевченка 119').to?.id).toMatch(/^st_/);
+  });
+
   it('вулиця з будинком після прийменника — адреса; будинок іде в id', () => {
     const i = parse('з Городищанської 20 до вокзалу');
     expect(i.from).toEqual({ id: 'street.horodyshchanska:20', text: 'Городищанської 20' });
