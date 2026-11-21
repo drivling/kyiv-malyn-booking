@@ -830,7 +830,10 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   `Docs/route-geometry-10-11-2026-10.md`, `Docs/route-geometry-8-2026-10.md`, `Docs/route-geometry-7-2026-10.md`,
   `Docs/route-geometry-12-2026-10.md`, `Docs/route-geometry-3-2026-10.md`, `Docs/route-geometry-9-2026-10.md`;
   generator `build_routes()` in
-  `data/malyn-transport/route-geometry-2026-10/scripts/build_more.py`; points within 10 m are shared between routes). They do not
+  `data/malyn-transport/route-geometry-2026-10/scripts/build_more.py`; points within 10 m are shared between routes).
+  Korosten's lines are generated for the whole city at once (`Docs/korosten-route-geometry-2026-11.md`,
+  `data/korosten-transport/route-geometry-2026-11/scripts/`: `build.py` — OSRM path per span, chosen by the buses' GPS
+  points, also against an OSM one-way; `verify.py`; `apply.py`). Technical points do not
   change trip times: `recalculate-segments` times each span between real stops (stop pause, speed, 30 s minimum)
   and splits it by length across the hops (`chainSegmentSeconds` in `backend/src/transport-segments.ts`).
 - Per-trip `startStopId` / `endStopId` / `arrivalTime` (short-turn trips, fixed arrival that
