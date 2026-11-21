@@ -9,6 +9,9 @@ import routesFile from '../eval/korosten-routes.json';
 import goldenFile from '../eval/korosten-golden.json';
 import malynStopsFile from '../eval/malyn-stops.json';
 import malynRoutesFile from '../eval/malyn-routes.json';
+import streetsDoc from '../data/korosten-streets.json';
+import type { Street } from '../nlu/streets';
+import { setKorostenStreets } from './korostenStreets';
 import {
   buildKorostenPlaces,
   combineCorridor,
@@ -194,6 +197,30 @@ describe('поїздка Малин ↔ Коростень — питання М
     expect(namesKorostenAsEnd('з центру Коростеня на вокзал')).toBe(false);
     expect(namesKorostenAsEnd('з Пашин до Коростеня-Подільського')).toBe(false);
     expect(namesKorostenAsEnd('Коростень: з Пашин до ринку')).toBe(false);
+  });
+});
+
+describe('адреса Коростеня з наших даних (крок 7а): планувальник у браузері, без сервера', () => {
+  beforeAll(() => setKorostenStreets((streetsDoc as unknown as { streets: Street[] }).streets));
+  afterAll(() => setKorostenStreets([]));
+  const shapeOf = (q: string) => korostenShape(remapForKorosten(parseLocal(q, now, index, routes).intent, q));
+
+  it('зупинка + адреса з даних → `intra` з точкою; адреса лишається словами в намірі', () => {
+    const q = 'з вокзалу на Грушевського 12';
+    const intent = remapForKorosten(parseLocal(q, now, index, routes).intent, q);
+    expect(intent.to).toMatchObject({ id: 'city.Korosten', detail: 'Грушевського 12' });
+    const shape = korostenShape(intent);
+    if (shape.kind !== 'intra') throw new Error(shape.kind);
+    expect(shape.origin.stopIds).toContain('st_1001');
+    expect(shape.dest).toMatchObject({ id: 'kstreet.hrushevskoho:12', city: 'Korosten', label: 'вул. Грушевського, 12' });
+    expect(shape.dest.latLng).toBeDefined();
+  });
+
+  it('місця немає в даних → як і було, дорогу дає сервер; адреса при цьому теж іде словами', () => {
+    expect(shapeOf('з вокзалу до музичної школи')).toMatchObject({ kind: 'city', far: 'Korosten', from: { id: 'st_1001' } });
+    setKorostenStreets([]);
+    expect(shapeOf('з вокзалу на Грушевського 12')).toEqual({ kind: 'city', far: 'Korosten', from: { id: 'st_1001' }, to: { words: 'Грушевського 12' } });
+    setKorostenStreets((streetsDoc as unknown as { streets: Street[] }).streets);
   });
 });
 

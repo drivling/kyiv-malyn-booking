@@ -29,6 +29,7 @@ import {
   namesKorostenAsEnd,
   remapForKorosten,
 } from './korosten/korostenCity';
+import { korostenSpot, loadKorostenStreets } from './korosten/korostenStreets';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
 import { useDovedeIcons } from './brandIcons';
@@ -315,6 +316,8 @@ function DovedeSearch({
   const answer = useCallback(
     async (id: number, q: string, parse: LocalParse, intent: TripIntent, now: KyivNow) => {
       await pageDataReady();
+      // вулиці Коростеня — окремий шматок даних: потрібні в режимі Коростеня й для коридору Малин ↔ Коростень
+      if (korosten || intent.from?.id === 'city.Korosten' || intent.to?.id === 'city.Korosten') await loadKorostenStreets();
       const shape = korosten ? korostenShape(intent) : classify(intent);
       const cities = corridorCities(shape);
       // один запит: розклад коридору й оголошення попуток на цей день
@@ -357,7 +360,7 @@ function DovedeSearch({
         const today = { schedules: await schedulesFor(date), driveMinutes: await driveFor(date, listings) };
         // Коростень у коридорі: місце словами → зупинка його датасету, шлях від / до вокзалу — його планувальником
         const farStop = (detail: string) => korostenStopByLabel(farIndex, detail);
-        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop });
+        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop, farSpot: korostenSpot });
         let outcome = await withCity((cityRoutes) => composeStories({ intent, now, date, schedules: today.schedules, planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: today.driveMinutes, notePlaces, cityRoutes, ...farFor(date) }, shape));
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);

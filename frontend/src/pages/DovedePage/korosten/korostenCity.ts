@@ -17,6 +17,7 @@ import { DETAIL_FROM_PREPS, FROM_PREPS, NOT_DETAIL_RE, TO_PREPS, nominative } fr
 import type { ParseSpan, PlaceRef, TripIntent } from '../nlu/types';
 import type { CityEndRef, TripShape } from '../compose/composeStories';
 import { KOROSTEN_ALIASES, korostenStopGroups } from './korostenPlaces';
+import { korostenSpot } from './korostenStreets';
 
 export { KOROSTEN_ALIASES } from './korostenPlaces';
 
@@ -298,14 +299,18 @@ export function remapForKorosten(intent: TripIntent, text?: string): TripIntent 
 
 /** Форма відповіді для питання в Коростені: поїздка містом, картка маршруту або уточнення */
 export function korostenShape(intent: TripIntent): TripShape {
-  // місце словами (`city.Korosten` + `detail`) — не зупинка: для планувальника цього кінця немає
+  // місце словами (`city.Korosten` + `detail`) — не зупинка; адресу з наших даних (вулиця, будинок) планувальник
+  // веде сам як точку, решту слів питаємо в сервера
   const stop = (ref: PlaceRef | null): GazetteerPlace | null => {
     const p = ref ? resolvePlace(ref.id) ?? null : null;
-    return p && !p.isCity ? p : null;
+    if (p && !p.isCity) return p;
+    const words = ref?.id === 'city.Korosten' ? (ref.detail ?? '').trim() : '';
+    return words ? korostenSpot(words) : null;
   };
   const end = (ref: PlaceRef | null): CityEndRef | null => {
     const p = stop(ref);
-    if (p) return { id: p.id };
+    // адреса з наших даних серверу не потрібна: коли другий кінець — слова, вона теж іде словами
+    if (p) return p.latLng && !p.stopIds?.length ? { words: (ref?.detail ?? p.label).trim() } : { id: p.id };
     const words = ref?.id === 'city.Korosten' ? (ref.detail ?? '').trim() : '';
     return words ? { words } : null;
   };
@@ -316,10 +321,10 @@ export function korostenShape(intent: TripIntent): TripShape {
     return { kind: 'route_info', routeIds, stop: from ?? to ?? null };
   }
   if (intent.intent === 'price' || intent.intent === 'contact' || intent.intent === 'other') return { kind: 'not_trip', intent: 'other' };
-  // хоча б один кінець названо словами — дорогу містом дає сервер
+  // хоча б один кінець названо словами, яких немає в наших даних, — дорогу містом дає сервер
   const a = end(intent.from);
   const b = end(intent.to);
-  if (a && b && ('words' in a || 'words' in b) && !('words' in a && 'words' in b && a.words.toLowerCase() === b.words.toLowerCase())) {
+  if (a && b && ((!from && 'words' in a) || (!to && 'words' in b)) && !('words' in a && 'words' in b && a.words.toLowerCase() === b.words.toLowerCase())) {
     return { kind: 'city', far: 'Korosten', from: a, to: b };
   }
   if (intent.unknown.length && (!from || !to)) return { kind: 'unknown_place', words: intent.unknown };

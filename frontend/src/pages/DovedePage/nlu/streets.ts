@@ -27,6 +27,11 @@ export interface Street {
 
 export const STREETS = (streetsDoc as unknown as { streets: Street[] }).streets;
 const BY_ID = new Map(STREETS.map((s) => [s.id, s]));
+/** Вулиці іншого міста (Коростень: id `kstreet.…`, `korosten/korostenStreets.ts`) — щоб точність і підпис адреси працювали так само */
+let EXTRA_BY_ID = new Map<string, Street>();
+export function setExtraStreets(streets: Street[]): void {
+  EXTRA_BY_ID = new Map(streets.map((s) => [s.id, s]));
+}
 
 const NUMBER_RE = /^\d+$/;
 const STREET_WORDS = /^(вул|вулиц|улиц|ул)/;
@@ -47,9 +52,12 @@ function nameWords(name: string): string[] {
 }
 
 /** Усі назви всіх вулиць (теперішня й колишні); довші — першими, вулиці — перед провулками */
-const VARIANTS: NameVariant[] = STREETS.flatMap((street) => [street.name, ...street.old].map((n) => ({ street, words: nameWords(n) })))
-  .filter((v) => v.words.some((w) => !NUMBER_RE.test(w)))
-  .sort((a, b) => b.words.length - a.words.length || Number(a.street.kind !== 'вулиця') - Number(b.street.kind !== 'вулиця'));
+function variantsOf(streets: Street[]): NameVariant[] {
+  return streets
+    .flatMap((street) => [street.name, ...street.old].map((n) => ({ street, words: nameWords(n) })))
+    .filter((v) => v.words.some((w) => !NUMBER_RE.test(w)))
+    .sort((a, b) => b.words.length - a.words.length || Number(a.street.kind !== 'вулиця') - Number(b.street.kind !== 'вулиця'));
+}
 
 export interface StreetMatch {
   street: Street;
@@ -75,6 +83,16 @@ function matchName(v: NameVariant, toks: Token[], i: number): number | null {
  * «провулок»; інакше — вулицю з такою назвою.
  */
 export function matchStreet(toks: Token[], i: number): StreetMatch | null {
+  return MALYN_INDEX.match(toks, i);
+}
+
+/** Пошук вулиці в заданому списку вулиць — той самий для кожного міста */
+export function createStreetIndex(streets: Street[]): { match: (toks: Token[], i: number) => StreetMatch | null } {
+  const VARIANTS = variantsOf(streets);
+  return { match: (toks, i) => matchIn(VARIANTS, toks, i) };
+}
+
+function matchIn(VARIANTS: NameVariant[], toks: Token[], i: number): StreetMatch | null {
   if (NUMBER_RE.test(toks[i].n) || KIND_WORDS.test(toks[i].n)) return null;
   const before = toks[i - 1]?.n ?? '';
   const explicit = STREET_WORDS.test(before) || LANE_WORDS.test(before);
@@ -109,6 +127,8 @@ export function matchStreet(toks: Token[], i: number): StreetMatch | null {
   return { street: best.v.street, house, end, explicit: explicit || end > best.end };
 }
 
+const MALYN_INDEX = createStreetIndex(STREETS);
+
 /**
  * Чи брати вулицю, а не місце кураторського словника з тим самим словом («Грушевського» → зупинка, але
  * «Грушевського 12» чи «вул. Вокзальна» → адреса).
@@ -122,12 +142,12 @@ export function streetPlaceId(m: StreetMatch): string {
   return m.house ? `${m.street.id}:${m.house}` : m.street.id;
 }
 
-const ID_RE = /^(street\.[a-z0-9-]+)(?::([0-9]{1,3}[а-яіїєa-z]?))?$/;
+const ID_RE = /^(k?street\.[a-z0-9-]+)(?::([0-9]{1,3}[а-яіїєa-z]?))?$/;
 
 /** `street.x:20` → вулиця й номер будинку */
 export function parseStreetId(id: string): { street: Street; house: string | null } | null {
   const m = ID_RE.exec(id);
-  const street = m ? BY_ID.get(m[1]) : undefined;
+  const street = m ? (BY_ID.get(m[1]) ?? EXTRA_BY_ID.get(m[1])) : undefined;
   return street ? { street, house: m?.[2] ?? null } : null;
 }
 
@@ -174,7 +194,7 @@ export function streetPlace(id: string): GazetteerPlace | undefined {
   const p = parseStreetId(id);
   if (!p) return undefined;
   const spot = streetSpot(p.street, p.house);
-  return { id, city: 'Malyn', label: p.house ? `${p.street.label}, ${p.house}` : p.street.label, stems: [], latLng: [spot.lat, spot.lng] };
+  return { id, city: id.startsWith('kstreet.') ? 'Korosten' : 'Malyn', label: p.house ? `${p.street.label}, ${p.house}` : p.street.label, stems: [], latLng: [spot.lat, spot.lng] };
 }
 
 /** Чи точка адреси приблизна (немає будинку в даних) — тоді відповідь чесно каже «приблизно» */

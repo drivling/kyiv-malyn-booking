@@ -511,20 +511,23 @@ function korostenLeg(input: ComposeInput, detail: string | null | undefined, anc
   if (!detail) return { kind: 'none' };
   const fp = input.farPlanner ?? null;
   const stopId = input.farStop?.(detail) ?? null;
-  if (!stopId) return { kind: 'city' };
+  // адреса з наших даних (вулиця, будинок) — точка: її теж веде планувальник Коростеня, сервер не питаємо
+  const point = stopId ? null : (input.farSpot?.(detail) ?? null);
+  if (!stopId && !(point && fp)) return { kind: 'city' };
   if (!fp) return { kind: 'missing' };
-  const label = fp.stopName(stopId);
   const station = KOROSTEN_STATION.stopId;
+  const place: Spot = stopId ? stopSpot(fp, stopId) : { ep: { kind: 'point', lat: point!.latLng![0], lng: point!.latLng![1] }, label: point!.label, coords: point!.latLng! };
+  const label = place.label;
   if (stopId === station) return { kind: 'legs', legs: [], label, depart: mins, arrive: mins, approx, worst: minsMax };
   if (anchor === 'from') {
-    const pick = afterAlight(fp, stopSpot(fp, station), stopSpot(fp, stopId), mins, minsMax, KOROSTEN_ALIGHT_BUFFER, approx, 'Korosten');
+    const pick = afterAlight(fp, stopSpot(fp, station), place, mins, minsMax, KOROSTEN_ALIGHT_BUFFER, approx, 'Korosten');
     if (!pick) return { kind: 'missing' };
     const walk = pick.legs[0]?.kind === 'walk';
     const wait: StoryLeg = { kind: 'wait', text: `Вийдіть ${KOROSTEN_STATION.at} (${clock(mins, approx)}) і ${walk ? 'йдіть пішки' : 'пересядьте на міський автобус Коростеня'}.` };
     return { kind: 'legs', legs: [wait, ...inKorosten(fp, pick.legs)], label, depart: pick.departMins, arrive: pick.arriveMins, approx: pick.approx, worst: pick.worst };
   }
   const deadline = mins - KOROSTEN_BOARD_BUFFER;
-  const pick = beforeBoard(fp, stopSpot(fp, stopId), stopSpot(fp, station), deadline);
+  const pick = beforeBoard(fp, place, stopSpot(fp, station), deadline);
   if (!pick) return { kind: 'missing' };
   const wait: StoryLeg = { kind: 'wait', text: `Чекайте ${KOROSTEN_STATION.at}: до відправлення ${mins - pick.arriveMins} хв.` };
   return { kind: 'legs', legs: [...inKorosten(fp, pick.legs), wait], label, depart: pick.departMins, arrive: pick.arriveMins, approx: false, worst: pick.arriveMins };
@@ -1394,6 +1397,8 @@ export interface ComposeInput {
   farPlanner?: LocalPlanner | null;
   /** Місце далекого міста словами (`detail`) → id зупинки його датасету; null — не знаємо */
   farStop?: (detail: string) => string | null;
+  /** адреса Коростеня з наших даних (вулиця, будинок) → місце з точкою; null — такої немає (`korosten/korostenStreets.ts`) */
+  farSpot?: (detail: string) => GazetteerPlace | null;
 }
 
 /** Дороги містом, яких бракує показаним історіям: сторінка питає їх у сервера і складає відповідь ще раз */
