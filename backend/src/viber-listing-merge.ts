@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { getViberListingEndDateTime, isPastRideDate, mergeRawMessage, mergeSenderName, mergeTextField } from './index-helpers';
 import { resolveCorridorTripRouteId } from './schedule-trip';
 import { resolveOdPointIdsFromRoute } from './poputky-od';
+import { getCatalog, type CatalogPrisma } from './catalog-cache';
 import { assertPhoneNotBlocked } from './phone-block';
 import { tripDayWhere } from './trip-day';
 
@@ -40,6 +41,27 @@ export function normalizePhoneForMerge(phone: string): string {
   return cleaned;
 }
 
+/**
+ * Пасажир «Ірпінь → Малин» / «Буча → Малин» не є окремим коридором, але лежить на варіанті
+ * Київ–Малин «через Ірпінь / Бучу» (TripRoute зі зупинками). Привʼязуємо до найконкретнішого
+ * маршруту, що містить його пару в тому ж напрямку: найкоротший маршрут, потім менший id.
+ * Лише для пасажирів: `driverItinerary` бере зупинки водія з його tripRouteId, тож водій
+ * «Ірпінь → Малин» на варіанті Київ–Ірпінь–Малин збирав би пасажирів із Києва. Водій без
+ * маршруту порівнюється по своїй парі from→to — це правильно.
+ */
+export async function resolveAlongTripRouteId(
+  prisma: CatalogPrisma,
+  fromPointId: number | null | undefined,
+  toPointId: number | null | undefined,
+): Promise<number | null> {
+  if (fromPointId == null || toPointId == null) return null;
+  const catalog = await getCatalog(prisma);
+  const ids = catalog.routeIdsAlong(fromPointId, toPointId);
+  if (ids.length === 0) return null;
+  const len = (id: number) => catalog.itineraryByRouteId.get(id)?.length ?? Number.MAX_SAFE_INTEGER;
+  return [...ids].sort((a, b) => len(a) - len(b) || a - b)[0];
+}
+
 async function resolveOdFields(
   prisma: PrismaClient,
   data: ViberListingMergeInput
@@ -56,6 +78,9 @@ async function resolveOdFields(
   let tripRouteId = data.tripRouteId ?? null;
   if (tripRouteId == null && data.route) {
     tripRouteId = await resolveCorridorTripRouteId(prisma, data.route);
+  }
+  if (tripRouteId == null && data.listingType === 'passenger') {
+    tripRouteId = await resolveAlongTripRouteId(prisma as unknown as CatalogPrisma, fromPointId, toPointId);
   }
   return { fromPointId, toPointId, tripRouteId };
 }
