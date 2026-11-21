@@ -19,6 +19,8 @@ export interface LearnCity {
   defaultOrigins: readonly string[];
   /** типова глибина обходу кампанії «Навчити місто» */
   maxDepth: number;
+  /** місто має власний датасет міського транспорту (той самий `cityCode`) — його розклад можна звіряти з Google */
+  ownDataset?: boolean;
 }
 
 export const LEARN_CITIES = [
@@ -49,6 +51,7 @@ export const LEARN_CITIES = [
     arrivalPoints: ['korosten.vokzal'],
     defaultOrigins: ['korosten.vokzal'],
     maxDepth: 1,
+    ownDataset: true,
   },
 ] as const satisfies readonly LearnCity[];
 
@@ -61,6 +64,9 @@ export const isLearnCity = (value: unknown): value is LearnCityCode => typeof va
 export function learnCity(code: LearnCityCode): LearnCity {
   return LEARN_CITIES.find((c) => c.code === code) as LearnCity;
 }
+
+/** Міста з власним датасетом міського транспорту */
+export const OWN_DATASET_CITY_CODES: readonly LearnCityCode[] = (LEARN_CITIES as readonly LearnCity[]).filter((c) => c.ownDataset).map((c) => c.code as LearnCityCode);
 
 /** Місто за id місця з розбору сторінки («city.Kyiv»); null — не місто навчання */
 export function learnCityByPlaceId(placeId: unknown): LearnCityCode | null {

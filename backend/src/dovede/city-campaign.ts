@@ -34,7 +34,9 @@ import {
   type CrawlDir,
 } from './crawl-core';
 import { LEARN_PLACES } from './learn-places';
-import { LEARN_CITY_CODES, byLearnCity, learnCity } from './learn-cities';
+import { LEARN_CITY_CODES, OWN_DATASET_CITY_CODES, byLearnCity, learnCity } from './learn-cities';
+import { checkPairs, checkReport, checkVerdict, type CheckAnswer, type CheckMeta, type CheckReport, type CheckVerdict } from './city-check';
+import { loadTransportDataset, type TransportDataset } from '../local-transport';
 import { CITY_NAME, MODE_PAIRS, nextSlot, storedPoint, type CityRouteQuery, type CityRoutes } from './city-route';
 import { ZT_OWN } from './zhytomyr-own-data';
 import { PRIMARY_SITE, siteUrl } from '../site-domains';
@@ -54,6 +56,8 @@ export interface CampaignSeed {
   dir?: CrawlDir;
   /** свої години замість основних плану («Освіжити застаріле»: тип дня й година застарілої відповіді) */
   slots?: CampaignSlot[];
+  /** «Звірити свій розклад з Google»: місце й точка — зупинки датасету; назви й наш час у дорозі */
+  check?: CheckMeta;
 }
 
 export interface CampaignPlan {
@@ -127,6 +131,8 @@ interface PresetCtx {
   now: Date;
   /** строк свіжості збереженої відповіді, днів (`city.freshDays`) */
   freshDays: number;
+  /** датасет міського транспорту міста (для звірки) */
+  dataset: (city: CrawlCity) => Promise<TransportDataset>;
 }
 
 export interface CampaignPreset {
@@ -138,6 +144,8 @@ export interface CampaignPreset {
   custom?: boolean;
   /** години — свої в кожного місця (власник їх не вибирає) */
   ownSlots?: boolean;
+  /** звірка свого розкладу: пари зупинок датасету, у звіті — вердикти (`city-check.ts`) */
+  check?: boolean;
   defaults: (city: CrawlCity) => { origins: string[]; dirs: CrawlDir[]; main: string; extra: string; maxDepth: number };
   seeds: (ctx: PresetCtx) => Promise<CampaignSeed[]>;
 }
@@ -232,6 +240,24 @@ export const CAMPAIGN_PRESETS: readonly CampaignPreset[] = [
     seeds: ({ prisma, city, now, freshDays }) => staleSeeds(prisma, city, now, freshDays),
   },
   {
+    id: 'check',
+    title: 'Звірити свій розклад з Google',
+    help: 'Пари зупинок нашого розкладу (початок, середина й кінець кожного маршруту) — питаємо Google і порівнюємо час у дорозі та номер лінії. Розклад не міняється: у кінці — звіт, де розходиться.',
+    cities: OWN_DATASET_CITY_CODES,
+    ownSlots: true,
+    check: true,
+    defaults: () => ({ origins: [], dirs: ['to'], main: 'weekday@10', extra: '', maxDepth: 0 }),
+    seeds: async ({ dataset, city }) =>
+      checkPairs(await dataset(city)).map((p) => ({
+        place: p.to,
+        origin: p.from,
+        dir: 'to' as const,
+        via: 'check',
+        slots: [{ dayType: p.dayType, hour: p.hour }],
+        check: { fromName: p.fromName, toName: p.toName, lines: p.lines },
+      })),
+  },
+  {
     id: 'unanswered',
     title: 'Питання людей без відповіді',
     help: 'Лише пари, які питали люди й не отримали дороги. Новими місцями обхід іде на один крок.',
@@ -282,7 +308,7 @@ function toSlots(spec: string | undefined, label: string): CampaignSlot[] {
 const slotSpec = (slots: CampaignSlot[]): string => slots.map((s) => `${s.dayType}@${String(s.hour).padStart(2, '0')}`).join(',');
 
 /** План кампанії із заготовки й змін власника; кидає `CampaignInputError` */
-export async function buildPlan(prisma: PrismaClient, input: CampaignInput, ctx: { now?: Date; freshDays?: number } = {}): Promise<{ preset: CampaignPreset; plan: CampaignPlan }> {
+export async function buildPlan(prisma: PrismaClient, input: CampaignInput, ctx: { now?: Date; freshDays?: number; dataset?: (city: CrawlCity) => Promise<TransportDataset> } = {}): Promise<{ preset: CampaignPreset; plan: CampaignPlan }> {
   const preset = PRESET_BY_ID.get(String(input.preset ?? ''));
   if (!preset) throw new CampaignInputError(`Невідома заготовка: ${input.preset}`);
   const city = input.city as CrawlCity;
@@ -298,7 +324,7 @@ export async function buildPlan(prisma: PrismaClient, input: CampaignInput, ctx:
   const extra = toSlots(options.extra ?? d.extra, 'Додаткові години').filter((s) => !main.some((m) => m.dayType === s.dayType && m.hour === s.hour));
   const maxDepth = options.maxDepth ?? d.maxDepth;
   if (!Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > MAX_DEPTH) throw new CampaignInputError(`Глибина: від 0 до ${MAX_DEPTH}`);
-  const seeds = await preset.seeds({ prisma, city, options, now: ctx.now ?? new Date(), freshDays: ctx.freshDays ?? 30 });
+  const seeds = await preset.seeds({ prisma, city, options, now: ctx.now ?? new Date(), freshDays: ctx.freshDays ?? 30, dataset: ctx.dataset ?? ((c) => loadTransportDataset(prisma, c)) });
   if (!seeds.length) throw new CampaignInputError(preset.custom ? 'Напишіть хоч одне місце' : 'Для цієї заготовки зараз немає місць');
   const own = Boolean(preset.ownSlots);
   return {
@@ -407,6 +433,8 @@ export interface CityCampaignsDeps {
   notify?: (html: string) => Promise<unknown>;
   /** скільки підозрілих доріг у місті (звіт якості, `city-quality.ts`) — для повідомлення про завершення */
   suspicious?: (city: CrawlCity) => Promise<number>;
+  /** датасет міського транспорту (у тестах — готовий); типово — з бази */
+  dataset?: (city: CrawlCity) => Promise<TransportDataset>;
 }
 
 type CampaignRow = DovedeCityCampaign;
@@ -425,7 +453,15 @@ export interface CampaignReport {
   filtered: Array<{ name: string; count: number }>;
   /** підозрілих доріг у місті на момент завершення */
   suspicious: number | null;
+  /** «Звірити свій розклад з Google»: вердикти по парах зупинок */
+  check?: CheckReport;
 }
+
+/** Пари звірки з плану: ключ «звідки|куди» (id зупинок) */
+const checkSeeds = (plan: CampaignPlan): Array<{ key: string; meta: CheckMeta }> =>
+  plan.seeds.filter((s): s is CampaignSeed & { check: CheckMeta; origin: string } => Boolean(s.check && s.origin)).map((s) => ({ key: `${s.origin}|${normalizeKey(s.place)}`, meta: s.check }));
+
+const CHECK_WORDS: Record<CheckVerdict, string> = { same: 'збігається', google_faster: 'Google швидше', ours_faster: 'наше швидше', other_line: 'інша лінія', walk: 'пішки', none: 'немає' };
 
 /** Яку кампанію сервер веде зараз: найстаріша активна, що не чекає (або її очікування минуло) */
 export function leaderOf<T extends { id: number; status: string; waitUntil: Date | null }>(activeById: readonly T[], at: Date): T | null {
@@ -444,7 +480,7 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
     return deps.settings ? deps.settings.int('learn.sharePct') : 50;
   }
 
-  const planCtx = async () => ({ now: now(), freshDays: deps.settings ? await deps.settings.int('city.freshDays') : 30 });
+  const planCtx = async () => ({ now: now(), freshDays: deps.settings ? await deps.settings.int('city.freshDays') : 30, dataset: deps.dataset });
 
   /** Оцінка без запису: рівень 0 — за базою (`peekMany`), глибше — від і до; пропонований бюджет і денна частка */
   async function preview(input: CampaignInput): Promise<{ title: string; plan: CampaignPlanView; estimate: CampaignEstimate }> {
@@ -587,12 +623,14 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
     }
     const plan = c.plan as unknown as CampaignPlan;
     const suspicious = deps.suspicious ? await deps.suspicious(plan.city).catch(() => null) : null;
+    const check = await checkOf(c.id, plan);
     const report: CampaignReport = {
       byDepth: byDepth.map((d) => ({ depth: d.depth, places: d._count._all })).sort((a, b) => a.depth - b.depth),
       noRoute: [...new Set(names)].slice(0, 50),
       noRoutePct: pct(c.noRoute, c.asked),
       filtered: [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'uk')).slice(0, 30),
       suspicious,
+      ...(check ? { check } : {}),
     };
     const r = await prisma.dovedeCityCampaign.updateMany({
       where: { id: c.id, status: { in: ACTIVE } },
@@ -604,12 +642,30 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
       const lines = [
         head,
         `Питань ${c.asked}: з дорогою ${c.ok}${c.fromDb ? ` (з бази ${c.fromDb})` : ''}, без дороги ${c.noRoute} (${report.noRoutePct} %). Запитів до Google ${c.googleCalls} з ${c.budget}.`,
+        check ? `Звірка (${check.answered} пар): ${(Object.keys(CHECK_WORDS) as CheckVerdict[]).map((v) => `${CHECK_WORDS[v]} ${check.counts[v]}`).join(', ')}.` : null,
         reason === 'budget' ? 'У черзі ще є питання — у розділі «Навчання» можна додати бюджету.' : null,
         suspicious ? `Підозрілих доріг у місті: ${suspicious} — перевірте в розділі «Навчання» → «Якість».` : null,
         LEARN_URL,
       ];
       await deps.notify(lines.filter(Boolean).join('\n')).catch((e) => console.error('❌ кампанія: сповіщення не надіслано:', e instanceof Error ? e.message : e));
     }
+  }
+
+  /** Звірка свого розкладу: вердикти по парах плану за відповідями, що вже є; null — кампанія не звірка */
+  async function checkOf(campaignId: number, plan: CampaignPlan): Promise<CheckReport | null> {
+    const pairs = checkSeeds(plan);
+    if (!pairs.length) return null;
+    const [places, asks] = await Promise.all([
+      prisma.dovedeCityCampaignPlace.findMany({ where: { campaignId }, select: { id: true, origin: true, placeKey: true } }),
+      prisma.dovedeCityCampaignAsk.findMany({ where: { campaignId, status: { in: ['ok', 'no_route'] } }, select: { placeId: true, status: true, steps: true } }),
+    ]);
+    const keyById = new Map(places.map((p) => [p.id, `${p.origin}|${p.placeKey}`]));
+    const answers = new Map<string, CheckAnswer>();
+    for (const a of asks) {
+      const key = keyById.get(a.placeId);
+      if (key) answers.set(key, { status: a.status, steps: a.steps });
+    }
+    return checkReport(pairs, answers);
   }
 
   /** Продовжити оренду (і перевірити, що кампанію не поставили на паузу посеред кроку) */
@@ -776,15 +832,24 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
     const placeById = new Map(places.map((p) => [p.id, p]));
     const count = (s: string) => byStatus.find((b) => b.status === s)?._count._all ?? 0;
     const { leader } = await queue();
+    const plan = c.plan as unknown as CampaignPlan;
+    const metaByKey = new Map(checkSeeds(plan).map((s) => [s.key, s.meta]));
+    // звірка: поки кампанія йде — вердикти за відповідями, що вже є; після завершення — збережений звіт
+    const check = c.status === 'done' ? null : await checkOf(id, plan);
+    const base = view(c, count('queued') + count('asking'), behind(c, leader));
     return {
-      ...view(c, count('queued') + count('asking'), behind(c, leader)),
+      ...base,
+      ...(check ? { report: { ...(base.report ?? { byDepth: [], noRoute: [], noRoutePct: 0, filtered: [], suspicious: null }), check } } : {}),
       asks: Object.fromEntries(byStatus.map((b) => [b.status, b._count._all])),
       byDepth: byDepth.map((d) => ({ depth: d.depth, places: d._count._all })).sort((a, b) => a.depth - b.depth),
       recent: recent.map((a) => {
         const p = placeById.get(a.placeId);
+        const meta = p ? metaByKey.get(`${p.origin}|${p.placeKey}`) : undefined;
+        const verdict = meta ? checkVerdict(meta, { status: a.status, steps: a.steps })?.verdict ?? null : null;
         return {
-          place: p?.place ?? '',
-          origin: p ? POINT_LABEL[p.origin] ?? p.origin : '',
+          place: meta?.toName ?? p?.place ?? '',
+          origin: meta?.fromName ?? (p ? POINT_LABEL[p.origin] ?? p.origin : ''),
+          ...(meta ? { verdict } : {}),
           dir: p?.dir ?? 'to',
           depth: p?.depth ?? 0,
           slot: `${a.dayType}@${String(a.hour).padStart(2, '0')}`,
@@ -890,6 +955,7 @@ export function createCityCampaigns(deps: CityCampaignsDeps) {
       help: p.help,
       custom: Boolean(p.custom),
       ownSlots: Boolean(p.ownSlots),
+      check: Boolean(p.check),
       cities: p.cities.map((city) => {
         const d = p.defaults(city);
         return { city, name: CITY_NAME[city], origins: d.origins, dirs: d.dirs, main: d.main, extra: d.extra, maxDepth: d.maxDepth, points: ARRIVAL_POINTS[city].map((id) => ({ id, label: POINT_LABEL[id] ?? id })) };
@@ -912,6 +978,8 @@ export interface CampaignPlanView {
   seeds: number;
   /** години — свої в кожного місця («Освіжити застаріле») */
   ownSlots: boolean;
+  /** звірка свого розкладу з Google: місця — пари зупинок датасету */
+  check: boolean;
 }
 
 function planView(plan: CampaignPlan): CampaignPlanView {
@@ -924,6 +992,7 @@ function planView(plan: CampaignPlan): CampaignPlanView {
     maxDepth: plan.maxDepth,
     seeds: plan.seeds.length,
     ownSlots: Boolean(plan.ownSlots),
+    check: plan.seeds.some((s) => s.check),
   };
 }
 

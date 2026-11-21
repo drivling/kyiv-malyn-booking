@@ -4,7 +4,7 @@
  * незмінними для Києва й Житомира й перевіряє, що похідні переліки справді беруться з реєстру.
  */
 import { describe, expect, it } from 'vitest';
-import { LEARN_CITIES, LEARN_CITY_CODES, LEARN_CITY_LIST, byLearnCity, isLearnCity, learnCity, learnCityByPlaceId } from './learn-cities';
+import { LEARN_CITIES, LEARN_CITY_CODES, OWN_DATASET_CITY_CODES, LEARN_CITY_LIST, byLearnCity, isLearnCity, learnCity, learnCityByPlaceId } from './learn-cities';
 import { ARRIVAL_POINTS, POINT_LABEL, seedFromIntent } from './crawl-core';
 import { CITY_NAME } from './city-route';
 import { CAMPAIGN_PRESETS } from './city-campaign';
@@ -13,6 +13,8 @@ import { LEARN_PLACES } from './learn-places';
 describe('реєстр міст навчання', () => {
   it('Київ і Житомир — ті самі значення, що були в коді до реєстру; Коростень — третім (крок 3)', () => {
     expect(LEARN_CITY_CODES).toEqual(['Kyiv', 'Zhytomyr', 'Korosten']);
+    // свій датасет міського транспорту (звірка розкладу з Google) — лише в Коростеня
+    expect(OWN_DATASET_CITY_CODES).toEqual(['Korosten']);
     expect(LEARN_CITY_LIST).toBe('Kyiv | Zhytomyr | Korosten');
     expect(CITY_NAME).toEqual({ Kyiv: 'Київ', Zhytomyr: 'Житомир', Korosten: 'Коростень' });
     expect(ARRIVAL_POINTS).toEqual({

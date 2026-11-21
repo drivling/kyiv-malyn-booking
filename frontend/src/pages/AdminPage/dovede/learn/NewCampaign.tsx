@@ -328,7 +328,14 @@ export const NewCampaign: React.FC<{
                     </label>
                   </fieldset>
                 )}
-                {preset?.ownSlots ? (
+                {preset?.check ? (
+                  <p className="dv-learn-hint">
+                    Пари зупинок беруться з нашого розкладу: початок, середина
+                    й кінець кожного маршруту в обидва боки, на годину, коли
+                    маршрут їде. Розклад кампанія не міняє — лише показує, де
+                    наш час у дорозі розходиться з Google.
+                  </p>
+                ) : preset?.ownSlots ? (
                   <p className="dv-learn-hint">
                     Точки, напрямки й години — ті самі, що в застарілих
                     відповідях (тип дня й година кожної). Нових місць ця
@@ -388,7 +395,10 @@ export const NewCampaign: React.FC<{
               <>
                 <h4>{preview.title}: оцінка</h4>
                 <StatTiles label="Оцінка кампанії">
-                  <StatTile label="Місць" value={num(e.places)} />
+                  <StatTile
+                    label={preset?.check ? "Пар зупинок" : "Місць"}
+                    value={num(e.places)}
+                  />
                   <StatTile
                     label="Уже знаємо"
                     value={num(e.free)}

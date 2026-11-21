@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
-import type { DovedeCampaign, DovedeCampaignDetail } from '@/types';
-import { StatusPill } from '../../kit';
-import { MAX_DAILY, campaignState, isActive, isOpen, num, planText } from './campaignText';
+import type { DovedeCampaign, DovedeCampaignDetail, DovedeCheckReport } from '@/types';
+import { StatTile, StatTiles, StatusPill } from '../../kit';
+import { CHECK_ORDER, CHECK_VERDICT, MAX_DAILY, campaignState, checkRowText, isActive, isOpen, num, planText } from './campaignText';
 import { hoursText } from './hours';
 
 const ASK_STATUS: Record<string, string> = {
@@ -16,6 +16,58 @@ const ASK_STATUS: Record<string, string> = {
 const SOURCE: Record<string, string> = { google: 'Google', stored: 'з бази', own: 'свої дані' };
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+
+/** Звірка свого розкладу з Google: скільки пар із яким вердиктом, по маршрутах і де саме розходиться */
+const CheckBlock: React.FC<{ check: DovedeCheckReport }> = ({ check }) => (
+  <div className="dv-learn-report dv-learn-check">
+    <h5>
+      Звірка: {num(check.answered)} з {num(check.pairs)} пар
+    </h5>
+    <StatTiles label="Вердикти звірки">
+      {CHECK_ORDER.map((v) => (
+        <StatTile key={v} label={CHECK_VERDICT[v]} value={num(check.counts[v])} />
+      ))}
+    </StatTiles>
+    {check.byRoute.length ? (
+      <p className="dv-learn-hint">
+        По маршрутах:{' '}
+        {check.byRoute
+          .map((r) => `№${r.routeNo} — збігається ${r.same} з ${r.pairs}${r.googleFaster ? `, Google швидше ${r.googleFaster}` : ''}${r.oursFaster ? `, наше швидше ${r.oursFaster}` : ''}`)
+          .join('; ')}
+        .
+      </p>
+    ) : null}
+    {check.rows.length ? (
+      <div className="dovede-log-table-wrap">
+        <table className="dovede-log-table dovede-log-table--cards">
+          <caption className="dv-learn-caption">Де не збігається</caption>
+          <thead>
+            <tr>
+              <th>Звідки → куди</th>
+              <th>Наші маршрути</th>
+              <th>Наш час</th>
+              <th>Що каже Google</th>
+            </tr>
+          </thead>
+          <tbody>
+            {check.rows.map((r, i) => (
+              <tr key={i}>
+                <td data-label="Звідки → куди">
+                  {r.from} → {r.to}
+                </td>
+                <td data-label="Наші маршрути">{r.routes.map((n) => `№${n}`).join(', ')}</td>
+                <td data-label="Наш час">{r.ours} хв</td>
+                <td data-label="Що каже Google">{checkRowText(r)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    ) : check.answered ? (
+      <p className="dv-learn-hint">Усі пари з відповіддю збігаються.</p>
+    ) : null}
+  </div>
+);
 
 /** Хід кампанії: останні відповіді, місця за кроками, без дороги (після завершення) */
 const CampaignDetails: React.FC<{ id: number; version: string }> = ({ id, version }) => {
@@ -64,6 +116,7 @@ const CampaignDetails: React.FC<{ id: number; version: string }> = ({ id, versio
                   <td data-label="Результат">
                     {ASK_STATUS[r.status] ?? r.status}
                     {r.status === 'ok' ? `, ${r.minutes} хв, ${SOURCE[r.source ?? ''] ?? r.source}` : ''}
+                    {r.verdict ? <strong> · {CHECK_VERDICT[r.verdict].toLowerCase()}</strong> : null}
                   </td>
                   <td data-label="Нових місць">{r.added || ''}</td>
                   <td data-label="Час">{when(r.at)}</td>
@@ -75,6 +128,7 @@ const CampaignDetails: React.FC<{ id: number; version: string }> = ({ id, versio
       ) : (
         <p className="dovede-log-empty">Ще нічого не питали.</p>
       )}
+      {d.report?.check ? <CheckBlock check={d.report.check} /> : null}
       {d.report ? (
         <div className="dv-learn-report">
           <h5>Звіт</h5>

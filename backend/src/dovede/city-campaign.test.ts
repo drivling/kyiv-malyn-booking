@@ -15,6 +15,7 @@ import { createAdminDovedeRouter } from '../routes/admin-dovede';
 import { adminAuthToken, setAdminPassword } from '../middleware/require-admin';
 import type { CityPeek, CityRouteAnswer, CityRouteQuery, CityRoutes, CityStep } from './city-route';
 import { createDovedeSettings } from './settings';
+import { CHECK_DATASET } from './city-check.fixture';
 
 type Row = Record<string, unknown>;
 
@@ -175,7 +176,7 @@ function stubRoutes(reply: (q: CityRouteQuery) => { answer: CityRouteAnswer; goo
 // середа 19 листопада 2026, 12:00 за Києвом
 const NOW = new Date('2026-11-19T10:00:00.000Z');
 
-function make(reply: Parameters<typeof stubRoutes>[0], over: { peek?: (q: CityRouteQuery) => CityPeek; holder?: string; suspicious?: number } = {}) {
+function make(reply: Parameters<typeof stubRoutes>[0], over: { peek?: (q: CityRouteQuery) => CityPeek; holder?: string; suspicious?: number; dataset?: boolean } = {}) {
   const db = fakeDb();
   const stub = stubRoutes(reply, over.peek);
   let now = NOW;
@@ -188,6 +189,7 @@ function make(reply: Parameters<typeof stubRoutes>[0], over: { peek?: (q: CityRo
     log: () => undefined,
     notify: async (html) => sent.push(html),
     ...(over.suspicious !== undefined ? { suspicious: async () => over.suspicious! } : {}),
+    ...(over.dataset ? { dataset: async () => CHECK_DATASET } : {}),
   });
   return { ...db, ...stub, svc, sent, setNow: (d: Date) => (now = d), getNow: () => now };
 }
@@ -478,7 +480,7 @@ test('HTTP: лише адмін; заготовки, оцінка, запуск,
   const presets = await request(server).get('/admin/dovede/city/campaigns/presets').set('Authorization', AUTH);
   assert.deepEqual(
     presets.body.presets.map((p: { id: string }) => p.id),
-    ['learn', 'refill-evening', 'refill-weekend', 'refill-morning', 'refresh', 'unanswered', 'modes', 'custom'],
+    ['learn', 'refill-evening', 'refill-weekend', 'refill-morning', 'refresh', 'check', 'unanswered', 'modes', 'custom'],
   );
   const zt = presets.body.presets[0].cities.find((c: { city: string }) => c.city === 'Zhytomyr');
   assert.deepEqual({ main: zt.main, extra: zt.extra, maxDepth: zt.maxDepth }, { main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 });
@@ -595,4 +597,62 @@ test('черга: веде найстаріша; новіша показує «�
   expect(byId(b.id).queuedBehind).toBeNull();
   const r = await t.svc.tick();
   expect(r.campaignId).toBe(b.id);
+});
+
+test('«Звірити свій розклад з Google»: пари зупинок датасету на свої години; вердикти — у перегляді й у звіті', async () => {
+  const bus = (line: string, minutes: number): CityStep => ({ kind: 'transit', minutes, mode: 'BUS', line, fromStop: 'a', toStop: 'b' });
+  const t = make(
+    (q) => {
+      const pair = `${q.from}→${q.to}`;
+      if (pair === 'st_1→st_5') return { answer: ok([bus('1А', 13)]), google: true };
+      if (pair === 'st_1→st_3') return { answer: ok([bus('1-А', 12)]), google: true };
+      if (pair === 'st_3→st_5') return { answer: ok([bus('7', 6)]), google: true };
+      if (pair === 'st_5→st_1') return { answer: ok([{ kind: 'walk', minutes: 30 }]), google: true };
+      return { answer: fail('no_route'), google: true };
+    },
+    { dataset: true },
+  );
+  // лише для міста з власним датасетом
+  await assert.rejects(t.svc.preview({ preset: 'check', city: 'Kyiv' }), (e: unknown) => e instanceof CampaignInputError);
+  const pv = await t.svc.preview({ preset: 'check', city: 'Korosten' });
+  assert.deepEqual([pv.estimate.places, pv.estimate.asks, pv.estimate.google, pv.estimate.maxDepth, pv.plan.ownSlots], [6, 6, 6, 0, true]);
+  assert.deepEqual([pv.estimate.low, pv.estimate.high], [6, 6]);
+
+  const made = await t.svc.create({ preset: 'check', city: 'Korosten', budget: 10, dailyBudget: 10 });
+  assert.equal(made.title, 'Звірити свій розклад з Google — Коростень');
+  await t.svc.tick();
+  // будній рейс 09:55 → питаємо на 09:00 найближчого буднього; «назад» ходить у вихідні → субота 15:00
+  assert.ok(t.asks.some((q) => q.from === 'st_1' && q.to === 'st_5' && q.date === '2026-11-20' && q.time === '09:00'));
+  assert.ok(t.asks.some((q) => q.from === 'st_5' && q.to === 'st_1' && q.date === '2026-11-21' && q.time === '15:00'));
+  assert.equal(t.asks.length, 6);
+  // обхід углиб не йде: нових місць немає
+  assert.equal(t.dovedeCityCampaignPlace.rows.length, 6);
+
+  await untilIdle(t.svc);
+  const got = await t.svc.get(made.id);
+  assert.equal(got?.status, 'done');
+  const check = got?.report?.check;
+  assert.deepEqual(check?.counts, { same: 1, google_faster: 0, ours_faster: 1, other_line: 1, walk: 1, none: 2 });
+  assert.deepEqual([check?.pairs, check?.answered], [6, 6]);
+  assert.deepEqual(check?.rows[0], { verdict: 'ours_faster', routeNo: '1-А', ownMin: 5, googleMin: 12, googleLines: ['1-А'], from: 'Вокзал', to: 'Лікарня', routes: ['1-А'], ours: 5 });
+  // в останніх відповідях — назви зупинок і вердикт
+  const row = got?.recent.find((r) => r.place === 'Завод' && r.origin === 'Вокзал') as { verdict?: string } | undefined;
+  assert.equal(row?.verdict, 'same');
+  assert.match(t.sent[0], /Звірка \(6 пар\): збігається 1, Google швидше 0, наше швидше 1, інша лінія 1, пішки 1, немає 2\./);
+});
+
+test('звірка: поки кампанія йде, перегляд показує вердикти за відповідями, що вже є', async () => {
+  const t = make(() => ({ answer: fail('no_route'), google: true }), { dataset: true });
+  const made = await t.svc.create({ preset: 'check', city: 'Korosten', budget: 2, dailyBudget: 2 });
+  await t.svc.tick();
+  const got = await t.svc.get(made.id);
+  assert.equal(got?.status, 'done');
+  assert.equal(got?.stopReason, 'budget');
+  assert.deepEqual([got?.report?.check?.answered, got?.report?.check?.counts.none], [2, 2]);
+  const other = make(() => ({ answer: fail('no_route'), google: true }), { dataset: true });
+  const c2 = await other.svc.create({ preset: 'check', city: 'Korosten', budget: 10, dailyBudget: 2 });
+  await other.svc.tick();
+  const live = await other.svc.get(c2.id);
+  assert.equal(live?.status, 'waiting');
+  assert.deepEqual([live?.report?.check?.pairs, live?.report?.check?.answered], [6, 2]);
 });
