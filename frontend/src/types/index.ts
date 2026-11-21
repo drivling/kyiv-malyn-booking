@@ -1548,6 +1548,8 @@ export interface DovedeCampaignPreset {
   custom: boolean;
   /** години — свої в кожного місця («Освіжити застаріле»), власник їх не вибирає */
   ownSlots?: boolean;
+  /** звірка свого розкладу з Google: пари зупинок датасету, у звіті — вердикти */
+  check?: boolean;
   cities: Array<{
     city: DovedeCampaignCity;
     name: string;
@@ -1570,6 +1572,31 @@ export interface DovedeCampaignPlanView {
   maxDepth: number;
   seeds: number;
   ownSlots?: boolean;
+  check?: boolean;
+}
+
+export type DovedeCheckVerdict = 'same' | 'google_faster' | 'ours_faster' | 'other_line' | 'walk' | 'none';
+
+/** Звірка свого розкладу з Google: вердикти по парах зупинок */
+export interface DovedeCheckReport {
+  pairs: number;
+  answered: number;
+  counts: Record<DovedeCheckVerdict, number>;
+  byRoute: Array<{ routeNo: string; pairs: number; same: number; googleFaster: number; oursFaster: number; other: number }>;
+  /** пари, де не збігається */
+  rows: Array<{
+    verdict: DovedeCheckVerdict;
+    from: string;
+    to: string;
+    /** наші маршрути пари й найменший наш час, хв */
+    routes: string[];
+    ours: number;
+    /** наш маршрут, яким поїхав Google, наш і його час */
+    routeNo?: string;
+    ownMin?: number;
+    googleMin?: number;
+    googleLines?: string[];
+  }>;
 }
 
 /** Звіт після завершення кампанії */
@@ -1581,6 +1608,8 @@ export interface DovedeCampaignReport {
   filtered?: Array<{ name: string; count: number }>;
   /** підозрілих доріг у місті на момент завершення */
   suspicious?: number | null;
+  /** «Звірити свій розклад з Google» */
+  check?: DovedeCheckReport;
 }
 
 /** «Доведе» · підозріле місце у звіті якості (GET /admin/dovede/city/quality) */
@@ -1677,6 +1706,8 @@ export interface DovedeCampaignDetail extends DovedeCampaign {
     google: boolean;
     added: number;
     at: string | null;
+    /** звірка: вердикт по парі; null — відповіді ще немає */
+    verdict?: DovedeCheckVerdict | null;
   }>;
 }
 

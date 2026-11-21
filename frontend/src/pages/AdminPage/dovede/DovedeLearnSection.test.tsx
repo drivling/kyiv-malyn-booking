@@ -395,6 +395,67 @@ describe('DovedeLearnSection', () => {
     expect(screen.queryByText('Від яких точок')).toBeNull();
   });
 
+  it('«Звірити свій розклад з Google»: без точок і годин; у картці — вердикти й пари, де не збігається', async () => {
+    const check = {
+      pairs: 6,
+      answered: 5,
+      counts: { same: 2, google_faster: 0, ours_faster: 1, other_line: 1, walk: 0, none: 1 },
+      byRoute: [{ routeNo: '1-А', pairs: 5, same: 2, googleFaster: 0, oursFaster: 1, other: 2 }],
+      rows: [
+        { verdict: 'ours_faster' as const, from: 'Вокзал', to: 'Лікарня', routes: ['1-А'], ours: 5, routeNo: '1-А', ownMin: 5, googleMin: 12, googleLines: ['1-А'] },
+        { verdict: 'other_line' as const, from: 'Лікарня', to: 'Завод', routes: ['1-А'], ours: 7, googleLines: ['7'] },
+        { verdict: 'none' as const, from: 'Завод', to: 'Вокзал', routes: ['1-А'], ours: 12 },
+      ],
+    };
+    const c = campaign({ id: 3, city: 'Korosten', preset: 'check', title: 'Звірити свій розклад з Google — Коростень', plan: { ...PLAN, city: 'Korosten', origins: [], dirs: ['to'], extra: '', maxDepth: 0, seeds: 6, ownSlots: true, check: true } });
+    mock([c]);
+    server.use(
+      http.get(`${TEST_API_URL}/admin/dovede/city/campaigns/presets`, () =>
+        HttpResponse.json({
+          presets: [
+            ...PRESETS,
+            { id: 'check', title: 'Звірити свій розклад з Google', help: 'Пари зупинок нашого розкладу.', custom: false, ownSlots: true, check: true, cities: [{ city: 'Korosten', name: 'Коростень', origins: [], dirs: ['to'], main: 'weekday@10', extra: '', maxDepth: 0, points: [] }] },
+          ],
+        }),
+      ),
+      http.get(`${TEST_API_URL}/admin/dovede/city/cities`, () =>
+        HttpResponse.json({
+          cities: [
+            { code: 'Kyiv', name: 'Київ', genitive: 'Києва' },
+            { code: 'Zhytomyr', name: 'Житомир', genitive: 'Житомира' },
+            { code: 'Korosten', name: 'Коростень', genitive: 'Коростеня' },
+          ],
+        }),
+      ),
+      http.get(`${TEST_API_URL}/admin/dovede/city/campaigns/3`, () =>
+        HttpResponse.json({
+          ...c,
+          asks: { ok: 4, no_route: 1, queued: 1 },
+          byDepth: [{ depth: 0, places: 6 }],
+          recent: [{ place: 'Завод', origin: 'Вокзал', dir: 'to', depth: 0, slot: 'weekday@09', status: 'ok', source: 'google', minutes: 14, google: true, added: 0, at: '2026-11-21T10:00:00.000Z', verdict: 'same' }],
+          report: { byDepth: [], noRoute: [], check },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    renderSection();
+    const card = await screen.findByRole('article', { name: 'Звірити свій розклад з Google — Коростень' });
+    expect(within(card).getByText(/пар зупинок свого розкладу: 6/)).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Хід кампанії' }));
+    expect(await within(card).findByText('Звірка: 5 з 6 пар')).toBeInTheDocument();
+    expect(within(card).getByText(/№1-А — збігається 2 з 5, наше швидше 1/)).toBeInTheDocument();
+    expect(within(card).getByText('№1-А: наше 5 хв, Google 12 хв (+7)')).toBeInTheDocument();
+    expect(within(card).getByText('Google їде №7')).toBeInTheDocument();
+    expect(within(card).getByText('Google не знає дороги транспортом')).toBeInTheDocument();
+    expect(within(card).getByText(/· збігається/)).toBeInTheDocument();
+
+    await user.click(await within(screen.getByRole('radiogroup', { name: 'Місто' })).findByRole('radio', { name: 'Коростень' }));
+    await user.click(await screen.findByRole('radio', { name: /Звірити свій розклад з Google/ }));
+    expect(screen.getByText(/Пари зупинок беруться з нашого розкладу/)).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: /Години для кожного місця/ })).toBeNull();
+    expect(screen.queryByText('Від яких точок')).toBeNull();
+  });
+
   it('якість: підозрілі місця з причинами; «Відкрити як людина», «Нормально», «В архів» (з підтвердженням); фільтр міста', async () => {
     const calls = mock();
     const user = userEvent.setup();

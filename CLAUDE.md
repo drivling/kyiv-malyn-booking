@@ -418,6 +418,12 @@ of `dist` in a commit.
   message when a campaign finishes or runs out of budget, and once (`alertedReason`, reset by the next answered Google
   ask) when Google refuses access (403). Preset «Освіжити застаріле» (`refresh`) re-asks Google answers older than
   `city.freshDays` on their own day type and hour (`CampaignSeed.slots`, `plan.ownSlots`), no new places.
+  Preset «Звірити свій розклад з Google» (`check`, only cities with `ownDataset` in the registry — Korosten): pairs of
+  stops of the city's own dataset (pure `dovede/city-check.ts`: `checkPairs` — start → end, start → middle, middle → end
+  of every route direction, our minutes from the segments, the hour of a trip near 10:00; `checkVerdict` — same /
+  Google faster / ours faster / other line / walk only / no route). The pair's names and our minutes live in the plan
+  (`CampaignSeed.check`), the report in `report.check` (shown while the campaign runs too, card block «Звірка»). It
+  never changes the dataset.
   The same block has «Скинути лічильник попиту» (`POST /admin/dovede/city/demand/reset`): it sets `asked = 0` and
   deletes nothing; a row with `asked = 0` is in neither the list nor the learning queue until a person asks again.
   `GET /dovede/city-route?…&learn=1` with the admin token is the learning mode (`find(q, true)`): same answer, same
