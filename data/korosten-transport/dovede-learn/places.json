@@ -1,0 +1,277 @@
+{
+ "_license": "© учасники OpenStreetMap, ODbL 1.0 (https://www.openstreetmap.org/copyright); пошук — Nominatim",
+ "fetchedAt": "2026-11-21",
+ "viewbox": "28.55,51.00,28.75,50.90",
+ "places": [
+  {
+   "osm": "node/6433607473",
+   "name": "Амбулаторія №1 (районна)",
+   "class": "amenity",
+   "type": "clinic"
+  },
+  {
+   "osm": "way/1558567103",
+   "name": "Біблійський коледж",
+   "class": "amenity",
+   "type": "college"
+  },
+  {
+   "osm": "node/14178143359",
+   "name": "Бібліотека",
+   "class": "amenity",
+   "type": "library"
+  },
+  {
+   "osm": "way/169053651",
+   "name": "Відділкова поліклініка",
+   "class": "amenity",
+   "type": "clinic"
+  },
+  {
+   "osm": "node/4690318792",
+   "name": "Готель \"Коростень\"",
+   "class": "tourism",
+   "type": "hotel"
+  },
+  {
+   "osm": "way/685874403",
+   "name": "Дитяча поліклініка",
+   "class": "amenity",
+   "type": "clinic"
+  },
+  {
+   "osm": "way/840326358",
+   "name": "Дитячий садок №8 \"Зірочка\"",
+   "class": "amenity",
+   "type": "kindergarten"
+  },
+  {
+   "osm": "way/1028332754",
+   "name": "Завод шляхових машин",
+   "class": "landuse",
+   "type": "industrial"
+  },
+  {
+   "osm": "way/801026903",
+   "name": "Загальноосвітня школа № 8",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/843113960",
+   "name": "Загальноосвітня школа №1",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/843220484",
+   "name": "Загальноосвітня школа №13",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/843186171",
+   "name": "Загальноосвітня школа №3",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/382333428",
+   "name": "Загальноосвітня школа №9",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/840206903",
+   "name": "ЗОШ №5",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/448278081",
+   "name": "Коростенська дитячо-юнацька спортивна школа",
+   "class": "leisure",
+   "type": "sports_centre"
+  },
+  {
+   "osm": "way/843186168",
+   "name": "Коростенська міська гімназія",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/169405784",
+   "name": "Коростенська міська рада",
+   "class": "amenity",
+   "type": "townhall"
+  },
+  {
+   "osm": "relation/19282237",
+   "name": "Коростенська центральна міська лікарня",
+   "class": "amenity",
+   "type": "hospital"
+  },
+  {
+   "osm": "relation/19279143",
+   "name": "Коростенський завод залізобетонних шпал",
+   "class": "landuse",
+   "type": "industrial"
+  },
+  {
+   "osm": "way/238915423",
+   "name": "Коростенський міський ліцей",
+   "class": "building",
+   "type": "school"
+  },
+  {
+   "osm": "way/843199048",
+   "name": "Коростенський міський ліцей",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "node/3674760972",
+   "name": "Коростень 11505",
+   "class": "amenity",
+   "type": "post_office"
+  },
+  {
+   "osm": "node/12947387108",
+   "name": "Коростень №7",
+   "class": "amenity",
+   "type": "post_office"
+  },
+  {
+   "osm": "way/169026771",
+   "name": "Краєзнавчий музей",
+   "class": "tourism",
+   "type": "museum"
+  },
+  {
+   "osm": "way/843220513",
+   "name": "Ліцей №11",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "node/6819602018",
+   "name": "Музей фарфору",
+   "class": "tourism",
+   "type": "museum"
+  },
+  {
+   "osm": "way/169405777",
+   "name": "Міська гімназія №7",
+   "class": "building",
+   "type": "school"
+  },
+  {
+   "osm": "way/843199047",
+   "name": "Міська гімназія №7",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/685874401",
+   "name": "Міська поліклініка",
+   "class": "amenity",
+   "type": "clinic"
+  },
+  {
+   "osm": "node/6428409372",
+   "name": "Міська стоматологічна поліклініка",
+   "class": "amenity",
+   "type": "clinic"
+  },
+  {
+   "osm": "relation/17907891",
+   "name": "Міський ліцей №2 імені Володимира Сингаївського",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "way/169026935",
+   "name": "Міськрайонний суд",
+   "class": "amenity",
+   "type": "courthouse"
+  },
+  {
+   "osm": "way/843220505",
+   "name": "НВК \"Школа-гімназія\" №12",
+   "class": "amenity",
+   "type": "school"
+  },
+  {
+   "osm": "node/14028303874",
+   "name": "Нова Пошта",
+   "class": "amenity",
+   "type": "parcel_locker"
+  },
+  {
+   "osm": "node/4550937221",
+   "name": "Нова Пошта №1",
+   "class": "amenity",
+   "type": "post_office"
+  },
+  {
+   "osm": "node/4550936051",
+   "name": "Нова Пошта №2",
+   "class": "amenity",
+   "type": "post_office"
+  },
+  {
+   "osm": "node/4550935771",
+   "name": "Нова Пошта №3",
+   "class": "amenity",
+   "type": "post_office"
+  },
+  {
+   "osm": "relation/19281459",
+   "name": "ПАТ Коростенський завод МДФ",
+   "class": "landuse",
+   "type": "industrial"
+  },
+  {
+   "osm": "way/547768441",
+   "name": "ПАТ Коростенський завод хімічного машинобудування",
+   "class": "man_made",
+   "type": "works"
+  },
+  {
+   "osm": "node/6433607474",
+   "name": "Районна поліклініка",
+   "class": "amenity",
+   "type": "clinic"
+  },
+  {
+   "osm": "way/685876047",
+   "name": "Районна поліклініка (закрита)",
+   "class": "amenity",
+   "type": "clinic"
+  },
+  {
+   "osm": "way/448267991",
+   "name": "Районний будинок культури",
+   "class": "amenity",
+   "type": "arts_centre"
+  },
+  {
+   "osm": "relation/19282238",
+   "name": "Центральна районна лікарня",
+   "class": "amenity",
+   "type": "hospital"
+  },
+  {
+   "osm": "way/775106987",
+   "name": "Церква \"Благодаті\"",
+   "class": "amenity",
+   "type": "place_of_worship"
+  },
+  {
+   "osm": "way/657042089",
+   "name": "Школа мистецтв ім. А. Білошицького",
+   "class": "amenity",
+   "type": "music_school"
+  }
+ ]
+}

@@ -2,6 +2,8 @@
  * «Доведе» · стартові списки обходу (learn-places.ts). `detailForm` — побайтова копія форми сторінки; що вона дає те
  * саме, що повний розбір `parseLocal`, перевіряє фронтенд (src/pages/DovedePage/nlu/cityDetail.test.ts).
  */
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { detailForm } from './cityDetail';
 import { normalizeKey } from './crawl-core';
@@ -16,5 +18,24 @@ describe('dovede-crawl: готові списки місць', () => {
     expect(places.filter((p) => detailForm(city, p) === null)).toEqual([]);
     // рядок без зайвих пробілів: ключ у базі — слова як написані
     expect(places.filter((p) => p !== p.replace(/\s+/g, ' ').trim())).toEqual([]);
+  });
+
+  it('Коростень: список згенеровано зі знімка OpenStreetMap і вулиць переліку зупинок; без виключених назв і повторів', () => {
+    const dir = path.resolve(__dirname, '../../../data/korosten-transport/dovede-learn');
+    const snapshot = JSON.parse(readFileSync(path.join(dir, 'places.json'), 'utf8')) as { _license: string; places: Array<{ name: string }> };
+    const config = JSON.parse(readFileSync(path.join(dir, 'config.json'), 'utf8')) as { exclude: string[]; add: string[] };
+    const articles = JSON.parse(readFileSync(path.resolve(__dirname, '../../../frontend/src/content/stops/korosten-articles.json'), 'utf8')) as Array<{ place?: string }>;
+    const streets = articles.map((a) => (a.place ?? '').split('(')[0].replace(/\s+/g, ' ').trim().replace('вул. ім. ', 'вул. ').replace('вул. ', 'вулиця ').replace('пров. ', 'провулок ')).filter(Boolean);
+    const allowed = new Set([...config.add, ...snapshot.places.map((p) => p.name), ...streets].map((n) => n.toLowerCase()));
+    const places = LEARN_PLACES.Korosten;
+    expect(snapshot._license).toContain('OpenStreetMap');
+    expect(places.length).toBeGreaterThan(40);
+    expect(new Set(places.map(normalizeKey)).size).toBe(places.length);
+    expect(places.filter((p) => !allowed.has(p.toLowerCase()))).toEqual([]);
+    expect(places.filter((p) => config.exclude.some((x) => x.toLowerCase() === p.toLowerCase()))).toEqual([]);
+    expect(places.filter((p) => p !== p.replace(/\s+/g, ' ').trim())).toEqual([]);
+    // нічого з джерел не загубилось: кожна дозволена назва (без виключених і надто коротких) — у списку
+    const want = [...allowed].filter((n) => !config.exclude.some((x) => x.toLowerCase() === n) && n.length >= 4 && n.length <= 70);
+    expect(want.filter((n) => !places.some((p) => p.toLowerCase() === n))).toEqual([]);
   });
 });

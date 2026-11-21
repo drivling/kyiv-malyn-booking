@@ -13,6 +13,7 @@
  * Тест `learn-places.test.ts`: кожен рядок сторінка розуміє як «місце словами» свого міста, без повторів.
  */
 import type { CrawlCity } from './crawl-core';
+import { KOROSTEN_LEARN_PLACES } from './korosten-learn-places';
 
 export const KYIV_LEARN_PLACES: readonly string[] = [
   // Лікарні
@@ -129,5 +130,5 @@ export const ZHYTOMYR_LEARN_PLACES: readonly string[] = [
   'Замкова гора',
 ];
 
-/** Коростень: стартового списку ще немає (крок 4) — місто вчиться з питань людей і «Свого списку» */
-export const LEARN_PLACES: Record<CrawlCity, readonly string[]> = { Kyiv: KYIV_LEARN_PLACES, Zhytomyr: ZHYTOMYR_LEARN_PLACES, Korosten: [] };
+/** Коростень — згенерований список (`korosten-learn-places.ts`): місця з OpenStreetMap і вулиці з переліку зупинок ради */
+export const LEARN_PLACES: Record<CrawlCity, readonly string[]> = { Kyiv: KYIV_LEARN_PLACES, Zhytomyr: ZHYTOMYR_LEARN_PLACES, Korosten: KOROSTEN_LEARN_PLACES };
