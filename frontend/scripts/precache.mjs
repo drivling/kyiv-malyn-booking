@@ -16,7 +16,14 @@ export const SHELL_URL = '/index.html';
  * Lazy-чанки сторінок поза застосунком «Як доїхати» — не precache-имо: їх не відкривають офлайн, і їхні імена
  * не мають потрапляти в публічний transport-sw.js (таємна «Доведе», Docs/dovede-roadmap.md).
  */
-export const PRECACHE_EXCLUDED_ASSET_PREFIXES = ['assets/DovedePage-'];
+export const PRECACHE_EXCLUDED_ASSET_PREFIXES = [
+  'assets/DovedePage-',
+  // Лабораторія голосу в адмінці (Docs/dovede-voice-roadmap.md, Ф1·1): сама, бібліотека розпізнавання і її wasm (≈ 27 МБ)
+  // вантажаться лише адміну за кліком — у кеш кожного, хто встановив «Як доїхати», їх класти не можна
+  'assets/DovedeVoiceSection-',
+  'assets/transformers',
+  'assets/ort-wasm',
+];
 
 /**
  * @param {object} args

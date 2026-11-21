@@ -3,15 +3,16 @@ import type { AdminSection } from '../kit';
 /** Адреса вкладки «Доведе» в адмінці; розділи — `/admin/dovede/<slug>` */
 export const DOVEDE_ADMIN_BASE = '/admin/dovede';
 
-export type DovedeSectionSlug = '' | 'questions' | 'dictionary' | 'city' | 'learning' | 'settings';
+export type DovedeSectionSlug = '' | 'questions' | 'dictionary' | 'city' | 'learning' | 'voice' | 'settings';
 
-/** Розділи вкладки (Docs/dovede-admin-roadmap.md, кроки 1, 3 і 7) */
+/** Розділи вкладки (Docs/dovede-admin-roadmap.md, кроки 1, 3 і 7; «Голос» — Docs/dovede-voice-roadmap.md, Ф1·1) */
 export const DOVEDE_SECTIONS: ReadonlyArray<AdminSection & { slug: DovedeSectionSlug }> = [
   { slug: '', label: 'Огляд' },
   { slug: 'questions', label: 'Питання людей' },
   { slug: 'dictionary', label: 'Словник' },
   { slug: 'city', label: 'Місто' },
   { slug: 'learning', label: 'Навчання' },
+  { slug: 'voice', label: 'Голос' },
   { slug: 'settings', label: 'Налаштування' },
 ];
 

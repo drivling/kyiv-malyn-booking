@@ -1,0 +1,91 @@
+/* «Доведе» · голос: лабораторія (Docs/dovede-voice-roadmap.md, Ф1·1). Спільний вигляд — з kit.css, тут лише таблиця. */
+.dv-voice-controls {
+  display: grid;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.dv-voice-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--pb-muted, #666);
+}
+
+.dv-voice-model {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.dv-voice-status {
+  font-size: 13px;
+  color: var(--pb-muted, #666);
+}
+
+.dv-voice-check {
+  font-size: 13px;
+}
+
+.dv-voice-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.dv-voice-table th,
+.dv-voice-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--pb-line, #e3e3e3);
+  text-align: left;
+  vertical-align: top;
+}
+
+.dv-voice-table td strong {
+  display: block;
+  font-weight: 600;
+}
+
+.dv-voice-table small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--pb-muted, #666);
+}
+
+.dv-voice-group th {
+  background: var(--pb-soft, #f4f4f4);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dv-voice-table tr.is-recording td {
+  background: color-mix(in srgb, #d33 12%, transparent);
+}
+
+.dv-voice-actions {
+  white-space: nowrap;
+}
+
+.dv-voice-ok {
+  color: #1a7f37;
+  font-weight: 700;
+}
+
+.dv-voice-bad {
+  color: #c62828;
+  font-weight: 700;
+}
+
+.dv-voice-none {
+  color: var(--pb-muted, #999);
+}
+
+@media (max-width: 640px) {
+  .dv-voice-table th:nth-child(1),
+  .dv-voice-table td:nth-child(1) {
+    display: none;
+  }
+}
