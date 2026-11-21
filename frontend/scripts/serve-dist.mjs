@@ -39,6 +39,8 @@ const MIME = {
   '.pdf': 'application/pdf',
   '.webmanifest': 'application/manifest+json',
   '.mp4': 'video/mp4',
+  // ONNX Runtime Web (лабораторія голосу): без application/wasm браузер не збирає модуль потоково
+  '.wasm': 'application/wasm',
 };
 
 function safeJoin(root, urlPath) {

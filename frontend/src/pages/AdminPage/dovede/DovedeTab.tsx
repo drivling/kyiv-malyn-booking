@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Navigate } from 'react-router-dom';
 import { AdminSectionHeader, AdminSectionNav } from '../kit';
 import DovedeLogTab from '../DovedeLogTab';
@@ -8,6 +8,8 @@ import { DovedeLearnSection } from './DovedeLearnSection';
 import { DovedeOverview } from './DovedeOverview';
 import { DovedeSettingsSection } from './DovedeSettingsSection';
 import { DOVEDE_ADMIN_BASE, DOVEDE_SECTIONS, isDovedeSection } from './sections';
+// Голос — окремий лениво завантажуваний чанк: бібліотека розпізнавання не лягає в чанк адмінки (Ф1·1)
+const DovedeVoiceSection = lazy(() => import('./voice/DovedeVoiceSection'));
 import '../DovedeLogTab.css';
 import './DovedeTab.css';
 
@@ -32,6 +34,11 @@ const DovedeTab: React.FC<{ section?: string }> = ({ section = '' }) => {
         </>
       ) : null}
       {section === 'learning' ? <DovedeLearnSection /> : null}
+      {section === 'voice' ? (
+        <Suspense fallback={<p>Завантажую лабораторію…</p>}>
+          <DovedeVoiceSection />
+        </Suspense>
+      ) : null}
       {section === 'settings' ? <DovedeSettingsSection /> : null}
     </div>
   );

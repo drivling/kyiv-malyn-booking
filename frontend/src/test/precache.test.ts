@@ -39,6 +39,13 @@ describe('precache (Docs/transport-pwa-2026-10.md, фаза 4)', () => {
     expect(buildPrecache({ ...args(), assetFiles: [...args().assetFiles, 'assets/DovedePage-X1.js'] }).buildId).toBe(buildPrecache(args()).buildId);
   });
 
+  it('лабораторія голосу (бібліотека розпізнавання й wasm ≈ 27 МБ) не precache-иться', () => {
+    const heavy = ['assets/DovedeVoiceSection-X1.js', 'assets/DovedeVoiceSection-X2.css', 'assets/transformers.web-X3.js', 'assets/ort-wasm-simd-threaded.asyncify-X4.wasm'];
+    const { urls } = buildPrecache({ ...args(), assetFiles: [...args().assetFiles, ...heavy] });
+    for (const f of heavy) expect(urls).not.toContain(`/${f}`);
+    expect(buildPrecache({ ...args(), assetFiles: [...args().assetFiles, ...heavy] }).buildId).toBe(buildPrecache(args()).buildId);
+  });
+
   it('оболонка не може посилатись на asset поза precache', () => {
     const html = '<script type="module" crossorigin src="/assets/index-A.js"></script><link rel="stylesheet" crossorigin href="/assets/index-B.css"><link rel="icon" href="/icons/transport.svg">';
     expect(shellAssetRefs(html)).toEqual(['/assets/index-A.js', '/assets/index-B.css']);

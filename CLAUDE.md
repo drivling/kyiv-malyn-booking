@@ -154,7 +154,11 @@ of `dist` in a commit.
   entry + where it is read; never a key or password.
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; the admin tab
   redesign and server-side learning runs are planned in `Docs/dovede-admin-roadmap.md` (plan of plans, read it first); what
-  comes next in learning — Korosten, sources besides Google, a better algorithm — in `Docs/dovede-learning-roadmap.md`; research in
+  comes next in learning — Korosten, sources besides Google, a better algorithm — in `Docs/dovede-learning-roadmap.md`;
+  voice input (plan of plans in `Docs/dovede-voice-roadmap.md`: phase 1 is browser-only and admin-only — Whisper
+  `base` / `small` via `@huggingface/transformers` plus Web Speech API, lab at `/admin/dovede/voice`, `AdminPage/dovede/voice/`;
+  the library is only ever `import()`ed on the admin's click and its chunks / ≈ 27 MB wasm are excluded from the
+  service-worker precache — never import it statically; phase 2 is cloud speech-to-text, later); research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
   opens the page — `DovedePage/intro/`, flag `dovede-intro:v2`, file `public/dovede/intro-<hash>.mp4` from
   `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends
