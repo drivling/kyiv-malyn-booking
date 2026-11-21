@@ -379,7 +379,11 @@ of `dist` in a commit.
   On the page, Korosten mode (`c=Korosten`) turns an end the dictionary does not know into «place in words»
   (`saidPlaces` / `withKorostenWords` in `korosten/korostenCity.ts` → `city.Korosten` + `detail`), `korostenShape` answers
   shape `city` (the stop goes to the server by its `st_…` id) and the same `cityOutcome` as for Kyiv draws it; two stops
-  still use the browser planner. The Malyn ↔ Korosten corridor still takes only stop names (`korostenLeg`).
+  still use the browser planner. In the Malyn ↔ Korosten corridor `cityDetail.ts` reads the words right after «в Коростень / з Коростеня» as `detail`
+  (never a Malyn street; «на вокзал» is no place); `combineCorridor` prefers a dataset stop of that name, and for a place
+  without a stop `korostenLeg` answers `city` — a server step from / to `korosten.vokzal` (the point «Навчити місто»
+  learns from). `siteForm` uses `detailForm` for Korosten too, so every name of the starter list must read back
+  unchanged (a test checks it; fix names in the generator's `config.json`).
   **Learning campaigns** (admin plan step 6, `Docs/dovede-admin-roadmap.md` «Крок 6»; `src/dovede/city-campaign.ts`): the
   owner picks a preset («Навчити місто», «Дообучити: вечір / вихідні / ранок», «Питання людей без відповіді», «Види
   транспорту», «Свій список»), sees the estimate (`POST /admin/dovede/city/campaigns/preview`: level 0 exactly from the DB via

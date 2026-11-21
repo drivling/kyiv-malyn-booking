@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { detailForm } from './cityDetail';
-import { normalizeKey } from './crawl-core';
+import { normalizeKey, siteForm } from './crawl-core';
 import { LEARN_PLACES } from './learn-places';
 
 describe('dovede-crawl: готові списки місць', () => {
@@ -37,5 +37,13 @@ describe('dovede-crawl: готові списки місць', () => {
     // нічого з джерел не загубилось: кожна дозволена назва (без виключених і надто коротких) — у списку
     const want = [...allowed].filter((n) => !config.exclude.some((x) => x.toLowerCase() === n) && n.length >= 4 && n.length <= 70);
     expect(want.filter((n) => !places.some((p) => p.toLowerCase() === n))).toEqual([]);
+  });
+
+  it('Коростень: кожну назву сторінка читає так само («з Малина до Коростеня до …») — відповідь кампанії знайде й людина', () => {
+    expect(LEARN_PLACES.Korosten.filter((p) => siteForm('Korosten', p) !== p)).toEqual([]);
+    // чого сторінка назвати не може: назва обривається на числі чи слові «машин…», ініціал — не слово
+    expect(siteForm('Korosten', 'Завод шляхових машин')).toBe('Завод шляхових');
+    expect(siteForm('Korosten', 'вулиця В. Стуса')).toBeNull();
+    expect(siteForm('Korosten', 'вокзал')).toBeNull();
   });
 });

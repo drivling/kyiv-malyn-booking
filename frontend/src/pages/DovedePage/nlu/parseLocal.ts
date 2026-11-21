@@ -195,7 +195,14 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
   const allToks = tokenize(text);
   // У Києві відоме місце (метро, вокзал, «Святошин») лишається собою; у Житомирі словник місць не має —
   // слово, схоже на малинську вулицю («Польова»), там означає житомирську
-  const details = farDetails(text, allToks, (i, cityId) => cityId === 'city.Kyiv' && (kyivKnown(allToks, i) || Boolean(matchSynonym(allToks, i))));
+  // Коростень: слово, з якого починається зупинка переданого словника Коростеня, лишається зупинкою (у словнику
+  // Малина таких немає — там слова після «в Коростень» ідуть місцем словами, а зупинку впізнає коростенський розбір)
+  const korostenStops = stops.filter((s) => s.place.city === 'Korosten');
+  const details = farDetails(text, allToks, (i, cityId) =>
+    cityId === 'city.Kyiv'
+      ? kyivKnown(allToks, i) || Boolean(matchSynonym(allToks, i))
+      : cityId === 'city.Korosten' && korostenStops.length > 0 && Boolean(matchStopPlace(korostenStops, allToks, i)),
+  );
   // «У Києві з Предславинської 28 на Севастопольську площу» — обидва кінці в одному місті (лише Київ знає свої місця)
   const inCity = details.length
     ? null

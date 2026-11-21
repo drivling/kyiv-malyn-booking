@@ -1,5 +1,5 @@
 /**
- * «Місце словами» в далекому місті (Київ, Житомир): прийменники, межі назви й форма, у якій сторінка шле її серверу
+ * «Місце словами» в далекому місті (Київ, Житомир, Коростень): прийменники, межі назви й форма, у якій сторінка шле її серверу
  * («на Польову 12» → «Польова 12»). Цим користується `parseLocal`, а `detailForm` відповідає на питання «що надіслала
  * б сторінка» без повного розбору — для обходу, що наповнює базу доріг містом (`backend/src/dovede/crawl-core.ts`).
  * Побайтова копія — `backend/src/dovede/cityDetail.ts` (тест `cityDetail.test.ts` порівнює файли): міняйте обидва.
@@ -26,9 +26,11 @@ export function prepBefore(toks: Token[], i: number): Token | null {
 }
 
 /** Міста, де «Доведе» веде далі до місця, названого словами (сервер: dovede/city-route.ts) */
-export const FAR_CITY_RE: Array<[RegExp, 'city.Kyiv' | 'city.Zhytomyr']> = [
+export type FarCityId = 'city.Kyiv' | 'city.Zhytomyr' | 'city.Korosten';
+export const FAR_CITY_RE: Array<[RegExp, FarCityId]> = [
   [/^(київ|києва|києву|киев|киева|киеву)$/, 'city.Kyiv'],
   [/^(житомир|житомира|житомиру)$/, 'city.Zhytomyr'],
+  [/^(коростень|коростеня|коростеню)$/, 'city.Korosten'],
 ];
 export const DETAIL_TO_PREPS = new Set(['на', 'до', 'біля', 'коло', 'возле', 'около', 'к']);
 export const DETAIL_FROM_PREPS = new Set(['з', 'із', 'зі', 'від', 'с', 'со', 'из', 'от']);
@@ -36,7 +38,7 @@ export const STREET_WORDS = new Set(['вул', 'вулиця', 'вулицю', '
 /** Слова, які після міста означають час, транспорт чи саме питання, а не місце в місті */
 export const NOT_DETAIL_RE =
   /^(завтра|сьогодн|сегодн|післязавтр|послезавтр|зараз|сейчас|найближч|ближайш|понеділ|понедел|вівтор|вторн|серед|сред|четвер|п'ятниц|пятниц|субот|неділ|воскрес|ранок|ранку|зранку|вранц|утр|вечір|вечор|вечер|ввечер|обід|обед|вдень|днем|ноч|вихідн|выходн|годин|хвилин|минут|тижд|недел|маршрут|зубаст|електрич|електріч|электрич|кільцев|кольцев|експрес|экспресс|потяг|поїзд|поезд|автобус|попутк|попутн|блаблакар|машин|таксі|такси|коли|когда|скільки|сколько|кошту|стоит|ціна|цена|можна|можно|треба|надо|потрібно|нужно|доїхати|доехать|добратися|добраться|їхати|ехать|роботу|работу|навчання|учебу|гості|гости|справах|делам)|^(ніч|ночі|час|день|дня|авто|як|как|чим|чем|city|express|сіті|сити|міською|городской|малин[ауі]?|малине|київ|києв[аіу]|киев[ауе]?|житомир[ауі]?|житомире|коростен[ьяі])$/;
-/** «на автовокзал» у Житомирі — туди рейс і так приходить: це не окреме місце */
+/** «на автовокзал» у Житомирі, «на вокзал» у Коростені — туди рейс і так приходить: це не окреме місце */
 export const STATION_WORD_RE = /^(автовокзал|автостанц|вокзал)/;
 
 /**
@@ -56,7 +58,7 @@ export function nominative(word: string): string {
 
 export interface FarDetail {
   role: 'from' | 'to';
-  cityId: 'city.Kyiv' | 'city.Zhytomyr';
+  cityId: FarCityId;
   /** слова людини про місце; порожньо — «на автовокзал» (слова прибрано, місця немає) */
   text: string;
   start: number;
@@ -109,7 +111,8 @@ export function farDetails(text: string, toks: Token[], known: (i: number, cityI
     // після прийменника слова стоять у непрямому відмінку; «вул. Київська 77» без нього — вже в називному
     const said = text.slice(toks[first].start, toks[j - 1].end).replace(/\s+/g, ' ').trim();
     const body = first > i + 1 ? said.replace(/[\p{L}'’ʼ]+/gu, nominative) : said;
-    const station = cityId === 'city.Zhytomyr' && words === 1 && STATION_WORD_RE.test(toks[j - 1].n);
+    // у Коростені рейс приходить на залізничний вокзал; автостанція там — окреме місце
+    const station = words === 1 && (cityId === 'city.Zhytomyr' ? STATION_WORD_RE.test(toks[j - 1].n) : cityId === 'city.Korosten' && /^вокзал/.test(toks[j - 1].n));
     out.push({ role, cityId, text: station ? '' : body, start: toks[i + 1].start, end: toks[j - 1].end, skip });
   }
   return out;
@@ -124,9 +127,9 @@ export function kyivKnown(toks: Token[], i: number): boolean {
   return Boolean(place && (place.city === 'Kyiv' || place.id === 'malyn.vokzal')) || Boolean(matchMetro(toks, i)) || Boolean(matchRing(toks, i));
 }
 
-export type DetailCity = 'Kyiv' | 'Zhytomyr';
+export type DetailCity = 'Kyiv' | 'Zhytomyr' | 'Korosten';
 
-const CITY_GENITIVE: Record<DetailCity, string> = { Kyiv: 'Києва', Zhytomyr: 'Житомира' };
+const CITY_GENITIVE: Record<DetailCity, string> = { Kyiv: 'Києва', Zhytomyr: 'Житомира', Korosten: 'Коростеня' };
 
 /**
  * Що сторінка надіслала б серверу як місце в місті на питання «з Малина до <міста> до <name>» (`detail` розбору);
@@ -136,7 +139,7 @@ const CITY_GENITIVE: Record<DetailCity, string> = { Kyiv: 'Києва', Zhytomyr
 export function detailForm(city: DetailCity, name: string): string | null {
   const text = `з Малина до ${CITY_GENITIVE[city]} до ${name}`;
   const toks = tokenize(text);
-  const cityId = city === 'Kyiv' ? 'city.Kyiv' : 'city.Zhytomyr';
+  const cityId: FarCityId = `city.${city}`;
   const details = farDetails(text, toks, (i, id) => id === 'city.Kyiv' && kyivKnown(toks, i));
   const detail = details.find((d) => d.role === 'to' && d.text && d.cityId === cityId);
   if (!detail) return null;

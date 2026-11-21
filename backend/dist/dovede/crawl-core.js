@@ -194,9 +194,6 @@ function usableName(name) {
 function siteForm(city, name) {
     if (looksLikeMetro(name))
         return null;
-    // «місце словами» сторінка розбирає для Києва й Житомира; іншому місту назва йде як є
-    if (city !== 'Kyiv' && city !== 'Zhytomyr')
-        return name;
     const form = (0, cityDetail_1.detailForm)(city, name);
     if (!form)
         return null;

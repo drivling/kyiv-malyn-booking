@@ -10,12 +10,13 @@ import { detailForm, type DetailCity } from './cityDetail';
 import { METRO_STATIONS } from './kyivMetroData';
 import { parseLocal } from './parseLocal';
 import fixtures from '../compose/fixtures/kyiv-city-modes.json';
-import { KYIV_LEARN_PLACES, ZHYTOMYR_LEARN_PLACES } from '../../../../../backend/src/dovede/learn-places';
+import korostenStops from '../eval/korosten-stops.json';
+import { KYIV_LEARN_PLACES, LEARN_PLACES, ZHYTOMYR_LEARN_PLACES } from '../../../../../backend/src/dovede/learn-places';
 import { ZT_OWN } from '../../../../../backend/src/dovede/zhytomyr-own-data';
 import { looksLikeMetro, normalizeKey, seedFromIntent, siteForm } from '../../../../../backend/src/dovede/crawl-core';
 
 const K = { date: '2026-11-17', mins: 600 };
-const GENITIVE: Record<DetailCity, string> = { Kyiv: 'Києва', Zhytomyr: 'Житомира' };
+const GENITIVE: Record<DetailCity, string> = { Kyiv: 'Києва', Zhytomyr: 'Житомира', Korosten: 'Коростеня' };
 
 /** Як локальний обхід брав форму назви до цього модуля: повний розбір фрази «з Малина до <міста> до <назви>» */
 function viaParse(city: DetailCity, name: string): string | null {
@@ -59,12 +60,13 @@ const CORPUS: Record<DetailCity, string[]> = {
   Zhytomyr: [
     ...new Set([...ZHYTOMYR_LEARN_PLACES, ...KYIV_LEARN_PLACES, ...CRAWL_NAMES, ...ZT_OWN.dirs.flatMap((d) => d.stops.map((s) => s[0])), ...ZT_OWN.dirs.map((d) => d.name)]),
   ],
+  Korosten: [...new Set([...LEARN_PLACES.Korosten, ...CRAWL_NAMES, ...korostenStops.stops.map((s) => s.name)])],
 };
 
 describe('cityDetail: detailForm — те саме, що повний розбір сторінки', () => {
-  it.each(['Kyiv', 'Zhytomyr'] as const)('%s: усі назви з місць, фікстур і тестів обходу', (city) => {
+  it.each(['Kyiv', 'Zhytomyr', 'Korosten'] as const)('%s: усі назви з місць, фікстур і тестів обходу', (city) => {
     const names = CORPUS[city];
-    expect(names.length).toBeGreaterThan(city === 'Kyiv' ? 150 : 300);
+    expect(names.length).toBeGreaterThan(city === 'Kyiv' ? 150 : city === 'Zhytomyr' ? 300 : 100);
     const diff = names.filter((n) => detailForm(city, n) !== viaParse(city, n)).map((n) => `${n} → ${detailForm(city, n)} / ${viaParse(city, n)}`);
     expect(diff).toEqual([]);
     // і форма, з якою обхід питає сервер, не змінилась

@@ -266,8 +266,6 @@ export function usableName(name: string): boolean {
  */
 export function siteForm(city: CrawlCity, name: string): string | null {
   if (looksLikeMetro(name)) return null;
-  // «місце словами» сторінка розбирає для Києва й Житомира; іншому місту назва йде як є
-  if (city !== 'Kyiv' && city !== 'Zhytomyr') return name;
   const form = detailForm(city, name);
   if (!form) return null;
   return normalizeKey(form) === normalizeKey(name) ? name : form;

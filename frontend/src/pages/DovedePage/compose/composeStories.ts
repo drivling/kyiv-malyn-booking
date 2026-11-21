@@ -412,7 +412,7 @@ const CITY_LOOKBACK = 40;
 
 /** Точка далекого міста, куди привозить (і звідки забирає) міжміський рейс: id для сервера, назва, запит для Google Maps */
 function farPoint(far: FarCity, kyivPoint: string | null): { id: string; label: string; maps: string | null } | null {
-  // Коростенем веде наш планувальник (korostenLeg), не сервер
+  // Коростенем веде наш планувальник (korostenLeg); сервер — лише для місця без зупинки (`KOROSTEN_POINT`)
   if (far === 'Korosten') return null;
   if (far === 'Zhytomyr') return { id: 'zhytomyr.avtovokzal', label: ZHYTOMYR_STATION.name, maps: ZHYTOMYR_STATION.maps };
   const p = kyivPoint ? KYIV_POINTS[kyivPoint] : null;
@@ -473,7 +473,7 @@ function cityStep(
   anchor: 'from' | 'until',
   mins: number,
 ): { legs: StoryLeg[]; minutes: number } {
-  // Коростенем веде наш планувальник: `farPoint` для нього null, тож сюди доходять лише Київ і Житомир
+  // Коростень сюди доходить лише з місцем без зупинки датасету (`korostenLeg` → `city`)
   const city = far as CityAsk['city'];
   const known: CityEnd = { ask: point.id, label: point.label, maps: point.maps };
   const words: CityEnd = { ask: detail, label: detail, maps: `${detail}, ${CITY_LABEL[far]}` };
@@ -491,21 +491,28 @@ function inKorosten(fp: LocalPlanner, legs: StoryLeg[]): StoryLeg[] {
   return legs.map((l) => (l.kind === 'bus' ? { ...l, city: 'Korosten', fromName: fp.stopName(l.fromStopId), toName: fp.stopName(l.toStopId) } : l));
 }
 
+/** Вокзал Коростеня для сервера: від цієї ж точки вчить кампанія «Навчити місто», тож збережені дороги збігаються */
+const KOROSTEN_POINT = { id: 'korosten.vokzal', label: 'вокзал Коростеня', maps: 'Залізничний вокзал, Коростень' };
+
 type KorostenLeg =
   | { kind: 'none' }
+  /** місце названо словами, зупинки з такою назвою в датасеті нема — дорогу від / до вокзалу питаємо в сервера */
+  | { kind: 'city' }
   /** місце названо, а планувальника Коростеня ще нема (датасет не завантажився) — час лише до вокзалу */
   | { kind: 'missing' }
   | { kind: 'legs'; legs: StoryLeg[]; label: string; depart: number; arrive: number; approx: boolean; worst: number };
 
 /**
  * Коростень містом (етап 3): від вокзалу після електрички (`from`) або до вокзалу до неї (`until`) — нашим
- * планувальником Коростеня, як Малином. `detail` — назва зупинки Коростеня (`farStop` перетворює її на id).
+ * планувальником Коростеня, як Малином. `detail` — назва зупинки Коростеня (`farStop` перетворює її на id); місце
+ * без зупинки (адреса, заклад) — `city`: крок містом від / до вокзалу дає сервер, як у Києві й Житомирі.
  */
 function korostenLeg(input: ComposeInput, detail: string | null | undefined, anchor: 'from' | 'until', mins: number, minsMax: number, approx: boolean): KorostenLeg {
   if (!detail) return { kind: 'none' };
   const fp = input.farPlanner ?? null;
   const stopId = input.farStop?.(detail) ?? null;
-  if (!fp || !stopId) return { kind: 'missing' };
+  if (!stopId) return { kind: 'city' };
+  if (!fp) return { kind: 'missing' };
   const label = fp.stopName(stopId);
   const station = KOROSTEN_STATION.stopId;
   if (stopId === station) return { kind: 'legs', legs: [], label, depart: mins, arrive: mins, approx, worst: minsMax };
@@ -657,15 +664,17 @@ function toMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind: '
       }
     }
     // Коростень: спершу нашим планувальником Коростеня до вокзалу
+    let korostenWords = false;
     if (shape.far === 'Korosten') {
       const k = korostenLeg(input, shape.detail, 'until', trip.depMins, trip.depMins, false);
       if (k.kind === 'legs') {
         kyivLegs = k.legs;
         kyivLead = trip.depMins - k.depart;
       }
+      if (k.kind === 'city') korostenWords = true;
     }
     // місце в далекому місті словами: спершу містом до посадки
-    const boardPoint = shape.detail ? farPoint(shape.far, bp) : null;
+    const boardPoint = !shape.detail ? null : korostenWords ? KOROSTEN_POINT : farPoint(shape.far, bp);
     if (shape.detail && boardPoint) {
       const step = cityStep(input, shape.far, boardPoint, shape.detail, 'until', trip.depMins - CITY_BOARD_BUFFER);
       kyivLegs = step.legs;
@@ -765,10 +774,10 @@ function fromMalynOptions(input: ComposeInput, shape: Extract<TripShape, { kind:
     let kyivLegs: StoryLeg[] = [];
     const target = shape.kyivPoint;
     const ap = trip.kyivPoint;
-    const alightPoint = shape.detail ? farPoint(shape.far, ap) : null;
-    if (shape.far === 'Korosten') {
-      // Коростень: від вокзалу нашим планувальником Коростеня; без названого місця кінець — вокзал
-      const k = korostenLeg(input, shape.detail, 'from', arrive, trip.arrMaxMins, approx);
+    // Коростень: від вокзалу нашим планувальником Коростеня; без названого місця кінець — вокзал
+    const k: KorostenLeg = shape.far === 'Korosten' ? korostenLeg(input, shape.detail, 'from', arrive, trip.arrMaxMins, approx) : { kind: 'none' };
+    const alightPoint = !shape.detail ? null : k.kind === 'city' ? KOROSTEN_POINT : farPoint(shape.far, ap);
+    if (shape.far === 'Korosten' && k.kind !== 'city') {
       if (k.kind === 'legs') {
         kyivLegs = k.legs;
         endLabel = k.label;
