@@ -25,7 +25,8 @@ import { isStickerWallKey, stickerWallKey, stickerWallSnapshot } from '../sticke
 import { peopleWallSnapshot, personSummary, recordPersonReturn, recordPersonScan, stickerPeopleStats, type PassengerSummary } from '../sticker-people';
 import { arrivalReportStats, buildArrivalRow, parseArrivalReport, parseReportDays } from '../arrival-reports';
 import { GTFS_ZIP_FILENAME, createGtfsFeedProvider, isGtfsFeedFile } from '../gtfs-feed';
-import { listGpsPositions, parseGpsRange } from '../transport-gps';
+import { listGpsPointsSince, listGpsPositions, parseGpsRange, parseRunTimesDays, RUN_TIMES_DAYS_MAX } from '../transport-gps';
+import { buildRunTimes } from '../transport-gps-times';
 import { DEFAULT_TRANSPORT_CITY, parseTransportCity, resolveTransportCity, type TransportCityAccess } from '../transport-city';
 import {
   WATCHED_SOURCES,
@@ -488,6 +489,42 @@ export function createTransportRouter(deps: {
     } catch (e) {
       console.error('[GET /admin/transport/gps]', e);
       res.status(500).json({ error: 'Failed to load GPS positions' });
+    }
+  });
+
+  /**
+   * Адмін: час у дорозі між зупинками за GPS-треками проти наших сегментів (src/transport-gps-times.ts) —
+   * `?city=&days=` (1–30, типово 7). Лише читає: рішення про сегменти — за власником.
+   */
+  r.get('/admin/transport/gps/run-times', requireAdmin, async (req, res) => {
+    try {
+      const cityCode = adminCity(res, req.query.city);
+      if (!cityCode) return;
+      const days = parseRunTimesDays(req.query.days);
+      if (!days) return res.status(400).json({ error: `days: ціле від 1 до ${RUN_TIMES_DAYS_MAX}` });
+      const since = new Date(Date.now() - days * 86_400_000);
+      const [dataset, points] = await Promise.all([loadTransportDataset(prisma, cityCode), listGpsPointsSince(prisma, { cityCode, since })]);
+      // без Math.min(...): точок буває сотні тисяч
+      let first = Infinity;
+      let last = -Infinity;
+      for (const p of points) {
+        const t = p.at.getTime();
+        if (t < first) first = t;
+        if (t > last) last = t;
+      }
+      res.set('Cache-Control', 'private, no-store');
+      res.json({
+        cityCode,
+        days,
+        points: points.length,
+        from: points.length ? new Date(first).toISOString() : null,
+        to: points.length ? new Date(last).toISOString() : null,
+        revision: dataset.revision ?? null,
+        ...buildRunTimes(dataset, points),
+      });
+    } catch (e) {
+      console.error('[GET /admin/transport/gps/run-times]', e);
+      res.status(500).json({ error: 'Failed to build GPS run times' });
     }
   });
 

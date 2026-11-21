@@ -17,6 +17,7 @@ const sticker_people_1 = require("../sticker-people");
 const arrival_reports_1 = require("../arrival-reports");
 const gtfs_feed_1 = require("../gtfs-feed");
 const transport_gps_1 = require("../transport-gps");
+const transport_gps_times_1 = require("../transport-gps-times");
 const transport_city_1 = require("../transport-city");
 const transport_source_watch_1 = require("../transport-source-watch");
 function createTransportRouter(deps) {
@@ -483,6 +484,46 @@ function createTransportRouter(deps) {
         catch (e) {
             console.error('[GET /admin/transport/gps]', e);
             res.status(500).json({ error: 'Failed to load GPS positions' });
+        }
+    });
+    /**
+     * Адмін: час у дорозі між зупинками за GPS-треками проти наших сегментів (src/transport-gps-times.ts) —
+     * `?city=&days=` (1–30, типово 7). Лише читає: рішення про сегменти — за власником.
+     */
+    r.get('/admin/transport/gps/run-times', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const cityCode = adminCity(res, req.query.city);
+            if (!cityCode)
+                return;
+            const days = (0, transport_gps_1.parseRunTimesDays)(req.query.days);
+            if (!days)
+                return res.status(400).json({ error: `days: ціле від 1 до ${transport_gps_1.RUN_TIMES_DAYS_MAX}` });
+            const since = new Date(Date.now() - days * 86400000);
+            const [dataset, points] = await Promise.all([(0, local_transport_1.loadTransportDataset)(prisma, cityCode), (0, transport_gps_1.listGpsPointsSince)(prisma, { cityCode, since })]);
+            // без Math.min(...): точок буває сотні тисяч
+            let first = Infinity;
+            let last = -Infinity;
+            for (const p of points) {
+                const t = p.at.getTime();
+                if (t < first)
+                    first = t;
+                if (t > last)
+                    last = t;
+            }
+            res.set('Cache-Control', 'private, no-store');
+            res.json({
+                cityCode,
+                days,
+                points: points.length,
+                from: points.length ? new Date(first).toISOString() : null,
+                to: points.length ? new Date(last).toISOString() : null,
+                revision: dataset.revision ?? null,
+                ...(0, transport_gps_times_1.buildRunTimes)(dataset, points),
+            });
+        }
+        catch (e) {
+            console.error('[GET /admin/transport/gps/run-times]', e);
+            res.status(500).json({ error: 'Failed to build GPS run times' });
         }
     });
     /** Адмін: зовнішні джерела розкладу (сторінка ради, data.gov.ua) і їхній останній побачений стан */

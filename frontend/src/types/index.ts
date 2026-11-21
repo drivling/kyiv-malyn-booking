@@ -1716,3 +1716,42 @@ export interface DovedeSynonymRow {
   placeId: string;
   createdAt: string;
 }
+
+/** «Час у дорозі за GPS» (backend/src/transport-gps-times.ts) */
+export interface GpsRunSpan {
+  fromStopId: string;
+  toStopId: string;
+  fromName: string;
+  toName: string;
+  meters: number;
+  ourSec: number;
+  gpsSec: number | null;
+  passes: number;
+  confidence: 'ok' | 'few' | 'none';
+}
+export interface GpsRunDirection {
+  direction: 'there' | 'back';
+  meters: number;
+  ourSec: number;
+  gpsSec: number | null;
+  covered: number;
+  timetableSec: number | null;
+  passes: number;
+  spans: GpsRunSpan[];
+}
+export interface GpsRunRoute {
+  routeId: string;
+  routeNo: string;
+  points: number;
+  directions: GpsRunDirection[];
+}
+export interface GpsRunTimesReport {
+  cityCode: string;
+  days: number;
+  points: number;
+  from: string | null;
+  to: string | null;
+  revision: string | null;
+  routes: GpsRunRoute[];
+  unknownRouteNos: string[];
+}

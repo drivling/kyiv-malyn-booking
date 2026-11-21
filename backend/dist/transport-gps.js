@@ -1,11 +1,13 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GPS_EXPORT_LIMIT = exports.GPS_FEEDS = void 0;
+exports.GPS_EXPORT_LIMIT = exports.RUN_TIMES_DAYS_MAX = exports.RUN_TIMES_DAYS_DEFAULT = exports.GPS_FEEDS = void 0;
 exports.kyivLocalToUtc = kyivLocalToUtc;
 exports.parseGpsFeed = parseGpsFeed;
 exports.fetchGpsFeedText = fetchGpsFeedText;
 exports.recordGpsPositions = recordGpsPositions;
 exports.parseGpsRange = parseGpsRange;
+exports.parseRunTimesDays = parseRunTimesDays;
+exports.listGpsPointsSince = listGpsPointsSince;
 exports.listGpsPositions = listGpsPositions;
 exports.GPS_FEEDS = [{ cityCode: 'Korosten', url: 'https://www.korosten-rada.gov.ua/transport_korosten.json' }];
 const KYIV_TZ = 'Europe/Kyiv';
@@ -120,6 +122,24 @@ function parseGpsRange(from, to, now) {
     if (end.getTime() - start.getTime() > 7 * 86400000)
         return null;
     return { from: start, to: end };
+}
+/** Скільки діб точок бере звіт «час у дорозі» (`GET /admin/transport/gps/run-times?days=`) */
+exports.RUN_TIMES_DAYS_DEFAULT = 7;
+exports.RUN_TIMES_DAYS_MAX = 30;
+function parseRunTimesDays(raw) {
+    if (raw === undefined || raw === null || raw === '')
+        return exports.RUN_TIMES_DAYS_DEFAULT;
+    const n = Number(raw);
+    return Number.isInteger(n) && n >= 1 && n <= exports.RUN_TIMES_DAYS_MAX ? n : null;
+}
+/** Точки міста від `since` для розрахунку часу в дорозі — без держномерів */
+async function listGpsPointsSince(prisma, opts) {
+    return prisma.transportVehiclePosition.findMany({
+        where: { cityCode: opts.cityCode, at: { gte: opts.since } },
+        orderBy: [{ vehicleId: 'asc' }, { at: 'asc' }],
+        take: 300000,
+        select: { vehicleId: true, routeNo: true, at: true, lat: true, lng: true, speed: true },
+    });
 }
 exports.GPS_EXPORT_LIMIT = 100000;
 /** Адмінка: точки міста за проміжок (опційно один маршрут) + коротка зведена по автобусах */

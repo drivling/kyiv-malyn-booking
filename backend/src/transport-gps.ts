@@ -157,6 +157,29 @@ export function parseGpsRange(from: unknown, to: unknown, now: Date): { from: Da
   return { from: start, to: end };
 }
 
+/** Скільки діб точок бере звіт «час у дорозі» (`GET /admin/transport/gps/run-times?days=`) */
+export const RUN_TIMES_DAYS_DEFAULT = 7;
+export const RUN_TIMES_DAYS_MAX = 30;
+
+export function parseRunTimesDays(raw: unknown): number | null {
+  if (raw === undefined || raw === null || raw === '') return RUN_TIMES_DAYS_DEFAULT;
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= RUN_TIMES_DAYS_MAX ? n : null;
+}
+
+/** Точки міста від `since` для розрахунку часу в дорозі — без держномерів */
+export async function listGpsPointsSince(
+  prisma: PrismaClient,
+  opts: { cityCode: string; since: Date },
+): Promise<Array<{ vehicleId: string; routeNo: string; at: Date; lat: number; lng: number; speed: number }>> {
+  return prisma.transportVehiclePosition.findMany({
+    where: { cityCode: opts.cityCode, at: { gte: opts.since } },
+    orderBy: [{ vehicleId: 'asc' }, { at: 'asc' }],
+    take: 300_000,
+    select: { vehicleId: true, routeNo: true, at: true, lat: true, lng: true, speed: true },
+  });
+}
+
 export const GPS_EXPORT_LIMIT = 100_000;
 
 /** Адмінка: точки міста за проміжок (опційно один маршрут) + коротка зведена по автобусах */

@@ -1,0 +1,67 @@
+.gps-times {
+  border: 1px solid var(--pb-border, #e5e7eb);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 8px;
+}
+
+.gps-times-summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.gps-times-body {
+  margin-top: 10px;
+}
+
+.gps-times-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+}
+
+.gps-times-check {
+  font-size: 14px;
+}
+
+.gps-times-hint {
+  margin: 8px 0;
+  font-size: 13px;
+  color: var(--pb-muted, #6b7280);
+  max-width: 900px;
+}
+
+.gps-times-error {
+  color: #991b1b;
+}
+
+.gps-times-route h4 {
+  margin: 16px 0 4px;
+}
+
+.gps-times-total {
+  margin: 8px 0 4px;
+  font-size: 14px;
+}
+
+.gps-times-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.gps-times-table th,
+.gps-times-table td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--pb-border, #e5e7eb);
+}
+
+.gps-times-table tr.is-weak td {
+  color: var(--pb-muted, #9ca3af);
+}
+
+.gps-times-table tr.is-notable td:nth-child(5) {
+  font-weight: 600;
+}
