@@ -1,5 +1,6 @@
 /**
- * Ролик перед табло зупинки (stickerAd.ts): міні-тизер «Крапка» або привітання «Вітаємо в Малині» (8 с) на весь екран —
+ * Ролик перед табло зупинки (stickerAd.ts): міні-тизер «Крапка» або привітання вокзалу — «Вітаємо в Малині» чи
+ * «Вітаємо в Коростені» (8 с) — на весь екран —
  * так само, як вступ /dovede (useAdVideo.ts: без перемотки, поля в колір кадру). Після скану QR людина ще нічого не
  * торкалась, тож звук браузер не дасть: ролик одразу йде без звуку (`silentStart`), а звук вмикає «Увімкнути звук»;
  * «▶ Дивитися» — лише коли браузер не грає навіть без звуку. Табло відкривається колом із тієї точки кадру, де ролик лишив крапку. Табло під роликом уже завантажується;
@@ -13,17 +14,27 @@ import { framePoint, openIris, reducedMotion, useAdChrome, useAdVideo, type AdVi
 import { newViewId, trackAd } from './adEvents';
 import { HINT_NAME, HINT_POSTER, HINT_SECONDS, HINT_VIDEO } from './hintMedia';
 import { markSeen } from './seen';
-import { HINT_SEEN_KEY, WELCOME_SEEN_KEY, type StickerAdVideo } from './stickerAd';
+import { AD_SEEN_KEYS, type StickerAdVideo } from './stickerAd';
+import { WELCOME_KOROSTEN_NAME, WELCOME_KOROSTEN_POSTER, WELCOME_KOROSTEN_SECONDS, WELCOME_KOROSTEN_VIDEO } from './welcomeKorostenMedia';
 import { WELCOME_NAME, WELCOME_POSTER, WELCOME_SECONDS, WELCOME_VIDEO } from './welcomeMedia';
 
 /**
  * Ролики: файл, позначка «бачив», підписи й точка кадру 1080×1920, з якої відкривається табло —
- * у тизері там згасає крапка (центр безпечної зони сторіс), у привітанні вона стоїть крапкою після «в Малині»
- * (scripts/teaser/scene.html; інший текст чи кегль — переміряти)
+ * у тизері там згасає крапка (центр безпечної зони сторіс), у привітанні вона стоїть крапкою після «в Малині» /
+ * «в Коростені» (scripts/teaser/scene.html; інший текст чи кегль — переміряти: центр синіх пікселів останнього кадру)
  */
 const VIDEOS: Record<StickerAdVideo, { src: string; poster: string; seconds: number; name: string; seenKey: string; title: string; dot: { x: number; y: number } }> = {
-  hint: { src: HINT_VIDEO, poster: HINT_POSTER, seconds: HINT_SECONDS, name: HINT_NAME, seenKey: HINT_SEEN_KEY, title: 'Ролик «Доведе.»', dot: { x: 540, y: 902 } },
-  welcome: { src: WELCOME_VIDEO, poster: WELCOME_POSTER, seconds: WELCOME_SECONDS, name: WELCOME_NAME, seenKey: WELCOME_SEEN_KEY, title: 'Ролик «Вітаємо в Малині»', dot: { x: 941, y: 1027 } },
+  hint: { src: HINT_VIDEO, poster: HINT_POSTER, seconds: HINT_SECONDS, name: HINT_NAME, seenKey: AD_SEEN_KEYS.hint, title: 'Ролик «Доведе.»', dot: { x: 540, y: 902 } },
+  welcome: { src: WELCOME_VIDEO, poster: WELCOME_POSTER, seconds: WELCOME_SECONDS, name: WELCOME_NAME, seenKey: AD_SEEN_KEYS.welcome, title: 'Ролик «Вітаємо в Малині»', dot: { x: 941, y: 1027 } },
+  welcomeKorosten: {
+    src: WELCOME_KOROSTEN_VIDEO,
+    poster: WELCOME_KOROSTEN_POSTER,
+    seconds: WELCOME_KOROSTEN_SECONDS,
+    name: WELCOME_KOROSTEN_NAME,
+    seenKey: AD_SEEN_KEYS.welcomeKorosten,
+    title: 'Ролик «Вітаємо в Коростені»',
+    dot: { x: 951, y: 998 },
+  },
 };
 const IRIS_MS = 760;
 const FADE_MS = 220;
