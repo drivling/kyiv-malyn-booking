@@ -169,10 +169,14 @@ of `dist` in a commit.
   --base <clean.mp4>` (`frontend/scripts/teaser/`: `scene.html` is a pure function of the frame number, Playwright's Chromium
   shoots the frames, ffmpeg assembles; local only, output in `out/`, then `dovede:intro --slot hint`; mode `welcome` makes the
   «Вітаємо в Малині» greeting with the same dot, timing and sound; `lockup.py` draws the Ukrainian
-  logo as outlines); on the stops of `WELCOME_STOPS` in `stickerAd.ts` (Malyn's railway station `st_0019`) the greeting
-  plays **instead of** the dot teaser — file `public/ads/welcome-<hash>.mp4` (`dovede:intro --slot welcome` →
-  `src/ads/welcomeMedia.ts`), its own once-per-browser flag `malyn-welcome:v1`, so the two videos do not cancel each other
-  and the dot is never shown at the station; a new greeting text or size = re-measure the dot point in `StickerAdIntro.tsx`;
+  logo as outlines); on the railway stations of `WELCOME_STOPS` in `stickerAd.ts` (keyed by the site's city: Malyn
+  `st_0019`, Korosten `st_1001`) the city's greeting plays **instead of** the dot teaser — Malyn's
+  `public/ads/welcome-<hash>.mp4` (`dovede:intro --slot welcome` → `src/ads/welcomeMedia.ts`), Korosten's «Вітаємо в
+  Коростені» `public/ads/welcome-korosten-<hash>.mp4` (`--slot welcomeKorosten` → `welcomeKorostenMedia.ts`); three videos,
+  three once-per-browser flags named after the video (`AD_SEEN_KEYS`: `dovede-hint:v1`, `malyn-welcome:v1`,
+  `korosten-welcome:v1`), so no video cancels another and the dot is never shown at a station (storage is per domain
+  anyway); a new greeting text or size = re-measure the dot point in `StickerAdIntro.tsx` (centre of the blue pixels of the
+  last frame);
   both stop videos start without a touch: when the browser refuses sound (after a QR scan it nearly always does) they play
   muted with an «Увімкнути звук» button (`useAdVideo(…, { silentStart: true })`, `AdSoundButton`), and «▶ Дивитися» is
   left for a browser that will not play even muted — the /dovede intro still waits for «▶ Дивитися»; in Playwright any

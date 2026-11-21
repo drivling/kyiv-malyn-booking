@@ -155,10 +155,11 @@ export function cacheControlFor(pathname) {
 
 /**
  * Ролики «Доведе» (`npm run dovede:intro`): вступ /dovede (`public/dovede/intro-<хеш>.mp4` + постер) і міні-тизер
- * перед табло зупинки (`public/ads/hint-<хеш>.*`) чи ролик-привітання замість нього (`public/ads/welcome-<хеш>.*`).
+ * перед табло зупинки (`public/ads/hint-<хеш>.*`) чи привітання вокзалу замість нього (`public/ads/welcome-<хеш>.*` —
+ * Малин, `public/ads/welcome-korosten-<хеш>.*` — Коростень).
  * У назві — хеш вмісту, новий ролик = нова назва, тож файл кешується назавжди, як `/assets/*`.
  */
-const DOVEDE_INTRO_FILE = /^\/(dovede\/intro|ads\/(?:hint|welcome))-[0-9a-f]{8}\.(mp4|jpg)$/;
+const DOVEDE_INTRO_FILE = /^\/(dovede\/intro|ads\/(?:hint|welcome|welcome-korosten))-[0-9a-f]{8}\.(mp4|jpg)$/;
 
 /**
  * Один діапазон із заголовка `Range` (RFC 9110 §14.1.2) — без нього Safari на iPhone не грає MP4 (питає
