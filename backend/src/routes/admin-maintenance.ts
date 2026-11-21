@@ -1,6 +1,8 @@
 import express, { type Router } from 'express';
 import type { PrismaClient } from '@prisma/client';
 import { requireAdmin } from '../middleware/require-admin';
+import { resolveAlongTripRouteId } from '../viber-listing-merge';
+import type { CatalogPrisma } from '../catalog-cache';
 
 export function createAdminMaintenanceRouter(deps: { prisma: PrismaClient }): Router {
   const { prisma } = deps;
@@ -70,6 +72,39 @@ export function createAdminMaintenanceRouter(deps: { prisma: PrismaClient }): Ro
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
+    }
+  });
+
+  /**
+   * Привʼязка пасажирських оголошень без маршруту («Ірпінь → Малин») до варіанта коридору, на якому
+   * лежить їхня пара (Київ–Малин через Ірпінь / Бучу). Без `apply: true` лише показує, що зміниться.
+   */
+  r.post('/admin/viber-listings/link-along-routes', requireAdmin, async (req, res) => {
+    try {
+      const apply = (req.body as { apply?: unknown } | undefined)?.apply === true;
+      const rows = await prisma.viberListing.findMany({
+        where: {
+          tripRouteId: null,
+          listingType: 'passenger',
+          fromPointId: { not: null },
+          toPointId: { not: null },
+        },
+        select: { id: true, route: true, fromPointId: true, toPointId: true },
+        orderBy: { id: 'asc' },
+      });
+      const changes: Array<{ id: number; route: string; tripRouteId: number }> = [];
+      for (const row of rows) {
+        const tripRouteId = await resolveAlongTripRouteId(prisma as unknown as CatalogPrisma, row.fromPointId, row.toPointId);
+        if (tripRouteId == null) continue;
+        changes.push({ id: row.id, route: row.route, tripRouteId });
+        if (apply) {
+          await prisma.viberListing.update({ where: { id: row.id }, data: { tripRouteId } });
+        }
+      }
+      res.json({ applied: apply, checked: rows.length, linked: changes.length, changes });
+    } catch (error) {
+      console.error('❌ link-along-routes:', error);
+      res.status(500).json({ error: 'Failed to link listings' });
     }
   });
 

@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createAdminMaintenanceRouter = createAdminMaintenanceRouter;
 const express_1 = __importDefault(require("express"));
 const require_admin_1 = require("../middleware/require-admin");
+const viber_listing_merge_1 = require("../viber-listing-merge");
 function createAdminMaintenanceRouter(deps) {
     const { prisma } = deps;
     const r = express_1.default.Router();
@@ -67,6 +68,40 @@ function createAdminMaintenanceRouter(deps) {
                 success: false,
                 error: error instanceof Error ? error.message : 'Unknown error',
             });
+        }
+    });
+    /**
+     * Привʼязка пасажирських оголошень без маршруту («Ірпінь → Малин») до варіанта коридору, на якому
+     * лежить їхня пара (Київ–Малин через Ірпінь / Бучу). Без `apply: true` лише показує, що зміниться.
+     */
+    r.post('/admin/viber-listings/link-along-routes', require_admin_1.requireAdmin, async (req, res) => {
+        try {
+            const apply = req.body?.apply === true;
+            const rows = await prisma.viberListing.findMany({
+                where: {
+                    tripRouteId: null,
+                    listingType: 'passenger',
+                    fromPointId: { not: null },
+                    toPointId: { not: null },
+                },
+                select: { id: true, route: true, fromPointId: true, toPointId: true },
+                orderBy: { id: 'asc' },
+            });
+            const changes = [];
+            for (const row of rows) {
+                const tripRouteId = await (0, viber_listing_merge_1.resolveAlongTripRouteId)(prisma, row.fromPointId, row.toPointId);
+                if (tripRouteId == null)
+                    continue;
+                changes.push({ id: row.id, route: row.route, tripRouteId });
+                if (apply) {
+                    await prisma.viberListing.update({ where: { id: row.id }, data: { tripRouteId } });
+                }
+            }
+            res.json({ applied: apply, checked: rows.length, linked: changes.length, changes });
+        }
+        catch (error) {
+            console.error('❌ link-along-routes:', error);
+            res.status(500).json({ error: 'Failed to link listings' });
         }
     });
     /**

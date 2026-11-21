@@ -123,3 +123,62 @@ test('незаблокований номер проходить як і ран�
   await createOrMergeViberListing(prisma, baseInput({ date: new Date() }));
   assert.equal(created.length, 1);
 });
+
+// ── «по дорозі»: пасажир Ірпінь/Буча ↔ Малин привʼязується до варіанта коридору Київ–Малин ──
+
+function alongStub() {
+  const points = [
+    { id: 1, code: 'Kyiv', nameUk: 'Київ' },
+    { id: 2, code: 'Malyn', nameUk: 'Малин' },
+    { id: 5, code: 'Irpin', nameUk: 'Ірпінь' },
+    { id: 6, code: 'Bucha', nameUk: 'Буча' },
+  ];
+  const routes = [
+    { id: 4, slug: 'Kyiv-Malyn', corridorTripRouteId: null, stops: [1, 2] },
+    { id: 8, slug: 'Kyiv-Malyn-Bucha', corridorTripRouteId: 4, stops: [1, 6, 2] },
+    { id: 9, slug: 'Kyiv-Malyn-Irpin', corridorTripRouteId: 4, stops: [1, 5, 2] },
+    { id: 1, slug: 'Malyn-Kyiv', corridorTripRouteId: null, stops: [2, 1] },
+    { id: 12, slug: 'Malyn-Kyiv-Irpin', corridorTripRouteId: 1, stops: [2, 5, 1] },
+  ].map((r) => ({ ...r, stops: r.stops.map((pointId, position) => ({ pointId, position })) }));
+  const { prisma, created } = makeStub();
+  const p = prisma as any;
+  p.tripPoint.findMany = vi.fn(async () => points);
+  p.tripRoute.findMany = vi.fn(async () => routes);
+  return { prisma, created };
+}
+
+const passenger = (route: string, fromPointId: number, toPointId: number) =>
+  baseInput({ listingType: 'passenger', route, fromPointId, toPointId });
+
+test('пасажир Ірпінь→Малин (коридору Irpin-Malyn немає) — варіант «через Ірпінь»', async () => {
+  const { prisma, created } = alongStub();
+  await createOrMergeViberListing(prisma, passenger('Irpin-Malyn', 5, 2));
+  assert.equal(created[0].tripRouteId, 9);
+});
+
+test('пасажир Буча→Малин — варіант «через Бучу»', async () => {
+  const { prisma, created } = alongStub();
+  await createOrMergeViberListing(prisma, passenger('Bucha-Malyn', 6, 2));
+  assert.equal(created[0].tripRouteId, 8);
+});
+
+test('пасажир Малин→Ірпінь — зворотний варіант Малин–Київ через Ірпінь', async () => {
+  const { prisma, created } = alongStub();
+  await createOrMergeViberListing(prisma, passenger('Malyn-Irpin', 2, 5));
+  assert.equal(created[0].tripRouteId, 12);
+});
+
+test('пара не лежить на жодному маршруті (Ірпінь→Буча) — без привʼязки', async () => {
+  const { prisma, created } = alongStub();
+  await createOrMergeViberListing(prisma, passenger('Irpin-Bucha', 5, 6));
+  assert.equal(created[0].tripRouteId, null);
+});
+
+test('водій Ірпінь→Малин лишається без tripRouteId (інакше збирав би пасажирів із Києва)', async () => {
+  const { prisma, created } = alongStub();
+  await createOrMergeViberListing(
+    prisma,
+    baseInput({ listingType: 'driver', route: 'Irpin-Malyn', fromPointId: 5, toPointId: 2 }),
+  );
+  assert.equal(created[0].tripRouteId, null);
+});
