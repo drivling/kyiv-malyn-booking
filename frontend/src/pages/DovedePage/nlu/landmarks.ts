@@ -28,6 +28,11 @@ export interface Landmark {
 
 export const LANDMARKS = (landmarksDoc as unknown as { landmarks: Landmark[] }).landmarks;
 const BY_ID = new Map(LANDMARKS.map((l) => [l.id, l]));
+/** Орієнтири іншого міста (Коростень: id `klm.…`, `korosten/korostenStreets.ts`) — щоб підпис і примітка про однойменні місця працювали так само */
+let EXTRA_BY_ID = new Map<string, Landmark>();
+export function setExtraLandmarks(landmarks: Landmark[]): void {
+  EXTRA_BY_ID = new Map(landmarks.map((l) => [l.id, l]));
+}
 
 const NUMBER_RE = /^\d+$/;
 
@@ -47,9 +52,12 @@ function wordFits(word: string, token: string, multi: boolean): boolean {
 }
 
 /** Усі назви всіх орієнтирів; довші — першими, серед однакових — за id (ближчий до центру з однойменних) */
-const VARIANTS: NameVariant[] = LANDMARKS.flatMap((landmark) => landmark.said.map((n) => ({ landmark, words: nameWords(n) })))
-  .filter((v) => v.words.some((w) => !NUMBER_RE.test(w)))
-  .sort((a, b) => b.words.length - a.words.length || (a.landmark.id < b.landmark.id ? -1 : a.landmark.id > b.landmark.id ? 1 : 0));
+function variantsOf(landmarks: Landmark[]): NameVariant[] {
+  return landmarks
+    .flatMap((landmark) => landmark.said.map((n) => ({ landmark, words: nameWords(n) })))
+    .filter((v) => v.words.some((w) => !NUMBER_RE.test(w)))
+    .sort((a, b) => b.words.length - a.words.length || (a.landmark.id < b.landmark.id ? -1 : a.landmark.id > b.landmark.id ? 1 : 0));
+}
 
 export interface LandmarkMatch {
   landmark: Landmark;
@@ -64,6 +72,16 @@ export interface LandmarkMatch {
  * слова, яке вже означає місце кураторського словника («вокзал», «Малин»), не беремо.
  */
 export function matchLandmark(toks: Token[], i: number): LandmarkMatch | null {
+  return MALYN_INDEX.match(toks, i);
+}
+
+/** Пошук орієнтира в заданому списку — той самий для кожного міста */
+export function createLandmarkIndex(landmarks: Landmark[]): { match: (toks: Token[], i: number) => LandmarkMatch | null } {
+  const VARIANTS = variantsOf(landmarks);
+  return { match: (toks, i) => matchIn(VARIANTS, toks, i) };
+}
+
+function matchIn(VARIANTS: NameVariant[], toks: Token[], i: number): LandmarkMatch | null {
   let best: NameVariant | null = null;
   for (const v of VARIANTS) {
     if (best && v.words.length < best.words.length) break;
@@ -76,12 +94,14 @@ export function matchLandmark(toks: Token[], i: number): LandmarkMatch | null {
   return best ? { landmark: best.landmark, end: i + best.words.length - 1, exact: false } : null;
 }
 
+const MALYN_INDEX = createLandmarkIndex(LANDMARKS);
+
 export function landmarkById(id: string): Landmark | undefined {
-  return BY_ID.get(id);
+  return BY_ID.get(id) ?? EXTRA_BY_ID.get(id);
 }
 
 /** Місце словника для орієнтира (`lm.atb-market`): без зупинок, з точкою */
 export function landmarkPlace(id: string): GazetteerPlace | undefined {
-  const l = BY_ID.get(id);
-  return l ? { id, city: 'Malyn', label: l.label, stems: [], latLng: [l.lat, l.lng] } : undefined;
+  const l = landmarkById(id);
+  return l ? { id, city: id.startsWith('klm.') ? 'Korosten' : 'Malyn', label: l.label, stems: [], latLng: [l.lat, l.lng] } : undefined;
 }

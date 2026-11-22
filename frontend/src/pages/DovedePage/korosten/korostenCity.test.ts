@@ -11,7 +11,9 @@ import malynStopsFile from '../eval/malyn-stops.json';
 import malynRoutesFile from '../eval/malyn-routes.json';
 import streetsDoc from '../data/korosten-streets.json';
 import type { Street } from '../nlu/streets';
-import { setKorostenStreets } from './korostenStreets';
+import landmarksDoc from '../data/korosten-landmarks.json';
+import type { Landmark } from '../nlu/landmarks';
+import { setKorostenLandmarks, setKorostenStreets } from './korostenStreets';
 import {
   buildKorostenPlaces,
   combineCorridor,
@@ -214,6 +216,16 @@ describe('адреса Коростеня з наших даних (крок 7а
     expect(shape.origin.stopIds).toContain('st_1001');
     expect(shape.dest).toMatchObject({ id: 'kstreet.hrushevskoho:12', city: 'Korosten', label: 'вул. Грушевського, 12' });
     expect(shape.dest.latLng).toBeDefined();
+  });
+
+  it('заклад з наших даних (крок 7б) → теж `intra` з точкою', () => {
+    setKorostenLandmarks((landmarksDoc as unknown as { landmarks: Landmark[] }).landmarks);
+    const shape = shapeOf('з вокзалу до Сільпо');
+    setKorostenLandmarks([]);
+    if (shape.kind !== 'intra') throw new Error(shape.kind);
+    expect(shape.dest).toMatchObject({ id: 'klm.silpo', city: 'Korosten' });
+    // без даних орієнтирів — як і було, сервер
+    expect(shapeOf('з вокзалу до Сільпо')).toMatchObject({ kind: 'city', far: 'Korosten', to: { words: 'Сільпо' } });
   });
 
   it('місця немає в даних → як і було, дорогу дає сервер; адреса при цьому теж іде словами', () => {

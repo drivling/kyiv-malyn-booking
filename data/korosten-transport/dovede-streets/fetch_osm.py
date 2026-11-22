@@ -8,6 +8,7 @@ Overpass з робочого середовища недоступний, том
 
   osm/streets.json    — дороги з назвою: теги `name`, `old_name`, `highway` і геометрія
   osm/addresses.json  — обʼєкти з `addr:housenumber`: вузол — координати, лінія чи звʼязок — центр
+  ../dovede-landmarks/osm/places.json — названі місця (магазини, установи, школи…) для орієнтирів, крок 7б
 
 Запуск з кореня репозиторію (потрібна мережа; ввічливо: пауза між запитами, свій User-Agent):
   python3 data/korosten-transport/dovede-streets/fetch_osm.py
@@ -24,6 +25,8 @@ import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, 'osm')
+PLACES_OUT = os.path.join(HERE, '..', 'dovede-landmarks', 'osm')
+PLACE_KEYS = ('amenity', 'shop', 'office', 'tourism', 'leisure', 'historic', 'healthcare', 'landuse', 'building')
 # ті самі межі, що в стартовому списку навчання (data/korosten-transport/dovede-learn/build.py)
 BBOX = (28.55, 50.90, 28.75, 51.00)  # захід, південь, схід, північ
 TILE = 0.05
@@ -34,10 +37,18 @@ PAUSE_S = 1.5
 LICENSE = '© учасники OpenStreetMap, ODbL 1.0 — https://www.openstreetmap.org/copyright'
 
 
-def get(url):
-    req = urllib.request.Request(url, headers={'User-Agent': UA})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return json.load(r)
+def get(url, tries=4):
+    """GET з повтором: сервер часом відмовляє тимчасово (429, 509, 5xx); 400 — «завелика плитка», її не повторюємо."""
+    for attempt in range(tries):
+        req = urllib.request.Request(url, headers={'User-Agent': UA})
+        try:
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as err:
+            if err.code == 400 or attempt == tries - 1:
+                raise
+            print(f'  HTTP {err.code} — чекаю й пробую ще раз', file=sys.stderr)
+            time.sleep(20 * (attempt + 1))
 
 
 def tile(w, s, e, n, depth=0):
@@ -133,11 +144,33 @@ def main():
         pts = [p for m in rels[rid].get('members', []) if m['type'] == 'way' and m['ref'] in ways for p in way_points(ways[m['ref']])]
         address('relation', rels[rid], centre(pts) if pts else None)
 
+    # названі місця для орієнтирів: назва й тег, що описує заклад (той самий перелік, що в знімку Малина)
+    places = []
+
+    def place(kind, el, pt):
+        tags = el.get('tags') or {}
+        if not tags.get('name') or not pt or not any(k in tags for k in PLACE_KEYS) or not inside((pt['lat'], pt['lon']), rings):
+            return
+        keep = {k: tags[k] for k in ('name', 'addr:street', 'addr:housenumber', *PLACE_KEYS) if tags.get(k)}
+        rec = {'type': kind, 'id': el['id'], 'tags': keep}
+        rec.update({'lat': pt['lat'], 'lon': pt['lon']} if kind == 'node' else {'center': pt})
+        places.append(rec)
+
+    for nid in sorted(nodes):
+        place('node', nodes[nid], {'lat': nodes[nid]['lat'], 'lon': nodes[nid]['lon']})
+    for wid in sorted(ways):
+        pts = way_points(ways[wid])
+        place('way', ways[wid], centre(pts) if pts else None)
+    for rid in sorted(rels):
+        pts = [p for m in rels[rid].get('members', []) if m['type'] == 'way' and m['ref'] in ways for p in way_points(ways[m['ref']])]
+        place('relation', rels[rid], centre(pts) if pts else None)
+
     os.makedirs(OUT, exist_ok=True)
+    os.makedirs(PLACES_OUT, exist_ok=True)
     stamp = datetime.date.today().isoformat()
-    for name, elements in (('streets', streets), ('addresses', addresses)):
+    for folder, name, elements in ((OUT, 'streets', streets), (OUT, 'addresses', addresses), (PLACES_OUT, 'places', places)):
         doc = {'_license': LICENSE, '_source': 'api.openstreetmap.org/api/0.6/map, межа міста — Nominatim', 'fetchedAt': stamp, 'elements': elements}
-        with open(os.path.join(OUT, f'{name}.json'), 'w', encoding='utf-8') as f:
+        with open(os.path.join(folder, f'{name}.json'), 'w', encoding='utf-8') as f:
             json.dump(doc, f, ensure_ascii=False, separators=(',', ':'))
             f.write('\n')
         print(f'{name}: {len(elements)}', file=sys.stderr)

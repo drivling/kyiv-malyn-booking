@@ -128,10 +128,10 @@ def el_coords(el):
     return [c['lat'], c['lon']] if c else None
 
 
-def numbered(name):
+def numbered(name, city_adj='Малинський'):
     """Як кличуть заклад з номером: «Малинський Ліцей №3» — «ліцей 3», «школа 3» (ліцеї — колишні школи з тим
     самим номером); «ДНЗ №8 Ялинка» — «садок 8», «Ялинка»."""
-    m = re.match(r'^Малинський ліцей №\s?(\d+)', name, re.I)
+    m = re.match(r'^' + city_adj + r' (?:міський )?ліцей №\s?(\d+)', name, re.I)
     if m:
         n = m.group(1)
         return [f'ліцей {n}', f'лицей {n}', f'школа {n}', f'школи {n}', f'школу {n}', f'{n} школа', f'{n} школи', f'{n} школу', f'{n} ліцей']
@@ -150,11 +150,19 @@ def kind_of(tags):
     return None
 
 
-def main():
-    cfg = json.load(open(os.path.join(HERE, 'config.json'), encoding='utf-8'))
+MALYN_ABOUT = ('Орієнтири Малина для «Доведе»: місця без власної зупинки (магазини, аптеки, установи, підприємства) — '
+               'назва, як її кажуть, точка. Згенеровано data/malyn-transport/dovede-landmarks/build.py з OSM-знімка '
+               '2026-10 і config.json; не редагувати вручну.')
+
+
+def build(here=HERE, osm=OSM, out_front=OUT_FRONT, out_back=OUT_BACK, about=MALYN_ABOUT, city_adj='Малинський'):
+    """Орієнтири міста зі знімка `osm/places.json` і ручних рішень `here/config.json` у файл сторінки `out_front`;
+    `out_back` (назви для промпту) — лише Малин. Інше місто кличе це зі свого build.py
+    (data/korosten-transport/dovede-landmarks/build.py)."""
+    cfg = json.load(open(os.path.join(here, 'config.json'), encoding='utf-8'))
     exclude = [re.compile(p, re.I) for p in cfg['exclude']]
     centre = cfg['centre']
-    elements = json.load(open(os.path.join(OSM, 'places.json'), encoding='utf-8'))['elements']
+    elements = json.load(open(os.path.join(osm, 'places.json'), encoding='utf-8'))['elements']
 
     # 1. кандидати: названі місця дозволених родів
     found = []
@@ -195,7 +203,7 @@ def main():
             short = LEGAL.sub('', short, count=1)
         if short != name and name not in cfg['noShort']:
             out.append(short)
-        out += numbered(name)
+        out += numbered(name, city_adj)
         for extra in cfg['aliases'].get(name, []):
             out.append(extra)
         seen, res = set(), []
@@ -242,15 +250,20 @@ def main():
         sys.exit('config.json: aliases для назв, яких немає серед орієнтирів: ' + ', '.join(missing))
 
     doc = {
-        'about': 'Орієнтири Малина для «Доведе»: місця без власної зупинки (магазини, аптеки, установи, підприємства) — '
-                 'назва, як її кажуть, точка. Згенеровано data/malyn-transport/dovede-landmarks/build.py з OSM-знімка '
-                 '2026-10 і config.json; не редагувати вручну.',
+        'about': about,
         'license': '© учасники OpenStreetMap, ODbL 1.0 — https://www.openstreetmap.org/copyright',
         'landmarks': out,
     }
-    with open(OUT_FRONT, 'w', encoding='utf-8') as f:
+    with open(out_front, 'w', encoding='utf-8') as f:
         json.dump(doc, f, ensure_ascii=False, separators=(',', ':'))
         f.write('\n')
+
+    kinds = {}
+    for lm in out:
+        kinds[lm['kind']] = kinds.get(lm['kind'], 0) + 1
+    print(len(out), 'орієнтирів;', json.dumps(dict(sorted(kinds.items(), key=lambda x: -x[1])), ensure_ascii=False))
+    if not out_back:
+        return
 
     lines = [
         '/**',
@@ -270,14 +283,9 @@ def main():
     for lm in out:
         lines.append('  ' + json.dumps({'id': lm['id'], 'label': lm['label'], 'said': lm['said'][1:]}, ensure_ascii=False) + ',')
     lines += ['];', '']
-    with open(OUT_BACK, 'w', encoding='utf-8') as f:
+    with open(out_back, 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines))
-
-    kinds = {}
-    for lm in out:
-        kinds[lm['kind']] = kinds.get(lm['kind'], 0) + 1
-    print(len(out), 'орієнтирів;', json.dumps(dict(sorted(kinds.items(), key=lambda x: -x[1])), ensure_ascii=False))
 
 
 if __name__ == '__main__':
-    main()
+    build()

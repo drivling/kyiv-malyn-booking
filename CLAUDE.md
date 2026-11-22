@@ -395,6 +395,10 @@ of `dist` in a commit.
   official OSM API tiles) answer an address without the server: `korostenSpot(words)` in `korosten/korostenStreets.ts`
   gives a place with a point (ids `kstreet.…`, registered through `setExtraStreets`), so Korosten mode becomes `intra`
   and `korostenLeg` plans from / to the station (`farSpot`); the intent and URL keep `city.Korosten` + words.
+  Korosten landmarks work the same way (`data/korosten-landmarks.json`, same chunk; `data/korosten-transport/dovede-landmarks/`:
+  snapshot `osm/places.json` written by the streets' `fetch_osm.py`, manual `config.json`, generator shared with Malyn's
+  `build()`): `korostenSpot` tries the address first, then a landmark whose name covers all the words (ids `klm.…`,
+  `setExtraLandmarks`).
   `siteForm` uses `detailForm` for Korosten too, so every name of the starter list must read back
   unchanged (a test checks it; fix names in the generator's `config.json`).
   **Learning campaigns** (admin plan step 6, `Docs/dovede-admin-roadmap.md` «Крок 6»; `src/dovede/city-campaign.ts`): the

@@ -9,7 +9,9 @@ import doc from '../data/korosten-streets.json';
 import malynDoc from '../data/malyn-streets.json';
 import { parseLocal } from '../nlu/parseLocal';
 import { streetPrecision, type Street } from '../nlu/streets';
-import { korostenSpot, setKorostenStreets } from './korostenStreets';
+import landmarksDoc from '../data/korosten-landmarks.json';
+import { landmarkById, type Landmark } from '../nlu/landmarks';
+import { korostenSpot, setKorostenLandmarks, setKorostenStreets } from './korostenStreets';
 
 const streets = (doc as unknown as { streets: Street[] }).streets;
 
@@ -84,5 +86,59 @@ describe('korostenSpot: слова людини → місце з точкою',
     setKorostenStreets([]);
     expect(korostenSpot('Грушевського 12')).toBeNull();
     setKorostenStreets(streets);
+  });
+});
+
+const landmarks = (landmarksDoc as unknown as { landmarks: Landmark[] }).landmarks;
+
+describe('орієнтири Коростеня (крок 7б): заклад словами → місце з точкою', () => {
+  beforeAll(() => {
+    setKorostenStreets(streets);
+    setKorostenLandmarks(landmarks);
+  });
+  afterAll(() => {
+    setKorostenStreets([]);
+    setKorostenLandmarks([]);
+  });
+
+  it('файл згенеровано зі знімка: назви з нього, id не повторюються, є ліцензія', () => {
+    const snapshot = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../../../../../data/korosten-transport/dovede-landmarks/osm/places.json'), 'utf8')) as {
+      _license: string;
+      elements: Array<{ tags: { name: string } }>;
+    };
+    const clean = (t: string) => t.replace(/\([^)]*\)/g, ' ').replace(/[«»"“”„]/g, ' ').replace(/\s+/g, ' ').trim();
+    const names = new Set(snapshot.elements.map((e) => clean(e.tags.name)));
+    expect(snapshot._license).toContain('OpenStreetMap');
+    expect((landmarksDoc as { license: string }).license).toContain('ODbL');
+    expect(landmarks.length).toBeGreaterThan(100);
+    expect(new Set(landmarks.map((l) => l.id)).size).toBe(landmarks.length);
+    expect(landmarks.filter((l) => !names.has(l.name)).map((l) => l.name)).toEqual([]);
+  });
+
+  it('заклад за назвою і за народною назвою; id у своєму просторі `klm.`', () => {
+    expect(korostenSpot('Сільпо')).toMatchObject({ id: 'klm.silpo', city: 'Korosten' });
+    expect(korostenSpot('Сільпо')?.latLng?.[0]).toBeGreaterThan(50.9);
+    expect(korostenSpot('школа 5')?.id).toBe('klm.zosh-5');
+    expect(korostenSpot('міська рада')?.id).toBe('klm.korostenska-miska-rada');
+    expect(korostenSpot('краєзнавчого музею')?.label).toBe('Краєзнавчий музей');
+  });
+
+  it('кілька місць з однією назвою — ближче до центру, і примітка знає, що їх кілька', () => {
+    const p = korostenSpot('АТБ');
+    expect(p?.id).toBe('klm.atb-market');
+    expect(landmarkById(p!.id)?.twins).toBeGreaterThan(0);
+  });
+
+  it('адреса має перевагу над закладом; не назва цілком і невідоме — null', () => {
+    expect(korostenSpot('Грушевського 12')?.id).toBe('kstreet.hrushevskoho:12');
+    expect(korostenSpot('магазин біля Сільпо')).toBeNull();
+    expect(korostenSpot('Сільпо на розі')).toBeNull();
+    expect(korostenSpot('вигаданий заклад')).toBeNull();
+  });
+
+  it('без даних — null', () => {
+    setKorostenLandmarks([]);
+    expect(korostenSpot('Сільпо')).toBeNull();
+    setKorostenLandmarks(landmarks);
   });
 });
