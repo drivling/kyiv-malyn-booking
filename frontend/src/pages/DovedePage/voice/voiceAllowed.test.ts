@@ -1,5 +1,4 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { ADMIN_TOKEN_STORAGE_KEY } from '@/utils/adminTokenStorage';
 import { voiceAllowed } from './useVoiceInput';
 
 afterEach(() => {
@@ -8,14 +7,13 @@ afterEach(() => {
 });
 
 describe('voiceAllowed', () => {
-  it('мікрофон лише адміну й лише де є Web Speech', () => {
+  // доступ до самої сторінки вирішує сервер (`access.ts`); мікрофон — кожному, кому вона відкрита, де є Web Speech
+  it('лише там, де є Web Speech; токен адміна не потрібен', () => {
     const w = window as unknown as Record<string, unknown>;
     expect(voiceAllowed()).toBe(false);
     w.webkitSpeechRecognition = function () {};
-    expect(voiceAllowed()).toBe(false); // є Web Speech, але не адмін
-    localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'x'.repeat(64));
-    expect(voiceAllowed()).toBe(true);
+    expect(voiceAllowed()).toBe(true); // гість із паролем — без токена адміна
     delete w.webkitSpeechRecognition;
-    expect(voiceAllowed()).toBe(false); // адмін, але браузер не вміє
+    expect(voiceAllowed()).toBe(false); // браузер не вміє
   });
 });

@@ -6,13 +6,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { prepareHeard } from './heardFixes';
 import { startWebSpeech, webSpeechSupported, type WebSpeechSession } from './webSpeech';
-import { readAdminToken } from '@/utils/adminTokenStorage';
 
 export type VoiceState = 'idle' | 'starting' | 'listening';
 
-/** Поки мікрофон лише для адміна (рішення власника, Docs/dovede-voice-roadmap.md) і лише там, де є Web Speech */
+/**
+ * Мікрофон — усім, кому відкрито «Доведе» (рішення власника 2026-11-22, Docs/dovede-voice-roadmap.md): пошук сторінки
+ * монтується лише після того, як сервер дав доступ (`access.ts`: пароль запрошених, токен адміна або `DOVEDE_PUBLIC`),
+ * тож тут лишається одне — чи вміє браузер Web Speech.
+ */
 export function voiceAllowed(): boolean {
-  return Boolean(readAdminToken()) && webSpeechSupported();
+  return webSpeechSupported();
 }
 
 const ERRORS: Record<string, string> = {

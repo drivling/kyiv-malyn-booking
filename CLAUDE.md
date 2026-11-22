@@ -155,14 +155,15 @@ of `dist` in a commit.
 - «Доведе» (`/dovede`, hidden page with no site header — `Docs/dovede-roadmap.md` is the recovery file; the admin tab
   redesign and server-side learning runs are planned in `Docs/dovede-admin-roadmap.md` (plan of plans, read it first); what
   comes next in learning — Korosten, sources besides Google, a better algorithm — in `Docs/dovede-learning-roadmap.md`;
-  voice input (plan of plans in `Docs/dovede-voice-roadmap.md`: phase 1 is browser-only and admin-only — a mic button in
+  voice input (plan of plans in `Docs/dovede-voice-roadmap.md`: phase 1 is browser-only — a mic button in
   `QueryField` on the Web Speech API (`DovedePage/voice/`: `useVoiceInput`, `webSpeech.ts`, `heardFixes.ts` — spoken numbers →
-  digits and known mishearings, shown only when the admin token is in `localStorage` and the browser has Web Speech;
+  digits and known mishearings, shown to everyone the page is open to — guests' password, admin token or `DOVEDE_PUBLIC`,
+  the search is mounted only after access (owner, 2026-11-22) — when the browser has Web Speech;
   recognised text goes into the field and searches at once), plus a lab at `/admin/dovede/voice` (`AdminPage/dovede/voice/`)
   that scores Web Speech on the owner's 41 phrases and keeps each take's audio in IndexedDB for the later cloud comparison;
   Whisper in the browser lost badly (21–31 % vs Web Speech 77 %) and was removed with `@huggingface/transformers` —
   its `onnxruntime-node` downloaded ~200 MB from nuget.org on every `npm ci` and broke CI once; phase 2 is cloud
-  speech-to-text, for comparison and for browsers without Web Speech); «from where I am now» (plan of plans `Docs/dovede-geo-roadmap.md`, admin only like the mic,
+  speech-to-text, for comparison and for browsers without Web Speech); «from where I am now» (plan of plans `Docs/dovede-geo-roadmap.md`, same rule as the mic,
   `DovedePage/geo/`): a question without «звідки» starts from the browser's location — the dynamic place `here` with a
   point (Malyn, Korosten; Kyiv / Zhytomyr city-level, elsewhere `far` = ignored), asked together with the mic; the same
   location picks Malyn or Korosten for a question that names no city; coordinates stay in tab memory and never go to

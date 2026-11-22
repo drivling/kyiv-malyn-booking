@@ -307,9 +307,9 @@ function DovedeSearch({
   const pending = useRef<{ q: string; chosen?: TripIntent } | null>(null);
   const seq = useRef(0);
   const inputRef = useRef<QueryFieldHandle>(null);
-  // Мікрофон — лише адміну й лише де є Web Speech (Docs/dovede-voice-roadmap.md, Ф1·2)
+  // Мікрофон — усім, кому відкрито «Доведе» (цей пошук монтується лише з доступом), де є Web Speech (Docs/dovede-voice-roadmap.md)
   const voiceOn = useMemo(() => voiceAllowed(), []);
-  // «Звідки — де я зараз» (Docs/dovede-geo-roadmap.md, Г2): за тим самим правилом — лише адміну
+  // «Звідки — де я зараз» (Docs/dovede-geo-roadmap.md, Г2): за тим самим правилом — де браузер уміє геолокацію
   const geoOn = useMemo(() => geoAllowed(), []);
   const [sheet, setSheet] = useState<SlotKind | null>(null);
   // Після відповіді рядок «Розумію…» згортається «під кат» в один рядок-підсумок; розгортає сама людина
@@ -327,7 +327,7 @@ function DovedeSearch({
   const answer = useCallback(
     async (id: number, q: string, parse: LocalParse, asked: TripIntent, now: KyivNow) => {
       await pageDataReady();
-      // «звідки» не названо — від місця людини (лише адміну; координати лишаються у вкладці, в адресу не йдуть)
+      // «звідки» не названо — від місця людини (координати лишаються у вкладці, в адресу не йдуть)
       let intent = asked;
       if (geoOn && needsHere(asked)) {
         const fix = freshHere() ?? (await locateNow());
@@ -434,7 +434,7 @@ function DovedeSearch({
       const parse = parseLocal(q, now, stopIndex, routes);
       // Коростень у питанні на сторінці Малина: спершу датасет Коростеня (коридор чи перемикання вирішуємо з ним)
       const korostenEnd = (i?: TripIntent | null) => i?.from?.id === 'city.Korosten' || i?.to?.id === 'city.Korosten';
-      // «звідки» не названо й місто не назване — де людина (лише адміну): від цього залежить і місто сторінки
+      // «звідки» не названо й місто не назване — де людина: від цього залежить і місто сторінки
       // («до вокзалу» в Коростені — вокзал Коростеня), і коридор від її точки в Коростені до Малина
       // «Малин», «Київ»… (`mentionsOtherCity`) чи «Коростень» у словах — місто назване, за місцем не вибираємо
       const namesCity = mentionsKorosten(q) || mentionsOtherCity(q);
