@@ -5,8 +5,9 @@
 
 - `fetch_osm.py` — знімок OpenStreetMap: місто плитками з офіційного API (`api.openstreetmap.org/api/0.6/map`; Overpass
   з робочого середовища недоступний), обрізане межею міста (Nominatim). Пише `osm/streets.json` (дороги з назвою і
-  геометрією) та `osm/addresses.json` (обʼєкти з номером будинку) — у тому ж вигляді, що знімок Малина. Потрібна мережа,
-  запускається вручну.
+  геометрією) та `osm/addresses.json` (обʼєкти з номером будинку) — у тому ж вигляді, що знімок Малина, а також
+  `../dovede-landmarks/osm/places.json` (названі місця для орієнтирів, крок 7б). Потрібна мережа, запускається вручну;
+  тимчасову відмову сервера повторює сам.
 - `build.py` — спільний із Малином генератор (`data/malyn-transport/dovede-streets/build.py`, функція `build`): пише
   `frontend/src/pages/DovedePage/data/korosten-streets.json`. Мережі не потребує.
 

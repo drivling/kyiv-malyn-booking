@@ -106,3 +106,7 @@
 — Nominatim; © учасники OpenStreetMap, ODbL 1.0). З них `dovede-streets/build.py` збирає
 `frontend/src/pages/DovedePage/data/korosten-streets.json`: адресу в Коростені «Доведе» веде своїм планувальником, без
 сервера. Оновлення: `python3 data/korosten-transport/dovede-streets/fetch_osm.py`, потім `build.py`.
+
+`dovede-landmarks/osm/places.json` — названі місця Коростеня з OpenStreetMap (той самий запуск `fetch_osm.py`; ©
+учасники OpenStreetMap, ODbL 1.0). З них і ручного `dovede-landmarks/config.json` збирається
+`frontend/src/pages/DovedePage/data/korosten-landmarks.json` — заклади, які «Доведе» знаходить без сервера.
