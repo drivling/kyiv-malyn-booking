@@ -18,11 +18,8 @@ export const SHELL_URL = '/index.html';
  */
 export const PRECACHE_EXCLUDED_ASSET_PREFIXES = [
   'assets/DovedePage-',
-  // Лабораторія голосу в адмінці (Docs/dovede-voice-roadmap.md, Ф1·1): сама, бібліотека розпізнавання і її wasm (≈ 27 МБ)
-  // вантажаться лише адміну за кліком — у кеш кожного, хто встановив «Як доїхати», їх класти не можна
+  // Лабораторія голосу в адмінці (Docs/dovede-voice-roadmap.md): лише адміну — не в кеш кожного, хто встановив «Як доїхати»
   'assets/DovedeVoiceSection-',
-  'assets/transformers',
-  'assets/ort-wasm',
 ];
 
 /**

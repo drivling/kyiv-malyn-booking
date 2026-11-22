@@ -8,7 +8,7 @@ import { DovedeLearnSection } from './DovedeLearnSection';
 import { DovedeOverview } from './DovedeOverview';
 import { DovedeSettingsSection } from './DovedeSettingsSection';
 import { DOVEDE_ADMIN_BASE, DOVEDE_SECTIONS, isDovedeSection } from './sections';
-// Голос — окремий лениво завантажуваний чанк: бібліотека розпізнавання не лягає в чанк адмінки (Ф1·1)
+// Лабораторія голосу — окремий лениво завантажуваний чанк (Docs/dovede-voice-roadmap.md)
 const DovedeVoiceSection = lazy(() => import('./voice/DovedeVoiceSection'));
 import '../DovedeLogTab.css';
 import './DovedeTab.css';
