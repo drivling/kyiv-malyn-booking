@@ -9,6 +9,7 @@ import { metroPlace } from './kyivMetro';
 import { ringPlace } from './kyivRing';
 import { landmarkPlace } from './landmarks';
 import { streetPlace } from './streets';
+import { HERE_ID, herePlace } from '../geo/here';
 
 let stopIndex: StopPlace[] = [];
 let byId = new Map<string, GazetteerPlace>();
@@ -24,5 +25,7 @@ export function getStopPlaces(): StopPlace[] {
 
 /** Місце за id: `city.Kyiv`, `malyn.vokzal`, зупинка `st_0071`, адреса `street.horodyshchanska:20`, орієнтир `lm.atb-market`, станція метро `kyiv.m.pozniaky` або міської електрички `kyiv.e.kurenivka` */
 export function resolvePlace(id: string): GazetteerPlace | undefined {
+  // «де ви зараз» (Docs/dovede-geo-roadmap.md): точка з браузера, лише в памʼяті вкладки
+  if (id === HERE_ID) return herePlace();
   return placeById(id) ?? byId.get(id) ?? metroPlace(id) ?? ringPlace(id) ?? (id.startsWith('street.') ? streetPlace(id) : id.startsWith('lm.') ? landmarkPlace(id) : undefined);
 }
