@@ -24,6 +24,7 @@ export { dayTypeOf, normalizeKey };
 import { METRO_STATIONS } from './kyivMetroData';
 import { kyivDayStart } from './guard';
 import { kyivWallToUtc } from '../viber-listing-expiry';
+import { createDovedeSettings, GOOGLE_DAILY_MAX, type DovedeSettings } from './settings';
 
 /** Скільки днів збережена відповідь свіжа, поки власник не задав свого в адмінці */
 export const CITY_FRESH_DAYS = 30;
@@ -49,14 +50,16 @@ export const QUOTA_BACKOFF_MS = 10 * 60_000;
 
 export const isValidFreshDays = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= CITY_FRESH_DAYS_MIN && v <= CITY_FRESH_DAYS_MAX;
 export const DEFAULT_CITY_DAILY_CAP = 150;
-/** Межі денного ліміту з адмінки: 0 — Google не питати зовсім; угорі — квота проєкту в Google Cloud (5000 на день) */
+/**
+ * Межі денного ліміту з адмінки: 0 — Google не питати зовсім; угорі — запобіжник від зайвих нулів. Понад
+ * `GOOGLE_DAILY_WARN` (20 000) — лише з підтвердженням (перевіряє роутер, `confirmNeeded`)
+ */
 export const CITY_DAILY_CAP_MIN = 0;
-export const CITY_DAILY_CAP_MAX = 5000;
+export const CITY_DAILY_CAP_MAX = GOOGLE_DAILY_MAX;
 export const isValidDailyCap = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= CITY_DAILY_CAP_MIN && v <= CITY_DAILY_CAP_MAX;
 const TIMEOUT_MS = 4000;
 import { ownZhytomyrRoute } from './zhytomyr-own';
 import { byLearnCity, isLearnCity, type LearnCityCode } from './learn-cities';
-import { createDovedeSettings, type DovedeSettings } from './settings';
 import { ZT_OWN } from './zhytomyr-own-data';
 
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';

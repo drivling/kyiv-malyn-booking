@@ -1,6 +1,6 @@
 /** Розділ «Налаштування»: групи, типове й задане, збереження числа й вмикача, «Скинути до типового», вимкнене на сервері. */
 import { describe, expect, it } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
@@ -23,7 +23,22 @@ function mock() {
   const items: DovedeSettingView[] = [
     base({ key: 'ai.enabled', group: 'ai', kind: 'bool', label: 'Розбір питань через ШІ' }),
     base({ key: 'ai.dailyCap', group: 'ai', kind: 'int', label: 'Викликів ШІ на день', min: 0, max: 5000, value: 300, default: 300, defaultSource: 'env', unit: 'на день' }),
-    base({ key: 'city.dailyCap', group: 'google', kind: 'int', label: 'Запитів до Google на день', min: 0, max: 5000, value: 2000, default: 2450, defaultSource: 'env', stored: 2000, updatedAt: '2026-11-19T08:00:00.000Z' }),
+    base({
+      key: 'city.dailyCap',
+      group: 'google',
+      kind: 'int',
+      label: 'Запитів до Google на день',
+      unit: 'на день',
+      min: 0,
+      max: 1_000_000,
+      warnAbove: 20_000,
+      warn: 'Понад 20 000 запитів до Google на день. Перевірте квоту проєкту в Google Cloud.',
+      value: 2000,
+      default: 2450,
+      defaultSource: 'env',
+      stored: 2000,
+      updatedAt: '2026-11-19T08:00:00.000Z',
+    }),
     base({ key: 'city.own', group: 'google', kind: 'bool', label: 'Власні дані Житомира', value: false, lockedBy: 'DOVEDE_CITY_OWN=0' }),
     base({ key: 'learn.sharePct', group: 'learning', kind: 'int', label: 'Навчанню — частка денного ліміту Google, %', min: 0, max: 100, value: 50, default: 50, unit: '%' }),
   ];
@@ -39,8 +54,8 @@ function mock() {
   server.use(
     http.get(`${TEST_API_URL}/admin/dovede/settings`, () => HttpResponse.json({ items, groups: { ai: 'ШІ (Claude)', google: 'Google', learning: 'Фонове навчання' } })),
     http.put(`${TEST_API_URL}/admin/dovede/settings`, async ({ request }) => {
-      const body = (await request.json()) as { key: string; value: number | boolean | null };
-      calls.push(`${body.key}=${body.value}`);
+      const body = (await request.json()) as { key: string; value: number | boolean | null; confirm?: boolean };
+      calls.push(`${body.key}=${body.value}${body.confirm ? ' (confirm)' : ''}`);
       const s = items.find((x) => x.key === body.key)!;
       Object.assign(s, body.value === null ? { value: s.default, stored: null, updatedAt: null } : { value: body.value, stored: body.value, updatedAt: '2026-11-19T09:00:00.000Z' });
       return HttpResponse.json(s);
@@ -97,6 +112,36 @@ describe('DovedeSettingsSection', () => {
     await user.click(screen.getByRole('switch', { name: 'Розбір питань через ШІ' }));
     await screen.findByText('Збережено: «Розбір питань через ШІ». Діє протягом хвилини.');
     expect(calls).toEqual(['learn.sharePct=30', 'learn.sharePct=null', 'ai.enabled=false']);
+  });
+
+  it('запити до Google: до 20 000 — просто зберегти; більше — попередження, «Зберегти все одно» і confirm', async () => {
+    const { calls } = mock();
+    const user = userEvent.setup();
+    render(<DovedeSettingsSection />);
+    const cap = (await screen.findByLabelText('Запитів до Google на день')) as HTMLInputElement;
+    const row = within(cap.closest('.admin-kit-setting') as HTMLElement);
+    await user.clear(cap);
+    await user.type(cap, '20000');
+    expect(row.queryByText(/квоту проєкту/)).toBeNull();
+    await user.click(row.getByRole('button', { name: 'Зберегти' }));
+    await screen.findByText('Збережено: «Запитів до Google на день». Діє протягом хвилини.');
+
+    await user.clear(cap);
+    await user.type(cap, '25000');
+    expect(row.getByText(/Перевірте квоту проєкту в Google Cloud\. 25\s000 на день — це до 750\s000 на місяць\./)).toBeInTheDocument();
+    expect(row.queryByRole('button', { name: 'Зберегти' })).toBeNull();
+    await user.click(row.getByRole('button', { name: 'Зберегти все одно' }));
+    await waitFor(() => expect(cap.value).toBe('25000'));
+    // збережене понад межу вже не попереджає — знову «звідки» значення
+    expect(await row.findByText(/змінено 19 листопада, типове — 2450/)).toBeInTheDocument();
+    expect(row.queryByText(/квоту проєкту/)).toBeNull();
+
+    // понад мільйон — ні, це зайві нулі
+    await user.clear(cap);
+    await user.type(cap, '2000000');
+    expect(row.getByText(/Ціле число від 0 до 1\s000\s000\./)).toBeInTheDocument();
+    expect(row.getByRole('button', { name: 'Зберегти' })).toBeDisabled();
+    expect(calls).toEqual(['city.dailyCap=20000', 'city.dailyCap=25000 (confirm)']);
   });
 
   it('дані сторінки: автобус замість метро — вимкнути, увімкнути на іншій дільниці; години й тариф; назад до коду', async () => {

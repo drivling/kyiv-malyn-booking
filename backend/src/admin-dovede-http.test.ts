@@ -609,15 +609,22 @@ test('місто в адмінці: лише адмін; зведення, кр�
   for (const bad of [0, 366, 7.5, '14', null]) {
     assert.equal((await request(app).put('/admin/dovede/city/settings').set('Authorization', AUTH).send({ freshDays: bad })).status, 400);
   }
-  // денний ліміт Google: число 0–5000 або null (як у змінній); разом зі строком свіжості — одним запитом
+  // денний ліміт Google: число 0 – 1 000 000 або null (як у змінній); разом зі строком свіжості — одним запитом;
+  // понад 20 000 — лише з confirm: true (адмінка попереджає), інакше 409 з текстом попередження
   const put = (body: unknown) => request(app).put('/admin/dovede/city/settings').set('Authorization', AUTH).send(body as object);
   assert.deepEqual((await put({ dailyCap: 1500 })).body, { dailyCap: 1500 });
   assert.deepEqual((await put({ dailyCap: null })).body, { dailyCap: 150 });
   assert.deepEqual((await put({ freshDays: 21, dailyCap: 0 })).body, { freshDays: 21, dailyCap: 0 });
-  for (const bad of [-1, 5001, 2.5, '100']) assert.equal((await put({ dailyCap: bad })).status, 400);
+  for (const bad of [-1, 1_000_001, 2.5, '100']) assert.equal((await put({ dailyCap: bad })).status, 400);
+  assert.equal((await put({ dailyCap: 1_000_001, confirm: true })).status, 400);
+  const unconfirmed = await put({ dailyCap: 25_000 });
+  assert.deepEqual([unconfirmed.status, unconfirmed.body.confirm, unconfirmed.body.warnAbove], [409, 'required', 20_000]);
+  assert.match(unconfirmed.body.error, /Понад 20 000 запитів до Google на день/);
+  assert.deepEqual((await put({ dailyCap: 20_000 })).body, { dailyCap: 20_000 });
+  assert.deepEqual((await put({ dailyCap: 25_000, confirm: true })).body, { dailyCap: 25_000 });
   assert.equal((await put({})).status, 400);
   assert.equal((await request(app).put('/admin/dovede/city/settings').send({ dailyCap: 10 })).status, 401);
-  assert.deepEqual(done, ['learn:5', 'archive', 'restore', 'reset', 'fresh:14', 'cap:1500', 'cap:null', 'fresh:21', 'cap:0']);
+  assert.deepEqual(done, ['learn:5', 'archive', 'restore', 'reset', 'fresh:14', 'cap:1500', 'cap:null', 'fresh:21', 'cap:0', 'cap:20000', 'cap:25000']);
 });
 
 test('Коростень (етап 2): city=Korosten — зупинки й маршрути Коростеня, без малинських синонімів; місцевий намір з id Коростеня не відкидається', async () => {

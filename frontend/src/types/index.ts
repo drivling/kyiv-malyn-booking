@@ -1511,6 +1511,9 @@ export interface DovedeSettingView {
   unit?: string;
   min?: number;
   max?: number;
+  /** м'яка межа: понад неї адмінка попереджає, а сервер записує лише з `confirm: true` */
+  warnAbove?: number;
+  warn?: string;
   value: number | boolean;
   default: number | boolean;
   defaultSource: 'env' | 'code';

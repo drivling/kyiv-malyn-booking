@@ -69,6 +69,10 @@ function pickupNote(raw) {
         .filter((part) => part && !/^[\s().,:-]*$/.test(part))
         .join('; ');
 }
+/** Значення понад м'яку межу без `confirm: true`: 409 і текст попередження — адмінка покаже його й спитає ще раз */
+function unconfirmed(res, def) {
+    res.status(409).json({ error: def.warn ?? `Понад ${def.warnAbove} — потрібне підтвердження`, confirm: 'required', warnAbove: def.warnAbove });
+}
 function createAdminDovedeRouter(deps) {
     const { prisma } = deps;
     const understand = deps.understand === undefined ? (0, understand_1.understandFromEnv)() : deps.understand;
@@ -493,6 +497,11 @@ function createAdminDovedeRouter(deps) {
             res.status(400).json({ error: `dailyCap: ціле число від ${city_route_1.CITY_DAILY_CAP_MIN} до ${city_route_1.CITY_DAILY_CAP_MAX} або null` });
             return;
         }
+        const capDef = (0, settings_1.settingDef)('city.dailyCap');
+        if (hasCap && (0, settings_1.confirmNeeded)(capDef, body.dailyCap) && body.confirm !== true) {
+            unconfirmed(res, capDef);
+            return;
+        }
         try {
             const out = {};
             if (hasFresh)
@@ -530,6 +539,11 @@ function createAdminDovedeRouter(deps) {
         }
         if (!('value' in body) || (body.value !== null && !(0, settings_1.validSettingValue)(def, body.value))) {
             res.status(400).json({ error: def.kind === 'bool' ? 'value: true, false або null' : `value: ціле від ${def.min} до ${def.max} або null` });
+            return;
+        }
+        // понад м'яку межу (запити до Google понад 20 000 на день) — лише після попередження в адмінці
+        if ((0, settings_1.confirmNeeded)(def, body.value) && body.confirm !== true) {
+            unconfirmed(res, def);
             return;
         }
         try {

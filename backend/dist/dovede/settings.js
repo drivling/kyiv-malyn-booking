@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SETTING_GROUP_LABEL = exports.DOVEDE_SETTINGS = exports.GOOGLE_DAILY_MAX = void 0;
+exports.SETTING_GROUP_LABEL = exports.DOVEDE_SETTINGS = exports.GOOGLE_DAILY_MAX = exports.GOOGLE_DAILY_WARN = void 0;
 exports.validSettingValue = validSettingValue;
+exports.confirmNeeded = confirmNeeded;
+exports.settingDef = settingDef;
 exports.createDovedeSettings = createDovedeSettings;
 /**
  * «Доведе» · налаштування, які власник міняє сам в адмінці (Docs/dovede-admin-roadmap.md, крок 3).
@@ -27,8 +29,13 @@ const offWhen = (name, offValues) => (env) => {
     return offValues.includes(v) ? `${name}=${env[name]?.trim()}` : null;
 };
 const OFF = ['0', 'false', 'off', 'no'];
-/** Квота проєкту в Google Cloud — 5000 запитів на день: більше в адмінці не дозволяємо */
-exports.GOOGLE_DAILY_MAX = 5000;
+/**
+ * Денні ліміти запитів до Google (рішення власника 2026-11-22): до 20 000 — без питань; більше теж можна, але з
+ * попередженням і підтвердженням. Мільйон — лише запобіжник від зайвих нулів (лічильники в базі — Int).
+ */
+exports.GOOGLE_DAILY_WARN = 20000;
+exports.GOOGLE_DAILY_MAX = 1000000;
+const GOOGLE_DAILY_WARN_TEXT = 'Понад 20 000 запитів до Google на день. Перевірте квоту проєкту в Google Cloud (понад неї Google сам відповість «квоту вичерпано») і бюджет: запити понад безкоштовний місячний обсяг платні.';
 exports.DOVEDE_SETTINGS = [
     {
         key: 'ai.enabled',
@@ -68,6 +75,8 @@ exports.DOVEDE_SETTINGS = [
         unit: 'на день',
         min: 0,
         max: exports.GOOGLE_DAILY_MAX,
+        warnAbove: exports.GOOGLE_DAILY_WARN,
+        warn: GOOGLE_DAILY_WARN_TEXT,
         defaultFrom: envInt('DOVEDE_CITY_DAILY_CAP', 150),
     },
     {
@@ -99,6 +108,8 @@ exports.DOVEDE_SETTINGS = [
         unit: 'на день',
         min: 0,
         max: exports.GOOGLE_DAILY_MAX,
+        warnAbove: exports.GOOGLE_DAILY_WARN,
+        warn: GOOGLE_DAILY_WARN_TEXT,
         defaultFrom: envInt('DRIVE_TIME_DAILY_CAP', 200),
     },
     {
@@ -163,6 +174,13 @@ function validSettingValue(def, v) {
         return typeof v === 'boolean';
     return typeof v === 'number' && Number.isInteger(v) && v >= (def.min ?? 0) && v <= (def.max ?? Number.MAX_SAFE_INTEGER);
 }
+/** Значення понад м'яку межу: адмінка попереджає, запис іде лише з `confirm: true` */
+function confirmNeeded(def, v) {
+    return def.kind === 'int' && def.warnAbove != null && typeof v === 'number' && v > def.warnAbove;
+}
+function settingDef(key) {
+    return BY_KEY.get(key);
+}
 function createDovedeSettings(deps) {
     const { prisma } = deps;
     const env = deps.env ?? process.env;
@@ -196,6 +214,7 @@ function createDovedeSettings(deps) {
             ...(def.unit ? { unit: def.unit } : {}),
             ...(def.min != null ? { min: def.min } : {}),
             ...(def.max != null ? { max: def.max } : {}),
+            ...(def.warnAbove != null ? { warnAbove: def.warnAbove, warn: def.warn ?? '' } : {}),
             value,
             default: dflt.value,
             defaultSource: dflt.source,

@@ -350,7 +350,9 @@ of `dist` in a commit.
   fresh (a backend test keeps the two lists equal). Server `backend/src/dovede/city-route.ts`: a stored answer of the same
   pair, day type and hour ± 1 not older than the fresh window (30 days by default, setting `city.freshDays`) is
   served from `DovedeCityRoute` (`source: 'stored'`), otherwise
-  Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`; daily cap — setting `city.dailyCap` 0–5000, else
+  Google Routes TRANSIT is asked (`GOOGLE_MAPS_API_KEY`; daily cap — setting `city.dailyCap` 0 – 1 000 000, above
+  20 000 only after a warning: registry `warnAbove`, the admin row shows it and «Зберегти все одно», the PUT needs
+  `confirm: true` or answers 409 (owner, 2026-11-22; `drive.dailyCap` the same), else
   `DOVEDE_CITY_DAILY_CAP`, else 150; the count of the Kyiv day, the
   people / learning split, people refused, the pause after Google's 429 / 401 / 403 and its last error text live in
   `DovedeCityGoogleDay`, shared by every container — one `cityRoutes` instance per process is created in `index.ts` and

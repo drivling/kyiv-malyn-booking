@@ -5,7 +5,7 @@
  * відповів (вимкнено, немає ключа, денний ліміт, збій API), повертається з `fallback: 'local'`: сторінка
  * тоді відповідає з місцевого розбору, людина помилки не бачить. GET /admin/dovede/queries — журнал цих питань (лише адмін).
  */
-import express, { type Router } from 'express';
+import express, { type Response, type Router } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { isAdminRequest, requireAdmin, safeEqual } from '../middleware/require-admin';
 import {
@@ -18,7 +18,7 @@ import {
 } from '../dovede/access';
 import { kyivClock } from '../arrival-reports';
 import { aiCallsToday, kyivDayStart } from '../dovede/guard';
-import { DOVEDE_SETTINGS, SETTING_GROUP_LABEL, createDovedeSettings, validSettingValue, type DovedeSettings } from '../dovede/settings';
+import { DOVEDE_SETTINGS, SETTING_GROUP_LABEL, confirmNeeded, createDovedeSettings, settingDef, validSettingValue, type DovedeSettings, type SettingDef } from '../dovede/settings';
 import { DOVEDE_LOG_ROWS, DOVEDE_LOG_SCAN, parseLogDays, summarizeQueries, toLogItem, type DovedeLogFlag } from '../dovede/log';
 import { IntentShapeError, isKnownPlaceId, validateIntent, type TripIntent } from '../dovede/intent';
 import { SYNONYM_LIMIT, normalizePhrase, phraseProblem, type DovedeSynonymEntry } from '../dovede/synonyms';
@@ -73,6 +73,11 @@ export function pickupNote(raw: string | null | undefined): string {
     .map((part) => part.replace(/\s+/g, ' ').trim())
     .filter((part) => part && !/^[\s().,:-]*$/.test(part))
     .join('; ');
+}
+
+/** Значення понад м'яку межу без `confirm: true`: 409 і текст попередження — адмінка покаже його й спитає ще раз */
+function unconfirmed(res: Response, def: SettingDef): void {
+  res.status(409).json({ error: def.warn ?? `Понад ${def.warnAbove} — потрібне підтвердження`, confirm: 'required', warnAbove: def.warnAbove });
 }
 
 export function createAdminDovedeRouter(deps: {
@@ -514,7 +519,7 @@ export function createAdminDovedeRouter(deps: {
 
   /** Скільки днів збережена відповідь вважається свіжою (далі сервер питає Google знову) */
   r.put('/admin/dovede/city/settings', requireAdmin, async (req, res) => {
-    const body = (req.body ?? {}) as { freshDays?: unknown; dailyCap?: unknown };
+    const body = (req.body ?? {}) as { freshDays?: unknown; dailyCap?: unknown; confirm?: unknown };
     const hasFresh = 'freshDays' in body;
     const hasCap = 'dailyCap' in body;
     if (!hasFresh && !hasCap) {
@@ -528,6 +533,11 @@ export function createAdminDovedeRouter(deps: {
     // dailyCap: null — повернути ліміт зі змінної середовища
     if (hasCap && body.dailyCap !== null && !isValidDailyCap(body.dailyCap)) {
       res.status(400).json({ error: `dailyCap: ціле число від ${CITY_DAILY_CAP_MIN} до ${CITY_DAILY_CAP_MAX} або null` });
+      return;
+    }
+    const capDef = settingDef('city.dailyCap')!;
+    if (hasCap && confirmNeeded(capDef, body.dailyCap) && body.confirm !== true) {
+      unconfirmed(res, capDef);
       return;
     }
     try {
@@ -557,7 +567,7 @@ export function createAdminDovedeRouter(deps: {
 
   /** Одне налаштування: `{ key, value }`; `value: null` — повернути типове. Межі — з переліку `DOVEDE_SETTINGS` */
   r.put('/admin/dovede/settings', requireAdmin, async (req, res) => {
-    const body = (req.body ?? {}) as { key?: unknown; value?: unknown };
+    const body = (req.body ?? {}) as { key?: unknown; value?: unknown; confirm?: unknown };
     const def = typeof body.key === 'string' ? DOVEDE_SETTINGS.find((d) => d.key === body.key) : undefined;
     if (!def) {
       res.status(400).json({ error: 'key: невідоме налаштування' });
@@ -565,6 +575,11 @@ export function createAdminDovedeRouter(deps: {
     }
     if (!('value' in body) || (body.value !== null && !validSettingValue(def, body.value))) {
       res.status(400).json({ error: def.kind === 'bool' ? 'value: true, false або null' : `value: ціле від ${def.min} до ${def.max} або null` });
+      return;
+    }
+    // понад м'яку межу (запити до Google понад 20 000 на день) — лише після попередження в адмінці
+    if (confirmNeeded(def, body.value) && body.confirm !== true) {
+      unconfirmed(res, def);
       return;
     }
     try {

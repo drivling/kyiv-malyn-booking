@@ -679,7 +679,7 @@ test('пари видів транспорту: ті самі, що в фікс�
   }
 });
 
-test('денний ліміт Google з адмінки: сильніший за змінну середовища; null повертає її; межі 0–5000', async () => {
+test('денний ліміт Google з адмінки: сильніший за змінну середовища; null повертає її; межі 0 – 1 000 000', async () => {
   const t = make({ dailyCap: () => 2 });
   let stats = await t.svc.stats();
   assert.deepEqual([stats.dailyCap, stats.dailyCapDefault, stats.dailyCapFromAdmin], [2, 2, false]);
@@ -700,7 +700,9 @@ test('денний ліміт Google з адмінки: сильніший за 
   // null — знову як у змінній
   assert.equal(await t.svc.setDailyCap(null), 2);
   assert.equal((await t.svc.stats()).dailyCapFromAdmin, false);
-  await assert.rejects(() => t.svc.setDailyCap(5001));
+  // понад 20 000 — уже можна (підтвердження питає роутер); мільйон — запобіжник від зайвих нулів
+  assert.equal(await t.svc.setDailyCap(25_000), 25_000);
+  await assert.rejects(() => t.svc.setDailyCap(1_000_001));
   await assert.rejects(() => t.svc.setDailyCap(-1));
   await assert.rejects(() => t.svc.setDailyCap(1.5));
 });

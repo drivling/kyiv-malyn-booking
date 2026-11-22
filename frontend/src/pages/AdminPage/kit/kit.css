@@ -255,6 +255,9 @@
 .admin-kit-setting-source.is-error {
   color: var(--pb-danger, #c0392b);
 }
+.admin-kit-setting-source.is-warn {
+  color: #92400e;
+}
 .admin-kit-setting.is-locked .admin-kit-setting-text label {
   color: var(--pb-text-hint, #737373);
 }

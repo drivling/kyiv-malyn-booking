@@ -1148,9 +1148,9 @@ class ApiClient {
     return this.request('/admin/dovede/settings');
   }
 
-  /** Адмін: одне налаштування; null — повернути типове */
-  async setDovedeSetting(key: string, value: number | boolean | null): Promise<import('@/types').DovedeSettingView> {
-    return this.request('/admin/dovede/settings', { method: 'PUT', body: JSON.stringify({ key, value }) });
+  /** Адмін: одне налаштування; null — повернути типове. Понад `warnAbove` — лише з `confirm` (інакше 409) */
+  async setDovedeSetting(key: string, value: number | boolean | null, confirm = false): Promise<import('@/types').DovedeSettingView> {
+    return this.request('/admin/dovede/settings', { method: 'PUT', body: JSON.stringify({ key, value, ...(confirm ? { confirm: true } : {}) }) });
   }
 
   /** Адмін: усі збережені дороги одного місця (і в архіві) */
@@ -1228,9 +1228,9 @@ class ApiClient {
     return this.request('/admin/dovede/city/settings', { method: 'PUT', body: JSON.stringify({ freshDays }) });
   }
 
-  /** Адмін: денний ліміт запитів до Google (0–5000); null — як у змінній середовища на сервері */
-  async setDovedeCityDailyCap(dailyCap: number | null): Promise<{ dailyCap: number }> {
-    return this.request('/admin/dovede/city/settings', { method: 'PUT', body: JSON.stringify({ dailyCap }) });
+  /** Адмін: денний ліміт запитів до Google (0 – 1 000 000, понад 20 000 — лише з `confirm`); null — як у змінній середовища на сервері */
+  async setDovedeCityDailyCap(dailyCap: number | null, confirm = false): Promise<{ dailyCap: number }> {
+    return this.request('/admin/dovede/city/settings', { method: 'PUT', body: JSON.stringify({ dailyCap, ...(confirm ? { confirm: true } : {}) }) });
   }
 
   /** Адмін: примітки оголошень водіїв за період — для підрахунку «Звідки забирають попутки» */
