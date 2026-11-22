@@ -20,6 +20,7 @@ Object.defineProperty(exports, "normalizeKey", { enumerable: true, get: function
 const kyivMetroData_1 = require("./kyivMetroData");
 const guard_1 = require("./guard");
 const viber_listing_expiry_1 = require("../viber-listing-expiry");
+const settings_1 = require("./settings");
 /** Скільки днів збережена відповідь свіжа, поки власник не задав свого в адмінці */
 exports.CITY_FRESH_DAYS = 30;
 exports.CITY_FRESH_DAYS_MIN = 1;
@@ -42,15 +43,17 @@ exports.QUOTA_BACKOFF_MS = 10 * 60000;
 const isValidFreshDays = (v) => typeof v === 'number' && Number.isInteger(v) && v >= exports.CITY_FRESH_DAYS_MIN && v <= exports.CITY_FRESH_DAYS_MAX;
 exports.isValidFreshDays = isValidFreshDays;
 exports.DEFAULT_CITY_DAILY_CAP = 150;
-/** Межі денного ліміту з адмінки: 0 — Google не питати зовсім; угорі — квота проєкту в Google Cloud (5000 на день) */
+/**
+ * Межі денного ліміту з адмінки: 0 — Google не питати зовсім; угорі — запобіжник від зайвих нулів. Понад
+ * `GOOGLE_DAILY_WARN` (20 000) — лише з підтвердженням (перевіряє роутер, `confirmNeeded`)
+ */
 exports.CITY_DAILY_CAP_MIN = 0;
-exports.CITY_DAILY_CAP_MAX = 5000;
+exports.CITY_DAILY_CAP_MAX = settings_1.GOOGLE_DAILY_MAX;
 const isValidDailyCap = (v) => typeof v === 'number' && Number.isInteger(v) && v >= exports.CITY_DAILY_CAP_MIN && v <= exports.CITY_DAILY_CAP_MAX;
 exports.isValidDailyCap = isValidDailyCap;
 const TIMEOUT_MS = 4000;
 const zhytomyr_own_1 = require("./zhytomyr-own");
 const learn_cities_1 = require("./learn-cities");
-const settings_1 = require("./settings");
 const zhytomyr_own_data_1 = require("./zhytomyr-own-data");
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 const FIELD_MASK = [

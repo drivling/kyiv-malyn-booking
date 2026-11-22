@@ -31,11 +31,11 @@ export const DovedeSettingsSection: React.FC = () => {
 
   useEffect(() => load(), [load]);
 
-  const save = async (s: DovedeSettingView, value: number | boolean | null) => {
+  const save = async (s: DovedeSettingView, value: number | boolean | null, confirm = false) => {
     setBusy(s.key);
     setNote('');
     try {
-      const next = await apiClient.setDovedeSetting(s.key, value);
+      const next = await apiClient.setDovedeSetting(s.key, value, confirm);
       setItems((list) => (list ? list.map((x) => (x.key === next.key ? next : x)) : list));
       setNote(value === null ? `«${s.label}» — знову типове: ${typeof next.value === 'boolean' ? (next.value ? 'увімкнено' : 'вимкнено') : next.value}.` : `Збережено: «${s.label}». Діє протягом хвилини.`);
     } catch (e) {
@@ -63,7 +63,7 @@ export const DovedeSettingsSection: React.FC = () => {
               <div key={g} className="admin-kit-settings" role="group" aria-label={groups[g] ?? g}>
                 <h3>{groups[g] ?? g}</h3>
                 {rows.map((s) => (
-                  <SettingRow key={s.key} s={s} busy={busy === s.key} onSave={(v) => save(s, v)} />
+                  <SettingRow key={s.key} s={s} busy={busy === s.key} onSave={(v, confirm) => save(s, v, confirm)} />
                 ))}
               </div>
             );

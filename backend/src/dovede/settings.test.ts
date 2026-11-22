@@ -139,6 +139,21 @@ test('HTTP: лише адмін; список із групами; одне зн
     assert.equal((await put(bad)).status, 400, JSON.stringify(bad));
   }
 
+  // запити до Google на день: до 20 000 — без питань, більше — лише з confirm: true (адмінка попереджає), мільйон — стеля
+  const cap = list.body.items.find((x: { key: string }) => x.key === 'city.dailyCap');
+  assert.deepEqual([cap.max, cap.warnAbove], [1_000_000, 20_000]);
+  assert.match(cap.warn, /квоту проєкту в Google Cloud/);
+  assert.equal(list.body.items.find((x: { key: string }) => x.key === 'learn.sharePct').warnAbove, undefined);
+  assert.equal((await put({ key: 'city.dailyCap', value: 20_000 })).body.value, 20_000);
+  const unconfirmed = await put({ key: 'city.dailyCap', value: 20_001 });
+  assert.deepEqual([unconfirmed.status, unconfirmed.body.confirm, unconfirmed.body.warnAbove], [409, 'required', 20_000]);
+  assert.equal(await settings.int('city.dailyCap'), 20_000, 'без підтвердження нічого не записано');
+  assert.equal((await put({ key: 'city.dailyCap', value: 50_000, confirm: true })).body.value, 50_000);
+  assert.equal(await settings.int('city.dailyCap'), 50_000);
+  assert.equal((await put({ key: 'city.dailyCap', value: 1_000_001, confirm: true })).status, 400);
+  assert.equal((await put({ key: 'drive.dailyCap', value: 30_000 })).status, 409);
+  assert.equal((await put({ key: 'drive.dailyCap', value: 30_000, confirm: true })).body.value, 30_000);
+
   // ШІ вимкнено в налаштуваннях — розбір відповідає «словником» без виклику Claude
   const off = await request(server).post('/dovede/understand').set('Authorization', AUTH).send({ text: 'з Малина до Києва завтра' });
   assert.deepEqual([off.status, off.body.reason], [503, 'disabled']);

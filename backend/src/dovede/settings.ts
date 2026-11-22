@@ -22,6 +22,10 @@ export interface SettingDef {
   unit?: string;
   min?: number;
   max?: number;
+  /** м'яка межа: більше — можна, але адмінка попереджає, а запис вимагає `confirm: true` */
+  warnAbove?: number;
+  /** що сказати власникові, коли значення понад `warnAbove` */
+  warn?: string;
   /** типове значення без адмінки: зі змінної середовища або з коду */
   defaultFrom: (env: NodeJS.ProcessEnv) => { value: number | boolean; source: 'env' | 'code' };
   /** вмикач: змінна середовища, яка вимикає назавжди (адмінка тоді не вмикає) */
@@ -42,8 +46,14 @@ const offWhen = (name: string, offValues: string[]) => (env: NodeJS.ProcessEnv) 
 };
 const OFF = ['0', 'false', 'off', 'no'];
 
-/** Квота проєкту в Google Cloud — 5000 запитів на день: більше в адмінці не дозволяємо */
-export const GOOGLE_DAILY_MAX = 5000;
+/**
+ * Денні ліміти запитів до Google (рішення власника 2026-11-22): до 20 000 — без питань; більше теж можна, але з
+ * попередженням і підтвердженням. Мільйон — лише запобіжник від зайвих нулів (лічильники в базі — Int).
+ */
+export const GOOGLE_DAILY_WARN = 20_000;
+export const GOOGLE_DAILY_MAX = 1_000_000;
+const GOOGLE_DAILY_WARN_TEXT =
+  'Понад 20 000 запитів до Google на день. Перевірте квоту проєкту в Google Cloud (понад неї Google сам відповість «квоту вичерпано») і бюджет: запити понад безкоштовний місячний обсяг платні.';
 
 export const DOVEDE_SETTINGS: readonly SettingDef[] = [
   {
@@ -84,6 +94,8 @@ export const DOVEDE_SETTINGS: readonly SettingDef[] = [
     unit: 'на день',
     min: 0,
     max: GOOGLE_DAILY_MAX,
+    warnAbove: GOOGLE_DAILY_WARN,
+    warn: GOOGLE_DAILY_WARN_TEXT,
     defaultFrom: envInt('DOVEDE_CITY_DAILY_CAP', 150),
   },
   {
@@ -115,6 +127,8 @@ export const DOVEDE_SETTINGS: readonly SettingDef[] = [
     unit: 'на день',
     min: 0,
     max: GOOGLE_DAILY_MAX,
+    warnAbove: GOOGLE_DAILY_WARN,
+    warn: GOOGLE_DAILY_WARN_TEXT,
     defaultFrom: envInt('DRIVE_TIME_DAILY_CAP', 200),
   },
   {
@@ -184,6 +198,15 @@ export function validSettingValue(def: SettingDef, v: unknown): v is number | bo
   return typeof v === 'number' && Number.isInteger(v) && v >= (def.min ?? 0) && v <= (def.max ?? Number.MAX_SAFE_INTEGER);
 }
 
+/** Значення понад м'яку межу: адмінка попереджає, запис іде лише з `confirm: true` */
+export function confirmNeeded(def: SettingDef, v: unknown): boolean {
+  return def.kind === 'int' && def.warnAbove != null && typeof v === 'number' && v > def.warnAbove;
+}
+
+export function settingDef(key: string): SettingDef | undefined {
+  return BY_KEY.get(key);
+}
+
 export interface SettingView {
   key: string;
   group: SettingGroup;
@@ -193,6 +216,8 @@ export interface SettingView {
   unit?: string;
   min?: number;
   max?: number;
+  warnAbove?: number;
+  warn?: string;
   /** що діє зараз */
   value: number | boolean;
   /** типове без адмінки і звідки воно */
@@ -244,6 +269,7 @@ export function createDovedeSettings(deps: DovedeSettingsDeps) {
       ...(def.unit ? { unit: def.unit } : {}),
       ...(def.min != null ? { min: def.min } : {}),
       ...(def.max != null ? { max: def.max } : {}),
+      ...(def.warnAbove != null ? { warnAbove: def.warnAbove, warn: def.warn ?? '' } : {}),
       value,
       default: dflt.value,
       defaultSource: dflt.source,
