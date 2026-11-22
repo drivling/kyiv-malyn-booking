@@ -1017,6 +1017,28 @@ describe('Коростень ↔ Малин — від дверей до две�
     expect(intercity(s).boardLabel).toBe('з вокзалу Коростеня');
   });
 
+  it('адреса Коростеня з наших даних: від вокзалу веде планувальник Коростеня до точки, сервер не питаємо', () => {
+    const spot = { id: 'kstreet.hrushevskoho:12', city: 'Korosten' as const, label: 'вул. Грушевського, 12', stems: [], latLng: [50.95, 28.64] as [number, number] };
+    const farSpot = (d: string) => (d === 'Грушевського 12' ? spot : null);
+    const seen: string[] = [];
+    const fp: LocalPlanner = {
+      ...korostenP,
+      plan: (from, to) => {
+        seen.push(`${from.kind}>${to.kind}`);
+        return to.kind === 'point' ? korostenP.plan(from, { kind: 'stop', stopId: 'st_1079' }) : korostenP.plan(from, to);
+      },
+    };
+    const out = run('з Паперової фабрики в Коростень', { to: 'Грушевського 12' }, fromMalyn, { farPlanner: fp, farSpot });
+    const [s] = stories(out);
+    expect(cityAsks(out)).toEqual([]);
+    expect(seen).toContain('stop>point');
+    expect(kinds(s)).toEqual(['bus', 'wait', 'intercity', 'wait', 'bus']);
+    expect([s.endLabel, s.arriveMins]).toEqual(['Коростень, вул. Грушевського, 12', hm(18, 37)]);
+    // місця немає і в даних — як і було: питання до сервера
+    const other = run('з Паперової фабрики в Коростень', { to: 'музична школа' }, fromMalyn, { farPlanner: fp, farSpot });
+    expect(cityAsks(other)).toEqual([{ city: 'Korosten', from: 'korosten.vokzal', to: 'музична школа', date: NOW.date, time: '18:20' }]);
+  });
+
   describe('попутка Малин → Коростень з названим місцем: від вокзалу Коростеня («зазвичай»)', () => {
     const driver = { id: 31, senderName: 'Олег', listingType: 'driver', route: 'Malyn-Korosten', date: NOW.date, departureTime: '17:00', seats: 2, notes: 'є місця', priceUah: 150, isActive: true, createdAt: '', updatedAt: '' } as ViberListing;
     const rideRun = (detail: string | null, extra: Partial<Parameters<typeof composeStories>[0]> = {}) => {

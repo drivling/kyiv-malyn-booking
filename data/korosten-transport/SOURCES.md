@@ -101,3 +101,8 @@
 `dovede-learn/places.json` — назви місць Коростеня з OpenStreetMap (пошук Nominatim у межах міста: лікарні, школи,
 установи, заводи). © учасники OpenStreetMap, ODbL 1.0. Зберігаємо лише назви й тип об'єкта; координат не беремо —
 дорогу до місця дає сервер «Доведе». Оновлення: `python3 data/korosten-transport/dovede-learn/build.py --fetch`.
+
+`dovede-streets/osm/` — вулиці й будинки Коростеня з OpenStreetMap (офіційний API `/api/0.6/map` плитками, межа міста
+— Nominatim; © учасники OpenStreetMap, ODbL 1.0). З них `dovede-streets/build.py` збирає
+`frontend/src/pages/DovedePage/data/korosten-streets.json`: адресу в Коростені «Доведе» веде своїм планувальником, без
+сервера. Оновлення: `python3 data/korosten-transport/dovede-streets/fetch_osm.py`, потім `build.py`.

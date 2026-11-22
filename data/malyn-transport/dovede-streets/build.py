@@ -144,9 +144,16 @@ def house_number(tags):
     return num if HOUSE_RE.match(num) else None
 
 
-def main():
-    streets_raw = json.load(open(os.path.join(OSM, 'streets.json'), encoding='utf-8'))['elements']
-    addresses = json.load(open(os.path.join(OSM, 'addresses.json'), encoding='utf-8'))['elements']
+MALYN_ABOUT = ('Вулиці Малина для «Доведе»: назва, колишні назви, точка на вулиці, будинки з координатами '
+               '(houses — вулицю вписано в OSM; near — привʼязано до вулиці за геометрією, може бути неточно). '
+               'Згенеровано data/malyn-transport/dovede-streets/build.py з OSM-знімка 2026-10; не редагувати вручну.')
+
+
+def build(osm=OSM, out_front=OUT_FRONT, out_back=OUT_BACK, about=MALYN_ABOUT):
+    """Вулиці міста зі знімка `osm` у файл сторінки `out_front`; `out_back` (назви для промпту) — лише Малин.
+    Інше місто кличе це зі свого build.py (data/korosten-transport/dovede-streets/build.py)."""
+    streets_raw = json.load(open(os.path.join(osm, 'streets.json'), encoding='utf-8'))['elements']
+    addresses = json.load(open(os.path.join(osm, 'addresses.json'), encoding='utf-8'))['elements']
 
     by_name = {}
     for el in streets_raw:
@@ -266,18 +273,23 @@ def main():
         })
 
     doc = {
-        'about': 'Вулиці Малина для «Доведе»: назва, колишні назви, точка на вулиці, будинки з координатами '
-                 '(houses — вулицю вписано в OSM; near — привʼязано до вулиці за геометрією, може бути неточно). '
-                 'Згенеровано data/malyn-transport/dovede-streets/build.py з OSM-знімка 2026-10; не редагувати вручну.',
+        'about': about,
         'license': '© учасники OpenStreetMap, ODbL 1.0 — https://www.openstreetmap.org/copyright',
         'houseStats': stats,
         'streets': out,
     }
-    os.makedirs(os.path.dirname(OUT_FRONT), exist_ok=True)
-    with open(OUT_FRONT, 'w', encoding='utf-8') as f:
+    os.makedirs(os.path.dirname(out_front), exist_ok=True)
+    with open(out_front, 'w', encoding='utf-8') as f:
         json.dump(doc, f, ensure_ascii=False, separators=(',', ':'))
         f.write('\n')
 
+    with_houses = sum(1 for s in out if s['houses'] or s['near'])
+    print('houses:', json.dumps(stats, ensure_ascii=False))
+    print(f"{len(out)} streets, {with_houses} with houses, {sum(len(s['houses']) for s in out)} tagged + "
+          f"{sum(len(s['near']) for s in out)} by geometry, "
+          f"{sum(1 for s in out if s['old'])} with old names; front {os.path.getsize(out_front)} bytes")
+    if not out_back:
+        return
     lines = [
         '/**',
         ' * Вулиці Малина для промпту «Доведе» (id, тип, назва, колишні назви). Згенеровано',
@@ -297,15 +309,9 @@ def main():
     for s in out:
         lines.append('  ' + json.dumps({'id': s['id'], 'kind': s['kind'], 'name': s['name'], 'old': s['old']}, ensure_ascii=False) + ',')
     lines += ['];', '']
-    with open(OUT_BACK, 'w', encoding='utf-8') as f:
+    with open(out_back, 'w', encoding='utf-8') as f:
         f.write('\n'.join(lines))
-
-    with_houses = sum(1 for s in out if s['houses'] or s['near'])
-    print('houses:', json.dumps(stats, ensure_ascii=False))
-    print(f"{len(out)} streets, {with_houses} with houses, {sum(len(s['houses']) for s in out)} tagged + "
-          f"{sum(len(s['near']) for s in out)} by geometry, "
-          f"{sum(1 for s in out if s['old'])} with old names; front {os.path.getsize(OUT_FRONT)} bytes")
 
 
 if __name__ == '__main__':
-    main()
+    build()

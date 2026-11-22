@@ -390,7 +390,12 @@ of `dist` in a commit.
   still use the browser planner. In the Malyn ↔ Korosten corridor `cityDetail.ts` reads the words right after «в Коростень / з Коростеня» as `detail`
   (never a Malyn street; «на вокзал» is no place); `combineCorridor` prefers a dataset stop of that name, and for a place
   without a stop `korostenLeg` answers `city` — a server step from / to `korosten.vokzal` (the point «Навчити місто»
-  learns from). `siteForm` uses `detailForm` for Korosten too, so every name of the starter list must read back
+  learns from). Korosten streets and houses (`data/korosten-streets.json`, a lazy chunk; generator
+  `data/korosten-transport/dovede-streets/build.py` shares `build()` with Malyn's, snapshot by `fetch_osm.py` from the
+  official OSM API tiles) answer an address without the server: `korostenSpot(words)` in `korosten/korostenStreets.ts`
+  gives a place with a point (ids `kstreet.…`, registered through `setExtraStreets`), so Korosten mode becomes `intra`
+  and `korostenLeg` plans from / to the station (`farSpot`); the intent and URL keep `city.Korosten` + words.
+  `siteForm` uses `detailForm` for Korosten too, so every name of the starter list must read back
   unchanged (a test checks it; fix names in the generator's `config.json`).
   **Learning campaigns** (admin plan step 6, `Docs/dovede-admin-roadmap.md` «Крок 6»; `src/dovede/city-campaign.ts`): the
   owner picks a preset («Навчити місто», «Дообучити: вечір / вихідні / ранок», «Питання людей без відповіді», «Види
