@@ -191,6 +191,9 @@ function inCityTrip(text: string, toks: Token[], known: (i: number) => boolean):
 }
 
 /** `stops` — зупинки з розкладу міста (`buildStopPlaces`): «Поворот на Коновальця», «Чорновола 36»… */
+/** Рід закладу перед назвою орієнтира: «кафе», «магазину», «аптеки», «супермаркет»… (нормалізовані слова) */
+const LANDMARK_KIND_RE = /^(кафе|кав.ярн|ресторан|магазин|супермаркет|маркет|аптек|бар|піцер|їдальн|салон|банк|заправк|азс)/;
+
 export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], routes: RouteLike[] = []): LocalParse {
   const allToks = tokenize(text);
   // У Києві відоме місце (метро, вокзал, «Святошин») лишається собою; у Житомирі словник місць не має —
@@ -326,8 +329,9 @@ export function parseLocal(text: string, now: KyivNow, stops: StopPlace[] = [], 
     if (stops.length) {
       const street = leaving ? null : matchStreet(toks, i);
       const prep = street ? prepBefore(toks, i) : null;
-      // орієнтир — лише після прийменника: назви крамниць — звичайні слова
-      const lmFound = prepBefore(toks, i) ? matchLandmark(toks, i) : null;
+      // орієнтир — лише після прийменника: назви крамниць — звичайні слова. «до кафе Пелікан», «до магазину Альянс» —
+      // слово-рід перед назвою пропускаємо, якщо сама назва без нього не знайшлась
+      const lmFound = prepBefore(toks, i) ? matchLandmark(toks, i) ?? (LANDMARK_KIND_RE.test(n) && i + 1 < toks.length ? matchLandmark(toks, i + 1) : null) : null;
       const lm = lmFound && (lmFound.exact || !leaving) ? lmFound : null;
       // довша назва закладу сильніша за вулицю з того самого слова: «до Слобідської гімназії»
       const lmLonger = lm != null && street != null && lm.end > street.end;

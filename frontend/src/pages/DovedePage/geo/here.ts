@@ -10,6 +10,11 @@ import { nearestAddress } from './nearestAddress';
 import { IMPRECISE_M, locateCity, type GeoCity } from './zones';
 
 export const HERE_ID = 'here';
+/**
+ * Коридор Малин ↔ Коростень веде коростенську частину від місця словами (`city.Korosten` + `detail`). Людина в Коростені:
+ * `detail` — ця мітка, а не її адреса (адреса пішла б у посилання як `fd=`); точку бере сторінка з `herePlace()`.
+ */
+export const HERE_DETAIL = 'де я зараз';
 
 export interface HereFix {
   lat: number;

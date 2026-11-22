@@ -53,6 +53,9 @@ import type { KyivNow, LocalParse, TripIntent } from './nlu/types';
 import { ChoiceCards, type Choice } from './ui/ChoiceCards';
 import { QueryField, type QueryFieldHandle } from './ui/QueryField';
 import { voiceAllowed } from './voice/useVoiceInput';
+import { applyHere, needsHere } from './geo/applyHere';
+import { freshHere, geoAllowed, locateError, locateNow } from './geo/locate';
+import { HERE_DETAIL, herePlace } from './geo/here';
 import type { Schedule, ViberListing } from '@/types';
 import { ContactCard, PriceCard } from './ui/InfoCards';
 import { PoputkyCard } from './ui/RideBoard';
@@ -77,6 +80,9 @@ type View =
 function kyivNow(): KyivNow {
   return { date: getKyivDateString(), mins: getKyivMinutesNow() };
 }
+
+/** Питання, для якого місто сторінки вже вибрано за місцем людини: вдруге за місцем не перемикаємо (без петлі) */
+let geoSwitchedFor: string | null = null;
 
 export default function DovedePage() {
   // Назва, опис і картка посилання — як у статичному dist/dovede/index.html (scripts/dovede-brand.mjs)
@@ -303,6 +309,8 @@ function DovedeSearch({
   const inputRef = useRef<QueryFieldHandle>(null);
   // Мікрофон — лише адміну й лише де є Web Speech (Docs/dovede-voice-roadmap.md, Ф1·2)
   const voiceOn = useMemo(() => voiceAllowed(), []);
+  // «Звідки — де я зараз» (Docs/dovede-geo-roadmap.md, Г2): за тим самим правилом — лише адміну
+  const geoOn = useMemo(() => geoAllowed(), []);
   const [sheet, setSheet] = useState<SlotKind | null>(null);
   // Після відповіді рядок «Розумію…» згортається «під кат» в один рядок-підсумок; розгортає сама людина
   const [slotsOpen, setSlotsOpen] = useState(false);
@@ -317,8 +325,18 @@ function DovedeSearch({
 
   /** Намір → розклад → історії */
   const answer = useCallback(
-    async (id: number, q: string, parse: LocalParse, intent: TripIntent, now: KyivNow) => {
+    async (id: number, q: string, parse: LocalParse, asked: TripIntent, now: KyivNow) => {
       await pageDataReady();
+      // «звідки» не названо — від місця людини (лише адміну; координати лишаються у вкладці, в адресу не йдуть)
+      let intent = asked;
+      if (geoOn && needsHere(asked)) {
+        const fix = freshHere() ?? (await locateNow());
+        if (id !== seq.current) return;
+        const r = applyHere(asked, fix, { pageCity: korosten ? 'Korosten' : 'Malyn', isLocalKorosten: (w) => korostenSpot(w) != null });
+        intent = r.intent;
+        if (r.outcome.kind === 'far') setToast('Ви далеко від міст, які я знаю, — скажіть, звідки їдете.');
+        else if (!fix && locateError() === 'denied') setToast('Без доступу до місця не знаю, звідки ви, — скажіть словами.');
+      }
       // вулиці Коростеня — окремий шматок даних: потрібні в режимі Коростеня й для коридору Малин ↔ Коростень
       if (korosten || intent.from?.id === 'city.Korosten' || intent.to?.id === 'city.Korosten') await loadKorostenStreets();
       const shape = korosten ? korostenShape(intent) : classify(intent);
@@ -363,7 +381,9 @@ function DovedeSearch({
         const today = { schedules: await schedulesFor(date), driveMinutes: await driveFor(date, listings) };
         // Коростень у коридорі: місце словами → зупинка його датасету, шлях від / до вокзалу — його планувальником
         const farStop = (detail: string) => korostenStopByLabel(farIndex, detail);
-        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop, farSpot: korostenSpot });
+        // людина в Коростені (`HERE_DETAIL`): коростенська частина — від її точки
+        const farSpot = (words: string) => (words === HERE_DETAIL ? herePlace() ?? null : korostenSpot(words));
+        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop, farSpot });
         let outcome = await withCity((cityRoutes) => composeStories({ intent, now, date, schedules: today.schedules, planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: today.driveMinutes, notePlaces, cityRoutes, ...farFor(date) }, shape));
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);
@@ -404,7 +424,7 @@ function DovedeSearch({
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [plannerFor, setSearchParams, routes, fare, stopIndex, korosten, far, farIndex],
+    [plannerFor, setSearchParams, routes, fare, stopIndex, korosten, far, farIndex, geoOn],
   );
 
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
@@ -414,7 +434,14 @@ function DovedeSearch({
       const parse = parseLocal(q, now, stopIndex, routes);
       // Коростень у питанні на сторінці Малина: спершу датасет Коростеня (коридор чи перемикання вирішуємо з ним)
       const korostenEnd = (i?: TripIntent | null) => i?.from?.id === 'city.Korosten' || i?.to?.id === 'city.Korosten';
-      const wantsFar = !korosten && (chosen ? korostenEnd(chosen) : mentionsKorosten(q));
+      // «звідки» не названо й місто не назване — де людина (лише адміну): від цього залежить і місто сторінки
+      // («до вокзалу» в Коростені — вокзал Коростеня), і коридор від її точки в Коростені до Малина
+      // «Малин», «Київ»… (`mentionsOtherCity`) чи «Коростень» у словах — місто назване, за місцем не вибираємо
+      const namesCity = mentionsKorosten(q) || mentionsOtherCity(q);
+      const fix = !chosen && geoOn && needsHere(parse.intent) ? freshHere() ?? (await locateNow()) : null;
+      const geoKorosten = !korosten && fix?.city === 'Korosten';
+      const wordsFar = !korosten && (chosen ? korostenEnd(chosen) : mentionsKorosten(q));
+      const wantsFar = wordsFar || geoKorosten;
       if (wantsFar && !farSettled) {
         setNeedKorosten(true);
         ++seq.current;
@@ -424,9 +451,20 @@ function DovedeSearch({
       }
       // Поїздка Малин ↔ Коростень («з Паперової фабрики в Коростень до міськлікарні», «з Пашин до Паперової фабрики»):
       // два розбори — малинський і коростенський; відповідає Малин, без Claude
-      const corridor = !chosen && wantsFar ? combineCorridor(parse.intent, parseLocal(q, now, farIndex).intent, farIndex) : null;
+      const corridor = !chosen && wordsFar ? combineCorridor(parse.intent, parseLocal(q, now, farIndex).intent, farIndex) : null;
       // Питання про інше місто, ніж зараз на сторінці («з Пашин до ринку» в Малині) — перемикаємо місто й питаємо там.
       // Поїздка Малин ↔ Коростень — питання Малина, не міста Коростеня.
+      // Місто сторінки за місцем людини, коли в питанні міста нема: у Коростені «до вокзалу» — питання Коростеня (але не
+      // «до Пелікана» — таке місце є лише в Малині, це коридор від її точки); у Малині на сторінці Коростеня — навпаки.
+      // Один раз на питання: слова можуть повернути назад, і тоді лишаємося.
+      if (!chosen && !corridor && onCity && fix && !namesCity && geoSwitchedFor !== q) {
+        const byPlace = !korosten ? (fix.city === 'Korosten' && !hasMalynOnlyPlace(parse.intent) ? KOROSTEN : null) : fix.city === 'Malyn' && !isKorostenQuestion(q) ? DEFAULT_TRANSPORT_CITY : null;
+        if (byPlace) {
+          geoSwitchedFor = q;
+          onCity(byPlace, q);
+          return;
+        }
+      }
       if (!chosen && !corridor && onCity) {
         // з Коростеня назад до Малина: назване інше місто, Коростень як кінець поїздки або місце, яке є лише в Малині
         // («з Царського села на вокзал» — без коростенських слів); окремої кнопки «до Малина» на сторінці нема
@@ -501,7 +539,7 @@ function DovedeSearch({
       const intent = pickIntent(parse.intent, r?.intent);
       await answer(id, q, withIntent(parse, intent), intent, now);
     },
-    [ready, answer, stopIndex, routes, korosten, onCity, farSettled, farIndex],
+    [ready, answer, stopIndex, routes, korosten, onCity, farSettled, farIndex, geoOn],
   );
 
   // Питання, з яким перемкнули місто: відповідаємо, щойно є розклад нового міста (run сам чекає на нього)
@@ -617,6 +655,7 @@ function DovedeSearch({
           onChange={setText}
           onSubmit={() => ask(text)}
           onVoice={voiceOn ? (t, final) => (setText(t), final ? ask(t) : undefined) : undefined}
+          onVoiceStart={geoOn ? () => void locateNow() : undefined}
         />
         {shown ? (
           <div className={`dv-cut${collapsed ? ' is-collapsed' : ''}`}>
