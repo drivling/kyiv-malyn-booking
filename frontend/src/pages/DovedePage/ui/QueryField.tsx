@@ -22,9 +22,11 @@ export const QueryField = forwardRef<
     onSubmit: () => void;
     /** мікрофон: є — кнопка показується (поки лише адміну); `final` — браузер визнав фразу остаточною, можна шукати */
     onVoice?: (text: string, final: boolean) => void;
+    /** натиснули мікрофон — сторінка водночас питає місце людини (Docs/dovede-geo-roadmap.md, Г2) */
+    onVoiceStart?: () => void;
   }
 >(
-  function QueryField({ value, spans, onChange, onSubmit, onVoice }, ref) {
+  function QueryField({ value, spans, onChange, onSubmit, onVoice, onVoiceStart }, ref) {
     const input = useRef<HTMLTextAreaElement>(null);
     const mirror = useRef<HTMLDivElement>(null);
     const [caret, setCaret] = useState(0);
@@ -127,7 +129,15 @@ export const QueryField = forwardRef<
               }}
             />
           </div>
-          {onVoice ? <VoiceButton state={voice.state} onClick={voice.toggle} /> : null}
+          {onVoice ? (
+            <VoiceButton
+              state={voice.state}
+              onClick={() => {
+                if (voice.state === 'idle') onVoiceStart?.();
+                voice.toggle();
+              }}
+            />
+          ) : null}
           <button className="dv-go" type="submit" onClick={() => setClosed(true)}>
             Знайти
           </button>

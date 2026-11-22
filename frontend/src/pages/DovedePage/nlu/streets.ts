@@ -33,6 +33,11 @@ export function setExtraStreets(streets: Street[]): void {
   EXTRA_BY_ID = new Map(streets.map((s) => [s.id, s]));
 }
 
+/** Вулиці іншого міста, які вже завантажила сторінка (найближча адреса «де ви зараз» у Коростені) */
+export function extraStreets(): Street[] {
+  return [...EXTRA_BY_ID.values()];
+}
+
 const NUMBER_RE = /^\d+$/;
 const STREET_WORDS = /^(вул|вулиц|улиц|ул)/;
 const LANE_WORDS = /^(пров|переул|пер$)/;

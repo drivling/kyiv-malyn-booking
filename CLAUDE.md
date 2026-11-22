@@ -162,7 +162,11 @@ of `dist` in a commit.
   that scores engines on the owner's 41 phrases; Whisper in the browser lost badly (21–31 % vs Web Speech 77 %) and is not
   developed further; its library is only ever `import()`ed on the admin's click and its chunks / ≈ 27 MB wasm are
   excluded from the service-worker precache — never import it statically; phase 2 is cloud speech-to-text, for
-  comparison and for browsers without Web Speech); research in
+  comparison and for browsers without Web Speech); «from where I am now» (plan of plans `Docs/dovede-geo-roadmap.md`, admin only like the mic,
+  `DovedePage/geo/`): a question without «звідки» starts from the browser's location — the dynamic place `here` with a
+  point (Malyn, Korosten; Kyiv / Zhytomyr city-level, elsewhere `far` = ignored), asked together with the mic; the same
+  location picks Malyn or Korosten for a question that names no city; coordinates stay in tab memory and never go to
+  Claude, Google or the URL (`f=here` and the Korosten `fd=` marker are never written); research in
   `Docs/dovede/research/`; first visit per browser = an unskippable intro video before the password, then a punched ticket
   opens the page — `DovedePage/intro/`, flag `dovede-intro:v2`, file `public/dovede/intro-<hash>.mp4` from
   `npm run dovede:intro`; `serve-dist.mjs` answers `Range` with 206, which iPhone Safari needs, and sends

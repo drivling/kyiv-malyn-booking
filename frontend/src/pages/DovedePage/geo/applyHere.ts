@@ -5,15 +5,13 @@
  */
 import { resolvePlace } from '../nlu/places';
 import type { PlaceRef, TripIntent } from '../nlu/types';
-import { HERE_ID, type HereFix } from './here';
+import { HERE_DETAIL, HERE_ID, type HereFix } from './here';
 
 export type HereOutcome =
   /** підставили: `from` — місце людини */
   | { kind: 'used'; imprecise: boolean }
   /** людина далеко від міст, які знає сторінка */
   | { kind: 'far' }
-  /** питання про місце іншого міста, ніж відкрите на сторінці: сторінці треба перемкнутися (Г3) */
-  | { kind: 'other_city'; city: 'Malyn' | 'Korosten' }
   /** місце не потрібне чи не підходить: стара поведінка */
   | { kind: 'skip' };
 
@@ -26,9 +24,14 @@ export interface ApplyHereOptions {
 
 const TRIP_INTENTS = new Set<TripIntent['intent']>(['trip', 'schedule']);
 
+/** Чи взагалі потрібне місце людини: поїздка, «куди» є, «звідки» нема. Інакше геолокацію навіть не питаємо */
+export function needsHere(intent: TripIntent): boolean {
+  return !intent.from && !!intent.to && TRIP_INTENTS.has(intent.intent);
+}
+
 export function applyHere(intent: TripIntent, fix: HereFix | null, opts: ApplyHereOptions): { intent: TripIntent; outcome: HereOutcome } {
   const skip = { intent, outcome: { kind: 'skip' } as HereOutcome };
-  if (!fix || intent.from || !intent.to || !TRIP_INTENTS.has(intent.intent)) return skip;
+  if (!fix || !needsHere(intent) || !intent.to) return skip;
   if (fix.city === 'far') return { intent, outcome: { kind: 'far' } };
   const to = resolvePlace(intent.to.id);
   if (!to) return skip;
@@ -38,8 +41,8 @@ export function applyHere(intent: TripIntent, fix: HereFix | null, opts: ApplyHe
 
   switch (fix.city) {
     case 'Malyn':
-      // на сторінці Коростеня людина з Малина — це коридор Малина, не місто Коростеня
-      if (opts.pageCity === 'Korosten') return { intent, outcome: { kind: 'other_city', city: 'Malyn' } };
+      // людина в Малині, а сторінка — Коростеня: місто сторінка вибирає раніше (`run`); тут — стара поведінка
+      if (opts.pageCity === 'Korosten') return skip;
       // «до Малина», а людина вже в Малині — питання не про це
       if (to.isCity && to.city === 'Malyn') return skip;
       return used(here);
@@ -50,11 +53,9 @@ export function applyHere(intent: TripIntent, fix: HereFix | null, opts: ApplyHe
         if (words && !local(words)) return skip;
         return used(here);
       }
-      // на сторінці Малина: до Малина (чи далі) — від Коростеня; місце в Коростені — питання міста Коростеня
-      if (to.city === 'Korosten') return { intent, outcome: { kind: 'other_city', city: 'Korosten' } };
+      // сторінка Малина, людина в Коростені, куди — у Малин: коридор від точки людини (коростенським планувальником)
       if (to.city !== 'Malyn') return skip;
-      // без адреси: `detail` пішов би в адресу сторінки (`fd=`) — це вже місце людини в посиланні. Від вокзалу Коростеня
-      return used({ id: 'city.Korosten', text: 'Коростень (де я зараз)' });
+      return used({ id: 'city.Korosten', text: 'Коростень (де я зараз)', detail: HERE_DETAIL });
     }
     case 'Kyiv':
     case 'Zhytomyr':

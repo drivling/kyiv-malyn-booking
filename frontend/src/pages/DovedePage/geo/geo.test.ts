@@ -11,7 +11,7 @@ import { intentToParams } from '../ui/url';
 import type { TripIntent } from '../nlu/types';
 import { GEO_ZONES, distanceM, locateCity } from './zones';
 import { nearestAddress } from './nearestAddress';
-import { HERE_ID, getHere, herePlace, makeHereFix, setHere } from './here';
+import { HERE_DETAIL, HERE_ID, getHere, herePlace, makeHereFix, setHere } from './here';
 import { applyHere } from './applyHere';
 
 const NOW = 1_800_000_000_000;
@@ -138,10 +138,17 @@ describe('applyHere', () => {
     expect(r.intent.from).toBeNull();
   });
 
-  it('у Коростені на сторінці Малина: «до Малина» — від Коростеня, місце в Коростені — перемкнути місто', () => {
+  it('у Коростені на сторінці Малина «до Пелікана» — коридор від точки людини в Коростені, без адреси в посиланні', () => {
     const fix = makeHereFix(KOROSTEN[0], KOROSTEN[1], 20, NOW);
-    expect(applyHere(trip({ to: { id: 'malyn.vokzal', text: 'вокзал' } }), fix, malyn).intent.from).toEqual(expect.objectContaining({ id: 'city.Korosten' }));
-    expect(applyHere(trip({ to: { id: 'malyn.vokzal', text: 'вокзал' } }), fix, malyn).intent.from?.detail).toBeUndefined();
+    setHere(fix);
+    const r = applyHere(trip({ to: pelikan }), fix, malyn);
+    expect(r.intent.from).toEqual(expect.objectContaining({ id: 'city.Korosten', detail: HERE_DETAIL }));
+    expect(classify(r.intent)).toEqual(expect.objectContaining({ kind: 'to_malyn', far: 'Korosten', detail: HERE_DETAIL }));
+    // точку для коростенської частини сторінка бере з herePlace()
+    expect(herePlace()).toEqual(expect.objectContaining({ city: 'Korosten', latLng: KOROSTEN }));
+    const params = intentToParams(r.intent, '2026-11-22');
+    expect(params.get('f')).toBe('city.Korosten');
+    expect(params.has('fd')).toBe(false);
   });
 
   it('на сторінці Коростеня: від точки; інший кінець — слова не з наших даних — не підставляємо (їх питали б у сервера)', () => {
@@ -151,9 +158,9 @@ describe('applyHere', () => {
     expect(applyHere(words, fix, { pageCity: 'Korosten', isLocalKorosten: () => true }).intent.from?.id).toBe(HERE_ID);
   });
 
-  it('людина в Малині, а на сторінці Коростень — сторінці перемкнутися на Малин', () => {
+  it('людина в Малині, а на сторінці Коростень — тут не підставляємо (місто сторінки вибирає run)', () => {
     const fix = makeHereFix(MALYN[0], MALYN[1], 20, NOW);
-    expect(applyHere(trip({ to: pelikan }), fix, { pageCity: 'Korosten' }).outcome).toEqual({ kind: 'other_city', city: 'Malyn' });
+    expect(applyHere(trip({ to: pelikan }), fix, { pageCity: 'Korosten' }).outcome).toEqual({ kind: 'skip' });
   });
 
   it('«де ви зараз» не потрапляє в адресу сторінки', () => {

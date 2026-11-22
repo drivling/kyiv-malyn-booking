@@ -55,6 +55,15 @@ describe('«Доведе» — орієнтири', () => {
     expect(parse('з хлібозаводу на вокзал')).toMatchObject({ from: { id: 'lm.vat-malynskyi-khlibozavod' }, to: { id: 'malyn.vokzal' } });
   });
 
+  it('рід закладу перед назвою не заважає: «до кафе Пелікан», «до магазину Альянс» (Docs/dovede-geo-roadmap.md)', () => {
+    expect(parse('як доїхати до кафе пелікан').to?.id).toBe('lm.pelikan');
+    expect(parse('до магазину Пелікан').to?.id).toBe('lm.pelikan');
+    expect(parse('до магазину Альянс').to?.id).toBe('lm.alians');
+    expect(parse('з аптеки Альянс на вокзал')).toMatchObject({ from: { id: 'lm.alians' }, to: { id: 'malyn.vokzal' } });
+    // без назви після роду — не орієнтир і не зламаний розбір
+    expect(parse('до кафе').to).toBeNull();
+  });
+
   it('місце — це точка без зупинок, з підписом', () => {
     const p = resolvePlace('lm.atb-market');
     expect(p).toMatchObject({ city: 'Malyn', label: 'супермаркет АТБ-Маркет' });

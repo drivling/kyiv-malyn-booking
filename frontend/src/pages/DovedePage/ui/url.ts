@@ -4,7 +4,7 @@
  * `q=` цілком: посилання відкриває ту саму фразу з підсвіткою й ту саму відповідь (номер будинку береться з цих
  * слів). Рішення власника 2026-11-13: людина сама вирішує, кому надсилати посилання зі своєю адресою.
  */
-import { HERE_ID } from '../geo/here';
+import { HERE_DETAIL, HERE_ID } from '../geo/here';
 import { resolvePlace } from '../nlu/places';
 import { streetIdForUrl } from '../nlu/streets';
 import { addDays } from '../nlu/parseLocal';
@@ -32,7 +32,7 @@ export function intentToParams(intent: TripIntent, date: string): URLSearchParam
   // «де ви зараз» в адресу не пишемо: координат там бути не може, а інша людина відкрила б «зі свого місця»
   if (intent.from && intent.from.id !== HERE_ID) q.set('f', streetIdForUrl(intent.from.id));
   if (intent.to) q.set('t', streetIdForUrl(intent.to.id));
-  if (intent.from?.detail) q.set('fd', intent.from.detail);
+  if (intent.from?.detail && intent.from.detail !== HERE_DETAIL) q.set('fd', intent.from.detail);
   if (intent.to?.detail) q.set('td', intent.to.detail);
   q.set('d', date);
   if (intent.when.time) {

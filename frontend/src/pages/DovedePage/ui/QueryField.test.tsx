@@ -78,4 +78,15 @@ describe('QueryField · мікрофон', () => {
     expect(onVoice).not.toHaveBeenCalled();
     expect(screen.getByRole('status')).toHaveTextContent('Нічого не почув');
   });
+
+  it('натиснули мікрофон — сторінка водночас питає місце (onVoiceStart), зупинка — ні', async () => {
+    const onVoiceStart = vi.fn();
+    const user = userEvent.setup();
+    render(<QueryField {...base} onVoice={vi.fn()} onVoiceStart={onVoiceStart} />);
+    await user.click(screen.getByRole('button', { name: 'Сказати голосом' }));
+    expect(onVoiceStart).toHaveBeenCalledTimes(1);
+    act(() => opts.onReady?.());
+    await user.click(screen.getByRole('button', { name: /Слухаю/ }));
+    expect(onVoiceStart).toHaveBeenCalledTimes(1);
+  });
 });
