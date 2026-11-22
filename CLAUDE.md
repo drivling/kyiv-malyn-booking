@@ -159,10 +159,10 @@ of `dist` in a commit.
   `QueryField` on the Web Speech API (`DovedePage/voice/`: `useVoiceInput`, `webSpeech.ts`, `heardFixes.ts` — spoken numbers →
   digits and known mishearings, shown only when the admin token is in `localStorage` and the browser has Web Speech;
   recognised text goes into the field and searches at once), plus a lab at `/admin/dovede/voice` (`AdminPage/dovede/voice/`)
-  that scores engines on the owner's 41 phrases; Whisper in the browser lost badly (21–31 % vs Web Speech 77 %) and is not
-  developed further; its library is only ever `import()`ed on the admin's click and its chunks / ≈ 27 MB wasm are
-  excluded from the service-worker precache — never import it statically; phase 2 is cloud speech-to-text, for
-  comparison and for browsers without Web Speech); «from where I am now» (plan of plans `Docs/dovede-geo-roadmap.md`, admin only like the mic,
+  that scores Web Speech on the owner's 41 phrases and keeps each take's audio in IndexedDB for the later cloud comparison;
+  Whisper in the browser lost badly (21–31 % vs Web Speech 77 %) and was removed with `@huggingface/transformers` —
+  its `onnxruntime-node` downloaded ~200 MB from nuget.org on every `npm ci` and broke CI once; phase 2 is cloud
+  speech-to-text, for comparison and for browsers without Web Speech); «from where I am now» (plan of plans `Docs/dovede-geo-roadmap.md`, admin only like the mic,
   `DovedePage/geo/`): a question without «звідки» starts from the browser's location — the dynamic place `here` with a
   point (Malyn, Korosten; Kyiv / Zhytomyr city-level, elsewhere `far` = ignored), asked together with the mic; the same
   location picks Malyn or Korosten for a question that names no city; coordinates stay in tab memory and never go to
