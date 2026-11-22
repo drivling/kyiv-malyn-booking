@@ -1,9 +1,9 @@
 /**
- * «Доведе» · де людина зараз — від браузера (Docs/dovede-geo-roadmap.md, Г2). Лише адміну (те саме правило, що в
- * мікрофона); дозвіл браузер питає тоді, коли натиснули мікрофон, або коли набране питання без «звідки». Координати
- * лишаються в памʼяті вкладки (`here.ts`); відмова — тиха, сторінка працює як без місця.
+ * «Доведе» · де людина зараз — від браузера (Docs/dovede-geo-roadmap.md, Г2). Те саме правило, що в мікрофона: усім,
+ * кому відкрито «Доведе» (пошук монтується лише після доступу, `access.ts`). Дозвіл браузер питає тоді, коли натиснули
+ * мікрофон, або коли набране питання без «звідки». Координати лишаються в памʼяті вкладки (`here.ts`); відмова — тиха,
+ * сторінка працює як без місця.
  */
-import { readAdminToken } from '@/utils/adminTokenStorage';
 import { loadKorostenStreets } from '../korosten/korostenStreets';
 import { extraStreets } from '../nlu/streets';
 import { getHere, makeHereFix, setHere, type HereFix } from './here';
@@ -17,8 +17,9 @@ export type LocateError = 'denied' | 'unavailable' | 'timeout' | 'unsupported';
 let pending: Promise<HereFix | null> | null = null;
 let lastError: LocateError | null = null;
 
+/** Чи вміє браузер геолокацію; доступ до самої сторінки вже перевірено (`access.ts`) */
 export function geoAllowed(): boolean {
-  return Boolean(readAdminToken()) && typeof navigator !== 'undefined' && !!navigator.geolocation;
+  return typeof navigator !== 'undefined' && !!navigator.geolocation;
 }
 
 export function freshHere(now = Date.now()): HereFix | null {

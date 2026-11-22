@@ -1,9 +1,8 @@
 /**
- * Геолокація браузера (Docs/dovede-geo-roadmap.md, Г2): лише адміну, один запит на всіх, свіже 2 хв, відмова — тиха й
+ * Геолокація браузера (Docs/dovede-geo-roadmap.md, Г2): кожному, кому відкрито «Доведе», один запит на всіх, свіже 2 хв, відмова — тиха й
  * більше не питаємо. Справжнього GPS тест не торкається.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ADMIN_TOKEN_STORAGE_KEY } from '@/utils/adminTokenStorage';
 import { FRESH_MS, freshHere, geoAllowed, locateError, locateNow, resetLocate } from './locate';
 
 type Ok = (p: GeolocationPosition) => void;
@@ -24,10 +23,10 @@ afterEach(() => {
 });
 
 describe('geoAllowed', () => {
-  it('лише з токеном адміна', () => {
-    expect(geoAllowed()).toBe(false);
-    localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, 'x'.repeat(64));
+  it('де браузер уміє геолокацію; токен адміна не потрібен', () => {
     expect(geoAllowed()).toBe(true);
+    Object.defineProperty(navigator, 'geolocation', { value: undefined, configurable: true });
+    expect(geoAllowed()).toBe(false);
   });
 });
 

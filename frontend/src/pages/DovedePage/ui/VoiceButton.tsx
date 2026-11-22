@@ -6,7 +6,7 @@ const LABEL: Record<VoiceState, string> = {
   listening: 'Слухаю — натисніть, щоб зупинити',
 };
 
-/** Кнопка мікрофона біля поля питання (Docs/dovede-voice-roadmap.md, Ф1·2): лише для адміна, Web Speech */
+/** Кнопка мікрофона біля поля питання (Docs/dovede-voice-roadmap.md, Ф1·2): усім, кому відкрито «Доведе», Web Speech */
 export function VoiceButton({ state, onClick }: { state: VoiceState; onClick: () => void }) {
   return (
     <button type="button" className={`dv-mic dv-mic--${state}`} aria-pressed={state !== 'idle'} aria-label={LABEL[state]} title={LABEL[state]} onClick={onClick}>

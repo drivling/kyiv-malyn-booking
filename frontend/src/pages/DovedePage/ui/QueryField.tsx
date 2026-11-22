@@ -20,7 +20,7 @@ export const QueryField = forwardRef<
     spans: ParseSpan[];
     onChange: (text: string) => void;
     onSubmit: () => void;
-    /** мікрофон: є — кнопка показується (поки лише адміну); `final` — браузер визнав фразу остаточною, можна шукати */
+    /** мікрофон: є — кнопка показується (усім, кому відкрито сторінку, де є Web Speech); `final` — браузер визнав фразу остаточною, можна шукати */
     onVoice?: (text: string, final: boolean) => void;
     /** натиснули мікрофон — сторінка водночас питає місце людини (Docs/dovede-geo-roadmap.md, Г2) */
     onVoiceStart?: () => void;
