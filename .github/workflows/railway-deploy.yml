@@ -8,10 +8,6 @@ on:
   pull_request:
     branches: [ main, master ]
 
-# onnxruntime-node (залежність лабораторії голосу) не качає свій рушій з nuget.org: сайту він не потрібен (frontend/.npmrc)
-env:
-  ONNXRUNTIME_NODE_INSTALL: skip
-
 jobs:
   check:
     runs-on: ubuntu-latest

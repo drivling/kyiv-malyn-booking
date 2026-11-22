@@ -24,7 +24,6 @@
     "dovede:crawl": "node scripts/dovede-crawl.mjs"
   },
   "dependencies": {
-    "@huggingface/transformers": "4.3.2",
     "@types/leaflet": "^1.9.21",
     "leaflet": "^1.9.4",
     "react": "^18.2.0",

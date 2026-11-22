@@ -39,8 +39,8 @@ describe('precache (Docs/transport-pwa-2026-10.md, фаза 4)', () => {
     expect(buildPrecache({ ...args(), assetFiles: [...args().assetFiles, 'assets/DovedePage-X1.js'] }).buildId).toBe(buildPrecache(args()).buildId);
   });
 
-  it('лабораторія голосу (бібліотека розпізнавання й wasm ≈ 27 МБ) не precache-иться', () => {
-    const heavy = ['assets/DovedeVoiceSection-X1.js', 'assets/DovedeVoiceSection-X2.css', 'assets/transformers.web-X3.js', 'assets/ort-wasm-simd-threaded.asyncify-X4.wasm'];
+  it('лабораторія голосу з адмінки не precache-иться', () => {
+    const heavy = ['assets/DovedeVoiceSection-X1.js', 'assets/DovedeVoiceSection-X2.css'];
     const { urls } = buildPrecache({ ...args(), assetFiles: [...args().assetFiles, ...heavy] });
     for (const f of heavy) expect(urls).not.toContain(`/${f}`);
     expect(buildPrecache({ ...args(), assetFiles: [...args().assetFiles, ...heavy] }).buildId).toBe(buildPrecache(args()).buildId);
