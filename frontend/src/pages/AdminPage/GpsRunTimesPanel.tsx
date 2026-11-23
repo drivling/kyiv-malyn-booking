@@ -20,8 +20,9 @@ const day = (iso: string | null) => (iso ? KYIV_DAY.format(new Date(iso)) : '—
  * сегментів і час, за який автобуси справді його проїжджають (з GPS-треків). Лише показує; сегменти не міняє.
  * Рахується на сервері з усіх точок за період, тому вантажиться, коли картку відкрили.
  */
-export const GpsRunTimesPanel: React.FC<{ city: string }> = ({ city }) => {
-  const [open, setOpen] = useState(false);
+/** defaultOpen — у власному розділі «Час у дорозі за GPS» панель розкрита одразу */
+export const GpsRunTimesPanel: React.FC<{ city: string; defaultOpen?: boolean }> = ({ city, defaultOpen = false }) => {
+  const [open, setOpen] = useState(defaultOpen);
   const [days, setDays] = useState(7);
   const [data, setData] = useState<GpsRunTimesReport | null>(null);
   const [error, setError] = useState('');
@@ -42,7 +43,7 @@ export const GpsRunTimesPanel: React.FC<{ city: string }> = ({ city }) => {
   }, [open, load]);
 
   return (
-    <details className="gps-times" onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
+    <details className="gps-times" open={open} onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}>
       <summary className="gps-times-summary">Час у дорозі за GPS</summary>
       {open ? (
         <div className="gps-times-body">

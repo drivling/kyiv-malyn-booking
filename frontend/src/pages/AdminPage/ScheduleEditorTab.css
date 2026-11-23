@@ -357,3 +357,33 @@
   display: block;
   font-size: 0.75rem;
 }
+
+/* ---- Обгортка на спільному наборі kit/ (плитки, розділи, вибір маршруту чіпами, згортки) */
+.schedule-editor-tab .admin-kit-tile-value small {
+  display: block;
+}
+.schedule-editor-tab .admin-kit-head-actions {
+  align-items: center;
+}
+.schedule-editor-pickers {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.schedule-editor-route-panel-head {
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.schedule-editor-route-details > summary,
+.schedule-editor-howto > summary {
+  cursor: pointer;
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.875rem;
+}
+.schedule-editor-route-details[open] > summary {
+  margin-bottom: 10px;
+}
+.schedule-editor-howto .schedule-editor-hint {
+  margin: 6px 0 0;
+}

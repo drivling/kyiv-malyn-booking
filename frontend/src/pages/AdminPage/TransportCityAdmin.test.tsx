@@ -98,14 +98,22 @@ describe('вкладка «Графік транспорту» для Корос
         return HttpResponse.json({ ok: true, counts: { routes: 1, trips: 1 }, revision: 'rev-2' });
       }),
     );
-    const { unmount } = render(<ScheduleEditorTab city="Korosten" />);
+    const { unmount } = render(
+      <MemoryRouter>
+        <ScheduleEditorTab city="Korosten" />
+      </MemoryRouter>,
+    );
     await screen.findByRole('heading', { name: /Маршрут №1/ }, { timeout: 5000 });
     await user.click(screen.getByRole('button', { name: 'Зберегти в базу' }));
     await waitFor(() => expect(puts).toEqual(['?city=Korosten']));
     expect(gets).toContain('?city=Korosten');
     unmount();
 
-    render(<ScheduleEditorTab />);
+    render(
+      <MemoryRouter>
+        <ScheduleEditorTab />
+      </MemoryRouter>,
+    );
     await screen.findByRole('heading', { name: /Маршрут №1/ }, { timeout: 5000 });
     await user.click(screen.getByRole('button', { name: 'Зберегти в базу' }));
     await waitFor(() => expect(puts).toEqual(['?city=Korosten', '']));

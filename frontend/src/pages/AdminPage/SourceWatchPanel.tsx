@@ -24,7 +24,8 @@ function when(iso: string | null): string {
  * Зовнішні джерела розкладу, за якими стежить бекенд (сторінка ради, набори data.gov.ua): коли джерело
  * змінилось, що саме, і кнопка «Переглянуто». Docs/korosten-transport-2026-11.md, фаза 1.
  */
-export const SourceWatchPanel: React.FC = () => {
+/** defaultOpen — у власному розділі «Джерела розкладу» панель розкрита одразу */
+export const SourceWatchPanel: React.FC<{ defaultOpen?: boolean }> = ({ defaultOpen = false }) => {
   const [sources, setSources] = useState<WatchedSource[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -51,7 +52,7 @@ export const SourceWatchPanel: React.FC = () => {
   const failing = list.filter((s) => s.failCount > 0).length;
 
   return (
-    <details className="source-watch" open={pending > 0}>
+    <details className="source-watch" open={defaultOpen || pending > 0}>
       <summary className="source-watch-summary">
         Джерела розкладу
         {pending > 0 && <span className="source-watch-badge source-watch-badge--changed">змінилось: {pending}</span>}
