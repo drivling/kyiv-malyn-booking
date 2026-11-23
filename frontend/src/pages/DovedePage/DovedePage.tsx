@@ -388,7 +388,7 @@ function DovedeSearch({
         // Коростень: зупинка з відповіді Google → наша; автобус до місця словами — наш планувальник (`ownCityLegs`)
         const koStops = korosten ? stops : far.stops;
         const googleStop = (name: string) => korostenStopForName(koStops, name);
-        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop, farSpot, googleStop });
+        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop, farSpot, googleStop, farRoutes: far.routes });
         let outcome = await withCity((cityRoutes) => composeStories({ intent, now, date, schedules: today.schedules, planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: today.driveMinutes, notePlaces, cityRoutes, ...farFor(date) }, shape));
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);

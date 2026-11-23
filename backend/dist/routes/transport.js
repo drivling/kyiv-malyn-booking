@@ -18,6 +18,8 @@ const arrival_reports_1 = require("../arrival-reports");
 const gtfs_feed_1 = require("../gtfs-feed");
 const transport_gps_1 = require("../transport-gps");
 const transport_gps_times_1 = require("../transport-gps-times");
+const transport_time_check_1 = require("../transport-time-check");
+const city_campaign_1 = require("../dovede/city-campaign");
 const transport_city_1 = require("../transport-city");
 const transport_source_watch_1 = require("../transport-source-watch");
 function createTransportRouter(deps) {
@@ -510,6 +512,12 @@ function createTransportRouter(deps) {
                 if (t > last)
                     last = t;
             }
+            const runTimes = (0, transport_gps_times_1.buildRunTimes)(dataset, points);
+            // друга думка — остання звірка розкладу з Google (Коростень); не прочиталась — картка без неї
+            const check = await (0, city_campaign_1.latestCheckResults)(prisma, cityCode).catch((e) => {
+                console.error('[GET /admin/transport/gps/run-times] звірка з Google:', e);
+                return null;
+            });
             res.set('Cache-Control', 'private, no-store');
             res.json({
                 cityCode,
@@ -518,7 +526,8 @@ function createTransportRouter(deps) {
                 from: points.length ? new Date(first).toISOString() : null,
                 to: points.length ? new Date(last).toISOString() : null,
                 revision: dataset.revision ?? null,
-                ...(0, transport_gps_times_1.buildRunTimes)(dataset, points),
+                ...runTimes,
+                timeCheck: check ? { campaignId: check.campaignId, finishedAt: check.finishedAt, candidates: (0, transport_time_check_1.timeCandidates)(runTimes, check.rows) } : null,
             });
         }
         catch (e) {

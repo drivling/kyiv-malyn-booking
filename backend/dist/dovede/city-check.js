@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.CHECK_TOLERANCE_PCT = exports.CHECK_TOLERANCE_MIN = exports.CHECK_MIN_M = exports.CHECK_VERDICTS = void 0;
 exports.checkPairs = checkPairs;
 exports.checkVerdict = checkVerdict;
+exports.checkResults = checkResults;
 exports.checkReport = checkReport;
 const transport_segments_1 = require("../transport-segments");
 const korosten_google_1 = require("../korosten-google");
@@ -118,6 +119,20 @@ function checkVerdict(meta, answer) {
     const tolerance = Math.max(exports.CHECK_TOLERANCE_MIN, (ours.ownMin * exports.CHECK_TOLERANCE_PCT) / 100);
     const verdict = Math.abs(diff) <= tolerance ? 'same' : diff < 0 ? 'google_faster' : 'ours_faster';
     return { verdict, routeNo: ours.routeNo, ownMin: ours.ownMin, googleMin, googleLines };
+}
+/**
+ * Усі пари з відповіддю, разом зі «збігається» (`checkReport` лишає в `rows` лише розбіжності): для звірки хвилин
+ * трьома джерелами — наш розклад, GPS і Google (`transport-time-check.ts`)
+ */
+function checkResults(pairs, answers) {
+    const out = [];
+    for (const { key, meta } of pairs) {
+        const answer = answers.get(key);
+        const result = answer ? checkVerdict(meta, answer) : null;
+        if (result)
+            out.push({ ...result, from: meta.fromName, to: meta.toName, routes: meta.lines.map((l) => l.routeNo), ours: Math.min(...meta.lines.map((l) => l.ownMin)) });
+    }
+    return out;
 }
 /** Звіт звірки: `pairs` — пари плану з ключем `from|to` id, `answers` — відповіді за тим самим ключем */
 function checkReport(pairs, answers) {

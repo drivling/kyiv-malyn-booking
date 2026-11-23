@@ -1620,8 +1620,9 @@ export interface DovedeQualityItem {
   city: DovedeCampaignCity;
   key: string;
   label: string;
-  reasons: Array<{ code: 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only'; text: string }>;
-  routes: Array<{ origin: string; originLabel: string; dir: DovedeCampaignDir; dayType: string; hour: number; minutes: number; rides: number }>;
+  /** `line_not_running`, `rail_in_city` — лише місто зі своїм розкладом (Коростень) */
+  reasons: Array<{ code: 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only' | 'line_not_running' | 'rail_in_city'; text: string }>;
+  routes: Array<{ origin: string; originLabel: string; dir: DovedeCampaignDir; dayType: string; hour: number; minutes: number; rides: number; lines?: string[] }>;
 }
 
 export interface DovedeQualityReport {
@@ -1788,4 +1789,26 @@ export interface GpsRunTimesReport {
   revision: string | null;
   routes: GpsRunRoute[];
   unknownRouteNos: string[];
+  /** звірка хвилин з Google (остання кампанія «Звірити свій розклад з Google»); null — її ще не було */
+  timeCheck?: GpsTimeCheck | null;
+}
+
+/** Час ділянки трьома джерелами (backend/src/transport-time-check.ts): GPS головний, Google — друга думка */
+export interface GpsTimeCandidate {
+  routeNo: string;
+  direction: 'there' | 'back';
+  from: string;
+  to: string;
+  ourMin: number;
+  gpsMin: number | null;
+  googleMin: number | null;
+  /** recalc — GPS і Google разом проти нас; gps — так каже GPS; ok — GPS підтверджує нас; google_only — GPS нема, Google інакше */
+  verdict: 'recalc' | 'gps' | 'ok' | 'google_only';
+  weak: boolean;
+}
+
+export interface GpsTimeCheck {
+  campaignId: number;
+  finishedAt: string | null;
+  candidates: GpsTimeCandidate[];
 }

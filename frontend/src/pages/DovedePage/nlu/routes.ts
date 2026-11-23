@@ -50,7 +50,7 @@ const PLACE_BEFORE_NO = /(?:^|[^\p{L}'])(садо?к\p{L}*|дитсад\p{L}*|д
 const AVOID_BEFORE_RE = /(?:^|[^\p{L}])(?:крім|окрім|кроме|опріч|без|не)(?:\s+(?:на|автобус\p{L}*|маршрут\p{L}*))?\s*$/u;
 
 /** «2-Б», «2б», «2b» — той самий номер: без дефіса, латинська «b» як «б» (id маршруту Коростеня — «2b») */
-const sameNo = (s: string) => s.toLowerCase().replace(/-/g, '').replace(/b/g, 'б');
+export const sameNo = (s: string) => s.toLowerCase().replace(/-/g, '').replace(/b/g, 'б');
 
 function routeByNumber(routes: RouteLike[], shown: string): RouteLike | undefined {
   const n = sameNo(shown);

@@ -100,6 +100,36 @@ describe('GpsRunTimesPanel', () => {
     expect(asked[asked.length - 1]).toBe('?city=Korosten&days=30');
   });
 
+  it('звірка з Google: кандидати на «Перерахувати час» угорі, «GPS підтверджує» — лічильником', async () => {
+    server.use(
+      http.get(RUN_TIMES_URL, () =>
+        HttpResponse.json({
+          ...REPORT,
+          timeCheck: {
+            campaignId: 23,
+            finishedAt: '2026-11-22T21:50:00.000Z',
+            candidates: [
+              { routeNo: '4', direction: 'there', from: 'Залізничний вокзал', to: 'Вул. Київська', ourMin: 18, gpsMin: 14.3, googleMin: 14, verdict: 'recalc', weak: false },
+              { routeNo: '3', direction: 'back', from: 'Вул. Проліскова', to: 'Залізничний вокзал', ourMin: 31, gpsMin: null, googleMin: 40, verdict: 'google_only', weak: false },
+              { routeNo: '5', direction: 'there', from: 'Залізничний вокзал', to: 'Білокоровицьке Шосе', ourMin: 24, gpsMin: 21.2, googleMin: 30, verdict: 'ok', weak: true },
+            ],
+          },
+        }),
+      ),
+    );
+    const user = userEvent.setup();
+    render(<GpsRunTimesPanel city="Korosten" />);
+    await user.click(screen.getByText('Час у дорозі за GPS'));
+    const block = await screen.findByRole('region', { name: 'Звірка хвилин: GPS і Google' });
+    expect(within(block).getByText(/GPS підтверджує наш час на 1 ділянках/)).toBeTruthy();
+    const rows = within(block).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getAllByRole('cell').map((c) => c.textContent))).toEqual([
+      ['№4 · туди', 'Залізничний вокзал → Вул. Київська', '18 хв', '14,3 хв', '14 хв', 'Перерахувати: GPS і Google разом'],
+      ['№3 · назад', 'Вул. Проліскова → Залізничний вокзал', '31 хв', '—', '40 хв', 'Лише Google — чекати GPS'],
+    ]);
+    expect(rows.map((r) => r.className)).toEqual(['is-notable', 'is-weak']);
+  });
+
   it('точок немає — «Даних ще немає»; помилка сервера — текстом', async () => {
     server.use(http.get(RUN_TIMES_URL, () => HttpResponse.json({ ...REPORT, points: 0, from: null, to: null, routes: [], unknownRouteNos: [] })));
     const user = userEvent.setup();

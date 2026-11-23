@@ -188,6 +188,20 @@ export interface CheckReport {
   rows: CheckRow[];
 }
 
+/**
+ * Усі пари з відповіддю, разом зі «збігається» (`checkReport` лишає в `rows` лише розбіжності): для звірки хвилин
+ * трьома джерелами — наш розклад, GPS і Google (`transport-time-check.ts`)
+ */
+export function checkResults(pairs: Array<{ key: string; meta: CheckMeta }>, answers: Map<string, CheckAnswer>): CheckRow[] {
+  const out: CheckRow[] = [];
+  for (const { key, meta } of pairs) {
+    const answer = answers.get(key);
+    const result = answer ? checkVerdict(meta, answer) : null;
+    if (result) out.push({ ...result, from: meta.fromName, to: meta.toName, routes: meta.lines.map((l) => l.routeNo), ours: Math.min(...meta.lines.map((l) => l.ownMin)) });
+  }
+  return out;
+}
+
 /** Звіт звірки: `pairs` — пари плану з ключем `from|to` id, `answers` — відповіді за тим самим ключем */
 export function checkReport(pairs: Array<{ key: string; meta: CheckMeta }>, answers: Map<string, CheckAnswer>): CheckReport {
   const counts = Object.fromEntries(CHECK_VERDICTS.map((v) => [v, 0])) as Record<CheckVerdict, number>;

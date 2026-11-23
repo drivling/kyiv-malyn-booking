@@ -1073,6 +1073,23 @@ describe('Коростень ↔ Малин — від дверей до две�
       expect(w.arriveMins).toBe(hm(18, 29));
     });
 
+    it('зупинки нема, а лінію Google перевіряємо нашим розкладом: є рейс близько — картка Google; нема чи електричка — карта', () => {
+      const agromash: CityRoute = { ...there, steps: [{ kind: 'transit', minutes: 17, mode: 'SHARE_TAXI', line: '4', fromStop: 'Залізничний вокзал', toStop: 'Агромаш', stops: 7 }] };
+      // №4 від вокзалу о 18:10 і 21:40; висадка з електрички — 18:20
+      const withDeps = (mins: number[]): LocalPlanner => ({ ...korostenP, routeDepartures: (id) => (id === '4' ? [{ fromStopId: 'st_1001', towardStopId: 'st_1044', mins }] : []) });
+      const farRoutes = [{ id: '4', no: '4', fromName: 'Залізничний вокзал', toName: 'Вул. Київська' }];
+      const go = (route: CityRoute, mins: number[]) =>
+        stories(run('з Паперової фабрики в Коростень', { to: 'Грушевського 22' }, fromMalyn, { googleStop, farRoutes, farPlanner: withDeps(mins), cityRoutes: new Map([[cityAskKey(askThere), route]]) }))[0];
+      expect(kinds(go(agromash, [hm(18, 10), hm(21, 40)]))).toEqual(['bus', 'wait', 'intercity', 'cityRide']);
+      // о цій порі №4 не ходить — Google людям не показуємо: крок «дороги не знаю», час до вокзалу
+      const off = go(agromash, [hm(7, 0), hm(21, 40)]);
+      expect(kinds(off)).toEqual(['bus', 'wait', 'intercity', 'city']);
+      expect([off.arriveMins, off.endNote]).toEqual([hm(18, 20), 'час — до висадки на вокзалі Коростеня']);
+      // лінії в нас нема зовсім, електричка містом — так само
+      expect(kinds(go({ ...agromash, steps: [{ ...agromash.steps[0], line: '14' }] }, [hm(18, 10)])).at(-1)).toBe('city');
+      expect(kinds(go({ ...agromash, steps: [{ ...agromash.steps[0], mode: 'HEAVY_RAIL', line: '6617' }] }, [hm(18, 10)])).at(-1)).toBe('city');
+    });
+
     it('режим Коростеня (`city`): від нашої зупинки — наш планувальник, від Google — лише кінець', () => {
       const intent = { ...parseLocal('з вокзалу', NOW).intent, from: { id: 'st_1001', text: 'з вокзалу' }, to: { id: 'city.Korosten', text: 'Грушевського 22', detail: 'Грушевського 22' } };
       const shape = { kind: 'city', far: 'Korosten', from: { id: 'st_1001' }, to: { words: 'Грушевського 22' } } as const;

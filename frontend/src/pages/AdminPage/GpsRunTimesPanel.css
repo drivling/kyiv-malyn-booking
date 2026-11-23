@@ -65,3 +65,7 @@
 .gps-times-table tr.is-notable td:nth-child(5) {
   font-weight: 600;
 }
+
+.gps-times-check-block h4 {
+  margin: 16px 0 4px;
+}

@@ -5,6 +5,7 @@ exports.buildPlan = buildPlan;
 exports.expandSeeds = expandSeeds;
 exports.campaignQuery = campaignQuery;
 exports.estimateCost = estimateCost;
+exports.latestCheckResults = latestCheckResults;
 exports.leaderOf = leaderOf;
 exports.createCityCampaigns = createCityCampaigns;
 /**
@@ -322,6 +323,30 @@ const LEARN_URL = (0, site_domains_1.siteUrl)(site_domains_1.PRIMARY_SITE, '/adm
 const pct = (part, all) => (all ? Math.round((part / all) * 100) : 0);
 /** Пари звірки з плану: ключ «звідки|куди» (id зупинок) */
 const checkSeeds = (plan) => plan.seeds.filter((s) => Boolean(s.check && s.origin)).map((s) => ({ key: `${s.origin}|${(0, crawl_core_1.normalizeKey)(s.place)}`, meta: s.check }));
+/**
+ * Остання завершена звірка розкладу міста з Google — усі пари з відповіддю (зокрема «збігається»). Для картки «Час у
+ * дорозі за GPS»: GPS — головне джерело хвилин, Google — друга думка (`transport-time-check.ts`). null — звірки ще не було.
+ */
+async function latestCheckResults(prisma, city) {
+    const c = await prisma.dovedeCityCampaign.findFirst({ where: { cityCode: city, preset: 'check', status: 'done' }, orderBy: [{ finishedAt: 'desc' }, { id: 'desc' }] });
+    if (!c)
+        return null;
+    const pairs = checkSeeds(c.plan);
+    if (!pairs.length)
+        return null;
+    const [places, asks] = await Promise.all([
+        prisma.dovedeCityCampaignPlace.findMany({ where: { campaignId: c.id }, select: { id: true, origin: true, placeKey: true } }),
+        prisma.dovedeCityCampaignAsk.findMany({ where: { campaignId: c.id, status: { in: ['ok', 'no_route'] } }, select: { placeId: true, status: true, steps: true } }),
+    ]);
+    const keyById = new Map(places.map((p) => [p.id, `${p.origin}|${p.placeKey}`]));
+    const answers = new Map();
+    for (const a of asks) {
+        const key = keyById.get(a.placeId);
+        if (key)
+            answers.set(key, { status: a.status, steps: a.steps });
+    }
+    return { campaignId: c.id, finishedAt: c.finishedAt ? c.finishedAt.toISOString() : null, rows: (0, city_check_1.checkResults)(pairs, answers) };
+}
 const CHECK_WORDS = { same: 'збігається', google_faster: 'Google швидше', ours_faster: 'наше швидше', other_line: 'інша лінія', walk: 'пішки', none: 'немає' };
 /** Яку кампанію сервер веде зараз: найстаріша активна, що не чекає (або її очікування минуло) */
 function leaderOf(activeById, at) {
