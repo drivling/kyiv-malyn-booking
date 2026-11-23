@@ -18,6 +18,7 @@ import {
   isAutoReplyAvailable,
   parseChatPatch,
   parseIsoDate,
+  compactJobParams,
   parseJobRequest,
   parseKindsFilter,
   parseMessagesQuery,
@@ -111,6 +112,71 @@ describe('parsers', () => {
     expect(parseJobRequest({ type: 'autoreply_preview', chatId: 3 })).toEqual({ type: 'autoreply_preview', chatId: 3 });
     expect(() => parseJobRequest({ type: 'autoreply_preview' })).toThrow(/chatId/);
     expect(() => parseJobRequest({ type: 'nope' })).toThrow(/Невідомий/);
+  });
+
+  const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5]).toString('base64');
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0]).toString('base64');
+
+  test('parseJobRequest: avatars і post_items (відновлення історії)', () => {
+    expect(parseJobRequest({ type: 'avatars', chatId: '9' })).toEqual({ type: 'avatars', chatId: 9 });
+    expect(() => parseJobRequest({ type: 'avatars' })).toThrow(/chatId/);
+    expect(
+      parseJobRequest({
+        type: 'post_items',
+        chatId: 4,
+        batch: 'osbb-test',
+        seq: 0,
+        items: [
+          { kind: 'text', html: '<b>Тест</b>' },
+          { kind: 'photo', jpegBase64: JPEG, caption: '4 листопада' },
+          { kind: 'photo', jpegBase64: PNG },
+        ],
+      }),
+    ).toEqual({
+      type: 'post_items',
+      chatId: 4,
+      batch: 'osbb-test',
+      seq: 0,
+      silent: true,
+      items: [
+        { kind: 'text', html: '<b>Тест</b>' },
+        { kind: 'photo', jpegBase64: JPEG, caption: '4 листопада' },
+        { kind: 'photo', jpegBase64: PNG },
+      ],
+    });
+    const base = { type: 'post_items', chatId: 4, batch: 'b', seq: 1 };
+    expect(parseJobRequest({ ...base, silent: false, items: [{ kind: 'text', html: 'x' }] })).toMatchObject({ silent: false });
+    expect(() => parseJobRequest({ ...base, items: [] })).toThrow(/items/);
+    expect(() => parseJobRequest({ ...base, batch: 'з пробілом', items: [{ kind: 'text', html: 'x' }] })).toThrow(/batch/);
+    expect(() => parseJobRequest({ ...base, seq: -1, items: [{ kind: 'text', html: 'x' }] })).toThrow(/seq/);
+    expect(() => parseJobRequest({ ...base, items: Array(11).fill({ kind: 'text', html: 'x' }) })).toThrow(/Не більше 10/);
+    expect(() => parseJobRequest({ ...base, items: [{ kind: 'text', html: 'x'.repeat(4097) }] })).toThrow(/текст/);
+    const gif = Buffer.from('GIF89a----').toString('base64');
+    expect(() => parseJobRequest({ ...base, items: [{ kind: 'photo', jpegBase64: gif }] })).toThrow(/JPEG або PNG/);
+    expect(() => parseJobRequest({ ...base, items: [{ kind: 'photo', jpegBase64: 'не base64' }] })).toThrow(/base64/);
+    const big = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(1_000_000)]).toString('base64');
+    expect(() => parseJobRequest({ ...base, items: [{ kind: 'photo', jpegBase64: big }] })).toThrow(/base64 до/);
+    expect(() =>
+      parseJobRequest({ ...base, items: [{ kind: 'photo', jpegBase64: JPEG, caption: 'x'.repeat(1025) }] }),
+    ).toThrow(/підпис/);
+    expect(() => parseJobRequest({ ...base, items: [{ kind: 'video' }] })).toThrow(/text або photo/);
+  });
+
+  test('compactJobParams: у списку задач без base64', () => {
+    expect(
+      compactJobParams('post_items', {
+        chatId: 4,
+        batch: 'b',
+        seq: 2,
+        items: [{ kind: 'photo', jpegBase64: JPEG }, { kind: 'text', html: 'x' }],
+      }),
+    ).toEqual({ chatId: 4, batch: 'b', seq: 2, itemsCount: 2, photos: 1 });
+    expect(compactJobParams('post_items', { chatId: 4, itemsCount: 2, itemsSent: 2 })).toEqual({
+      chatId: 4,
+      itemsCount: 2,
+      itemsSent: 2,
+    });
+    expect(compactJobParams('backfill', { chatId: 1, from: 'a', to: 'b' })).toEqual({ chatId: 1, from: 'a', to: 'b' });
   });
 });
 
