@@ -65,7 +65,13 @@ Roadmap і принципи: `Docs/dzhura-roadmap.md`. Ручний чекліс
   JPEG/PNG base64 + підпис) по черзі, з паузою `DZHURA_POST_PAUSE_SEC` (3 с), `FloodWait` чекає. Якщо частина партії
   з меншим `seq` не вдалася, наступні не публікуються (порядок важливіший). Після публікації `items` прибираються
   з `paramsJson`, лишаються `itemsCount` / `itemsSent`. Пара `batch` + `seq` унікальна (сервер відповідає 409).
-- Картинки малює локально `frontend/scripts/dzhura-history/render.mjs` (Chromium), ставить у чергу `post.mjs`.
+- `import_history` {chatId, text, fileName, media ≤ 20, dryRun} — вбудований імпорт історії Telegram (як «імпорт чату
+  з WhatsApp»): `text` — файл у форматі експорту WhatsApp, повідомлення з'являються з іменами авторів, датами й позначкою
+  «імпортовано»; `media` — картинки, згадані в тексті як `IMG-….jpg (file attached)`. Потрібні права адміна в групі.
+  `dryRun` лише питає Telegram, чи розпізнано формат і чи пустить він імпорт у цей чат. Після імпорту текст і картинки
+  прибираються з `paramsJson`.
+- Картинки й файл імпорту готує локально `frontend/scripts/dzhura-history/render.mjs` (Chromium), ставлять у чергу
+  `post.mjs` (пости) та `import.mjs` (імпорт).
 
 ## Гарантії
 

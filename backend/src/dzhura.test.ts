@@ -162,7 +162,40 @@ describe('parsers', () => {
     expect(() => parseJobRequest({ ...base, items: [{ kind: 'video' }] })).toThrow(/text або photo/);
   });
 
+  test('parseJobRequest: import_history (вбудований імпорт Telegram)', () => {
+    const text = '22.11.26, 14:12 - Ksu: IMG-20261122-WA0001.jpg (file attached)\nДоброго дня\n';
+    expect(parseJobRequest({ type: 'import_history', chatId: 4, text, dryRun: true })).toEqual({
+      type: 'import_history',
+      chatId: 4,
+      text,
+      fileName: 'WhatsApp Chat.txt',
+      dryRun: true,
+      media: [],
+    });
+    const media = [{ name: 'IMG-20261122-WA0001.jpg', jpegBase64: JPEG }];
+    expect(parseJobRequest({ type: 'import_history', chatId: 4, text, media, fileName: 'WhatsApp Chat with ОСББ.txt' })).toMatchObject({
+      dryRun: false,
+      fileName: 'WhatsApp Chat with ОСББ.txt',
+      media,
+    });
+    const base = { type: 'import_history', chatId: 4, text };
+    expect(() => parseJobRequest({ ...base, text: ' ' })).toThrow(/text/);
+    expect(() => parseJobRequest({ ...base, fileName: '../x.txt' })).toThrow(/fileName/);
+    expect(() => parseJobRequest({ ...base, fileName: 'chat.zip' })).toThrow(/fileName/);
+    expect(() => parseJobRequest({ ...base, media: [{ name: 'other.jpg', jpegBase64: JPEG }] })).toThrow(/не згадана/);
+    expect(() => parseJobRequest({ ...base, media: [{ name: 'a b.jpg', jpegBase64: JPEG }] })).toThrow(/name/);
+    const gif = Buffer.from('GIF89a----').toString('base64');
+    expect(() => parseJobRequest({ ...base, media: [{ name: 'IMG-20261122-WA0001.jpg', jpegBase64: gif }] })).toThrow(/JPEG або PNG/);
+    expect(() => parseJobRequest({ ...base, media: Array(21).fill(media[0]) })).toThrow(/до 20/);
+  });
+
   test('compactJobParams: у списку задач без base64', () => {
+    expect(compactJobParams('import_history', { chatId: 4, text: 'abc', dryRun: true, media: [{}] })).toEqual({
+      chatId: 4,
+      dryRun: true,
+      textChars: 3,
+      mediaCount: 1,
+    });
     expect(
       compactJobParams('post_items', {
         chatId: 4,

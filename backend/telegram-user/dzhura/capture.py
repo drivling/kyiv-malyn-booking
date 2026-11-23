@@ -492,7 +492,7 @@ class Capture:
 
     async def job_loop(self) -> None:
         from dzhura.jobs import backfill, sync_dialogs
-        from dzhura.restore import fetch_avatars, post_items, summarize_params
+        from dzhura.restore import fetch_avatars, import_history, post_items, summarize_params
 
         while True:
             try:
@@ -508,6 +508,8 @@ class Capture:
                             result = await post_items(self, job)
                         elif job["type"] == "avatars":
                             result = await fetch_avatars(self, job)
+                        elif job["type"] == "import_history":
+                            result = await import_history(self, job)
                         elif job["type"] == "autoreply_preview":
                             if self.responder is None:
                                 raise RuntimeError("автовідповідь не підключена")

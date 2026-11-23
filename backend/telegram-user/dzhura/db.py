@@ -599,6 +599,21 @@ class DzhuraDB:
                 int(sent),
             )
 
+    async def strip_import_payload(self, job_id: int, text_chars: int, media: int) -> None:
+        """Після імпорту прибрати текст і картинки з paramsJson — лишаються розміри."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE "DzhuraJob"
+                SET "paramsJson" = ("paramsJson" - 'text' - 'media')
+                    || jsonb_build_object('textChars', $2::int, 'mediaCount', $3::int)
+                WHERE id = $1
+                """,
+                int(job_id),
+                int(text_chars),
+                int(media),
+            )
+
     async def chat_senders(self, chat_id: int) -> list[dict[str, Any]]:
         """Усі, хто писав у чат: tgUserId + accessHash (щоб дістати фото профілю без кешу сесії)."""
         async with self.pool.acquire() as conn:
