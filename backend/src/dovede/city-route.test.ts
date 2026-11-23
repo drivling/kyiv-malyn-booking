@@ -196,6 +196,29 @@ test('Коростень (крок 3): зупинка датасету й вок
   assert.ok(asked.includes('Zhytomyr:st_1079'));
 });
 
+test('Коростень (свій датасет): збережена дорога пари — на будь-яку годину й день; з поїздкою краща за «лише пішки»', async () => {
+  const stopPoint = async (city: string, id: string) => (city === 'Korosten' && id === 'st_1079' ? { name: 'Міськлікарня', lat: 50.9601, lng: 28.6502 } : null);
+  const t = make({ stopPoint });
+  const q: CityRouteQuery = { city: 'Korosten', from: 'st_1079', to: 'Грушевського 22', date: '2026-11-18', time: '09:20', departAt: new Date('2026-11-18T07:20:00.000Z') };
+  assert.equal((await t.svc.find(q)).ok, true);
+  assert.equal(t.calls.length, 1);
+  // субота ввечері — та сама дорога з бази: сторінка бере з неї лише зупинку й хвилини пішки, автобус — свій
+  const late = await t.svc.find({ ...q, date: '2026-11-21', time: '21:40' });
+  assert.equal(late.ok && late.source, 'stored');
+  assert.equal(t.calls.length, 1);
+  assert.deepEqual(await t.svc.peekMany([{ ...q, date: '2026-11-22', time: '06:00' }, { ...q, to: 'Сільпо' }]), ['fresh', 'none']);
+  // о 21-й Google радить лише пішки (автобуси вже не ходять) — віддаємо дорогу з поїздкою іншої години
+  const base = t.dovedeCityRoute.rows[0];
+  t.dovedeCityRoute.rows.push({ ...base, id: 99, dayType: 'saturday', hour: 21, steps: [{ kind: 'walk', minutes: 31, meters: 2300 }], minutes: 31 });
+  const pick = await t.svc.find({ ...q, date: '2026-11-21', time: '21:10' });
+  assert.ok(pick.ok && pick.steps.some((x) => x.kind === 'transit'));
+  // Житомир — як і було: інша година — інше питання
+  assert.equal((await t.svc.find({ ...Q, time: '09:20' })).ok, true);
+  const calls = t.calls.length;
+  await t.svc.find({ ...Q, time: '18:00' });
+  assert.equal(t.calls.length, calls + 1);
+});
+
 test('зупинки датасету з бази: лише пасажирські й лише свого міста, одним читанням на 5 хв', async () => {
   let reads = 0;
   const db = fakeDb();

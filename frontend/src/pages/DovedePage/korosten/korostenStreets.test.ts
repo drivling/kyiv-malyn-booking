@@ -59,6 +59,12 @@ describe('korostenSpot: слова людини → місце з точкою',
     expect(streetPrecision(korostenSpot('Грушевського 900')!.id)).toBe('street');
   });
 
+  it('ініціал перед назвою вулиці пропускаємо: «вулиця Г. Сковороди», «вул. І. Котляревського»', () => {
+    expect(korostenSpot('вулиця Г. Сковороди')?.id).toBe('kstreet.hryhoriia-skovorody');
+    expect(korostenSpot('вул. І. Котляревського')?.id).toBe('kstreet.ivana-kotliarevskoho');
+    expect(korostenSpot('вулиця Б. Хмельницького')?.id).toBe('kstreet.bohdana-khmelnytskoho');
+  });
+
   it('провулок — лише коли сказано «провулок»', () => {
     expect(korostenSpot('провулок Шевченка 4')?.id).toBe('kstreet.shevchenka-provulok:4');
     expect(korostenSpot('Шевченка 4')?.id).toBe('kstreet.shevchenka:4');

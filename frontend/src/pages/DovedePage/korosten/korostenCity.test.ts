@@ -14,7 +14,9 @@ import type { Street } from '../nlu/streets';
 import landmarksDoc from '../data/korosten-landmarks.json';
 import type { Landmark } from '../nlu/landmarks';
 import { setKorostenLandmarks, setKorostenStreets } from './korostenStreets';
+import { korostenStopForName } from './korostenPlaces';
 import {
+  asksInsideKorosten,
   buildKorostenPlaces,
   combineCorridor,
   hasMalynOnlyPlace,
@@ -228,11 +230,41 @@ describe('адреса Коростеня з наших даних (крок 7а
     expect(shapeOf('з вокзалу до Сільпо')).toMatchObject({ kind: 'city', far: 'Korosten', to: { words: 'Сільпо' } });
   });
 
+  it('«Коростенська міська рада», «Коростенський ліцей» — заклад, а не місто: не «Куди саме?»', () => {
+    setKorostenLandmarks((landmarksDoc as unknown as { landmarks: Landmark[] }).landmarks);
+    const rada = shapeOf('з вокзалу до Коростенська міська рада');
+    const lyceum = shapeOf('з вокзалу до Коростенського міського ліцею');
+    setKorostenLandmarks([]);
+    expect(rada).toMatchObject({ kind: 'intra', dest: { id: 'klm.korostenska-miska-rada' } });
+    expect(lyceum).toMatchObject({ kind: 'intra', dest: { id: 'klm.korostenskyi-miskyi-litsei' } });
+    // саме місто, як і раніше, не місце поїздки
+    expect(shapeOf('з вокзалу до Коростеня')).toEqual({ kind: 'ask_to' });
+  });
+
   it('місця немає в даних → як і було, дорогу дає сервер; адреса при цьому теж іде словами', () => {
     expect(shapeOf('з вокзалу до музичної школи')).toMatchObject({ kind: 'city', far: 'Korosten', from: { id: 'st_1001' } });
     setKorostenStreets([]);
     expect(shapeOf('з вокзалу на Грушевського 12')).toEqual({ kind: 'city', far: 'Korosten', from: { id: 'st_1001' }, to: { words: 'Грушевського 12' } });
     setKorostenStreets((streetsDoc as unknown as { streets: Street[] }).streets);
+  });
+});
+
+describe('asksInsideKorosten: «у Коростені …» на сторінці Малина — питання містом Коростенем, не коридор', () => {
+  const malynIndex = buildStopPlaces(malynStopsFile.stops);
+  const malynRoutes = malynRoutesFile.routes as RouteLike[];
+  const malynParse = (q: string) => {
+    setStopPlaces(malynIndex);
+    const intent = parseLocal(q, now, malynIndex, malynRoutes).intent;
+    setStopPlaces(index);
+    return intent;
+  };
+  it('уточнення міста без Малина — Коростень; Коростень кінцем, інше місто чи місце лише Малина — коридор', () => {
+    for (const q of ['у Коростені з вокзалу до музичної школи', 'у Коростені з вокзалу до Сільпо', 'в Коростені з центру до Дитячого садка №8']) {
+      expect(asksInsideKorosten(q, malynParse(q)), q).toBe(true);
+    }
+    for (const q of ['з вокзалу в Коростень', 'з Паперової фабрики в Коростень до міськлікарні', 'з Паперової фабрики до Сільпо у Коростені', 'з Малина до Коростеня', 'з Пашин до Паперової фабрики']) {
+      expect(asksInsideKorosten(q, malynParse(q)), q).toBe(false);
+    }
   });
 });
 
@@ -318,6 +350,49 @@ describe('korostenPlaces.ts — спільний із бекендом', () => {
     const here = path.resolve(__dirname, 'korostenPlaces.ts');
     const mirror = path.resolve(__dirname, '../../../../../backend/src/dovede/korostenPlaces.ts');
     expect(fs.readFileSync(here, 'utf8')).toBe(fs.readFileSync(mirror, 'utf8'));
+  });
+
+  it('назва зупинки з відповіді Google → наша зупинка; чого в нас нема — null', () => {
+    const stops = stopsFile.stops;
+    const cases: Array<[string, string | null]> = [
+      ['Залізничний вокзал', 'st_1001'],
+      ['Міський Центральний ринок', 'st_1002'],
+      ['вул. Гастелло', 'st_1069'],
+      ['Міська лікарня', 'st_1079'],
+      ['м/н Пашини', korostenStopByLabel(index, 'Пашини')],
+      ['Парк Древлянський', 'st_1016'],
+      ['Кафе "Ялинка"', korostenStopByLabel(index, 'Ялинка')],
+      ['Ковельский парк', korostenStopByLabel(index, 'Ковельський парк')],
+      ['Агромаш', null],
+      ['База ШЕД', null],
+    ];
+    // перші вісім — наші зупинки (id з розбору сторінки не порожній), останні дві — нашого датасету нема
+    for (const [name, id] of cases.slice(0, 8)) expect(id, name).toMatch(/^st_\d+$/);
+    for (const [name, id] of cases) expect(korostenStopForName(stops, name), name).toBe(id);
+    // «містить» — як фраза в розборі: заклад із назвою зупинки
+    expect(korostenStopForName(stops, 'Загальноосвітня школа №1')).toBeNull();
+    expect(korostenStopForName(stops, 'Загальноосвітня школа №1', 'contains')).toBe(korostenStopByLabel(index, 'Школа №1'));
+  });
+});
+
+describe('стартові місця навчання Коростеня (backend/src/dovede/korosten-learn-places.ts)', () => {
+  it('кожне сторінка справді питає в сервера: зупинок, вулиць і орієнтирів, які вона знає сама, там нема', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const file = fs.readFileSync(path.resolve(__dirname, '../../../../../backend/src/dovede/korosten-learn-places.ts'), 'utf8');
+    const places = [...file.matchAll(/^ {2}("(?:[^"\\]|\\.)*"),$/gm)].map((m) => JSON.parse(m[1]) as string);
+    expect(places.length).toBeGreaterThan(0);
+    setKorostenStreets((streetsDoc as unknown as { streets: Street[] }).streets);
+    setKorostenLandmarks((landmarksDoc as unknown as { landmarks: Landmark[] }).landmarks);
+    const local = places.filter((p) => {
+      const q = `з вокзалу до ${p}`;
+      const shape = korostenShape(remapForKorosten(parseLocal(q, now, index, routes).intent, q));
+      return !(shape.kind === 'city' && shape.to && 'words' in shape.to);
+    });
+    setKorostenStreets([]);
+    setKorostenLandmarks([]);
+    // таке додати в `exclude` у data/korosten-transport/dovede-learn/config.json і перезапустити build.py
+    expect(local).toEqual([]);
   });
 });
 

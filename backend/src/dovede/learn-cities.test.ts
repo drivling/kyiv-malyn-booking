@@ -23,19 +23,23 @@ describe('реєстр міст навчання', () => {
       Korosten: ['korosten.vokzal'],
     });
     expect(byLearnCity((c) => [...c.defaultOrigins])).toEqual({ Kyiv: ['kyiv.akadem', 'kyiv.pas'], Zhytomyr: ['zhytomyr.avtovokzal'], Korosten: ['korosten.vokzal'] });
-    expect(byLearnCity((c) => c.maxDepth)).toEqual({ Kyiv: 1, Zhytomyr: 2, Korosten: 1 });
+    expect(byLearnCity((c) => c.maxDepth)).toEqual({ Kyiv: 1, Zhytomyr: 2, Korosten: 0 });
     expect(byLearnCity((c) => c.genitive)).toEqual({ Kyiv: 'Києва', Zhytomyr: 'Житомира', Korosten: 'Коростеня' });
   });
 
   it('пресети кампаній беруть типові точки й глибину з реєстру', () => {
     const learn = CAMPAIGN_PRESETS.find((p) => p.id === 'learn')!;
     expect(learn.cities).toEqual(['Kyiv', 'Zhytomyr', 'Korosten']);
-    expect(learn.defaults('Korosten')).toEqual({ origins: ['korosten.vokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 1 });
+    expect(learn.defaults('Korosten')).toEqual({ origins: ['korosten.vokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 0 });
     expect(learn.defaults('Kyiv')).toEqual({ origins: ['kyiv.akadem', 'kyiv.pas'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 1 });
     expect(learn.defaults('Zhytomyr')).toEqual({ origins: ['zhytomyr.avtovokzal'], dirs: ['to', 'from'], main: 'weekday@09', extra: 'weekday@17', maxDepth: 2 });
     expect(CAMPAIGN_PRESETS.find((p) => p.id === 'modes')!.cities).toEqual(['Kyiv']);
-    for (const id of ['refill-evening', 'refresh', 'unanswered', 'custom']) {
+    for (const id of ['refresh', 'unanswered', 'custom']) {
       expect(CAMPAIGN_PRESETS.find((p) => p.id === id)!.cities, id).toEqual(['Kyiv', 'Zhytomyr', 'Korosten']);
+    }
+    // місто зі своїм датасетом бере з Google лише зупинку й хвилини пішки — інші години там нічого не вчать
+    for (const id of ['refill-evening', 'refill-weekend', 'refill-morning']) {
+      expect(CAMPAIGN_PRESETS.find((p) => p.id === id)!.cities, id).toEqual(['Kyiv', 'Zhytomyr']);
     }
     expect(CAMPAIGN_PRESETS.find((p) => p.id === 'custom')!.defaults('Korosten').origins).toEqual(['korosten.vokzal']);
   });

@@ -28,7 +28,7 @@ import { clock, leadFor } from './narrate';
 import type { RouteLike } from '../nlu/routes';
 import type { Endpoint } from '@/pages/LocalTransportPage/journey';
 import type { NoteDir, NotePlaces } from '../nlu/notePlaces';
-import { cityAskKey, type CityAsk, type CityRoute, type ComposeOutcome, type LocalPlanner, type PoputkaRide, type PriceLine, type RouteBoard, type RouteInfoItem, type Story, type StoryLeg } from './types';
+import { cityAskKey, type CityAsk, type CityRoute, type CityStep, type ComposeOutcome, type LocalPlanner, type PoputkaRide, type PriceLine, type RouteBoard, type RouteInfoItem, type Story, type StoryLeg } from './types';
 
 // ─── Форма поїздки ────────────────────────────────────────────────────────────────────────────
 
@@ -442,6 +442,7 @@ function cityLeg(
   b: CityEnd,
   anchor: 'from' | 'until',
   mins: number,
+  ownCity: OwnCity | null = null,
 ): { leg: CityLeg; legs: StoryLeg[]; minutes: number; dep: number | null } {
   const at = Math.floor((((anchor === 'from' ? mins : mins - CITY_LOOKBACK) % 1440) + 1440) % 1440 / 10) * 10;
   const ask: CityAsk = { city: far, from: a.ask, to: b.ask, date: input.date, time: clock(at) };
@@ -450,6 +451,9 @@ function cityLeg(
   const dep = anchor === 'from' ? mins : mins - minutes;
   const leg: CityLeg = { kind: 'city', city: far, cityName: CITY_LABEL[far], ask, fromLabel: a.label, toLabel: b.label, route, depMins: route ? dep : null, arrMins: route ? dep + minutes : null, mapsUrl: mapsTransitUrl(a.maps, b.maps) };
   if (!route) return { leg, legs: [leg], minutes, dep: null };
+  // місто зі своїм розкладом (Коростень): від Google — лише зупинка біля місця й хвилини пішки, автобус — наш
+  const mine = ownCity ? ownCityLegs(route, ownCity, b.label, anchor, mins) : null;
+  if (mine) return { leg, legs: mine.legs, minutes: mine.minutes, dep: mine.dep };
   // своє метро й кільцева залежать від часу (інтервал, рейс): для «бути до» уточнюємо вихід, поки хвилини не зійдуться
   let own = splitCityRoute(leg, dep, input.date);
   // кроки беремо з останнього кола: їхній час рахувався від того самого виходу, що й `dep`
@@ -464,9 +468,71 @@ function cityLeg(
   return { leg, legs: own.legs, minutes: own.minutes, dep: anchor === 'from' ? mins : mins - own.minutes };
 }
 
+/**
+ * Місто зі своїм датасетом (Коростень) — Docs/dovede-learning-roadmap.md, аналіз 2026-11-23: хвилини Google близькі
+ * до GPS, але рейси він бере зі свого розкладу (≈ 10 % відповідей — лінія в годину, коли її нема). Тому з відповіді
+ * сервера беремо лише те, чого не знаємо самі: біля якої нашої зупинки місце словами і скільки до нього пішки; поїздку
+ * між зупинками рахує планувальник цього міста за нашим розкладом.
+ */
+interface OwnCity {
+  planner: LocalPlanner;
+  /** назва зупинки з відповіді Google → наша зупинка; null — у нас такої нема */
+  stop: (name: string) => string | null;
+  /** кінець, який ми знаємо (зупинка датасету); null — місце словами */
+  fromStop: string | null;
+  toStop: string | null;
+  /** місто автобуса для карток, коли воно не місто сторінки (Коростень у питанні з Малина) */
+  city: string | null;
+  /** запас після висадки з електрички чи попутки до автобуса, хв */
+  buffer: number;
+}
+
+/** Пішки з відповіді Google: сума кроків «пішки» (метри й хвилини) */
+function googleWalk(steps: CityStep[], toLabel: string | null): Extract<StoryLeg, { kind: 'walk' }> | null {
+  const walks = steps.filter((x) => x.kind === 'walk');
+  const minutes = walks.reduce((n, x) => n + x.minutes, 0);
+  if (minutes <= 0) return null;
+  const meters = Math.round(walks.reduce((n, x) => n + (x.meters ?? 0), 0) / 10) * 10;
+  return { kind: 'walk', meters, minutes, toLabel, late: false };
+}
+
+/**
+ * Відповідь Google → наші кроки: пішки до зупинки, де Google сідає (коли початок — слова), наша поїздка планувальником
+ * до зупинки, де Google виходить (коли кінець — слова), пішки до місця. null — лишаємо відповідь Google як є: у ній
+ * немає поїздки (лише пішки), її зупинки в нас нема («Агромаш») або наш планувальник між ними нічого не знайшов.
+ */
+function ownCityLegs(route: CityRoute, own: OwnCity, toLabel: string, anchor: 'from' | 'until', mins: number): { legs: StoryLeg[]; minutes: number; dep: number } | null {
+  const steps = route.steps;
+  const firstRide = steps.findIndex((x) => x.kind === 'transit');
+  if (firstRide < 0) return null;
+  const lastRide = steps.length - 1 - [...steps].reverse().findIndex((x) => x.kind === 'transit');
+  const boardId = own.fromStop ?? own.stop(steps[firstRide].fromStop ?? '');
+  const alightId = own.toStop ?? own.stop(steps[lastRide].toStop ?? '');
+  if (!boardId || !alightId || boardId === alightId) return null;
+  const p = own.planner;
+  const head = own.fromStop ? null : googleWalk(steps.slice(0, firstRide), p.stopName(boardId));
+  const tail = own.toStop ? null : googleWalk(steps.slice(lastRide + 1), toLabel);
+  const board = stopSpot(p, boardId);
+  const alight = stopSpot(p, alightId);
+  const headMin = head?.minutes ?? 0;
+  const tailMin = tail?.minutes ?? 0;
+  const wrap = (legs: StoryLeg[]) => [...(head ? [head] : []), ...(own.city ? legs.map((l) => (l.kind === 'bus' ? { ...l, city: own.city!, fromName: p.stopName(l.fromStopId), toName: p.stopName(l.toStopId) } : l)) : legs), ...(tail ? [tail] : [])];
+  if (anchor === 'from') {
+    const start = mins + headMin;
+    const pick = afterAlight(p, board, alight, start, start, own.buffer, false, own.city);
+    if (!pick) return null;
+    const arrive = pick.arriveMins + tailMin;
+    return { legs: wrap(pick.legs), minutes: arrive - mins, dep: mins };
+  }
+  const pick = beforeBoard(p, board, alight, mins - tailMin);
+  if (!pick) return null;
+  const dep = pick.departMins - headMin;
+  return { legs: wrap(pick.legs), minutes: mins - dep, dep };
+}
+
 /** Крок містом між точкою міжміського рейсу й місцем, названим словами */
 function cityStep(
-  input: Pick<ComposeInput, 'date' | 'cityRoutes'>,
+  input: Pick<ComposeInput, 'date' | 'cityRoutes' | 'farPlanner' | 'googleStop'>,
   far: FarCity,
   point: { id: string; label: string; maps: string | null },
   detail: string,
@@ -477,7 +543,13 @@ function cityStep(
   const city = far as CityAsk['city'];
   const known: CityEnd = { ask: point.id, label: point.label, maps: point.maps };
   const words: CityEnd = { ask: detail, label: detail, maps: `${detail}, ${CITY_LABEL[far]}` };
-  const step = anchor === 'from' ? cityLeg(input, city, known, words, anchor, mins) : cityLeg(input, city, words, known, anchor, mins);
+  // Коростень: від вокзалу до місця — автобус нашим планувальником, від Google лише зупинка й хвилини пішки
+  const fp = far === 'Korosten' ? input.farPlanner : null;
+  const own = (to: boolean): OwnCity | null =>
+    fp && input.googleStop
+      ? { planner: fp, stop: input.googleStop, fromStop: to ? KOROSTEN_STATION.stopId : null, toStop: to ? null : KOROSTEN_STATION.stopId, city: 'Korosten', buffer: KOROSTEN_ALIGHT_BUFFER }
+      : null;
+  const step = anchor === 'from' ? cityLeg(input, city, known, words, anchor, mins, own(true)) : cityLeg(input, city, words, known, anchor, mins, own(false));
   return { legs: step.legs, minutes: step.minutes };
 }
 
@@ -1033,6 +1105,17 @@ function cityEndOf(far: CityAsk['city'], ref: CityEndRef): CityEnd {
   return { ask: serverKnows ? ref.id : maps.replace(new RegExp(`,\\s*${cityName}$`), ''), label, maps };
 }
 
+/** Питання містом Коростенем (сторінка в режимі Коростеня): зупинку кінця знаємо за id, місце словами — від Google */
+function ownCityOf(input: ComposeInput, shape: Extract<TripShape, { kind: 'city' }>): OwnCity | null {
+  if (shape.far !== 'Korosten' || !input.planner || !input.googleStop) return null;
+  const end = (ref: CityEndRef): string | null | undefined => ('words' in ref ? null : /^st_\d+$/.test(ref.id) ? ref.id : undefined);
+  const fromStop = end(shape.from);
+  const toStop = end(shape.to);
+  // інша відома точка (не зупинка датасету) — лишаємо відповідь сервера як є
+  if (fromStop === undefined || toStop === undefined) return null;
+  return { planner: input.planner, stop: input.googleStop, fromStop, toStop, city: null, buffer: 0 };
+}
+
 /**
  * У межах одного далекого міста (Київ, Житомир), коли хоча б один кінець названо словами: одна історія з одного
  * кроку `city`, який дає сервер. Відповіді ще не питали — історія з `route: null` (сторінка спитає й складе ще
@@ -1044,7 +1127,7 @@ function cityOutcome(input: ComposeInput, shape: Extract<TripShape, { kind: 'cit
   const b = cityEndOf(shape.far, shape.to);
   const arriveBy = win.kind === 'arrive' && win.deadline != null;
   const at = arriveBy ? win.deadline! : win.start;
-  const { leg, legs, minutes, dep } = cityLeg(input, shape.far, a, b, arriveBy ? 'until' : 'from', at);
+  const { leg, legs, minutes, dep } = cityLeg(input, shape.far, a, b, arriveBy ? 'until' : 'from', at, ownCityOf(input, shape));
   if (!leg.route && input.cityRoutes?.has(cityAskKey(leg.ask))) return { kind: 'city_link', cityName, fromLabel: a.label, toLabel: b.label, mapsUrl: leg.mapsUrl };
   const leave = dep ?? at;
   // «бути до 9:00», а виходити треба було раніше, ніж зараз
@@ -1399,6 +1482,11 @@ export interface ComposeInput {
   farStop?: (detail: string) => string | null;
   /** адреса Коростеня з наших даних (вулиця, будинок) → місце з точкою; null — такої немає (`korosten/korostenStreets.ts`) */
   farSpot?: (detail: string) => GazetteerPlace | null;
+  /**
+   * Коростень: назва зупинки з відповіді сервера (Google) → наша зупинка (`korostenStopForName`). Є — автобус до місця
+   * словами рахує наш планувальник, а від Google лишається зупинка й хвилини пішки (`ownCityLegs`)
+   */
+  googleStop?: (name: string) => string | null;
 }
 
 /** Дороги містом, яких бракує показаним історіям: сторінка питає їх у сервера і складає відповідь ще раз */

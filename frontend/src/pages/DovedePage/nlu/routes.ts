@@ -40,6 +40,12 @@ const WORD_STEMS: Array<[string[], string]> = [
 ];
 const WORD_RE = /[\p{L}][\p{L}']*/gu;
 
+/**
+ * «Дитячий садок №8», «ЗОШ №5», «гімназія №7», «Нова пошта №2»: номер закладу, а не маршрут. Слово перед «№» / «#» /
+ * «номер» — з цього переліку (основи); «маршрут №5», «автобус №5» сюди не потрапляють.
+ */
+const PLACE_BEFORE_NO = /(?:^|[^\p{L}'])(садо?к\p{L}*|дитсад\p{L}*|днз|зош|нвк|школ\p{L}*|гімназ\p{L}*|гимназ\p{L}*|ліце\p{L}*|лице\p{L}*|колегіум\p{L}*|училищ\p{L}*|амбулатор\p{L}*|лікарн\p{L}*|больниц\p{L}*|поліклінік\p{L}*|поликлиник\p{L}*|пошт\p{L}*|почт\p{L}*|відділенн\p{L}*|отделени\p{L}*|магазин\p{L}*|аптек\p{L}*|гуртожит\p{L}*|общежит\p{L}*|будин\p{L}*|корпус\p{L}*|підʼїзд\p{L}*|під'їзд\p{L}*|кабінет\p{L}*|палат\p{L}*)\s*$/u;
+
 /** «крім сімки», «окрім №5», «кроме девятки», «без 7-ки», «тільки не автобусом №3» — слова перед згадкою */
 const AVOID_BEFORE_RE = /(?:^|[^\p{L}])(?:крім|окрім|кроме|опріч|без|не)(?:\s+(?:на|автобус\p{L}*|маршрут\p{L}*))?\s*$/u;
 
@@ -61,7 +67,11 @@ export function findRouteMentions(text: string, routes: RouteLike[]): RouteMenti
     const route = routeByNumber(routes, shown);
     if (route && !found.some((m) => start < m.end && end > m.start)) found.push({ routeId: route.id, avoid: false, start, end });
   };
-  for (const m of t.matchAll(MARKED_RE)) add(m[1], m.index ?? 0, (m.index ?? 0) + m[0].length);
+  for (const m of t.matchAll(MARKED_RE)) {
+    // «школа №5» — номер закладу; «маршрут №5» починається словом-ознакою, тож сюди не потрапляє
+    if (/^(?:№|#|номер)/u.test(m[0]) && PLACE_BEFORE_NO.test(t.slice(0, m.index ?? 0))) continue;
+    add(m[1], m.index ?? 0, (m.index ?? 0) + m[0].length);
+  }
   for (const m of t.matchAll(BEFORE_RE)) add(m[1], m.index ?? 0, (m.index ?? 0) + m[0].length);
   for (const m of t.matchAll(SUFFIX_RE)) add(m[1], m.index ?? 0, (m.index ?? 0) + m[0].length);
   for (const m of t.matchAll(WORD_RE)) {

@@ -31,7 +31,8 @@ exports.LEARN_CITIES = [
         placeId: 'city.Korosten',
         arrivalPoints: ['korosten.vokzal'],
         defaultOrigins: ['korosten.vokzal'],
-        maxDepth: 1,
+        // обхід углиб давав лише наші ж зупинки з відповідей Google (аналіз 2026-11-23)
+        maxDepth: 0,
         ownDataset: true,
     },
 ];

@@ -54,6 +54,8 @@ exports.isValidDailyCap = isValidDailyCap;
 const TIMEOUT_MS = 4000;
 const zhytomyr_own_1 = require("./zhytomyr-own");
 const learn_cities_1 = require("./learn-cities");
+/** Міста зі своїм датасетом: збережена дорога пари годиться на будь-яку годину (`findStored`) */
+const OWN_DATASET = new Set(learn_cities_1.OWN_DATASET_CITY_CODES);
 const zhytomyr_own_data_1 = require("./zhytomyr-own-data");
 const ROUTES_URL = 'https://routes.googleapis.com/directions/v2:computeRoutes';
 const FIELD_MASK = [
@@ -402,13 +404,20 @@ function createCityRoutes(deps) {
     }
     async function findStored(q, from, to, hour) {
         const freshFrom = await freshSince();
+        const dayType = (0, crawl_core_1.dayTypeOf)(q.date);
+        // місто зі своїм датасетом (Коростень): сторінка бере з відповіді лише зупинку біля місця й хвилини пішки, а
+        // автобус — зі свого розкладу, тож годину не порівнюємо — підходить дорога цієї пари на будь-яку годину
+        const anyHour = OWN_DATASET.has(q.city);
         const rows = await prisma.dovedeCityRoute.findMany({
-            where: { cityCode: q.city, fromKey: from.key, toKey: to.key, dayType: (0, crawl_core_1.dayTypeOf)(q.date), hour: { in: [hour - 1, hour, hour + 1] }, archivedAt: null, fetchedAt: { gte: freshFrom } },
+            where: { cityCode: q.city, fromKey: from.key, toKey: to.key, ...(anyHour ? {} : { dayType, hour: { in: [hour - 1, hour, hour + 1] } }), archivedAt: null, fetchedAt: { gte: freshFrom } },
         });
         if (!rows.length)
             return null;
         // власні дані сильніші за збережені з Google; серед рівних — ближча година
-        const rank = (r) => (r.source === 'own' ? 0 : 1) * 10 + Math.abs(r.hour - hour);
+        const rides = (r) => Array.isArray(r.steps) && r.steps.some((x) => x?.kind === 'transit');
+        // будь-яка година: «лише пішки» о 21-й буває через те, що автобуси вже не ходять, — дорога з поїздкою корисніша
+        const anyRides = anyHour && rows.some(rides);
+        const rank = (r) => (r.source === 'own' ? 0 : 1) * 100000 + (anyRides && !rides(r) ? 10000 : 0) + (r.dayType === dayType ? 0 : 1000) + Math.abs(r.hour - hour);
         return rows.sort((a, b) => rank(a) - rank(b))[0];
     }
     async function noteDemand(city, from, to, answered) {
@@ -701,7 +710,7 @@ function createCityRoutes(deps) {
     }
     /**
      * Що відповів би сервер без Google — для оцінки кампанії, нічого не пише: `own` — власні дані Житомира, `fresh` —
-     * свіжа відповідь у базі (той самий тип дня, година ± 1), `archived` — місце в архіві, `invalid` — слова не місце,
+     * свіжа відповідь у базі (той самий тип дня, година ± 1; у місті зі своїм датасетом — будь-яка година), `archived` — місце в архіві, `invalid` — слова не місце,
      * `none` — треба питати Google. Збережене читає одним запитом на всі питання.
      */
     async function peekMany(qs) {
@@ -725,6 +734,8 @@ function createCityRoutes(deps) {
             })
             : [];
         const have = new Set(rows.map((r) => `${r.cityCode}|${r.fromKey}|${r.toKey}|${r.dayType}|${r.hour}`));
+        // місто зі своїм датасетом: дорога пари годиться на будь-яку годину, як і в `findStored`
+        const pairs = new Set(rows.map((r) => `${r.cityCode}|${r.fromKey}|${r.toKey}`));
         return resolved.map(({ q, from, to, hour }) => {
             if (!from || !to || from.key === to.key || !Number.isInteger(hour))
                 return 'invalid';
@@ -732,6 +743,8 @@ function createCityRoutes(deps) {
                 return 'own';
             if (hidden.has(`${q.city}|${from.key}`) || hidden.has(`${q.city}|${to.key}`))
                 return 'archived';
+            if (OWN_DATASET.has(q.city))
+                return pairs.has(`${q.city}|${from.key}|${to.key}`) ? 'fresh' : 'none';
             const day = (0, crawl_core_1.dayTypeOf)(q.date);
             return [hour - 1, hour, hour + 1].some((h) => have.has(`${q.city}|${from.key}|${to.key}|${day}|${h}`)) ? 'fresh' : 'none';
         });
