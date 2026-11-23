@@ -189,7 +189,47 @@ describe('parsers', () => {
     expect(() => parseJobRequest({ ...base, media: Array(21).fill(media[0]) })).toThrow(/до 20/);
   });
 
+  test('parseJobRequest: імпорт частинами (init → media → start) і scan_ids', () => {
+    const text = '22.11.26, 14:12 - Ksu: IMG-20261122-WA0001.jpg (file attached)\nДоброго дня\n';
+    expect(parseJobRequest({ type: 'import_history', chatId: 4, stage: 'init', text, mediaCount: 1900 })).toEqual({
+      type: 'import_history',
+      chatId: 4,
+      stage: 'init',
+      mediaCount: 1900,
+      text,
+      fileName: 'WhatsApp Chat.txt',
+      dryRun: false,
+      media: [],
+    });
+    expect(() => parseJobRequest({ type: 'import_history', chatId: 4, stage: 'init', text, mediaCount: 10_001 })).toThrow(/mediaCount/);
+    const media = [{ name: 'IMG-20261122-WA0001.jpg', jpegBase64: JPEG }, { name: 'IMG-20261122-WA0002.png', jpegBase64: PNG }];
+    expect(parseJobRequest({ type: 'import_history', chatId: 4, stage: 'media', importId: '9110376554340626123', media })).toEqual({
+      type: 'import_history',
+      chatId: 4,
+      stage: 'media',
+      importId: '9110376554340626123',
+      text: '',
+      fileName: '',
+      dryRun: false,
+      media,
+    });
+    expect(() => parseJobRequest({ type: 'import_history', chatId: 4, stage: 'media', importId: 9110376554340626000, media })).toThrow(
+      /importId/,
+    );
+    expect(() => parseJobRequest({ type: 'import_history', chatId: 4, stage: 'media', importId: '1', media: [] })).toThrow(/хоча б одна/);
+    expect(parseJobRequest({ type: 'import_history', chatId: 4, stage: 'start', importId: '-17' })).toMatchObject({ stage: 'start', importId: '-17', media: [] });
+    expect(() => parseJobRequest({ type: 'import_history', chatId: 4, stage: 'go', text })).toThrow(/stage/);
+    expect(parseJobRequest({ type: 'scan_ids', chatId: '5' })).toEqual({ type: 'scan_ids', chatId: 5 });
+    expect(() => parseJobRequest({ type: 'scan_ids' })).toThrow(/chatId/);
+  });
+
   test('compactJobParams: у списку задач без base64', () => {
+    expect(compactJobParams('import_history', { chatId: 4, stage: 'media', importId: '1', media: [{}, {}] })).toEqual({
+      chatId: 4,
+      stage: 'media',
+      importId: '1',
+      mediaCount: 2,
+    });
     expect(compactJobParams('import_history', { chatId: 4, text: 'abc', dryRun: true, media: [{}] })).toEqual({
       chatId: 4,
       dryRun: true,
