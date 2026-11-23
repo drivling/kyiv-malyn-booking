@@ -344,6 +344,35 @@ describe('/admin/dzhura', () => {
     await request(a).get('/admin/dzhura/jobs/42').set(auth).expect(404);
   });
 
+  test('POST jobs post_items / avatars: лише звичайна група, у відповіді без base64, повтор частини — 409', async () => {
+    const { prisma, jobs } = makeStub();
+    const a = await app(prisma);
+    const jpeg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4, 5]).toString('base64');
+    const body = { type: 'post_items', chatId: 2, batch: 'osbb-test', seq: 0, items: [{ kind: 'photo', jpegBase64: jpeg }, { kind: 'text', html: 'x' }] };
+    const res = await request(a).post('/admin/dzhura/jobs').set(auth).send(body).expect(201);
+    expect(res.body.job.params).toEqual({ chatId: 2, batch: 'osbb-test', seq: 0, silent: true, itemsCount: 2, photos: 1 });
+    expect((jobs[0].paramsJson as { items: unknown[] }).items).toHaveLength(2);
+
+    await request(a).post('/admin/dzhura/jobs').set(auth).send({ ...body, chatId: 1 }).expect(400);
+    await request(a).post('/admin/dzhura/jobs').set(auth).send({ ...body, chatId: 3 }).expect(400);
+    await request(a).post('/admin/dzhura/jobs').set(auth).send({ ...body, chatId: 99 }).expect(404);
+
+    const av = await request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'avatars', chatId: 2 }).expect(201);
+    expect(av.body.job.params).toEqual({ chatId: 2 });
+
+    const imp = await request(a)
+      .post('/admin/dzhura/jobs')
+      .set(auth)
+      .send({ type: 'import_history', chatId: 2, text: '22.11.26, 14:12 - Ksu: hi\n', dryRun: true })
+      .expect(201);
+    expect(imp.body.job.params).toEqual({ chatId: 2, fileName: 'WhatsApp Chat.txt', dryRun: true, textChars: 26, mediaCount: 0 });
+    await request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'import_history', chatId: 1, text: 'x' }).expect(400);
+
+    (prisma as unknown as { dzhuraJob: { findFirst: () => Promise<unknown> } }).dzhuraJob.findFirst = async () => ({ id: 5, status: 'done' });
+    const dup = await request(a).post('/admin/dzhura/jobs').set(auth).send(body).expect(409);
+    expect(dup.body.error).toMatch(/опублікована.*№5/);
+  });
+
   test('POST jobs: 409 коли така сама вже в черзі', async () => {
     const { prisma } = makeStub();
     (prisma as unknown as { dzhuraJob: { findFirst: () => Promise<unknown> } }).dzhuraJob.findFirst = async () => ({

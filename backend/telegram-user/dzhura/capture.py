@@ -492,17 +492,24 @@ class Capture:
 
     async def job_loop(self) -> None:
         from dzhura.jobs import backfill, sync_dialogs
+        from dzhura.restore import fetch_avatars, import_history, post_items, summarize_params
 
         while True:
             try:
                 for job in await self.db.fetch_pending_jobs(limit=1):
                     await self.db.start_job(job["id"])
-                    log(f"job {job['type']} id={job['id']} params={job['params']}")
+                    log(f"job {job['type']} id={job['id']} params={summarize_params(job['type'], job['params'])}")
                     try:
                         if job["type"] == "sync_dialogs":
                             result = await sync_dialogs(self.client, self.db, self.me_id)
                         elif job["type"] == "backfill":
                             result = await backfill(self, job)
+                        elif job["type"] == "post_items":
+                            result = await post_items(self, job)
+                        elif job["type"] == "avatars":
+                            result = await fetch_avatars(self, job)
+                        elif job["type"] == "import_history":
+                            result = await import_history(self, job)
                         elif job["type"] == "autoreply_preview":
                             if self.responder is None:
                                 raise RuntimeError("автовідповідь не підключена")
@@ -510,7 +517,12 @@ class Capture:
                         else:
                             raise ValueError(f"unknown job type: {job['type']}")
                         await self.db.complete_job(job["id"], result)
-                        shown = {"action": result.get("action")} if job["type"] == "autoreply_preview" else result
+                        if job["type"] == "autoreply_preview":
+                            shown = {"action": result.get("action")}
+                        elif job["type"] == "avatars":
+                            shown = {k: v for k, v in result.items() if k != "avatars"}
+                        else:
+                            shown = result
                         log(f"job done id={job['id']} {shown}")
                     except asyncio.CancelledError:
                         await self.db.fail_job(job["id"], "listener stopped")

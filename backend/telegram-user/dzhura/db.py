@@ -566,6 +566,75 @@ class DzhuraDB:
                 _json(result),
             )
 
+    # ---------- відновлення історії (restore.py) ----------
+
+    async def post_batch_broken(self, batch: str, seq: int, job_id: int) -> bool:
+        """Чи не вдалася раніша частина тієї ж партії публікації (тоді далі не йдемо — зламається порядок)."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT 1 FROM "DzhuraJob"
+                WHERE type = 'post_items' AND status = 'failed' AND id <> $3
+                  AND "paramsJson"->>'batch' = $1
+                  AND COALESCE(("paramsJson"->>'seq')::int, 0) < $2
+                LIMIT 1
+                """,
+                batch,
+                int(seq),
+                int(job_id),
+            )
+        return row is not None
+
+    async def strip_post_items(self, job_id: int, total: int, sent: int) -> None:
+        """Прибрати base64 / HTML з paramsJson після публікації — у списку задач лишаються лічильники."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE "DzhuraJob"
+                SET "paramsJson" = ("paramsJson" - 'items') || jsonb_build_object('itemsCount', $2::int, 'itemsSent', $3::int)
+                WHERE id = $1
+                """,
+                int(job_id),
+                int(total),
+                int(sent),
+            )
+
+    async def strip_import_payload(self, job_id: int, text_chars: int, media: int) -> None:
+        """Після імпорту прибрати текст і картинки з paramsJson — лишаються розміри."""
+        async with self.pool.acquire() as conn:
+            await conn.execute(
+                """
+                UPDATE "DzhuraJob"
+                SET "paramsJson" = ("paramsJson" - 'text' - 'media')
+                    || jsonb_build_object('textChars', $2::int, 'mediaCount', $3::int)
+                WHERE id = $1
+                """,
+                int(job_id),
+                int(text_chars),
+                int(media),
+            )
+
+    async def chat_senders(self, chat_id: int) -> list[dict[str, Any]]:
+        """Усі, хто писав у чат: tgUserId + accessHash (щоб дістати фото профілю без кешу сесії)."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT DISTINCT p."tgUserId", p."accessHash"
+                FROM "DzhuraMessage" m
+                JOIN "DzhuraPerson" p ON p.id = m."senderPersonId"
+                WHERE m."chatId" = $1
+                ORDER BY p."tgUserId"
+                """,
+                int(chat_id),
+            )
+        return [
+            {
+                "tg_user_id": int(r["tgUserId"]),
+                "access_hash": int(r["accessHash"]) if r["accessHash"] is not None else None,
+            }
+            for r in rows
+        ]
+
     async def fail_job(self, job_id: int, error: str) -> None:
         async with self.pool.acquire() as conn:
             await conn.execute(
