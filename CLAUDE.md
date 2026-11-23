@@ -526,6 +526,13 @@ of `dist` in a commit.
   OpenStreetMap calls the stops nearby (`nameChecks`). **No Google credit anywhere on the page** («це мої дані
   тепер»): the city card says only «перевірено N днів тому», whatever the source; do not add «за даними Google» back.
   Background learning also seeds the bus station → every route terminus (`SEED_PAIRS` from `ZT_OWN`).
+  Kyiv surface transport from the owner's own GTFS of КП «Київпастранс» (learning step 8, `Docs/dovede-learning-roadmap.md`;
+  owner's data like the metro — no source credit): `data/kyiv-transport/kpt-gtfs/gtfs_static.zip` → `npm run kyiv:kpt`
+  (backend; pure `dovede/kyiv-kpt.ts`, `readZip` in `zip.ts`) → `backend/src/dovede/kyiv-kpt-data.ts` (`KYIV_KPT`:
+  directions with 2–8 control points, weekday / weekend departures, minutes between points by departure hour) and
+  `REPORT.md`; a test keeps both equal to the generator. Shapes are not used (65 % are straight 2–3-point lines);
+  marshrutkas and suburban buses are not in the feed, so Google stays for them. `--fetch` takes the export address from
+  `KPT_GTFS_URL` — never commit it; it is unreachable from the cloud sandbox.
   Korosten city questions (stage 1, `DovedePage/korosten/korostenCity.ts`): the page holds a city (`Malyn` / `Korosten`,
   URL `c=Korosten`) and remounts the search per city (one planner on screen); Korosten words in a question switch it.
   Places are `StopPlace` entries of Korosten stops plus folk names (`KOROSTEN_ALIASES`), answers are `intra` /
