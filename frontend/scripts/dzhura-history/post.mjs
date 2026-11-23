@@ -58,7 +58,7 @@ for (const step of args.steps) {
     if (it.kind === 'text') items.push({ kind: 'text', html: it.html });
     else {
       const jpegBase64 = (await readFile(path.join(step.dir, it.file))).toString('base64');
-      const caption = manifest.mode === 'chunk' && it.caption ? escapeHtml(it.caption) : undefined;
+      const caption = it.captionHtml || (manifest.mode === 'chunk' && it.caption ? escapeHtml(it.caption) : undefined);
       items.push(caption ? { kind: 'photo', jpegBase64, caption } : { kind: 'photo', jpegBase64 });
     }
   }

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DZHURA_SEARCH_MAX_LEN = exports.DZHURA_MESSAGES_PAGE_MAX = exports.DZHURA_MESSAGES_PAGE = exports.DZHURA_QUEUE_RETRY_WINDOW_MS = exports.bigintReplacer = exports.DzhuraHttpError = exports.DZHURA_AUTOREPLY_NOTE_MAX_LEN = exports.DZHURA_AUTOREPLY_DELAY_MAX_SEC = exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = exports.DZHURA_POST_MAX_CAPTION = exports.DZHURA_POST_MAX_TEXT = exports.DZHURA_POST_MAX_PHOTO_BYTES = exports.DZHURA_POST_MAX_ITEMS = exports.DZHURA_GROUP_KINDS = exports.DZHURA_KYIV_TZ = exports.DZHURA_MAX_BACKFILL_DAYS = exports.DZHURA_HEARTBEAT_FRESH_MS = exports.DZHURA_EXPORT_LIMIT = void 0;
+exports.DZHURA_SEARCH_MAX_LEN = exports.DZHURA_MESSAGES_PAGE_MAX = exports.DZHURA_MESSAGES_PAGE = exports.DZHURA_QUEUE_RETRY_WINDOW_MS = exports.bigintReplacer = exports.DzhuraHttpError = exports.DZHURA_AUTOREPLY_NOTE_MAX_LEN = exports.DZHURA_AUTOREPLY_DELAY_MAX_SEC = exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = exports.DZHURA_IMPORT_MAX_MEDIA = exports.DZHURA_IMPORT_MAX_TEXT = exports.DZHURA_POST_MAX_CAPTION = exports.DZHURA_POST_MAX_TEXT = exports.DZHURA_POST_MAX_PHOTO_BYTES = exports.DZHURA_POST_MAX_ITEMS = exports.DZHURA_GROUP_KINDS = exports.DZHURA_KYIV_TZ = exports.DZHURA_MAX_BACKFILL_DAYS = exports.DZHURA_HEARTBEAT_FRESH_MS = exports.DZHURA_EXPORT_LIMIT = void 0;
 exports.parseIsoDate = parseIsoDate;
 exports.addDaysIso = addDaysIso;
 exports.daysBetweenInclusive = daysBetweenInclusive;
@@ -22,6 +22,7 @@ exports.parseChatPatch = parseChatPatch;
 exports.updateChatFlags = updateChatFlags;
 exports.compactJobParams = compactJobParams;
 exports.serializeJob = serializeJob;
+exports.parseImportRequest = parseImportRequest;
 exports.parsePostItems = parsePostItems;
 exports.parseJobRequest = parseJobRequest;
 exports.createJob = createJob;
@@ -39,6 +40,9 @@ exports.DZHURA_POST_MAX_ITEMS = 10;
 exports.DZHURA_POST_MAX_PHOTO_BYTES = 1000000;
 exports.DZHURA_POST_MAX_TEXT = 4096;
 exports.DZHURA_POST_MAX_CAPTION = 1024;
+/** Вбудований імпорт історії (`import_history`): розмір файлу чату і картинок до нього */
+exports.DZHURA_IMPORT_MAX_TEXT = 1500000;
+exports.DZHURA_IMPORT_MAX_MEDIA = 20;
 /** Автовідповідь: затримка в секундах (за замовчуванням 80) і довжина підказки на чат */
 exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = 80;
 exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = 5;
@@ -388,6 +392,10 @@ function asRecord(v) {
 }
 /** У списку задач без base64 картинок і HTML постів — лише що це було (слухач після публікації прибирає їх сам) */
 function compactJobParams(type, params) {
+    if (type === 'import_history' && params && typeof params.text === 'string') {
+        const { text, media, ...rest } = params;
+        return { ...rest, textChars: text.length, mediaCount: Array.isArray(media) ? media.length : 0 };
+    }
     if (type !== 'post_items' || !params || !Array.isArray(params.items))
         return params;
     const { items, ...rest } = params;
@@ -424,6 +432,44 @@ function base64Bytes(s) {
         return null;
     return (s.length / 4) * 3 - (s.endsWith('==') ? 2 : s.endsWith('=') ? 1 : 0);
 }
+/** JPEG / PNG base64 до DZHURA_POST_MAX_PHOTO_BYTES, інакше 400 з префіксом `where` */
+function parsePhotoBase64(raw, where) {
+    const b64 = typeof raw === 'string' ? raw : '';
+    const bytes = base64Bytes(b64);
+    if (bytes == null || bytes > exports.DZHURA_POST_MAX_PHOTO_BYTES) {
+        throw new DzhuraHttpError(400, `${where}: картинка — base64 до ${exports.DZHURA_POST_MAX_PHOTO_BYTES} байтів`);
+    }
+    const head = Buffer.from(b64.slice(0, 12), 'base64');
+    const isJpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+    const isPng = head.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+    if (!isJpeg && !isPng)
+        throw new DzhuraHttpError(400, `${where}: лише JPEG або PNG`);
+    return b64;
+}
+function parseImportRequest(b) {
+    const chatId = parseChatId(b.chatId);
+    const text = typeof b.text === 'string' ? b.text : '';
+    if (!text.trim() || text.length > exports.DZHURA_IMPORT_MAX_TEXT) {
+        throw new DzhuraHttpError(400, `text — файл чату від 1 до ${exports.DZHURA_IMPORT_MAX_TEXT} символів`);
+    }
+    const fileName = typeof b.fileName === 'string' && b.fileName.trim() ? b.fileName.trim() : 'WhatsApp Chat.txt';
+    if (!/^[^/\\]{1,120}\.txt$/.test(fileName))
+        throw new DzhuraHttpError(400, 'fileName — до 120 символів, .txt');
+    const rawMedia = b.media == null ? [] : b.media;
+    if (!Array.isArray(rawMedia) || rawMedia.length > exports.DZHURA_IMPORT_MAX_MEDIA) {
+        throw new DzhuraHttpError(400, `media — до ${exports.DZHURA_IMPORT_MAX_MEDIA} картинок`);
+    }
+    const media = rawMedia.map((it, i) => {
+        const o = (it ?? {});
+        const name = typeof o.name === 'string' ? o.name : '';
+        if (!/^[\w.-]{1,100}\.(jpe?g|png)$/i.test(name))
+            throw new DzhuraHttpError(400, `Картинка ${i + 1}: name — ім'я файлу .jpg/.png`);
+        if (!text.includes(name))
+            throw new DzhuraHttpError(400, `Картинка ${i + 1}: ${name} не згадана в text`);
+        return { name, jpegBase64: parsePhotoBase64(o.jpegBase64, `Картинка ${i + 1}`) };
+    });
+    return { type: 'import_history', chatId, text, fileName, dryRun: b.dryRun === true, media };
+}
 function parsePostItems(raw) {
     if (!Array.isArray(raw) || raw.length === 0)
         throw new DzhuraHttpError(400, 'Потрібен непорожній items');
@@ -440,16 +486,7 @@ function parsePostItems(raw) {
             return { kind: 'text', html };
         }
         if (o.kind === 'photo') {
-            const b64 = typeof o.jpegBase64 === 'string' ? o.jpegBase64 : '';
-            const bytes = base64Bytes(b64);
-            if (bytes == null || bytes > exports.DZHURA_POST_MAX_PHOTO_BYTES) {
-                throw new DzhuraHttpError(400, `Пост ${i + 1}: картинка — base64 до ${exports.DZHURA_POST_MAX_PHOTO_BYTES} байтів`);
-            }
-            const head = Buffer.from(b64.slice(0, 12), 'base64');
-            const isJpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
-            const isPng = head.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
-            if (!isJpeg && !isPng)
-                throw new DzhuraHttpError(400, `Пост ${i + 1}: лише JPEG або PNG`);
+            const b64 = parsePhotoBase64(o.jpegBase64, `Пост ${i + 1}`);
             const caption = typeof o.caption === 'string' ? o.caption : '';
             if (caption.length > exports.DZHURA_POST_MAX_CAPTION) {
                 throw new DzhuraHttpError(400, `Пост ${i + 1}: підпис до ${exports.DZHURA_POST_MAX_CAPTION} символів`);
@@ -465,6 +502,8 @@ function parseJobRequest(body) {
         return { type: 'sync_dialogs' };
     if (b.type === 'avatars')
         return { type: 'avatars', chatId: parseChatId(b.chatId) };
+    if (b.type === 'import_history')
+        return parseImportRequest(b);
     if (b.type === 'post_items') {
         const chatId = parseChatId(b.chatId);
         const batch = typeof b.batch === 'string' ? b.batch.trim() : '';
@@ -503,17 +542,25 @@ async function createJob(prisma, req) {
             if (!isAutoReplyAvailable())
                 throw new DzhuraHttpError(400, 'У бекенда немає ANTHROPIC_API_KEY');
         }
-        if (req.type === 'post_items' && (chat.isLunchGroup || !exports.DZHURA_GROUP_KINDS.includes(chat.kind))) {
+        if ((req.type === 'post_items' || req.type === 'import_history') && (chat.isLunchGroup || !exports.DZHURA_GROUP_KINDS.includes(chat.kind))) {
             throw new DzhuraHttpError(400, 'Публікуємо лише у звичайні групи (не в групу обідів і не в особисті)');
         }
     }
     if (req.type === 'post_items')
         return createPostJob(prisma, req);
-    const params = req.type === 'backfill'
-        ? { chatId: req.chatId, from: req.from, to: req.to }
-        : req.type === 'autoreply_preview' || req.type === 'avatars'
-            ? { chatId: req.chatId }
-            : undefined;
+    const params = req.type === 'import_history'
+        ? {
+            chatId: req.chatId,
+            text: req.text,
+            fileName: req.fileName,
+            dryRun: req.dryRun,
+            media: req.media,
+        }
+        : req.type === 'backfill'
+            ? { chatId: req.chatId, from: req.from, to: req.to }
+            : req.type === 'autoreply_preview' || req.type === 'avatars'
+                ? { chatId: req.chatId }
+                : undefined;
     const active = await prisma.dzhuraJob.findFirst({
         where: { type: req.type, status: { in: ['pending', 'running'] } },
         orderBy: { createdAt: 'desc' },

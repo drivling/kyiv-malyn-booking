@@ -4,7 +4,9 @@
   * `avatars` {chatId} — маленькі (160 px) фото профілю всіх, хто писав у чат, у результат задачі
     ({ avatars: { <tgUserId>: <jpeg base64> } }) — для локального рендера карток;
   * `post_items` {chatId, batch, seq, silent, items} — опублікувати від імені власника готові пости
-    (`text` — HTML, `photo` — JPEG base64 + підпис) у чат, по черзі, з паузою.
+    (`text` — HTML, `photo` — JPEG base64 + підпис) у чат, по черзі, з паузою;
+  * `import_history` {chatId, text, fileName, media, dryRun} — вбудований імпорт історії Telegram з файлу у
+    форматі експорту WhatsApp (потрібні права адміна в групі; dryRun лише перевіряє формат і права).
 
 Другий свідомий виняток із правила «у чати не пишемо» (перший — автовідповідь): пише лише те, що власник
 сам поставив задачею, і лише в групу / супергрупу, яку назвав (ніколи в групу обідів). Нічого не читає
@@ -33,7 +35,15 @@ MAX_FLOOD_WAIT_SEC = 1800
 
 
 def summarize_params(job_type: str, params: Any) -> Any:
-    """Що писати в лог про задачу: без base64 картинок і без HTML постів."""
+    """Що писати в лог про задачу: без base64 картинок, HTML постів і тексту імпорту."""
+    if job_type == "import_history" and isinstance(params, dict):
+        media = params.get("media") if isinstance(params.get("media"), list) else []
+        return {
+            "chatId": params.get("chatId"),
+            "dryRun": params.get("dryRun"),
+            "textChars": len(str(params.get("text") or "")),
+            "media": len(media),
+        }
     if job_type != "post_items" or not isinstance(params, dict):
         return params
     items = params.get("items") if isinstance(params.get("items"), list) else []
@@ -159,3 +169,72 @@ async def fetch_avatars(cap: Capture, job: dict[str, Any]) -> dict[str, Any]:
         "failed": failed,
         "avatars": avatars,
     }
+
+
+async def import_history(cap: Capture, job: dict[str, Any]) -> dict[str, Any]:
+    """
+    Вбудований імпорт історії Telegram (як «Імпорт чату з WhatsApp»): повідомлення з'являються справжніми,
+    з іменами авторів і датами, з позначкою «імпортовано». Потрібні права адміна в групі.
+    params: chatId, text (експорт у форматі WhatsApp), fileName, media [{name, jpegBase64}], dryRun.
+    dryRun — лише перевірити, що Telegram розпізнає формат і пустить імпорт у цей чат; нічого не імпортує.
+    """
+    from telethon.tl.functions.messages import (
+        CheckHistoryImportPeerRequest,
+        CheckHistoryImportRequest,
+        InitHistoryImportRequest,
+        StartHistoryImportRequest,
+        UploadImportedMediaRequest,
+    )
+    from telethon.tl.types import InputMediaUploadedPhoto
+
+    params = job.get("params") or {}
+    chat = await cap.db.get_chat_by_id(int(params["chatId"]))
+    if chat is None:
+        raise ValueError(f"chat {params.get('chatId')} not found")
+    if int(chat["tg_chat_id"]) == int(cap.lunch_group_id) or chat["kind"] not in ("group", "supergroup"):
+        raise ValueError("імпортуємо лише у звичайні групи (не в групу обідів і не в особисті)")
+    text = str(params.get("text") or "")
+    if not text.strip():
+        raise ValueError("порожній text")
+    media = [m for m in (params.get("media") or []) if isinstance(m, dict)]
+    dry_run = bool(params.get("dryRun"))
+    head = "\n".join(text.splitlines()[:100])
+
+    parsed = await cap.client(CheckHistoryImportRequest(import_head=head))
+    peer = await resolve_chat_peer(cap.client, int(chat["tg_chat_id"]))
+    checked = await cap.client(CheckHistoryImportPeerRequest(peer=peer))
+    info: dict[str, Any] = {
+        "chat": chat["title"],
+        "parsed": {
+            "pm": bool(getattr(parsed, "pm", False)),
+            "group": bool(getattr(parsed, "group", False)),
+            "title": getattr(parsed, "title", None),
+        },
+        "confirmText": getattr(checked, "confirm_text", None),
+        "lines": len(text.splitlines()),
+        "media": len(media),
+        "dryRun": dry_run,
+    }
+    if dry_run:
+        return info
+
+    try:
+        file_name = str(params.get("fileName") or "WhatsApp Chat.txt")
+        up = await cap.client.upload_file(text.encode("utf-8"), file_name=file_name)
+        imp = await cap.client(InitHistoryImportRequest(peer=peer, file=up, media_count=len(media)))
+        await cap.db.progress_job(job["id"], {"importId": int(imp.id), "media": 0, "total": len(media)})
+        for n, m in enumerate(media, start=1):
+            bio = decode_photo(m)
+            name = str(m.get("name") or bio.name)
+            f = await cap.client.upload_file(bio.getvalue(), file_name=name)
+            await cap.client(
+                UploadImportedMediaRequest(
+                    peer=peer, import_id=imp.id, file_name=name, media=InputMediaUploadedPhoto(file=f)
+                )
+            )
+            await cap.db.progress_job(job["id"], {"importId": int(imp.id), "media": n, "total": len(media)})
+        await cap.client(StartHistoryImportRequest(peer=peer, import_id=imp.id))
+    finally:
+        await cap.db.strip_import_payload(int(job["id"]), len(text), len(media))
+    info["importId"] = int(imp.id)
+    return info

@@ -403,3 +403,154 @@ export function textPosts(messages, ctx, limit = TEXT_POST_LIMIT) {
   if (cur.length) posts.push(cur.join('\n\n'));
   return posts;
 }
+
+// ---------- режим posts: одне повідомлення = один пост (шапка-картинка з аватаркою + текст підписом) ----------
+
+/** Підпис до фото в Telegram без Premium — до 1024 символів (після розбору HTML); беремо із запасом */
+export const CAPTION_LIMIT = 1000;
+
+const URL_RE = /https?:\/\/[^\s<>"]+[^\s<>".,;:!?)\]»]/g;
+
+/** Текст → HTML для Telegram (parse_mode html): екранування, посилання — <a href>, щоб точно були клікабельні */
+export function telegramHtml(text) {
+  const src = String(text ?? '');
+  let out = '';
+  let last = 0;
+  for (const m of src.matchAll(URL_RE)) {
+    out += escapeHtml(src.slice(last, m.index));
+    out += `<a href="${escapeHtml(m[0])}">${escapeHtml(m[0])}</a>`;
+    last = m.index + m[0].length;
+  }
+  return out + escapeHtml(src.slice(last));
+}
+
+/** Розрізати сирий текст на шматки ≤ max символів — по абзацу, рядку або пробілу */
+export function splitText(text, max) {
+  const parts = [];
+  let rest = String(text ?? '');
+  while (rest.length > max) {
+    const window = rest.slice(0, max);
+    let cut = Math.max(window.lastIndexOf('\n\n'), window.lastIndexOf('\n'));
+    if (cut < max * 0.5) cut = window.lastIndexOf(' ');
+    if (cut < max * 0.5) cut = max;
+    parts.push(rest.slice(0, cut).trimEnd());
+    rest = rest.slice(cut).trimStart();
+  }
+  if (rest.trim()) parts.push(rest);
+  return parts;
+}
+
+/** Шапка-картинка: аватарка, ім'я кольором Telegram, дата й час */
+export function headerHtml(m, ctx) {
+  const c = peerColor(m.sender?.tgUserId);
+  const when = `${dayLabel(m.sentAt)} · ${kyivTime(m.sentAt)}`;
+  return `<div class="hdr" data-id="${escapeHtml(String(m.tgMessageId))}">
+  ${avatarHtml(m.sender, ctx)}
+  <div class="who"><b style="color:${c.name}">${escapeHtml(m.sender?.name ?? '')}</b><span>${escapeHtml(when)}</span></div>
+</div>`;
+}
+
+export const HEADER_CSS = `
+.hdr { width: ${CARD_WIDTH}px; padding: 9px 12px; background: #fff; display: flex; align-items: center; gap: 11px; margin-bottom: 20px; }
+.hdr .ava { width: 42px; height: 42px; flex: 0 0 42px; visibility: visible; font-size: 16px; }
+.hdr .who { display: flex; flex-direction: column; min-width: 0; }
+.hdr .who b { font-size: 16px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr .who span { font-size: 13px; color: #8e9aa6; line-height: 1.3; }
+`;
+
+export function headersPageHtml(messages, ctx) {
+  return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><style>${PAGE_CSS}${HEADER_CSS}</style></head>
+<body>${messages.map((m) => headerHtml(m, ctx)).join('\n')}</body></html>`;
+}
+
+/**
+ * Пост для одного повідомлення: підпис до шапки (цитата відповіді, переслано, медіа, текст, реакції) і,
+ * якщо текст довший за підпис, продовження окремими текстовими повідомленнями.
+ */
+export function postParts(m, ctx, captionLimit = CAPTION_LIMIT, textLimit = TEXT_POST_LIMIT) {
+  const head = [];
+  if (m.forward) {
+    const n = forwardName(m.forward, ctx.personsById);
+    head.push(`<i>${n ? `↪️ Переслано від ${escapeHtml(n)}` : '↪️ Переслане повідомлення'}</i>`);
+  }
+  if (m.replyToTgMessageId) {
+    const t = ctx.byId.get(String(m.replyToTgMessageId));
+    head.push(
+      t
+        ? `<blockquote><b>${escapeHtml(t.sender?.name ?? '')}</b>\n${escapeHtml(snippet(t, 120))}</blockquote>`
+        : '<blockquote>повідомлення не збереглося</blockquote>',
+    );
+  }
+  if (showsMedia(m)) {
+    const info = mediaInfo(m.mediaKind);
+    head.push(`<i>${info.icon} ${escapeHtml(info.label.toLowerCase())} не збереглося</i>`);
+  }
+  const reacts = reactionList(m.reactionsCounts);
+  const tail = reacts.length ? reacts.map((r) => `${r.emoji} ${r.count}`).join('   ') : '';
+  const headLen = head.join('\n').replace(/<[^>]+>/g, '').length + (tail ? tail.length + 2 : 0) + 4;
+  const text = String(m.text ?? '').trim();
+  const [first = '', ...more] = text ? splitText(text, Math.max(200, captionLimit - headLen)) : [];
+  const rest = more.length ? splitText(more.join('\n'), textLimit - 200) : [];
+  const caption = [...head, first ? telegramHtml(first) : '', !rest.length && tail ? `\n${tail}` : '']
+    .filter(Boolean)
+    .join('\n');
+  const tails = rest.map((p, i) => telegramHtml(p) + (i === rest.length - 1 && tail ? `\n\n${tail}` : ''));
+  return { caption, rest: tails };
+}
+
+// ---------- режим import: файл у форматі експорту WhatsApp для вбудованого імпорту історії Telegram ----------
+
+const waDate = new Intl.DateTimeFormat('en-GB', {
+  timeZone: KYIV_TZ,
+  day: '2-digit',
+  month: '2-digit',
+  year: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+function waParts(iso) {
+  const p = Object.fromEntries(waDate.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return p;
+}
+
+/** Рядок-префікс у форматі WhatsApp: android «23.11.26, 19:00 - », ios «[23.11.26, 19:00:00] » */
+export function waPrefix(iso, format) {
+  const p = waParts(iso);
+  if (format === 'ios') return `[${p.day}.${p.month}.${p.year}, ${p.hour}:${p.minute}:00] `;
+  if (format === 'android-slash') return `${p.day}/${p.month}/20${p.year}, ${p.hour}:${p.minute} - `;
+  return `${p.day}.${p.month}.${p.year}, ${p.hour}:${p.minute} - `;
+}
+
+/** Ім'я без двокрапки і переносів (формат WhatsApp ділить «Ім'я: текст» по першій двокрапці) */
+export function waName(name) {
+  return String(name || 'Без імені').replace(/[:\n\r]/g, ' ').replace(/\s+/g, ' ').trim() || 'Без імені';
+}
+
+/**
+ * Чат у форматі WhatsApp: відповіді — рядком «↪ Ім'я: «…»», переслане й медіа, що не збереглося, — позначкою.
+ * attach: Map tgMessageId → ім'я файлу картинки, яку прикласти до цього повідомлення.
+ */
+export function whatsappText(messages, ctx, { format = 'android', attach = new Map() } = {}) {
+  const lines = [];
+  for (const m of messages) {
+    const body = [];
+    const file = attach.get(String(m.tgMessageId));
+    if (file) body.push(format === 'ios' ? `<attached: ${file}>` : `${file} (file attached)`);
+    if (m.forward) {
+      const n = forwardName(m.forward, ctx.personsById);
+      body.push(n ? `[переслано від ${n}]` : '[переслане повідомлення]');
+    }
+    if (m.replyToTgMessageId) {
+      const t = ctx.byId.get(String(m.replyToTgMessageId));
+      body.push(t ? `↪ ${waName(t.sender?.name)}: «${snippet(t, 80)}»` : '↪ відповідь на повідомлення, що не збереглося');
+    }
+    if (showsMedia(m)) body.push(`[${mediaInfo(m.mediaKind).label.toLowerCase()} не збереглося]`);
+    const text = String(m.text ?? '').trim();
+    if (text) body.push(text);
+    if (!body.length) continue;
+    lines.push(`${waPrefix(m.sentAt, format)}${waName(m.sender?.name)}: ${body.join('\n')}`);
+  }
+  return `${lines.join('\n')}\n`;
+}
