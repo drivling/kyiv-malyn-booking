@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/Button';
+import { NavLink } from 'react-router-dom';
 import { Select } from '@/components/Select';
 import { Input } from '@/components/Input';
+import { AdminSectionHeader, ChipGroup, StatTile, StatTiles, StatusPill } from './kit';
+import { transportCitySearch } from './useAdminTransportCity';
 import { apiClient } from '@/api/client';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { SourceWatchPanel } from './SourceWatchPanel';
@@ -66,8 +68,21 @@ function scheduleToText(schedule: unknown): string {
   return schedule == null ? '' : JSON.stringify(schedule, null, 2);
 }
 
-/** city — місто датасету (перемикач над вкладками, фаза 6 плану Коростеня); без нього — Малин */
-export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_TRANSPORT_CITY }) => {
+const BASE = '/admin/route-schedule';
+type EditorSection = '' | 'sources' | 'gps';
+const SECTIONS: ReadonlyArray<{ slug: EditorSection; label: string }> = [
+  { slug: '', label: 'Розклад' },
+  { slug: 'sources', label: 'Джерела розкладу' },
+  { slug: 'gps', label: 'Час у дорозі за GPS' },
+];
+
+/**
+ * «Графік транспорту» (`/admin/route-schedule/<розділ>?city=`): розклад маршрутів міста (сітка «зупинки × рейси»),
+ * джерела розкладу (SourceWatchPanel) і час у дорозі за GPS (GpsRunTimesPanel). Угорі — плитки й позначка
+ * незбережених змін; маршрут, напрямок і шлях — чіпами. city — місто датасету (перемикач над вкладками); без нього — Малин.
+ */
+export const ScheduleEditorTab: React.FC<{ city?: string; section?: string }> = ({ city = DEFAULT_TRANSPORT_CITY, section = '' }) => {
+  const editorSection: EditorSection = section === 'sources' || section === 'gps' ? section : '';
   const [baseDataset, setBaseDataset] = useState<TransportDataset | null>(null);
   const [routes, setRoutes] = useState<TransportRouteDto[]>([]);
   const [trips, setTrips] = useState<TransportTripDto[]>([]);
@@ -165,15 +180,6 @@ export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_
       setSaving(false);
     }
   }, [baseDataset, routes, trips, scheduleHasErrors, city]);
-
-  const routeOptions = useMemo(() => {
-    return [...routes]
-      .sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10))
-      .map((r) => ({
-        value: r.id,
-        label: `№${formRouteNo(r)} — ${r.fromName || '?'} → ${r.toName || '?'}${r.unreliable ? ' · приховано' : ''}`,
-      }));
-  }, [routes]);
 
   const selectedRouteObj = useMemo(
     () => routes.find((r) => r.id === selectedRoute) ?? null,
@@ -402,17 +408,51 @@ export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_
     [selectedRouteObj]
   );
 
+  /** Чи є правки, яких ще немає в базі (маршрути чи рейси відрізняються від завантажених) */
+  const dirty = useMemo(
+    () => Boolean(baseDataset) && (JSON.stringify(routes) !== JSON.stringify(baseDataset?.routes) || JSON.stringify(trips) !== JSON.stringify(baseDataset?.trips)),
+    [baseDataset, routes, trips]
+  );
+
+  const tripsByRoute = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const t of trips) m.set(t.routeId, (m.get(t.routeId) ?? 0) + 1);
+    return m;
+  }, [trips]);
+
+  const tiles = useMemo(
+    () => ({
+      routes: routes.length,
+      hidden: routes.filter((r) => r.unreliable).length,
+      trips: trips.length,
+      weekdays: trips.filter((t) => t.serviceId === 'weekdays').length,
+      weekends: trips.filter((t) => t.serviceId === 'weekends').length,
+      empty: routes.filter((r) => !tripsByRoute.get(r.id)).length,
+      short: trips.filter((t) => t.startStopId || t.endStopId).length,
+      fixed: trips.filter((t) => t.arrivalTime || t.timepoints?.length).length,
+    }),
+    [routes, trips, tripsByRoute]
+  );
+
+  const routeChips = useMemo(
+    () =>
+      [...routes]
+        .sort((a, b) => parseInt(a.id, 10) - parseInt(b.id, 10))
+        .map((r) => ({ value: r.id, label: `№${(r.shortName ?? '').trim() || r.id} · ${tripsByRoute.get(r.id) ?? 0}${r.unreliable ? ' · прих.' : ''}` })),
+    [routes, tripsByRoute]
+  );
+
   if (loading) {
-    return <div className="schedule-editor-loading">Завантаження...</div>;
+    return <div className="schedule-editor-loading">Завантаження…</div>;
   }
 
   if (error && !baseDataset) {
     return (
       <div className="schedule-editor-error">
         <p>{error}</p>
-        <Button type="button" onClick={loadFromDb}>
+        <button type="button" className="admin-kit-btn" onClick={() => void loadFromDb()}>
           Спробувати ще раз
-        </Button>
+        </button>
       </div>
     );
   }
@@ -421,9 +461,9 @@ export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_
     return (
       <div className="schedule-editor-error">
         <p>Не вдалося завантажити дані</p>
-        <Button type="button" onClick={loadFromDb}>
+        <button type="button" className="admin-kit-btn" onClick={() => void loadFromDb()}>
           Спробувати ще раз
-        </Button>
+        </button>
       </div>
     );
   }
@@ -438,190 +478,204 @@ export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_
     : '';
   const variantsError = selectedRouteObj ? variantErrors[selectedRouteObj.id] || '' : '';
 
+  const search = transportCitySearch(city);
+
   return (
     <div className="tab-content schedule-editor-tab">
-      <SourceWatchPanel />
-      <GpsRunTimesPanel city={city} />
-      <div className="schedule-editor-controls">
-        <div className="schedule-editor-select">
-          <Select
-            label="Маршрут"
-            value={selectedRoute}
-            onChange={(e) => setSelectedRoute(e.target.value)}
-            options={routeOptions}
-          />
-        </div>
-        <div className="schedule-editor-direction-switch">
-          <button
-            type="button"
-            className={`schedule-editor-direction-btn ${directionMode === 'there' ? 'schedule-editor-direction-btn--active' : ''}`}
-            onClick={() => setDirectionMode('there')}
+      <AdminSectionHeader
+        title="Графік транспорту"
+        purpose="Розклад міських маршрутів: рейси по зупинках, скорочені рейси, варіанти шляху й опорні часи; джерела розкладу й час за GPS."
+        actions={
+          <>
+            {dirty ? <StatusPill tone="warn">є незбережені зміни</StatusPill> : <StatusPill tone="ok">усе в базі</StatusPill>}
+            <button type="button" className="admin-kit-btn" onClick={() => void handleSaveToDb()} disabled={saving}>
+              {saving ? 'Збереження…' : 'Зберегти в базу'}
+            </button>
+            <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={() => void handleReloadFromDb()} disabled={loading || saving}>
+              Завантажити з бази
+            </button>
+          </>
+        }
+      />
+
+      <StatTiles label="Розклад міста">
+        <StatTile label="Маршрутів" value={tiles.routes} sub={tiles.hidden ? `прихованих ${tiles.hidden}` : undefined} />
+        <StatTile label="Рейсів" value={tiles.trips} sub={`будні ${tiles.weekdays} · вихідні ${tiles.weekends}`} />
+        <StatTile label="Маршрутів без рейсів" value={tiles.empty} tone={tiles.empty ? 'warn' : 'default'} />
+        <StatTile label="Скорочених рейсів" value={tiles.short} sub={`з фіксованим часом ${tiles.fixed}`} />
+      </StatTiles>
+
+      <nav className="admin-kit-nav schedule-editor-nav" aria-label="Розділи «Графік транспорту»">
+        {SECTIONS.map((x) => (
+          <NavLink
+            key={x.slug || '_'}
+            to={`${x.slug ? `${BASE}/${x.slug}` : BASE}${search}`}
+            end
+            className={() => `admin-kit-nav-link${editorSection === x.slug ? ' is-active' : ''}`}
           >
-            {directionLabel('there')}
-          </button>
-          <button
-            type="button"
-            className={`schedule-editor-direction-btn ${directionMode === 'back' ? 'schedule-editor-direction-btn--active' : ''}`}
-            onClick={() => setDirectionMode('back')}
-          >
-            {directionLabel('back')}
-          </button>
-        </div>
-        {directionVariants.length > 0 && (
-          <div className="schedule-editor-direction-switch" role="group" aria-label="Шлях">
-            <span className="schedule-editor-head-label">Шлях</span>
-            {[{ id: MAIN_PATH, name: 'основний' }, ...directionVariants].map((v) => (
-              <button
-                key={v.id || 'main'}
-                type="button"
-                className={`schedule-editor-direction-btn ${(activeVariant?.id ?? MAIN_PATH) === v.id ? 'schedule-editor-direction-btn--active' : ''}`}
-                aria-pressed={(activeVariant?.id ?? MAIN_PATH) === v.id}
-                onClick={() => setPathMode(v.id)}
-              >
-                {v.name}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="schedule-editor-actions">
-          <Button type="button" onClick={handleSaveToDb} disabled={saving}>
-            {saving ? 'Збереження…' : 'Зберегти в базу'}
-          </Button>
-          <Button type="button" variant="secondary" onClick={handleReloadFromDb} disabled={loading || saving}>
-            Завантажити з бази
-          </Button>
-        </div>
-      </div>
+            {x.label}
+          </NavLink>
+        ))}
+      </nav>
 
       {error && <p className="schedule-editor-error">{error}</p>}
       {statusMsg && <p className="schedule-editor-hint">{statusMsg}</p>}
-      <p className="schedule-editor-hint">
-        Час на зупинці = час відправлення рейсу + сума тривалостей перегонів (сегментів). «З» / «Кінцева»
-        роблять рейс скороченим: на інших зупинках він не показується (сайт, табло, GTFS). «Прибуття» —
-        фіксований час на кінцевій: якщо перегони не вкладаються, вони стискаються пропорційно лише для
-        цього рейсу (бейдж ×0.78); із запасом — час за перегонами. Сегменти правте у «Редакторі карти»
-        кнопкою «Перерахувати час». «Шлях» — основний ланцюжок або варіант шляху (перший рейс №9 через вокзал):
-        рейс варіанта видно лише в сітці свого шляху. «Опорні часи» — точний час із листка на проміжних
-        зупинках: між опорами перегони стискаються або розтягуються, разом із «Прибуттям» не задаються.
-      </p>
 
-      {selectedRouteObj && (
-        <section className="schedule-editor-route-panel" aria-labelledby="schedule-editor-route-panel-h">
-          <div className="schedule-editor-route-panel-head">
-            <h3 id="schedule-editor-route-panel-h" className="schedule-editor-route-panel-title">
-              Маршрут №{formRouteNo(selectedRouteObj)}
-            </h3>
-            <span className="schedule-editor-count">
-              {routeTripCount} рейсів · {routeStopCount} зупинок
-            </span>
+      {editorSection === 'sources' && <SourceWatchPanel defaultOpen />}
+      {editorSection === 'gps' && <GpsRunTimesPanel city={city} defaultOpen />}
+
+      {editorSection === '' && (
+        <>
+          <div className="schedule-editor-pickers">
+            <ChipGroup label="Маршрут" value={selectedRoute} onChange={setSelectedRoute} options={routeChips} />
+            <ChipGroup label="Напрямок" value={directionMode} onChange={setDirectionMode} options={[
+              { value: 'there' as const, label: directionLabel('there') },
+              { value: 'back' as const, label: directionLabel('back') },
+            ]} />
+            {directionVariants.length > 0 && (
+              <ChipGroup
+                label="Шлях"
+                value={activeVariant?.id ?? MAIN_PATH}
+                onChange={setPathMode}
+                options={[{ value: MAIN_PATH, label: 'основний' }, ...directionVariants.map((v) => ({ value: v.id, label: v.name }))]}
+              />
+            )}
           </div>
-          <label
-            className={`admin-checkbox schedule-editor-route-flag ${selectedRouteObj.unreliable ? 'schedule-editor-route-flag--on' : ''}`}
-          >
-            <input
-              type="checkbox"
-              checked={selectedRouteObj.unreliable === true}
-              onChange={(e) => updateRoute(selectedRouteObj.id, { unreliable: e.target.checked })}
-            />
-            <span>
-              Ненадійний маршрут — приховати на сайті (список маршрутів, планер, сторінка маршруту, табло
-              зупинок, SEO/AEO-сторінки, sitemap, GTFS)
-            </span>
-          </label>
-          {selectedRouteObj.unreliable && (
-            <p className="schedule-editor-hint">
-              Прихований маршрут лишається в базі та адмінці. Статичні сторінки зупинок і sitemap
-              перегенеруються під час наступного деплою фронтенду.
-            </p>
+
+          {selectedRouteObj && (
+            <section className="schedule-editor-route-panel" aria-labelledby="schedule-editor-route-panel-h">
+              <div className="schedule-editor-route-panel-head">
+                <h3 id="schedule-editor-route-panel-h" className="schedule-editor-route-panel-title">
+                  Маршрут №{formRouteNo(selectedRouteObj)}
+                </h3>
+                <span className="schedule-editor-count">
+                  {selectedRouteObj.fromName || '?'} → {selectedRouteObj.toName || '?'} · {routeTripCount} рейсів · {routeStopCount} зупинок
+                </span>
+                {selectedRouteObj.unreliable && <span className="sched-flag">приховано на сайті</span>}
+              </div>
+              <details className="schedule-editor-route-details">
+                <summary>Дані маршруту — номер, кінцеві, джерело, схема, примітка, розписання міськради, варіанти шляху</summary>
+              <label
+                className={`admin-checkbox schedule-editor-route-flag ${selectedRouteObj.unreliable ? 'schedule-editor-route-flag--on' : ''}`}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedRouteObj.unreliable === true}
+                  onChange={(e) => updateRoute(selectedRouteObj.id, { unreliable: e.target.checked })}
+                />
+                <span>
+                  Ненадійний маршрут — приховати на сайті (список маршрутів, планер, сторінка маршруту, табло
+                  зупинок, SEO/AEO-сторінки, sitemap, GTFS)
+                </span>
+              </label>
+              {selectedRouteObj.unreliable && (
+                <p className="schedule-editor-hint">
+                  Прихований маршрут лишається в базі та адмінці. Статичні сторінки зупинок і sitemap
+                  перегенеруються під час наступного деплою фронтенду.
+                </p>
+              )}
+              <div className="schedule-editor-route-grid">
+                <Input
+                  label="Номер для показу (shortName)"
+                  type="text"
+                  maxLength={16}
+                  value={selectedRouteObj.shortName ?? ''}
+                  placeholder={selectedRouteObj.id}
+                  title="Як номер написано на табличці й у розкладі («11/1», «5А»). Порожньо — показуємо id. Адреси сторінок, рейси й кольори лишаються прив'язані до id. Після зміни — перегенерувати схему міста."
+                  onChange={(e) => updateRoute(selectedRouteObj.id, { shortName: e.target.value })}
+                />
+                <Input
+                  label="Кінцева «звідки» (fromName)"
+                  type="text"
+                  value={selectedRouteObj.fromName ?? ''}
+                  onChange={(e) => updateRoute(selectedRouteObj.id, { fromName: e.target.value })}
+                />
+                <Input
+                  label="Кінцева «куди» (toName)"
+                  type="text"
+                  value={selectedRouteObj.toName ?? ''}
+                  onChange={(e) => updateRoute(selectedRouteObj.id, { toName: e.target.value })}
+                />
+                <Input
+                  label="Джерело (sourceUrl)"
+                  type="url"
+                  value={selectedRouteObj.sourceUrl ?? ''}
+                  placeholder="https://…"
+                  onChange={(e) => updateRoute(selectedRouteObj.id, { sourceUrl: e.target.value })}
+                />
+              </div>
+              <label className="schedule-editor-route-field">
+                <span className="schedule-editor-field-label">Схема руху (scheme)</span>
+                <textarea
+                  className="schedule-editor-textarea"
+                  rows={2}
+                  value={selectedRouteObj.scheme ?? ''}
+                  onChange={(e) => updateRoute(selectedRouteObj.id, { scheme: e.target.value })}
+                />
+              </label>
+              <label className="schedule-editor-route-field">
+                <span className="schedule-editor-field-label">Примітка (note)</span>
+                <textarea
+                  className="schedule-editor-textarea"
+                  rows={2}
+                  value={selectedRouteObj.note ?? ''}
+                  onChange={(e) => updateRoute(selectedRouteObj.id, { note: e.target.value })}
+                />
+              </label>
+              <label className="schedule-editor-route-field">
+                <span className="schedule-editor-field-label">
+                  Людське розписання з міськради (schedule, JSON: schedule_entries, lunch_break, note)
+                </span>
+                <textarea
+                  className={`schedule-editor-textarea schedule-editor-textarea--mono ${scheduleError ? 'schedule-editor-textarea--error' : ''}`}
+                  rows={6}
+                  value={scheduleText}
+                  placeholder="Порожньо — без людського розписання"
+                  spellCheck={false}
+                  onChange={(e) => handleScheduleTextChange(selectedRouteObj.id, e.target.value)}
+                />
+                {scheduleError && <span className="schedule-editor-field-error">{scheduleError}</span>}
+              </label>
+              <label className="schedule-editor-route-field">
+                <span className="schedule-editor-field-label">
+                  Варіанти шляху (JSON: [{'{'} id, directionId «1» туди / «0» назад, name — шлях з малої літери, як
+                  «через вокзал», stops: [{'{'} stopId, mapOnly? {'}'}] {'}'}]). Технічні точки лінії краще генерувати
+                  скриптом — Docs/route-variants-2026-10.md
+                </span>
+                <textarea
+                  className={`schedule-editor-textarea schedule-editor-textarea--mono ${variantsError ? 'schedule-editor-textarea--error' : ''}`}
+                  rows={4}
+                  value={variantsText}
+                  placeholder="Порожньо — у маршруту лише основні ланцюжки"
+                  spellCheck={false}
+                  onChange={(e) => handleVariantsTextChange(selectedRouteObj.id, e.target.value)}
+                />
+                {variantsError && <span className="schedule-editor-field-error">{variantsError}</span>}
+              </label>
+              </details>
+            </section>
           )}
-          <div className="schedule-editor-route-grid">
-            <Input
-              label="Номер для показу (shortName)"
-              type="text"
-              maxLength={16}
-              value={selectedRouteObj.shortName ?? ''}
-              placeholder={selectedRouteObj.id}
-              title="Як номер написано на табличці й у розкладі («11/1», «5А»). Порожньо — показуємо id. Адреси сторінок, рейси й кольори лишаються прив'язані до id. Після зміни — перегенерувати схему міста."
-              onChange={(e) => updateRoute(selectedRouteObj.id, { shortName: e.target.value })}
-            />
-            <Input
-              label="Кінцева «звідки» (fromName)"
-              type="text"
-              value={selectedRouteObj.fromName ?? ''}
-              onChange={(e) => updateRoute(selectedRouteObj.id, { fromName: e.target.value })}
-            />
-            <Input
-              label="Кінцева «куди» (toName)"
-              type="text"
-              value={selectedRouteObj.toName ?? ''}
-              onChange={(e) => updateRoute(selectedRouteObj.id, { toName: e.target.value })}
-            />
-            <Input
-              label="Джерело (sourceUrl)"
-              type="url"
-              value={selectedRouteObj.sourceUrl ?? ''}
-              placeholder="https://…"
-              onChange={(e) => updateRoute(selectedRouteObj.id, { sourceUrl: e.target.value })}
-            />
-          </div>
-          <label className="schedule-editor-route-field">
-            <span className="schedule-editor-field-label">Схема руху (scheme)</span>
-            <textarea
-              className="schedule-editor-textarea"
-              rows={2}
-              value={selectedRouteObj.scheme ?? ''}
-              onChange={(e) => updateRoute(selectedRouteObj.id, { scheme: e.target.value })}
-            />
-          </label>
-          <label className="schedule-editor-route-field">
-            <span className="schedule-editor-field-label">Примітка (note)</span>
-            <textarea
-              className="schedule-editor-textarea"
-              rows={2}
-              value={selectedRouteObj.note ?? ''}
-              onChange={(e) => updateRoute(selectedRouteObj.id, { note: e.target.value })}
-            />
-          </label>
-          <label className="schedule-editor-route-field">
-            <span className="schedule-editor-field-label">
-              Людське розписання з міськради (schedule, JSON: schedule_entries, lunch_break, note)
-            </span>
-            <textarea
-              className={`schedule-editor-textarea schedule-editor-textarea--mono ${scheduleError ? 'schedule-editor-textarea--error' : ''}`}
-              rows={6}
-              value={scheduleText}
-              placeholder="Порожньо — без людського розписання"
-              spellCheck={false}
-              onChange={(e) => handleScheduleTextChange(selectedRouteObj.id, e.target.value)}
-            />
-            {scheduleError && <span className="schedule-editor-field-error">{scheduleError}</span>}
-          </label>
-          <label className="schedule-editor-route-field">
-            <span className="schedule-editor-field-label">
-              Варіанти шляху (JSON: [{'{'} id, directionId «1» туди / «0» назад, name — шлях з малої літери, як
-              «через вокзал», stops: [{'{'} stopId, mapOnly? {'}'}] {'}'}]). Технічні точки лінії краще генерувати
-              скриптом — Docs/route-variants-2026-10.md
-            </span>
-            <textarea
-              className={`schedule-editor-textarea schedule-editor-textarea--mono ${variantsError ? 'schedule-editor-textarea--error' : ''}`}
-              rows={4}
-              value={variantsText}
-              placeholder="Порожньо — у маршруту лише основні ланцюжки"
-              spellCheck={false}
-              onChange={(e) => handleVariantsTextChange(selectedRouteObj.id, e.target.value)}
-            />
-            {variantsError && <span className="schedule-editor-field-error">{variantsError}</span>}
-          </label>
-        </section>
-      )}
+
+          <details className="schedule-editor-howto">
+            <summary>Як рахується час</summary>
+            <p className="schedule-editor-hint">
+              Час на зупинці = час відправлення рейсу + сума тривалостей перегонів (сегментів). «З» / «Кінцева»
+              роблять рейс скороченим: на інших зупинках він не показується (сайт, табло, GTFS). «Прибуття» —
+              фіксований час на кінцевій: якщо перегони не вкладаються, вони стискаються пропорційно лише для
+              цього рейсу (бейдж ×0.78); із запасом — час за перегонами. Сегменти правте у «Редакторі карти»
+              кнопкою «Перерахувати час». «Шлях» — основний ланцюжок або варіант шляху (перший рейс №9 через вокзал):
+              рейс варіанта видно лише в сітці свого шляху. «Опорні часи» — точний час із листка на проміжних
+              зупинках: між опорами перегони стискаються або розтягуються, разом із «Прибуттям» не задаються.
+            </p>
+          </details>
 
       <div className="schedule-editor-toolbar">
-        <Button type="button" variant="secondary" onClick={openAddModal} disabled={!selectedRoute}>
+        <button type="button" className="admin-kit-btn" onClick={openAddModal} disabled={!selectedRoute}>
           + Додати рейс
-        </Button>
+        </button>
         <button
           type="button"
-          className={`schedule-editor-direction-btn ${timepointsMode ? 'schedule-editor-direction-btn--active' : ''}`}
+          className={`admin-kit-chip${timepointsMode ? ' is-on' : ''}`}
           aria-pressed={timepointsMode}
           onClick={() => setTimepointsMode((on) => !on)}
           title="Клітинки сітки — поля точного часу з листка розкладу на проміжних зупинках"
@@ -833,6 +887,9 @@ export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_
         </div>
       )}
 
+        </>
+      )}
+
       {addModalOpen && (
         <div className="schedule-editor-modal-overlay" onClick={() => setAddModalOpen(false)}>
           <form
@@ -865,10 +922,12 @@ export const ScheduleEditorTab: React.FC<{ city?: string }> = ({ city = DEFAULT_
               options={SERVICE_OPTIONS}
             />
             <div className="schedule-editor-modal-buttons">
-              <Button type="submit">Додати</Button>
-              <Button type="button" variant="secondary" onClick={() => setAddModalOpen(false)}>
+              <button type="submit" className="admin-kit-btn">
+                Додати
+              </button>
+              <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={() => setAddModalOpen(false)}>
                 Скасувати
-              </Button>
+              </button>
             </div>
           </form>
         </div>

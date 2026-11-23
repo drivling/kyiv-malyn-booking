@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { http, HttpResponse } from 'msw';
 import { server } from '@/test/msw/server';
 import { TEST_API_URL } from '@/test/msw/handlers';
@@ -56,7 +57,11 @@ const pathGroup = () => screen.getByRole('group', { name: 'Шлях' });
 const saveButton = () => screen.getByRole('button', { name: 'Зберегти в базу' });
 
 async function openEditor() {
-  render(<ScheduleEditorTab />);
+  render(
+    <MemoryRouter initialEntries={['/admin/route-schedule']}>
+      <ScheduleEditorTab />
+    </MemoryRouter>
+  );
   await screen.findByRole('heading', { name: /Маршрут №9/ }, { timeout: 5000 });
 }
 
@@ -154,5 +159,33 @@ describe('ScheduleEditorTab: timepoints and saving', () => {
     await openEditor();
     await user.click(saveButton());
     expect(await screen.findByText(DATASET_CONFLICT_MESSAGE)).toBeInTheDocument();
+  });
+});
+
+describe('ScheduleEditorTab: shared admin kit', () => {
+  it('tiles, route chips with trip counts, the unsaved-changes pill', async () => {
+    const user = userEvent.setup();
+    await openEditor();
+    const tile = (label: string) => screen.getByText(label, { selector: '.admin-kit-tile-label' }).closest('.admin-kit-tile') as HTMLElement;
+    expect(tile('Рейсів')).toHaveTextContent('3');
+    expect(tile('Маршрутів без рейсів')).toHaveTextContent('0');
+    expect(within(screen.getByRole('group', { name: 'Маршрут' })).getByRole('button', { name: '№9 · 3' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByText('усе в базі')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: '+ Додати рейс' }));
+    fireEvent.change(screen.getByLabelText('Час відправлення'), { target: { value: '10:30' } });
+    await user.click(screen.getByRole('button', { name: 'Додати' }));
+    expect(screen.getByText('є незбережені зміни')).toBeInTheDocument();
+  });
+
+  it('sections keep the city in the address', async () => {
+    render(
+      <MemoryRouter initialEntries={['/admin/route-schedule/gps?city=Korosten']}>
+        <ScheduleEditorTab city="Korosten" section="gps" />
+      </MemoryRouter>
+    );
+    const nav = await screen.findByRole('navigation', { name: 'Розділи «Графік транспорту»' }, { timeout: 5000 });
+    expect(within(nav).getByRole('link', { name: 'Джерела розкладу' })).toHaveAttribute('href', '/admin/route-schedule/sources?city=Korosten');
+    expect(within(nav).getByRole('link', { name: 'Розклад' })).toHaveAttribute('href', '/admin/route-schedule?city=Korosten');
+    expect(within(nav).getByRole('link', { name: 'Час у дорозі за GPS' })).toHaveClass('is-active');
   });
 });

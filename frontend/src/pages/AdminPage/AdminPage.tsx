@@ -78,7 +78,7 @@ function eltrainPageLabel(url: string): string {
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
   // `section` — другий сегмент адреси (/admin/dovede/questions, /admin/referrals/photos, /admin/lunch/menu,
-  // /admin/promo/reminders); його читають «Доведе», «Реферали», «Столова» й «Реклама»
+  // /admin/promo/reminders, /admin/route-schedule/gps); його читають «Доведе», «Реферали», «Столова», «Реклама» й «Графік транспорту»
   const { tab: tabSlug, section } = useParams<{ tab?: string; section?: string }>();
   const activeTab: Tab = (tabSlug && SLUG_TO_TAB[tabSlug]) || DEFAULT_TAB;
   // Місто транспортних вкладок (?city=); між ними переходить разом із вкладкою
@@ -702,7 +702,7 @@ export const AdminPage: React.FC = () => {
         {TRANSPORT_TABS.has(activeTab) && <TransportCityBar city={transportCity} onChange={setTransportCity} />}
         {/* key — місто: інше місто монтує вкладку наново, без залишків стану попереднього */}
         {activeTab === 'mapEditor' && <MapEditorTab key={transportCity} city={transportCity} />}
-        {activeTab === 'scheduleEditor' && <ScheduleEditorTab key={transportCity} city={transportCity} />}
+        {activeTab === 'scheduleEditor' && <ScheduleEditorTab key={transportCity} city={transportCity} section={section} />}
         {activeTab === 'stickers' && <StopStickerTab key={transportCity} city={transportCity} />}
         {activeTab === 'arrivals' && <ArrivalReportsTab key={transportCity} city={transportCity} />}
 
