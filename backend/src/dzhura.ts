@@ -629,7 +629,7 @@ export type DzhuraJobRequest =
     }
   /** Які повідомлення чату Telegram досі віддає (пережили очищення) — у результат задачі */
   | { type: 'scan_ids'; chatId: number }
-  /** Модерація «як було б»: через 16 хв після повідомлення atTgMessageId — у результат задачі, у чат нічого */
+  /** Модерація «як було б»: через 13 хв після повідомлення atTgMessageId — у результат задачі, у чат нічого */
   | { type: 'moderation_preview'; chatId: number; atTgMessageId: string };
 
 export type DzhuraImportStage = 'init' | 'media' | 'start';

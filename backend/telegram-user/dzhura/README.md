@@ -64,15 +64,15 @@ Roadmap і принципи: `Docs/dzhura-roadmap.md`. Ручний чекліс
 
 - Налаштування на чат (`/admin/dzhura` API, PATCH): `moderationMode` (`off` | `drafts`), `moderationNote` (хто є хто,
   факти про внески), `moderationProtected` ([{tgUserId, name, role}] — адміністрація; власник — завжди).
-- `moderator.py` раз на `DZHURA_MODERATION_CHECK_SEC` (300 с) дивиться в групи з `drafts`: дешевий фільтр
+- `moderator.py` раз на `DZHURA_MODERATION_CHECK_SEC` (180 с) дивиться в групи з `drafts`: дешевий фільтр
   (`moderation.py`: ≥ 2 повідомлення учасників про адміністрацію за 90 хв — роль, ім'я з початку слова або відповідь
   на її повідомлення) → Claude (`DZHURA_MODERATION_MODEL`, за замовч. Opus 5.5) вирішує, втручатися чи мовчати.
-- Не одразу: відповідаємо лише на повідомлення, старші за 15 хв і не старші за 3 год, і лише якщо адміністрація
+- Не одразу (12–15 хв): відповідаємо лише на повідомлення, старші за 12 хв і не старші за 3 год, і лише якщо адміністрація
   після нього мовчала. Одній людині — раз на київську добу; попередження — раз на 3 год на чат; уночі (23–08) не
   перевіряємо; ≤ `DZHURA_MODERATION_DAILY_CAP` (24) запитів до моделі на чат за добу. Усе — у `DzhuraModeration`.
 - **Поки лише чернетки**: текст іде власникові в «Обране» (черга `LunchOutboundMessage`, `target='saved'`), у групу
   нічого — гарантії Джури не порушуються.
-- `DzhuraJob` `moderation_preview` {chatId, atTgMessageId} — «як було б» через 16 хв після повідомлення; результат лише
+- `DzhuraJob` `moderation_preview` {chatId, atTgMessageId} — «як було б» через 13 хв після повідомлення; результат лише
   в задачі (перевірка правила на минулих суперечках).
 - Тести: `python3 -m dzhura.test_moderation`.
 
@@ -121,7 +121,7 @@ Roadmap і принципи: `Docs/dzhura-roadmap.md`. Ручний чекліс
 | `DZHURA_MODERATION_ENABLED` | `1` (default); `0` — вимкнути модерацію груп усюди |
 | `DZHURA_MODERATION_MODEL` | лише `claude-*`; за замовч. `claude-opus-5-5` |
 | `DZHURA_MODERATION_DAILY_CAP` | запитів до моделі на один чат за київську добу; за замовч. `24` |
-| `DZHURA_MODERATION_CHECK_SEC` | як часто дивитися в групи; за замовч. `300` |
+| `DZHURA_MODERATION_CHECK_SEC` | як часто дивитися в групи; за замовч. `180` (з порогом 12 хв — відповідь через 12–15 хв) |
 
 Решта — ті самі, що в `lunch/README.md` (`DATABASE_URL`, `TELEGRAM_API_ID/HASH`, сесія).
 

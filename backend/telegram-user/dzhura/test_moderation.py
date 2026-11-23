@@ -101,6 +101,10 @@ def test_eligible_waits_and_respects_admin_reply():
     rows4 = rows + [row(12, 1, A, "председатель!", deleted=True), row(13, 1, 0, "председатель", name="Imported Message")]
     related4, _ = eligible_targets(rows4, PROTECTED, now)
     assert 12 not in [r["tg_message_id"] for r in related4] and 13 not in [r["tg_message_id"] for r in related4]
+    # поріг 12 хв: #5 (о +50) через 11 хв ще ні, через 13 — так
+    _, e11 = eligible_targets(rows, PROTECTED, T0 + timedelta(minutes=61))
+    _, e13 = eligible_targets(rows, PROTECTED, T0 + timedelta(minutes=63))
+    assert 5 not in [r["tg_message_id"] for r in e11] and 5 in [r["tg_message_id"] for r in e13]
     # старше 3 год — уже не актуальне
     _, eligible5 = eligible_targets(rows, PROTECTED, T0 + timedelta(hours=4))
     assert eligible5 == []

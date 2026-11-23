@@ -5,11 +5,12 @@
 в «Обране» (черга LunchOutboundMessage, target='saved'), у групу нічого.
 
 Обмеження (як у правилі власника):
-  * не одразу — відповідаємо на повідомлення, старші за 15 хв, і лише якщо адміністрація після нього мовчала;
+  * не одразу — через 12–15 хв: на повідомлення, старші за 12 хв (перевірка раз на 3 хв), і лише якщо
+    адміністрація після нього мовчала;
   * одній людині — не частіше разу на київську добу; попередження за флуд — не частіше разу на 3 год на чат;
   * уночі (23:00–08:00) не перевіряємо; не більше DZHURA_MODERATION_DAILY_CAP запитів до моделі на чат за добу.
 
-Задача `moderation_preview` {chatId, atTgMessageId} проганяє те саме «як було б» через 16 хв після вказаного
+Задача `moderation_preview` {chatId, atTgMessageId} проганяє те саме «як було б» через 13 хв після вказаного
 повідомлення — щоб перевірити правило на минулих суперечках. Без журналу, без «Обраного», без лімітів.
 """
 
@@ -40,7 +41,7 @@ from dzhura.moderation import (
 from dzhura.relay import message_link
 from dzhura.responder import kyiv_day_start_utc
 
-DEFAULT_CHECK_SEC = 300
+DEFAULT_CHECK_SEC = 180
 DEFAULT_DAILY_CAP = 24
 WARNING_COOLDOWN = timedelta(hours=3)
 MAX_SAMPLED_PEOPLE = 8
