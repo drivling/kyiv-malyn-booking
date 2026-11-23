@@ -532,7 +532,15 @@ of `dist` in a commit.
   directions with 2–8 control points, weekday / weekend departures, minutes between points by departure hour) and
   `REPORT.md`; a test keeps both equal to the generator. Shapes are not used (65 % are straight 2–3-point lines);
   marshrutkas and suburban buses are not in the feed, so Google stays for them. `--fetch` takes the export address from
-  `KPT_GTFS_URL` — never commit it; it is unreachable from the cloud sandbox.
+  `KPT_GTFS_URL` — never commit it; it is unreachable from the cloud sandbox. Kyiv marshrutkas come from the city's own
+  list (data.kyivcity.gov.ua, CKAN datastore; snapshot `data/kyiv-transport/taxi/routes.json`, `--fetch-taxi`) →
+  `kyiv-taxi-data.ts` (`KYIV_TAXI`: number, termini, route minutes, departures every A–B min). Step 8б: every Kyiv answer
+  (fresh Google or stored) passes `withKyivOwnLines` (`dovede/kyiv-own-lines.ts`, called from `ownLines` in
+  `city-route.ts`, switch `city.own`): a KPT line (mode + number, Latin look-alikes = Cyrillic) takes our headway; with
+  stop coordinates (Google's answer or `DovedeCityStop`) within 500 m of its control-point line in order, also our ride
+  minutes, «останній о …», «перший о …» and «сьогодні вже не ходить» (`lastDeparts` / `firstDeparts` / `gone`); a
+  marshrutka from the list takes `headwayMin`–`headwayMax`. Such steps carry `own: true`; the DB keeps Google's answer
+  as is. Cards: `headwayText` / `serviceText` in `DovedePage/ui/format.ts`.
   Korosten city questions (stage 1, `DovedePage/korosten/korostenCity.ts`): the page holds a city (`Malyn` / `Korosten`,
   URL `c=Korosten`) and remounts the search per city (one planner on screen); Korosten words in a question switch it.
   Places are `StopPlace` entries of Korosten stops plus folk names (`KOROSTEN_ALIASES`), answers are `intra` /

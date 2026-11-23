@@ -49,4 +49,14 @@ describe('CityRideCard', () => {
     expect(down.querySelector('.dv-ride__hill')?.className).toContain('is-down');
     expect(down.textContent).toContain('верхня станціяМихайлівська площа');
   });
+
+  it('свої дані Києва: маршрутка «кожні ≈ 10–20 хв»; лінія КПТ — «останній о …», а коли пішла — попередження без інтервалу', () => {
+    const taxi = render(<CityRideCard l={ride({ ...stepOf('share_taxi'), own: true, headwayMin: 10, headwayMax: 20 })} />).container;
+    expect(taxi.textContent).toContain('кожні ≈ 10–20 хв');
+    const last = render(<CityRideCard l={ride({ ...stepOf('trolleybus'), own: true, headwayMin: 25, lastDeparts: '23:04' })} />).container;
+    expect(last.querySelector('.dv-ride__service')?.textContent).toBe('останній о 23:04');
+    const gone = render(<CityRideCard l={ride({ ...stepOf('trolleybus'), own: true, gone: true, lastDeparts: '23:04', headwayMin: undefined })} />).container;
+    expect(gone.querySelector('.dv-ride__service--gone')?.textContent).toBe('сьогодні вже не ходить — останній був о 23:04');
+    expect(gone.textContent).not.toMatch(/кожні/);
+  });
 });

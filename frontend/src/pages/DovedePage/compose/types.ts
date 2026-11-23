@@ -197,6 +197,15 @@ export interface CityStep {
   headwayMin?: number;
   /** 'HH:MM' — відправлення з розкладу (лише власні дані: Житомир із zt.rozklad.in.ua) */
   departs?: string;
+  /** інтервал «від–до» (маршрутки з переліку Києва) */
+  headwayMax?: number;
+  /** крок несе свої дані (лінія «Київпастрансу» чи маршрутка з переліку Києва) */
+  own?: true;
+  /** свій розклад: останній рейс сьогодні (коли вже скоро чи пішов), перший — коли ще не скоро */
+  lastDeparts?: string;
+  firstDeparts?: string;
+  /** за своїм розкладом сьогодні вже не ходить */
+  gone?: true;
 }
 
 export interface CityRoute {
