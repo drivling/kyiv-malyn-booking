@@ -140,6 +140,11 @@ of `dist` in a commit.
   «are you a bot?» → silence, the owner answers). `DzhuraJob` type `autoreply_preview` runs the same request without
   sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
+  **Second exception — history restore** (one-off, `Docs/dzhura-history-restore.md`): `DzhuraJob` type `post_items`
+  (`dzhura/restore.py`) posts, as the owner, exactly the posts a job carries (HTML text / JPEG base64, ≤ 10 per job,
+  `batch` + `seq` unique, a failed part stops the rest) into the group / supergroup the job names — never the lunch
+  group or a private chat; type `avatars` returns small profile photos of a chat's authors. The pictures are drawn
+  locally from the chat export by `frontend/scripts/dzhura-history/render.mjs` (Chromium) and queued by `post.mjs`.
 
 - «Доведе» admin settings (`/admin/dovede/settings`, `dovede/DovedeSettingsSection.tsx` + `kit/SettingRow.tsx`): one
   registry `DOVEDE_SETTINGS` in `backend/src/dovede/settings.ts` (key, group, label, limits, default from an env var or

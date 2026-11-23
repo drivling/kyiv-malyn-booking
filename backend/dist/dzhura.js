@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DZHURA_SEARCH_MAX_LEN = exports.DZHURA_MESSAGES_PAGE_MAX = exports.DZHURA_MESSAGES_PAGE = exports.DZHURA_QUEUE_RETRY_WINDOW_MS = exports.bigintReplacer = exports.DzhuraHttpError = exports.DZHURA_AUTOREPLY_NOTE_MAX_LEN = exports.DZHURA_AUTOREPLY_DELAY_MAX_SEC = exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = exports.DZHURA_GROUP_KINDS = exports.DZHURA_KYIV_TZ = exports.DZHURA_MAX_BACKFILL_DAYS = exports.DZHURA_HEARTBEAT_FRESH_MS = exports.DZHURA_EXPORT_LIMIT = void 0;
+exports.DZHURA_SEARCH_MAX_LEN = exports.DZHURA_MESSAGES_PAGE_MAX = exports.DZHURA_MESSAGES_PAGE = exports.DZHURA_QUEUE_RETRY_WINDOW_MS = exports.bigintReplacer = exports.DzhuraHttpError = exports.DZHURA_AUTOREPLY_NOTE_MAX_LEN = exports.DZHURA_AUTOREPLY_DELAY_MAX_SEC = exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = exports.DZHURA_POST_MAX_CAPTION = exports.DZHURA_POST_MAX_TEXT = exports.DZHURA_POST_MAX_PHOTO_BYTES = exports.DZHURA_POST_MAX_ITEMS = exports.DZHURA_GROUP_KINDS = exports.DZHURA_KYIV_TZ = exports.DZHURA_MAX_BACKFILL_DAYS = exports.DZHURA_HEARTBEAT_FRESH_MS = exports.DZHURA_EXPORT_LIMIT = void 0;
 exports.parseIsoDate = parseIsoDate;
 exports.addDaysIso = addDaysIso;
 exports.daysBetweenInclusive = daysBetweenInclusive;
@@ -20,7 +20,9 @@ exports.buildMessagesWhere = buildMessagesWhere;
 exports.listMessages = listMessages;
 exports.parseChatPatch = parseChatPatch;
 exports.updateChatFlags = updateChatFlags;
+exports.compactJobParams = compactJobParams;
 exports.serializeJob = serializeJob;
+exports.parsePostItems = parsePostItems;
 exports.parseJobRequest = parseJobRequest;
 exports.createJob = createJob;
 exports.listJobs = listJobs;
@@ -32,6 +34,11 @@ exports.DZHURA_HEARTBEAT_FRESH_MS = 60000;
 exports.DZHURA_MAX_BACKFILL_DAYS = 366;
 exports.DZHURA_KYIV_TZ = 'Europe/Kyiv';
 exports.DZHURA_GROUP_KINDS = ['group', 'supergroup'];
+/** Відновлення історії (`post_items`): пости в одній задачі, розмір картинки, довжини тексту й підпису Telegram */
+exports.DZHURA_POST_MAX_ITEMS = 10;
+exports.DZHURA_POST_MAX_PHOTO_BYTES = 1000000;
+exports.DZHURA_POST_MAX_TEXT = 4096;
+exports.DZHURA_POST_MAX_CAPTION = 1024;
 /** Автовідповідь: затримка в секундах (за замовчуванням 80) і довжина підказки на чат */
 exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = 80;
 exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = 5;
@@ -379,12 +386,24 @@ async function updateChatFlags(prisma, chatId, patch) {
 function asRecord(v) {
     return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
 }
+/** У списку задач без base64 картинок і HTML постів — лише що це було (слухач після публікації прибирає їх сам) */
+function compactJobParams(type, params) {
+    if (type !== 'post_items' || !params || !Array.isArray(params.items))
+        return params;
+    const { items, ...rest } = params;
+    const list = items;
+    return {
+        ...rest,
+        itemsCount: list.length,
+        photos: list.filter((i) => i?.kind === 'photo').length,
+    };
+}
 function serializeJob(row) {
     return {
         id: row.id,
         type: row.type,
         status: row.status,
-        params: asRecord(row.paramsJson),
+        params: compactJobParams(row.type, asRecord(row.paramsJson)),
         progress: asRecord(row.progressJson),
         result: asRecord(row.resultJson),
         errorText: row.errorText,
@@ -393,10 +412,69 @@ function serializeJob(row) {
         finishedAt: row.finishedAt ? row.finishedAt.toISOString() : null,
     };
 }
+function parseChatId(raw) {
+    const chatId = Number(raw);
+    if (!Number.isInteger(chatId) || chatId <= 0)
+        throw new DzhuraHttpError(400, 'Потрібен chatId');
+    return chatId;
+}
+/** base64 → кількість байтів без декодування; null — не base64 */
+function base64Bytes(s) {
+    if (!s || s.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(s))
+        return null;
+    return (s.length / 4) * 3 - (s.endsWith('==') ? 2 : s.endsWith('=') ? 1 : 0);
+}
+function parsePostItems(raw) {
+    if (!Array.isArray(raw) || raw.length === 0)
+        throw new DzhuraHttpError(400, 'Потрібен непорожній items');
+    if (raw.length > exports.DZHURA_POST_MAX_ITEMS) {
+        throw new DzhuraHttpError(400, `Не більше ${exports.DZHURA_POST_MAX_ITEMS} постів в одній задачі`);
+    }
+    return raw.map((it, i) => {
+        const o = (it ?? {});
+        if (o.kind === 'text') {
+            const html = typeof o.html === 'string' ? o.html : '';
+            if (!html.trim() || html.length > exports.DZHURA_POST_MAX_TEXT) {
+                throw new DzhuraHttpError(400, `Пост ${i + 1}: текст від 1 до ${exports.DZHURA_POST_MAX_TEXT} символів`);
+            }
+            return { kind: 'text', html };
+        }
+        if (o.kind === 'photo') {
+            const b64 = typeof o.jpegBase64 === 'string' ? o.jpegBase64 : '';
+            const bytes = base64Bytes(b64);
+            if (bytes == null || bytes > exports.DZHURA_POST_MAX_PHOTO_BYTES) {
+                throw new DzhuraHttpError(400, `Пост ${i + 1}: картинка — base64 до ${exports.DZHURA_POST_MAX_PHOTO_BYTES} байтів`);
+            }
+            const head = Buffer.from(b64.slice(0, 12), 'base64');
+            const isJpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
+            const isPng = head.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47]));
+            if (!isJpeg && !isPng)
+                throw new DzhuraHttpError(400, `Пост ${i + 1}: лише JPEG або PNG`);
+            const caption = typeof o.caption === 'string' ? o.caption : '';
+            if (caption.length > exports.DZHURA_POST_MAX_CAPTION) {
+                throw new DzhuraHttpError(400, `Пост ${i + 1}: підпис до ${exports.DZHURA_POST_MAX_CAPTION} символів`);
+            }
+            return caption ? { kind: 'photo', jpegBase64: b64, caption } : { kind: 'photo', jpegBase64: b64 };
+        }
+        throw new DzhuraHttpError(400, `Пост ${i + 1}: kind — text або photo`);
+    });
+}
 function parseJobRequest(body) {
     const b = (body ?? {});
     if (b.type === 'sync_dialogs')
         return { type: 'sync_dialogs' };
+    if (b.type === 'avatars')
+        return { type: 'avatars', chatId: parseChatId(b.chatId) };
+    if (b.type === 'post_items') {
+        const chatId = parseChatId(b.chatId);
+        const batch = typeof b.batch === 'string' ? b.batch.trim() : '';
+        if (!/^[\w.-]{1,64}$/.test(batch))
+            throw new DzhuraHttpError(400, 'batch — 1–64 символи [A-Za-z0-9_.-]');
+        const seq = Number(b.seq);
+        if (!Number.isInteger(seq) || seq < 0)
+            throw new DzhuraHttpError(400, 'seq — ціле ≥ 0');
+        return { type: 'post_items', chatId, batch, seq, silent: b.silent !== false, items: parsePostItems(b.items) };
+    }
     if (b.type === 'backfill') {
         const chatId = Number(b.chatId);
         if (!Number.isInteger(chatId) || chatId <= 0)
@@ -413,7 +491,7 @@ function parseJobRequest(body) {
     throw new DzhuraHttpError(400, 'Невідомий тип задачі');
 }
 async function createJob(prisma, req) {
-    if (req.type === 'backfill' || req.type === 'autoreply_preview') {
+    if (req.type !== 'sync_dialogs') {
         const chat = await prisma.dzhuraChat.findUnique({ where: { id: req.chatId } });
         if (!chat)
             throw new DzhuraHttpError(404, 'Чат не знайдено');
@@ -425,10 +503,15 @@ async function createJob(prisma, req) {
             if (!isAutoReplyAvailable())
                 throw new DzhuraHttpError(400, 'У бекенда немає ANTHROPIC_API_KEY');
         }
+        if (req.type === 'post_items' && (chat.isLunchGroup || !exports.DZHURA_GROUP_KINDS.includes(chat.kind))) {
+            throw new DzhuraHttpError(400, 'Публікуємо лише у звичайні групи (не в групу обідів і не в особисті)');
+        }
     }
+    if (req.type === 'post_items')
+        return createPostJob(prisma, req);
     const params = req.type === 'backfill'
         ? { chatId: req.chatId, from: req.from, to: req.to }
-        : req.type === 'autoreply_preview'
+        : req.type === 'autoreply_preview' || req.type === 'avatars'
             ? { chatId: req.chatId }
             : undefined;
     const active = await prisma.dzhuraJob.findFirst({
@@ -445,6 +528,32 @@ async function createJob(prisma, req) {
     const row = await prisma.dzhuraJob.create({
         data: { type: req.type, status: 'pending', ...(params !== undefined ? { paramsJson: params } : {}) },
     });
+    return serializeJob(row);
+}
+/**
+ * Частина партії публікації: та сама пара batch / seq, що вже чекає, іде чи опублікована, — 409
+ * (скрипт можна перезапустити — опубліковане вдруге не піде).
+ */
+async function createPostJob(prisma, req) {
+    const same = await prisma.dzhuraJob.findFirst({
+        where: {
+            type: 'post_items',
+            status: { in: ['pending', 'running', 'done'] },
+            AND: [{ paramsJson: { path: ['batch'], equals: req.batch } }, { paramsJson: { path: ['seq'], equals: req.seq } }],
+        },
+        select: { id: true, status: true },
+    });
+    if (same) {
+        throw new DzhuraHttpError(409, `Частина ${req.batch} №${req.seq} вже ${same.status === 'done' ? 'опублікована' : 'в черзі'} (задача №${same.id})`);
+    }
+    const params = {
+        chatId: req.chatId,
+        batch: req.batch,
+        seq: req.seq,
+        silent: req.silent,
+        items: req.items,
+    };
+    const row = await prisma.dzhuraJob.create({ data: { type: 'post_items', status: 'pending', paramsJson: params } });
     return serializeJob(row);
 }
 async function listJobs(prisma, limit) {

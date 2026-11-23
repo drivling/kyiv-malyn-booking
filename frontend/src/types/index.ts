@@ -972,7 +972,7 @@ export interface DzhuraMessagesPage {
   nextBeforeId: number | null;
 }
 
-export type DzhuraJobType = 'sync_dialogs' | 'backfill' | 'autoreply_preview';
+export type DzhuraJobType = 'sync_dialogs' | 'backfill' | 'autoreply_preview' | 'avatars' | 'post_items';
 export type DzhuraJobStatus = 'pending' | 'running' | 'done' | 'failed';
 
 export interface DzhuraJob {
