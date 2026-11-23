@@ -41,6 +41,19 @@ describe('«Доведе» — маршрути міських автобусі�
     expect(ids('Чорновола 10')).toEqual([]);
   });
 
+  it('«№N» після назви закладу — номер закладу, а не маршрут; «маршрут №5», «автобус №5» — маршрут', () => {
+    expect(ids('до Дитячого садка №5')).toEqual([]);
+    expect(ids('від ЗОШ №7')).toEqual([]);
+    expect(ids('до гімназії №7')).toEqual([]);
+    expect(ids('Нова пошта №10')).toEqual([]);
+    expect(ids('школа номер 5')).toEqual([]);
+    expect(ids('до школи №9 автобусом №5')).toEqual(['5']);
+    expect(ids('від лікарні №5')).toEqual([]);
+    // слово перед номером не заклад — як і було, маршрут
+    expect(ids('від лікарні №5 до вокзалу №7')).toEqual(['7']);
+    expect(ids('з центру №5')).toEqual(['5']);
+  });
+
   it('«куди їде автобус №5» — питання про маршрут, упевнено й без Claude', () => {
     const i = parse('куди їде автобус №5');
     expect(i).toMatchObject({ intent: 'route', routes: ['5'], from: null, to: null, modes: ['city_bus'], confidence: 'high' });

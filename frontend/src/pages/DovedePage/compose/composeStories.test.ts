@@ -1017,6 +1017,79 @@ describe('Коростень ↔ Малин — від дверей до две�
     expect(intercity(s).boardLabel).toBe('з вокзалу Коростеня');
   });
 
+  describe('місце без зупинки: від Google лише зупинка й пішки, автобус — наш розклад (аналіз 2026-11-23)', () => {
+    // Google називає зупинки по-своєму; що з них наше — каже `korostenStopForName` (тут — заглушка)
+    const googleStop = (name: string) => ({ 'Міська лікарня': 'st_1079', 'Залізничний вокзал': 'st_1001' })[name] ?? null;
+    const there: CityRoute = {
+      source: 'stored',
+      fromLabel: 'вокзал Коростеня',
+      toLabel: 'Грушевського 22',
+      minutes: 14,
+      fetchedAt: '2026-11-13T08:00:00.000Z',
+      // лінія «7» о годині, коли за нашим розкладом туди їде лише №2, — номер і час беремо свої
+      steps: [
+        { kind: 'transit', minutes: 10, mode: 'SHARE_TAXI', line: '7', fromStop: 'Залізничний вокзал', toStop: 'Міська лікарня', stops: 4 },
+        { kind: 'walk', minutes: 4, meters: 310 },
+      ],
+    };
+    const askThere = { city: 'Korosten', from: 'korosten.vokzal', to: 'Грушевського 22', date: NOW.date, time: '18:20' };
+
+    it('після електрички: наш №2 до зупинки Google (із запасом 3 хв), далі пішки, як каже Google', () => {
+      const out = run('з Паперової фабрики в Коростень', { to: 'Грушевського 22' }, fromMalyn, { googleStop, cityRoutes: new Map([[cityAskKey(askThere), there]]) });
+      const [s] = stories(out);
+      expect(cityAsks(out)).toEqual([]);
+      expect(kinds(s)).toEqual(['bus', 'wait', 'intercity', 'bus', 'walk']);
+      const k = buses(s)[1];
+      // 18:20 електричка + 3 хв → №2 о 18:25 (а не «7», і не 18:21)
+      expect([k.routeId, k.city, k.fromName, k.toName, k.depMins, k.arrMins]).toEqual(['2', 'Korosten', 'Залізничний вокзал', 'Міськлікарня', hm(18, 25), hm(18, 37)]);
+      expect(s.legs[4]).toEqual({ kind: 'walk', meters: 310, minutes: 4, toLabel: 'Грушевського 22', late: false });
+      expect([s.arriveMins, s.arriveApprox, s.endLabel]).toEqual([hm(18, 41), true, 'Коростень, Грушевського 22']);
+    });
+
+    it('до електрички: пішки до зупинки Google, наш №2 до вокзалу, запас 7 хв', () => {
+      const ask = { city: 'Korosten', from: 'Грушевського 22', to: 'korosten.vokzal', date: NOW.date, time: '17:30' };
+      const back: CityRoute = {
+        ...there,
+        steps: [
+          { kind: 'walk', minutes: 3, meters: 240 },
+          { kind: 'transit', minutes: 10, mode: 'SHARE_TAXI', line: '7', fromStop: 'Міська лікарня', toStop: 'Залізничний вокзал', stops: 4 },
+        ],
+      };
+      const [s] = stories(run('з Коростеня до Царського села', { from: 'Грушевського 22' }, toMalyn, { googleStop, cityRoutes: new Map([[cityAskKey(ask), back]]) }));
+      expect(kinds(s).slice(0, 3)).toEqual(['walk', 'bus', 'intercity']);
+      expect(s.legs[0]).toEqual({ kind: 'walk', meters: 240, minutes: 3, toLabel: 'Міськлікарня', late: false });
+      // електричка 18:25 − 7 хв = бути на вокзалі до 18:18: №2 18:05 → 18:17, вийти о 18:02
+      expect([buses(s)[0].routeId, buses(s)[0].depMins]).toEqual(['2', hm(18, 5)]);
+      expect(s.leaveMins).toBe(hm(18, 2));
+    });
+
+    it('зупинки Google в нас нема («Агромаш») або Google радить лише пішки — відповідь Google як є', () => {
+      const agromash: CityRoute = { ...there, steps: [{ kind: 'transit', minutes: 17, mode: 'SHARE_TAXI', line: '4', fromStop: 'Залізничний вокзал', toStop: 'Агромаш', stops: 7 }] };
+      const [a] = stories(run('з Паперової фабрики в Коростень', { to: 'Грушевського 22' }, fromMalyn, { googleStop, cityRoutes: new Map([[cityAskKey(askThere), agromash]]) }));
+      expect(kinds(a)).toEqual(['bus', 'wait', 'intercity', 'cityRide']);
+      const walk: CityRoute = { ...there, steps: [{ kind: 'walk', minutes: 9, meters: 700 }] };
+      const [w] = stories(run('з Паперової фабрики в Коростень', { to: 'Грушевського 22' }, fromMalyn, { googleStop, cityRoutes: new Map([[cityAskKey(askThere), walk]]) }));
+      expect(kinds(w)).toEqual(['bus', 'wait', 'intercity', 'walk']);
+      expect(w.arriveMins).toBe(hm(18, 29));
+    });
+
+    it('режим Коростеня (`city`): від нашої зупинки — наш планувальник, від Google — лише кінець', () => {
+      const intent = { ...parseLocal('з вокзалу', NOW).intent, from: { id: 'st_1001', text: 'з вокзалу' }, to: { id: 'city.Korosten', text: 'Грушевського 22', detail: 'Грушевського 22' } };
+      const shape = { kind: 'city', far: 'Korosten', from: { id: 'st_1001' }, to: { words: 'Грушевського 22' } } as const;
+      const ask = { city: 'Korosten', from: 'st_1001', to: 'Грушевського 22', date: NOW.date, time: '14:20' };
+      const p = kp({ 'st_1001>st_1079': [bus('2', 'st_1001', 'st_1079', hm(14, 30), hm(14, 41))] });
+      const out = composeStories({ intent, now: NOW, date: NOW.date, schedules: [], planner: p, googleStop, cityRoutes: new Map([[cityAskKey(ask), there]]) }, shape);
+      const [s] = stories(out);
+      expect(kinds(s)).toEqual(['bus', 'walk']);
+      // місто сторінки — Коростень: картці не треба чужого міста
+      expect([buses(s)[0].routeId, buses(s)[0].city, buses(s)[0].depMins]).toEqual(['2', undefined, hm(14, 30)]);
+      expect([s.leaveMins, s.arriveMins, s.mode]).toEqual([hm(14, 20), hm(14, 45), 'city']);
+      // без `googleStop` — як і було, картка Google
+      const old = composeStories({ intent, now: NOW, date: NOW.date, schedules: [], planner: p, cityRoutes: new Map([[cityAskKey(ask), there]]) }, shape);
+      expect(kinds(stories(old)[0])).toEqual(['cityRide', 'walk']);
+    });
+  });
+
   it('адреса Коростеня з наших даних: від вокзалу веде планувальник Коростеня до точки, сервер не питаємо', () => {
     const spot = { id: 'kstreet.hrushevskoho:12', city: 'Korosten' as const, label: 'вул. Грушевського, 12', stems: [], latLng: [50.95, 28.64] as [number, number] };
     const farSpot = (d: string) => (d === 'Грушевського 12' ? spot : null);

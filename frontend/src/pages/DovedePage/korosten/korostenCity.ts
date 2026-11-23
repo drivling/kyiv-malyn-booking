@@ -194,6 +194,16 @@ export function hasMalynOnlyPlace(intent: TripIntent): boolean {
   );
 }
 
+/**
+ * «У Коростені з вокзалу до музичної школи» на сторінці Малина: Коростень тут — уточнення міста («де?»), а не кінець
+ * поїздки, іншого міста й місця, яке є лише в Малині, нема — це питання містом Коростенем, а не коридор Малин ↔
+ * Коростень (інакше «вокзал» ставав малинським, а «Сільпо» — малинською зупинкою). «З Паперової фабрики до Сільпо у
+ * Коростені» лишається коридором: Паперова фабрика — лише в Малині.
+ */
+export function asksInsideKorosten(text: string, malyn: TripIntent): boolean {
+  return mentionsKorosten(text) && !namesKorostenAsEnd(text) && !mentionsOtherCity(text) && !hasMalynOnlyPlace(malyn);
+}
+
 /** Питання називає інше місто (Малин, Київ…) — у режимі Коростеня це вже не питання про місто Коростень */
 export function mentionsOtherCity(text: string): boolean {
   return hasStem(text, OTHER_CITY_STEMS);
@@ -201,12 +211,14 @@ export function mentionsOtherCity(text: string): boolean {
 
 function remapRef(ref: PlaceRef | null, unknown: string[]): PlaceRef | null {
   if (!ref) return null;
+  // місто Коростень саме по собі («у Коростені з вокзалу до …») — не точка поїздки; з місцем словами (`detail`) —
+  // кінець, до якого дорогу дає сервер. Прикметник («Коростенська міська рада») — теж не місто: місце візьме
+  // `withKorostenWords` з фрази, а там його знайде `korostenSpot`
+  if (ref.id === 'city.Korosten') return ref.detail ? ref : null;
   if (resolvePlace(ref.id)?.city === KOROSTEN) return ref;
   const mapped = MALYN_TO_KOROSTEN[ref.id];
   if (mapped) return { ...ref, id: mapped };
-  // місто Коростень саме по собі («в Коростені») — не точка поїздки; з місцем словами (`detail`) — кінець, до якого
-  // дорогу дає сервер; решта (малинські місця, вулиці, Київ) — невідоме
-  if (ref.id === 'city.Korosten') return ref.detail ? ref : null;
+  // решта (малинські місця, вулиці, Київ) — невідоме
   unknown.push(ref.text);
   return null;
 }
@@ -214,6 +226,8 @@ function remapRef(ref: PlaceRef | null, unknown: string[]): PlaceRef | null {
 /** Слова, що після прийменника означають транспорт, час чи мету, а не місце в місті */
 const NOT_PLACE_RE = /^(маршрут|автобус|автобуc|електричк|электричк|попутк|таксі|такси|пішки|пешком|годин|хвилин|минут|роботу|работу|додому|домой|рейс|час|зупинк|остановк|місті|городе)/;
 const MAX_PLACE_WORDS = 5;
+/** Назва міста у відмінках (не прикметник «коростенський») */
+const CITY_WORD_RE = /^коростен(ь|я|і|ю|ем)$/;
 
 interface SaidPlace {
   role: 'from' | 'to';
@@ -240,6 +254,8 @@ export function saidPlaces(text: string): SaidPlace[] {
       j++;
     }
     if (j === i + 1) continue;
+    // «у Коростені», «до Коростеня» — саме місто, а не місце в ньому
+    if (toks.slice(i + 1, j).every((t) => CITY_WORD_RE.test(t.n))) continue;
     const raw = text.slice(toks[i + 1].start, toks[j - 1].end).replace(/\s+/g, ' ').trim();
     // місце — це хоча б одне слово з літер (не «на 9», не «до 5»)
     if (!/\p{L}{3,}/u.test(raw)) continue;

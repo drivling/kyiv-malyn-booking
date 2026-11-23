@@ -3,13 +3,16 @@
     python3 build.py            # з наявного знімка places.json → backend/src/dovede/korosten-learn-places.ts
     python3 build.py --fetch    # спершу оновити знімок з OpenStreetMap (Nominatim, 1 запит на секунду)
 
-Що в списку: вулиці з переліку зупинок ради (frontend/src/content/stops/korosten-articles.json — куди їздить
-транспорт) і названі місця з OpenStreetMap у межах міста — лікарні, школи, садки, магазини, установи. Зупинок тут
-немає: їх «Доведе» знає сам. Список — лише «що спитати»: дорогу до кожного місця дає сервер і зберігає в базі.
-Згенерований файл руками не правити; виключення й ручні додатки — у config.json.
+Що в списку: названі місця з OpenStreetMap у межах міста — лікарні, школи, садки, магазини, установи, — яких
+сторінка «Доведе» не знає сама. Не беремо (аналіз 2026-11-23, Docs/dovede-learning-roadmap.md): зупинки датасету,
+вулиці й будинки (`korosten-streets.json`) і орієнтири (`korosten-landmarks.json`) — їх сторінка веде своїм
+планувальником, а відповідь Google про них ніхто не побачить. Тест фронтенду проганяє кожен рядок справжнім розбором
+сторінки; те, що він усе ж знає, — у `exclude` config.json. Список — лише «що спитати»: дорогу до кожного місця дає
+сервер і зберігає в базі. Згенерований файл руками не правити; виключення й ручні додатки — у config.json.
 """
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -19,7 +22,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.normpath(os.path.join(HERE, '..', '..', '..'))
 SNAPSHOT = os.path.join(HERE, 'places.json')
 CONFIG = os.path.join(HERE, 'config.json')
-ARTICLES = os.path.join(ROOT, 'frontend', 'src', 'content', 'stops', 'korosten-articles.json')
+LANDMARKS = os.path.join(ROOT, 'frontend', 'src', 'pages', 'DovedePage', 'data', 'korosten-landmarks.json')
+DATASET = os.path.join(ROOT, 'data', 'korosten-transport', 'dataset', 'korosten-dataset.json')
 OUT = os.path.join(ROOT, 'backend', 'src', 'dovede', 'korosten-learn-places.ts')
 UA = 'malin.kiev.ua admin script'
 # межі міста: захід, північ, схід, південь
@@ -60,15 +64,35 @@ def fetch():
     open(SNAPSHOT, 'a', encoding='utf8').write('\n')
 
 
-def streets():
-    out = set()
-    for a in json.load(open(ARTICLES, encoding='utf8')):
-        place = ' '.join(str(a.get('place') or '').split())
-        # «вул. Котляревського (Сковороди)» — стара назва в дужках: місце одне, питаємо за чинною
-        place = place.split('(')[0].strip()
-        if place:
-            out.add(place.replace('вул. ім. ', 'вул. ').replace('вул. ', 'вулиця ').replace('пров. ', 'провулок '))
-    return sorted(out, key=str.lower)
+def words(name):
+    """Значущі слова назви — як `korostenNameWords` у korostenPlaces.ts"""
+    text = name.lower().replace('ё', 'е')
+    out = []
+    for w in re.findall(r"[^\W\d_][\w']*|\d+", text):
+        w = re.sub(r'ский$', 'ський', w)
+        if w.isdigit() or (len(w) > 1 and w not in NAME_SKIP):
+            out.append(w)
+    return out
+
+
+NAME_SKIP = {'вул', 'вулиця', 'пров', 'провулок', 'мн', 'кафе', 'зупинка', 'на', 'вимогу', 'ім'}
+
+
+def known():
+    """Що сторінка знає сама: назви орієнтирів і зупинки датасету (слова зупинки — усі в назві місця)"""
+    marks = set()
+    for lm in json.load(open(LANDMARKS, encoding='utf8'))['landmarks']:
+        for n in [lm['name'], lm.get('label', ''), *lm.get('said', [])]:
+            if n:
+                marks.add(' '.join(words(n)))
+    stops = []
+    for st in json.load(open(DATASET, encoding='utf8'))['stops']:
+        if st['name'].strip().startswith('№'):
+            continue
+        w = words(re.sub(r'\([^)]*\)', ' ', st['name']))
+        if w:
+            stops.append(set(w))
+    return marks, stops
 
 
 def build():
@@ -76,9 +100,13 @@ def build():
     skip = {s.lower() for s in config.get('exclude', [])}
     names = []
     seen = set()
-    for name in [*config.get('add', []), *(p['name'] for p in json.load(open(SNAPSHOT, encoding='utf8'))['places']), *streets()]:
+    marks, stops = known()
+    for name in [*config.get('add', []), *(p['name'] for p in json.load(open(SNAPSHOT, encoding='utf8'))['places'])]:
         key = name.lower()
         if key in seen or key in skip or len(name) < 4 or len(name) > 70:
+            continue
+        w = words(name)
+        if ' '.join(w) in marks or any(st <= set(w) for st in stops):
             continue
         seen.add(key)
         names.append(name)
@@ -87,7 +115,7 @@ def build():
         '/**\n'
         ' * Коростень · стартові місця навчання «Доведе». ЗГЕНЕРОВАНО: data/korosten-transport/dovede-learn/build.py —\n'
         ' * руками не правити (виключення й додатки — у config.json поруч зі скриптом). Назви місць — © учасники\n'
-        ' * OpenStreetMap (ODbL), вулиці — з переліку зупинок ради.\n'
+        ' * OpenStreetMap (ODbL). Лише те, чого сторінка не знає сама: без зупинок, вулиць і орієнтирів.\n'
         ' */\n'
         f'export const KOROSTEN_LEARN_PLACES: readonly string[] = [\n{body}];\n'
     )

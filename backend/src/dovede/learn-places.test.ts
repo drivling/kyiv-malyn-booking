@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { detailForm } from './cityDetail';
 import { normalizeKey, siteForm } from './crawl-core';
 import { LEARN_PLACES } from './learn-places';
+import { korostenStopForName } from './korostenPlaces';
 
 describe('dovede-crawl: готові списки місць', () => {
   it.each(['Kyiv', 'Zhytomyr'] as const)('%s: кожен рядок сторінка розуміє як «місце словами» цього міста, без повторів', (city) => {
@@ -20,23 +21,21 @@ describe('dovede-crawl: готові списки місць', () => {
     expect(places.filter((p) => p !== p.replace(/\s+/g, ' ').trim())).toEqual([]);
   });
 
-  it('Коростень: список згенеровано зі знімка OpenStreetMap і вулиць переліку зупинок; без виключених назв і повторів', () => {
+  it('Коростень: список згенеровано зі знімка OpenStreetMap; без виключених назв, повторів і зупинок датасету', () => {
     const dir = path.resolve(__dirname, '../../../data/korosten-transport/dovede-learn');
     const snapshot = JSON.parse(readFileSync(path.join(dir, 'places.json'), 'utf8')) as { _license: string; places: Array<{ name: string }> };
     const config = JSON.parse(readFileSync(path.join(dir, 'config.json'), 'utf8')) as { exclude: string[]; add: string[] };
-    const articles = JSON.parse(readFileSync(path.resolve(__dirname, '../../../frontend/src/content/stops/korosten-articles.json'), 'utf8')) as Array<{ place?: string }>;
-    const streets = articles.map((a) => (a.place ?? '').split('(')[0].replace(/\s+/g, ' ').trim().replace('вул. ім. ', 'вул. ').replace('вул. ', 'вулиця ').replace('пров. ', 'провулок ')).filter(Boolean);
-    const allowed = new Set([...config.add, ...snapshot.places.map((p) => p.name), ...streets].map((n) => n.toLowerCase()));
+    const dataset = JSON.parse(readFileSync(path.resolve(__dirname, '../../../data/korosten-transport/dataset/korosten-dataset.json'), 'utf8')) as { stops: Array<{ id: string; name: string }> };
+    const allowed = new Set([...config.add, ...snapshot.places.map((p) => p.name)].map((n) => n.toLowerCase()));
     const places = LEARN_PLACES.Korosten;
     expect(snapshot._license).toContain('OpenStreetMap');
-    expect(places.length).toBeGreaterThan(40);
+    // сторінка сама знає майже все місто (зупинки, вулиці, орієнтири) — Google питаємо лише про решту
+    expect(places.length).toBeGreaterThan(0);
     expect(new Set(places.map(normalizeKey)).size).toBe(places.length);
     expect(places.filter((p) => !allowed.has(p.toLowerCase()))).toEqual([]);
     expect(places.filter((p) => config.exclude.some((x) => x.toLowerCase() === p.toLowerCase()))).toEqual([]);
     expect(places.filter((p) => p !== p.replace(/\s+/g, ' ').trim())).toEqual([]);
-    // нічого з джерел не загубилось: кожна дозволена назва (без виключених і надто коротких) — у списку
-    const want = [...allowed].filter((n) => !config.exclude.some((x) => x.toLowerCase() === n) && n.length >= 4 && n.length <= 70);
-    expect(want.filter((n) => !places.some((p) => p.toLowerCase() === n))).toEqual([]);
+    expect(places.filter((p) => korostenStopForName(dataset.stops, p, 'contains') != null)).toEqual([]);
   });
 
   it('Коростень: кожну назву сторінка читає так само («з Малина до Коростеня до …») — відповідь кампанії знайде й людина', () => {

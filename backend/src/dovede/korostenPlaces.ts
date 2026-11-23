@@ -62,3 +62,36 @@ export function korostenStopGroups(stops: KorostenStopLike[]): Array<{ id: strin
   }
   return [...byBase].map(([label, stopIds]) => ({ id: stopIds[0], label, stopIds }));
 }
+
+/** Службові слова назви: «вул.», «м/н», «кафе», «(на вимогу)» — без них назви Google і наші збігаються */
+const NAME_SKIP = new Set(['вул', 'вулиця', 'пров', 'провулок', 'мн', 'кафе', 'зупинка', 'на', 'вимогу', 'ім']);
+
+/** Значущі слова назви: нижній регістр, без лапок і ініціалів; російське «-ский» → «-ський» («Ковельский парк») */
+export function korostenNameWords(name: string): string[] {
+  const text = name.toLowerCase().replace(/ё/g, 'е').replace(/[’ʼ`]/g, "'");
+  return (text.match(/[\p{L}']+|\d+/gu) ?? [])
+    .map((w) => w.replace(/ский$/, 'ський').replace(/ская$/, 'ська'))
+    .filter((w) => /^\d+$/.test(w) || (w.length > 1 && !NAME_SKIP.has(w)));
+}
+
+/**
+ * Назва місця чи зупинки (наприклад, зупинка з відповіді Google: «вул. Гастелло», «Міська лікарня», «м/н Пашини») →
+ * id місця Коростеня (як у `korostenStopGroups`); null — такої зупинки в нас нема («Агромаш»).
+ * `same` — ті самі значущі слова, що в назві зупинки, у дужках її назви («Гастелло») чи в народній назві;
+ * `contains` — назва містить усі слова зупинки («Загальноосвітня школа №1» → «Школа №1»), як фраза в розборі сторінки.
+ */
+export function korostenStopForName(stops: KorostenStopLike[], name: string, how: 'same' | 'contains' = 'same'): string | null {
+  const want = new Set(korostenNameWords(name));
+  if (!want.size) return null;
+  const nameOf = new Map(stops.map((s) => [s.id, s.name]));
+  for (const g of korostenStopGroups(stops)) {
+    const forms = [korostenNameWords(g.label)];
+    for (const id of g.stopIds) for (const m of (nameOf.get(id) ?? '').matchAll(/\(([^)]*)\)/g)) forms.push(korostenNameWords(m[1]));
+    for (const a of KOROSTEN_ALIASES) if (g.stopIds.includes(a.stopId)) for (const p of a.phrases) forms.push(korostenNameWords(p));
+    for (const f of forms) {
+      if (!f.length || !f.every((w) => want.has(w))) continue;
+      if (how === 'contains' || new Set(f).size === want.size) return g.id;
+    }
+  }
+  return null;
+}

@@ -31,6 +31,7 @@ const learn_places_1 = require("./learn-places");
 const learn_cities_1 = require("./learn-cities");
 const city_check_1 = require("./city-check");
 const local_transport_1 = require("../local-transport");
+const korostenPlaces_1 = require("./korostenPlaces");
 const city_route_1 = require("./city-route");
 const zhytomyr_own_data_1 = require("./zhytomyr-own-data");
 const site_domains_1 = require("../site-domains");
@@ -113,11 +114,18 @@ async function knownSeeds(prisma, city) {
     }
     return out;
 }
+/**
+ * Місто зі своїм датасетом (Коростень): час рейсу сторінка бере з нашого розкладу, а з відповіді Google — лише
+ * зупинку біля місця й хвилини пішки (Docs/dovede-learning-roadmap.md, аналіз 2026-11-23). Тому вчити інші години
+ * там нічого не дає, а обхід углиб — це назви зупинок з відповідей Google, тобто наші ж зупинки.
+ */
+const isOwnDataset = (city) => learn_cities_1.OWN_DATASET_CITY_CODES.includes(city);
+const NOT_OWN_DATASET = learn_cities_1.LEARN_CITY_CODES.filter((c) => !isOwnDataset(c));
 const refill = (id, title, help, main) => ({
     id,
     title,
     help,
-    cities: learn_cities_1.LEARN_CITY_CODES,
+    cities: NOT_OWN_DATASET,
     defaults: (city) => ({ origins: crawl_core_1.ARRIVAL_POINTS[city], dirs: ['to', 'from'], main, extra: '', maxDepth: 0 }),
     seeds: ({ prisma, city }) => knownSeeds(prisma, city),
 });
@@ -235,13 +243,22 @@ async function buildPlan(prisma, input, ctx = {}) {
     const maxDepth = options.maxDepth ?? d.maxDepth;
     if (!Number.isInteger(maxDepth) || maxDepth < 0 || maxDepth > exports.MAX_DEPTH)
         throw new CampaignInputError(`Глибина: від 0 до ${exports.MAX_DEPTH}`);
-    const seeds = await preset.seeds({ prisma, city, options, now: ctx.now ?? new Date(), freshDays: ctx.freshDays ?? 30, dataset: ctx.dataset ?? ((c) => (0, local_transport_1.loadTransportDataset)(prisma, c)) });
+    const dataset = ctx.dataset ?? ((c) => (0, local_transport_1.loadTransportDataset)(prisma, c));
+    let seeds = await preset.seeds({ prisma, city, options, now: ctx.now ?? new Date(), freshDays: ctx.freshDays ?? 30, dataset });
+    // місто зі своїм датасетом: про наші зупинки Google не питаємо — сторінка веде їх своїм планувальником
+    // (звірка розкладу питає саме пари зупинок, а свій список — те, що написав власник)
+    if (isOwnDataset(city) && !preset.check && !preset.custom) {
+        const stops = (await dataset(city)).stops;
+        seeds = seeds.filter((s) => (0, korostenPlaces_1.korostenStopForName)(stops, s.place, 'contains') == null);
+    }
     if (!seeds.length)
         throw new CampaignInputError(preset.custom ? 'Напишіть хоч одне місце' : 'Для цієї заготовки зараз немає місць');
     const own = Boolean(preset.ownSlots);
+    // обхід углиб у місті зі своїм датасетом — лише наші ж зупинки з відповідей Google
+    const depth = own || isOwnDataset(city) ? 0 : maxDepth;
     return {
         preset,
-        plan: { city, origins: [...new Set(origins)], dirs: [...new Set(dirs)], main, extra: own ? [] : extra, maxDepth: own ? 0 : maxDepth, seeds, ...(own ? { ownSlots: true } : {}) },
+        plan: { city, origins: [...new Set(origins)], dirs: [...new Set(dirs)], main, extra: own ? [] : extra, maxDepth: depth, seeds, ...(own ? { ownSlots: true } : {}) },
     };
 }
 /** Години, які питаємо про місце рівня 0 */

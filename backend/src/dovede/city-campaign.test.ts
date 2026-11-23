@@ -223,15 +223,35 @@ test('план: «Навчити Житомир» — список, кінцев
 
 test('план «Навчити місто» для Коростеня: від вокзалу до місць стартового списку й назад, без житомирських кінцевих', async () => {
   const db = fakeDb();
-  const { plan } = await buildPlan(db.prisma, { preset: 'learn', city: 'Korosten' });
+  const { plan } = await buildPlan(db.prisma, { preset: 'learn', city: 'Korosten' }, { dataset: async () => CHECK_DATASET });
   assert.deepEqual(plan.origins, ['korosten.vokzal']);
-  assert.equal(plan.maxDepth, 1);
+  // місто зі своїм датасетом: обхід углиб дав би лише наші ж зупинки з відповідей Google
+  assert.equal(plan.maxDepth, 0);
   assert.ok(!plan.seeds.some((s) => s.via === 'terminal'));
   const places = expandSeeds(plan);
   assert.equal(places.length, LEARN_PLACES.Korosten.length * 2);
   assert.ok(places.every((p) => p.origin === 'korosten.vokzal'));
   // точка не з Коростеня — помилка
   await assert.rejects(buildPlan(db.prisma, { preset: 'learn', city: 'Korosten', options: { origins: ['kyiv.pas'] } }), (e: unknown) => e instanceof CampaignInputError);
+});
+
+test('місто зі своїм датасетом: про наші зупинки Google не питаємо, глибина 0, «Дообучити» години — ні', async () => {
+  const db = fakeDb();
+  const ctx = { dataset: async () => CHECK_DATASET };
+  // питання людей: зупинка датасету (повна назва з закладом теж), і місце, якого в датасеті нема
+  for (const [i, to] of ['Ринок', 'Загальноосвітня школа №3', 'Агромаш'].entries()) {
+    db.dovedeCityDemand.rows.push({ id: i + 1, cityCode: 'Korosten', fromKey: 'korosten.vokzal', toKey: to.toLowerCase(), fromLabel: 'вокзал', toLabel: to, asked: 3, answered: false });
+  }
+  const { plan } = await buildPlan(db.prisma, { preset: 'unanswered', city: 'Korosten', options: { maxDepth: 2 } }, ctx);
+  assert.deepEqual(
+    plan.seeds.map((s) => s.place),
+    ['Агромаш'],
+  );
+  assert.equal(plan.maxDepth, 0);
+  // свій список — що написав власник, без фільтра
+  const custom = await buildPlan(db.prisma, { preset: 'custom', city: 'Korosten', options: { places: 'Ринок\nАгромаш' } }, ctx);
+  assert.deepEqual(custom.plan.seeds.map((s) => s.place), ['Ринок', 'Агромаш']);
+  await assert.rejects(buildPlan(db.prisma, { preset: 'refill-morning', city: 'Korosten' }, ctx), /лише для: Київ, Житомир/);
 });
 
 test('план: зміни власника й помилки', async () => {

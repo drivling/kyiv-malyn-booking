@@ -58,7 +58,8 @@ export function korostenSpot(words: string): GazetteerPlace | null {
 function addressSpot(toks: Token[]): GazetteerPlace | null {
   if (!index) return null;
   let i = 0;
-  while (i < toks.length - 1 && STREET_LEAD.test(toks[i].n)) i++;
+  // «вулиця Г. Сковороди», «вул. І. Франка»: ініціал перед назвою пропускаємо — у даних вулиця без нього
+  while (i < toks.length - 1 && (STREET_LEAD.test(toks[i].n) || (i > 0 && /^\p{L}$/u.test(toks[i].n)))) i++;
   const m = index.match(toks, i);
   if (!m) return null;
   // після адреси можуть лишитись лише слова типу вулиці («Шевченка вулиця»)

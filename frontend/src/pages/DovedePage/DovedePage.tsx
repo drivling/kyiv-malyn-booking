@@ -17,6 +17,7 @@ import { usePlannerModel } from '@/pages/LocalTransportPage/journey/usePlannerMo
 import {
   KOROSTEN,
   buildKorostenPlaces,
+  asksInsideKorosten,
   combineCorridor,
   isKorostenQuestion,
   isMalynKorostenTrip,
@@ -30,6 +31,7 @@ import {
   remapForKorosten,
 } from './korosten/korostenCity';
 import { korostenSpot, loadKorostenStreets } from './korosten/korostenStreets';
+import { korostenStopForName } from './korosten/korostenPlaces';
 import { DEFAULT_TRANSPORT_CITY } from '@/site/transportCity';
 import { useDovedeAccess } from './access';
 import { useDovedeIcons } from './brandIcons';
@@ -383,7 +385,10 @@ function DovedeSearch({
         const farStop = (detail: string) => korostenStopByLabel(farIndex, detail);
         // людина в Коростені (`HERE_DETAIL`): коростенська частина — від її точки
         const farSpot = (words: string) => (words === HERE_DETAIL ? herePlace() ?? null : korostenSpot(words));
-        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop, farSpot });
+        // Коростень: зупинка з відповіді Google → наша; автобус до місця словами — наш планувальник (`ownCityLegs`)
+        const koStops = korosten ? stops : far.stops;
+        const googleStop = (name: string) => korostenStopForName(koStops, name);
+        const farFor = (d: string) => ({ farPlanner: far.plannerFor(d), farStop, farSpot, googleStop });
         let outcome = await withCity((cityRoutes) => composeStories({ intent, now, date, schedules: today.schedules, planner: plannerFor(date), routes, listings, cityFare: fare, driveMinutes: today.driveMinutes, notePlaces, cityRoutes, ...farFor(date) }, shape));
         if (outcome.kind === 'empty' && date === now.date) {
           const tomorrow = addDays(now.date, 1);
@@ -424,7 +429,7 @@ function DovedeSearch({
         setView({ kind: 'error', parse, now, message: 'Не вдалося отримати розклад. Перевірте мережу й спробуйте ще раз.' });
       }
     },
-    [plannerFor, setSearchParams, routes, fare, stopIndex, korosten, far, farIndex, geoOn],
+    [plannerFor, setSearchParams, routes, fare, stopIndex, stops, korosten, far, farIndex, geoOn],
   );
 
   /** `chosen` — готовий намір (людина вибрала уточнення чи пропозицію): Claude тоді не питаємо */
@@ -451,7 +456,7 @@ function DovedeSearch({
       }
       // Поїздка Малин ↔ Коростень («з Паперової фабрики в Коростень до міськлікарні», «з Пашин до Паперової фабрики»):
       // два розбори — малинський і коростенський; відповідає Малин, без Claude
-      const corridor = !chosen && wordsFar ? combineCorridor(parse.intent, parseLocal(q, now, farIndex).intent, farIndex) : null;
+      const corridor = !chosen && wordsFar && !asksInsideKorosten(q, parse.intent) ? combineCorridor(parse.intent, parseLocal(q, now, farIndex).intent, farIndex) : null;
       // Питання про інше місто, ніж зараз на сторінці («з Пашин до ринку» в Малині) — перемикаємо місто й питаємо там.
       // Поїздка Малин ↔ Коростень — питання Малина, не міста Коростеня.
       // Місто сторінки за місцем людини, коли в питанні міста нема: у Коростені «до вокзалу» — питання Коростеня (але не
@@ -595,7 +600,7 @@ function DovedeSearch({
     // Коростень на сторінці Малина: коростенські слова теж підсвічені, а «Розумію…» — уже поїздка коридором
     if (korosten || !farIndex.length || !mentionsKorosten(text)) return own;
     const far = parseLocal(text, now, farIndex);
-    const corridor = combineCorridor(own.intent, far.intent, farIndex);
+    const corridor = asksInsideKorosten(text, own.intent) ? null : combineCorridor(own.intent, far.intent, farIndex);
     return { ...own, intent: corridor ?? own.intent, spans: mergeKorostenSpans(own.spans, far.spans) };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `taught`: нові синоніми міняють розбір того самого тексту
   }, [text, stopIndex, routes, taught, korosten, farIndex]);
