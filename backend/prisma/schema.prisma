@@ -1212,6 +1212,13 @@ model DzhuraChat {
   autoReplyDelaySec       Int       @default(80)
   /// підказка власника про цей чат для автовідповіді (хто це, тон, чого не обіцяти)
   autoReplyNote           String?   @db.Text
+  /// «Модерація» (лише групи): off — вимкнено; drafts — Джура шукає наїзди на адміністрацію з флудом
+  /// і шле власникові в «Обране» чернетку відповіді й попередження; у групу нічого
+  moderationMode          String    @default("off")
+  /// хто є хто в чаті й факти, на які модель може спиратися (внески, правила)
+  moderationNote          String?   @db.Text
+  /// адміністрація чату: [{tgUserId, name, role}] — її не модеруємо; її відповідь після наїзду знімає втручання
+  moderationProtected     Json?
   lastMessageAt           DateTime?
   lastCapturedAt          DateTime?
   /// для gap-fill після пауз слухача: iter_messages(min_id=…)
@@ -1220,6 +1227,7 @@ model DzhuraChat {
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   messages                DzhuraMessage[]
+  moderations             DzhuraModeration[]
 
   @@index([kind, captureEnabled])
 }
@@ -1300,6 +1308,29 @@ model DzhuraReaction {
   person  DzhuraPerson? @relation(fields: [personId], references: [id], onDelete: SetNull)
 
   @@index([messageId, removedAt])
+}
+
+/// Журнал модерації групи (dzhura/moderator.py): кожне рішення моделі. Ліміти правила рахуються звідси:
+/// одній людині раз на київську добу, попередження за флуд раз на 3 год на чат, запити до моделі за добу.
+model DzhuraModeration {
+  id                  Int        @id @default(autoincrement())
+  chatId              Int
+  createdAt           DateTime   @default(now())
+  /// draft — чернетка в «Обране» (у групу нічого); posted — опубліковано (пізніше); skip — модель / ліміт промовчали
+  kind                String
+  targetTgMessageId   BigInt?
+  targetTgUserId      BigInt?
+  hint                String?    @db.Text
+  warning             String?    @db.Text
+  reason              String     @db.Text
+  model               String?
+  /// найновіше повідомлення-кандидат, з яким питали модель
+  windowToTgMessageId BigInt?
+
+  chat DzhuraChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, targetTgMessageId])
+  @@index([chatId, createdAt])
 }
 
 /// Задачі для слухача з адмінки: sync_dialogs | backfill {chatId, from, to} | autoreply_preview {chatId}
