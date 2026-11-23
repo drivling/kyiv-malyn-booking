@@ -719,7 +719,7 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
 
   Plus non-menu routes: `AdminPage` (`/admin/:tab?`; the default tab «Бронювання» is `AdminPage/bookings/BookingsTab.tsx`,
   `?when=upcoming|today|past|all`; «Реклама» is `AdminPage/promo/PromoTab.tsx` with sections `/admin/promo`, `reminders`,
-  `regulars`), `StickerWallPage` (`/admin/wall`),
+  `regulars`; «Дані» is `AdminPage/persons/PersonsTab.tsx`, filters in `personsFilter.ts`, `?only=`), `StickerWallPage` (`/admin/wall`),
   `LoginPage` (`/login`), `UserPage` (`/user`). `/booking` redirects to `/mizhgorodski` and `/poputky` to
   `/mizhgorodski?type=carpool` (the «Попутки» tab already chosen; the page's canonical stays `/mizhgorodski`). The 301s are
   one table, `EXACT_REDIRECTS` in `frontend/scripts/serve-dist-rules.mjs` (pure, tested in `serve-dist-rules.test.ts`;

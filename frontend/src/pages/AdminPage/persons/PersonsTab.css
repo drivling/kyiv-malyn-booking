@@ -1,0 +1,215 @@
+/* Вкладка «Дані» (persons/PersonsTab.tsx) на спільному наборі kit/: одна людина — один рядок */
+
+.persons-tab .admin-kit-tiles,
+.persons-tab > .admin-kit-chips {
+  margin-bottom: 10px;
+}
+.persons-tab .admin-kit-tile-value small {
+  display: block;
+}
+.persons-muted {
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+  font-weight: 400;
+}
+.persons-danger {
+  color: var(--pb-danger, #c5221f) !important;
+}
+.persons-btn--danger:not(:disabled) {
+  border-color: var(--pb-danger, #c5221f);
+  background: var(--pb-danger, #c5221f);
+}
+.persons-tag--ok {
+  background: #e7f6ec;
+  color: #1e6b3a;
+}
+.persons-tag--change {
+  background: #e8f0fe;
+  color: #185abc;
+  white-space: normal;
+}
+.persons-flag--error {
+  background: #fee4e2;
+  color: #b42318;
+}
+
+/* ---- «Хто це?» одним рядком */
+.persons-lookup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.persons-lookup input,
+.persons-input {
+  padding: 6px 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+  font: inherit;
+  font-size: 0.875rem;
+}
+.persons-lookup input {
+  width: 180px;
+}
+.persons-lookup__result {
+  margin: -6px 0 12px;
+  padding: 8px 12px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-top: 0;
+  border-radius: 0 0 var(--pb-radius, 8px) var(--pb-radius, 8px);
+  background: var(--pb-bg-secondary, #fafafa);
+  font-size: 0.875rem;
+}
+.persons-lookup__result p {
+  margin: 0 0 6px;
+}
+.persons-lookup__result textarea {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.75rem;
+}
+
+.persons-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 8px;
+}
+.persons-input--grow {
+  flex: 1 1 240px;
+  max-width: 380px;
+}
+.persons-tools {
+  margin-bottom: 10px;
+  font-size: 0.875rem;
+}
+.persons-tools summary {
+  cursor: pointer;
+  color: var(--pb-text-hint, #737373);
+}
+.persons-tools__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px;
+}
+
+.persons-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.persons-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.6fr) auto;
+  gap: 4px 12px;
+  align-items: center;
+  padding: 7px 12px;
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  font-size: 0.875rem;
+}
+.persons-row:first-child {
+  border-top: 0;
+}
+.persons-row.is-blocked {
+  background: #fef3f2;
+}
+.persons-row.is-archived {
+  background: var(--pb-bg-secondary, #fafafa);
+  color: var(--pb-text-hint, #737373);
+}
+.persons-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+.persons-phone {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.persons-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+.persons-id {
+  font-variant-numeric: tabular-nums;
+}
+.persons-more {
+  margin-top: 10px;
+}
+
+/* ---- Вікна правки й архіву */
+.persons-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.persons-form__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+.persons-field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.persons-field input,
+.persons-field textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--pb-border, #ddd);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+  font-weight: 400;
+}
+.persons-field__row {
+  display: flex;
+  gap: 6px;
+}
+.persons-field__row input {
+  flex: 1;
+  min-width: 0;
+}
+.persons-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 860px) {
+  .persons-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .persons-actions {
+    justify-content: flex-start;
+  }
+  .persons-form__grid {
+    grid-template-columns: 1fr;
+  }
+}
