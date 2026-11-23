@@ -26,6 +26,7 @@ import { defaultReminderDeps, runDueBookingReminders } from './booking-reminders
 import { startListingMatchWorker } from './listing-match-jobs';
 import { WATCHED_SOURCES, fetchSourceText, runSourceWatch } from './transport-source-watch';
 import { fetchGpsFeedText, recordGpsPositions } from './transport-gps';
+import { createKyivGpsRecorder } from './dovede/kyiv-kpt-gps';
 import { createEltrainSyncTick } from './eltrain-sync';
 
 export { CODE_VERSION, createApp, getRegisteredRoutes, getSupportPhoneForRoute } from './create-app';
@@ -39,6 +40,7 @@ function main(): void {
   let reminderJob: IntervalJob | null = null;
   let sourceWatchJob: IntervalJob | null = null;
   let gpsJob: IntervalJob | null = null;
+  let kyivGpsJob: IntervalJob | null = null;
   let cityLearnJob: IntervalJob | null = null;
   let cityCampaignJob: IntervalJob | null = null;
   let eltrainJob: IntervalJob | null = null;
@@ -58,7 +60,13 @@ function main(): void {
     notify: sendAdminAlertHtml,
     suspicious: async (city) => (await cityQuality.report(city)).items.length,
   });
-  const app = createApp({ prisma, cityRoutes, dovedeSettings, cityCampaigns, zubastykPhones });
+  // «Доведе», крок 8г: онлайн-рух «Київпастрансу» (GTFS-RT) → візити машин біля контрольних точок. Адреса стрічки —
+  // лише в змінній KYIV_GTFS_RT_URL (не в репозиторії); не задано — запис вимкнено
+  const kyivGtfsRtUrl = process.env.KYIV_GTFS_RT_URL?.trim();
+  const kyivGps = kyivGtfsRtUrl
+    ? createKyivGpsRecorder({ prisma, url: kyivGtfsRtUrl, retentionDays: Number(process.env.KYIV_GPS_RETENTION_DAYS ?? 30) })
+    : null;
+  const app = createApp({ prisma, cityRoutes, dovedeSettings, cityCampaigns, zubastykPhones, ...(kyivGps ? { kyivGps } : {}) });
   // Журнал ревізій транспорту: порожній журнал при наявному датасеті → перший рядок із поточного стану (без diff)
   void ensureInitialTransportRevision(prisma).then((row) => {
     if (row) console.log(`[transport-revisions] initial row ${row.revision}`);
@@ -170,6 +178,17 @@ function main(): void {
         },
         { intervalMin: Number(process.env.TRANSPORT_GPS_INTERVAL_MIN ?? 1), firstDelayMs: 90_000 },
       );
+      // «Доведе», крок 8г: онлайн-рух Києва — KYIV_GPS_INTERVAL_MIN (за замовч. 1, 0 = вимкнено), лише з KYIV_GTFS_RT_URL
+      if (kyivGps) {
+        kyivGpsJob = startIntervalJob(
+          'kyiv-kpt-gps',
+          async () => {
+            const t = await kyivGps.tick();
+            if (t.error) console.log(`🛰️ Київ GPS: ${t.error}`);
+          },
+          { intervalMin: Number(process.env.KYIV_GPS_INTERVAL_MIN ?? 1), firstDelayMs: 120_000 },
+        );
+      }
       // Електрички з розкладу ПЗЗ (swrailway.gov.ua): нові / змінені / скасовані рейси Київ – Малин – Коростень,
       // зміни й нові проблеми → адмін-чат; ELTRAIN_SYNC_INTERVAL_MIN (за замовч. 360, 0 = вимкнено)
       const eltrainTick = createEltrainSyncTick(prisma, { notify: sendAdminAlertHtml });
@@ -212,6 +231,8 @@ function main(): void {
     reminderJob?.stop();
     sourceWatchJob?.stop();
     gpsJob?.stop();
+    kyivGpsJob?.stop();
+    await kyivGps?.flush();
     cityLearnJob?.stop();
     cityCampaignJob?.stop();
     stopZubastykPhonesSync();

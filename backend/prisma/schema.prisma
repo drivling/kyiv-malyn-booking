@@ -1646,6 +1646,26 @@ model DovedeQuery {
 /// GPS-точки міського транспорту з публічного фіду (Коростень: набір ради «Реальний час», CC BY) — треки рейсів для
 /// звірки шляхів і зупинок (src/transport-gps.ts, Docs/korosten-gps-tracks-2026-11.md). Пише інтервальна задача
 /// TRANSPORT_GPS_INTERVAL_MIN; старші за 30 днів видаляються. Публічно не віддається — лише адмінці.
+/// «Доведе», крок 8г: візит машини «Київпастрансу» біля контрольної точки свого маршруту (онлайн-рух, GTFS-RT).
+/// Сирих точок Києва не пишемо — лише візити; держномерів немає. Тримаємо KYIV_GPS_RETENTION_DAYS (30) днів.
+model KyivKptPass {
+  id        BigInt   @id @default(autoincrement())
+  /// route_id стрічки й GTFS «Київпастрансу» («3_6»)
+  routeId   String
+  /// бортовий id машини у стрічці
+  vehicleId String
+  /// назва контрольної точки, як у KYIV_KPT
+  point     String
+  /// прийшла до точки / востаннє була поруч
+  firstAt   DateTime
+  lastAt    DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([vehicleId, firstAt])
+  @@index([routeId, firstAt])
+  @@index([firstAt])
+}
+
 model TransportVehiclePosition {
   id         BigInt   @id @default(autoincrement())
   /// Місто датасету — TripPoint.code; кожен запит обмежується ним
