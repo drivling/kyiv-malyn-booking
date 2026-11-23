@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { CityStep, StoryLeg } from '../compose/types';
 import { RIDE_COLOR, RIDE_NAME, funicularWay, rideLook, stationName, type RideLook } from '../compose/cityTransit';
-import { checkedAgo, durationText, stopsText } from './format';
+import { checkedAgo, durationText, headwayText, serviceText, stopsText } from './format';
 
 type CityRide = Extract<StoryLeg, { kind: 'cityRide' }>;
 
@@ -80,9 +80,15 @@ function Facts({ s, look }: { s: CityStep; look: RideLook }) {
     look !== 'funicular' && s.headsign ? `у бік «${look === 'speedTram' ? stationName(s.headsign) : s.headsign}»` : null,
     look !== 'funicular' && s.stops ? stopsText(s.stops) : null,
     `≈ ${durationText(s.minutes)}`,
-    s.headwayMin ? `кожні ≈ ${s.headwayMin} хв` : null,
+    s.gone ? null : headwayText(s),
   ].filter(Boolean);
-  return <p className="dv-ride__facts">{facts.join(' · ')}</p>;
+  const service = serviceText(s);
+  return (
+    <>
+      <p className="dv-ride__facts">{facts.join(' · ')}</p>
+      {service ? <p className={s.gone ? 'dv-ride__service dv-ride__service--gone' : 'dv-ride__service'}>{service}</p> : null}
+    </>
+  );
 }
 
 /** Табличка маршруту: вид словом, номер великим; форма й колір — за видом */

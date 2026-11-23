@@ -92,3 +92,17 @@ export function checkedAgo(fetchedAt: string, now = Date.now()): string {
   const word = mod10 === 1 && mod100 !== 11 ? 'день' : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14) ? 'дні' : 'днів';
   return `${days} ${word} тому`;
 }
+
+/** Як часто ходить: «кожні ≈ 12 хв» чи, для маршрутки з переліку Києва, «кожні ≈ 10–20 хв» */
+export function headwayText(s: { headwayMin?: number; headwayMax?: number }): string | null {
+  if (!s.headwayMin) return null;
+  return s.headwayMax && s.headwayMax > s.headwayMin ? `кожні ≈ ${s.headwayMin}–${s.headwayMax} хв` : `кожні ≈ ${s.headwayMin} хв`;
+}
+
+/** Свій розклад про цей рейс сьогодні: «останній о 23:04», «перший о 05:30»; null — нічого особливого */
+export function serviceText(s: { lastDeparts?: string; firstDeparts?: string; gone?: boolean }): string | null {
+  if (s.gone) return s.lastDeparts ? `сьогодні вже не ходить — останній був о ${s.lastDeparts}` : 'сьогодні вже не ходить';
+  if (s.lastDeparts) return `останній о ${s.lastDeparts}`;
+  if (s.firstDeparts) return `перший о ${s.firstDeparts}`;
+  return null;
+}
