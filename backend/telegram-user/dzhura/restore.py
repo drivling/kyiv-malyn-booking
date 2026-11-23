@@ -5,8 +5,9 @@
     ({ avatars: { <tgUserId>: <jpeg base64> } }) — для локального рендера карток;
   * `post_items` {chatId, batch, seq, silent, items} — опублікувати від імені власника готові пости
     (`text` — HTML, `photo` — JPEG base64 + підпис) у чат, по черзі, з паузою;
-  * `import_history` {chatId, text, fileName, media, dryRun} — вбудований імпорт історії Telegram з файлу у
-    форматі експорту WhatsApp (потрібні права адміна в групі; dryRun лише перевіряє формат і права).
+  * `import_history` {chatId, text, fileName, media, dryRun | stage init/media/start} — вбудований імпорт історії
+    Telegram з файлу у форматі експорту WhatsApp (адмін у супергрупі; dryRun лише перевіряє формат і права);
+  * `scan_ids` {chatId} — які повідомлення чату Telegram досі віддає (щоб не імпортувати їх удруге).
 
 Другий свідомий виняток із правила «у чати не пишемо» (перший — автовідповідь): пише лише те, що власник
 сам поставив задачею, і лише в групу / супергрупу, яку назвав (ніколи в групу обідів). Нічого не читає
@@ -40,6 +41,8 @@ def summarize_params(job_type: str, params: Any) -> Any:
         media = params.get("media") if isinstance(params.get("media"), list) else []
         return {
             "chatId": params.get("chatId"),
+            "stage": params.get("stage"),
+            "importId": params.get("importId"),
             "dryRun": params.get("dryRun"),
             "textChars": len(str(params.get("text") or "")),
             "media": len(media),
@@ -174,9 +177,13 @@ async def fetch_avatars(cap: Capture, job: dict[str, Any]) -> dict[str, Any]:
 async def import_history(cap: Capture, job: dict[str, Any]) -> dict[str, Any]:
     """
     Вбудований імпорт історії Telegram (як «Імпорт чату з WhatsApp»): повідомлення з'являються справжніми,
-    з іменами авторів і датами, з позначкою «імпортовано». Потрібні права адміна в групі.
-    params: chatId, text (експорт у форматі WhatsApp), fileName, media [{name, jpegBase64}], dryRun.
-    dryRun — лише перевірити, що Telegram розпізнає формат і пустить імпорт у цей чат; нічого не імпортує.
+    з іменами авторів і датами, з позначкою «імпортовано». Потрібні права адміна в групі (лише супергрупа).
+
+    Одним кроком (без stage): text + media ≤ 20 [+ dryRun — лише перевірити формат і права].
+    Частинами, коли картинок багато (одна задача — до 20 картинок і 2 МБ):
+      stage=init  {text, mediaCount}   → importId (рядок: int64 не влазить у JSON-число без втрат);
+      stage=media {importId, media}    — скільки завгодно задач, по черзі;
+      stage=start {importId}           — Telegram показує повідомлення; без нього імпорт пропадає.
     """
     from telethon.tl.functions.messages import (
         CheckHistoryImportPeerRequest,
@@ -193,18 +200,58 @@ async def import_history(cap: Capture, job: dict[str, Any]) -> dict[str, Any]:
         raise ValueError(f"chat {params.get('chatId')} not found")
     if int(chat["tg_chat_id"]) == int(cap.lunch_group_id) or chat["kind"] not in ("group", "supergroup"):
         raise ValueError("імпортуємо лише у звичайні групи (не в групу обідів і не в особисті)")
+    stage = str(params.get("stage") or "")
     text = str(params.get("text") or "")
+    media = [m for m in (params.get("media") or []) if isinstance(m, dict)]
+    peer = await resolve_chat_peer(cap.client, int(chat["tg_chat_id"]))
+
+    async def upload_media(import_id: int, done_before: int = 0) -> int:
+        n = 0
+        for m in media:
+            bio = decode_photo(m)
+            name = str(m.get("name") or bio.name)
+            f = await cap.client.upload_file(bio.getvalue(), file_name=name)
+            while True:
+                try:
+                    await cap.client(
+                        UploadImportedMediaRequest(
+                            peer=peer, import_id=import_id, file_name=name, media=InputMediaUploadedPhoto(file=f)
+                        )
+                    )
+                    break
+                except FloodWaitError as e:
+                    if e.seconds > MAX_FLOOD_WAIT_SEC:
+                        raise
+                    await asyncio.sleep(int(e.seconds) + 1)
+            n += 1
+            await cap.db.progress_job(
+                job["id"], {"importId": str(import_id), "media": done_before + n, "total": len(media)}
+            )
+        return n
+
+    if stage == "media":
+        import_id = int(str(params["importId"]))
+        try:
+            n = await upload_media(import_id)
+        finally:
+            await cap.db.strip_import_payload(int(job["id"]), 0, len(media))
+        return {"chat": chat["title"], "stage": "media", "importId": str(import_id), "media": n}
+
+    if stage == "start":
+        import_id = int(str(params["importId"]))
+        await cap.client(StartHistoryImportRequest(peer=peer, import_id=import_id))
+        return {"chat": chat["title"], "stage": "start", "importId": str(import_id), "started": True}
+
     if not text.strip():
         raise ValueError("порожній text")
-    media = [m for m in (params.get("media") or []) if isinstance(m, dict)]
     dry_run = bool(params.get("dryRun"))
+    media_count = int(params.get("mediaCount") or 0) if stage == "init" else len(media)
     head = "\n".join(text.splitlines()[:100])
-
     parsed = await cap.client(CheckHistoryImportRequest(import_head=head))
-    peer = await resolve_chat_peer(cap.client, int(chat["tg_chat_id"]))
     checked = await cap.client(CheckHistoryImportPeerRequest(peer=peer))
     info: dict[str, Any] = {
         "chat": chat["title"],
+        "stage": stage or "all",
         "parsed": {
             "pm": bool(getattr(parsed, "pm", False)),
             "group": bool(getattr(parsed, "group", False)),
@@ -212,7 +259,7 @@ async def import_history(cap: Capture, job: dict[str, Any]) -> dict[str, Any]:
         },
         "confirmText": getattr(checked, "confirm_text", None),
         "lines": len(text.splitlines()),
-        "media": len(media),
+        "media": media_count,
         "dryRun": dry_run,
     }
     if dry_run:
@@ -221,20 +268,41 @@ async def import_history(cap: Capture, job: dict[str, Any]) -> dict[str, Any]:
     try:
         file_name = str(params.get("fileName") or "WhatsApp Chat.txt")
         up = await cap.client.upload_file(text.encode("utf-8"), file_name=file_name)
-        imp = await cap.client(InitHistoryImportRequest(peer=peer, file=up, media_count=len(media)))
-        await cap.db.progress_job(job["id"], {"importId": int(imp.id), "media": 0, "total": len(media)})
-        for n, m in enumerate(media, start=1):
-            bio = decode_photo(m)
-            name = str(m.get("name") or bio.name)
-            f = await cap.client.upload_file(bio.getvalue(), file_name=name)
-            await cap.client(
-                UploadImportedMediaRequest(
-                    peer=peer, import_id=imp.id, file_name=name, media=InputMediaUploadedPhoto(file=f)
-                )
-            )
-            await cap.db.progress_job(job["id"], {"importId": int(imp.id), "media": n, "total": len(media)})
+        imp = await cap.client(InitHistoryImportRequest(peer=peer, file=up, media_count=media_count))
+        info["importId"] = str(imp.id)
+        await cap.db.progress_job(job["id"], {"importId": str(imp.id), "media": 0, "total": media_count})
+        if stage == "init":
+            return info
+        await upload_media(int(imp.id))
         await cap.client(StartHistoryImportRequest(peer=peer, import_id=imp.id))
     finally:
         await cap.db.strip_import_payload(int(job["id"]), len(text), len(media))
-    info["importId"] = int(imp.id)
     return info
+
+
+async def scan_ids(cap: Capture, job: dict[str, Any]) -> dict[str, Any]:
+    """Які повідомлення чату Telegram досі віддає (пережили очищення): [[id, дата UTC], …]. Лише читання."""
+    params = job.get("params") or {}
+    chat = await cap.db.get_chat_by_id(int(params["chatId"]))
+    if chat is None:
+        raise ValueError(f"chat {params.get('chatId')} not found")
+    found: list[list[Any]] = []
+    last_id = 0
+    while True:
+        try:
+            kwargs: dict[str, Any] = {"reverse": True, "wait_time": 1}
+            if last_id:
+                kwargs["min_id"] = last_id
+            async for m in cap.client.iter_messages(int(chat["tg_chat_id"]), **kwargs):
+                last_id = int(m.id)
+                if getattr(m, "action", None) is not None:
+                    continue
+                found.append([int(m.id), m.date.isoformat() if m.date else None])
+                if len(found) % 200 == 0:
+                    await cap.db.progress_job(job["id"], {"found": len(found)})
+            break
+        except FloodWaitError as e:
+            if e.seconds > MAX_FLOOD_WAIT_SEC:
+                raise
+            await asyncio.sleep(int(e.seconds) + 1)
+    return {"chat": chat["title"], "count": len(found), "ids": found}

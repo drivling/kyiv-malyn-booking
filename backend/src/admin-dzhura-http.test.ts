@@ -367,6 +367,14 @@ describe('/admin/dzhura', () => {
       .expect(201);
     expect(imp.body.job.params).toEqual({ chatId: 2, fileName: 'WhatsApp Chat.txt', dryRun: true, textChars: 26, mediaCount: 0 });
     await request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'import_history', chatId: 1, text: 'x' }).expect(400);
+    const part = await request(a)
+      .post('/admin/dzhura/jobs')
+      .set(auth)
+      .send({ type: 'import_history', chatId: 2, stage: 'media', importId: '42', media: [{ name: 'IMG-1.jpg', jpegBase64: jpeg }] })
+      .expect(201);
+    expect(part.body.job.params).toEqual({ chatId: 2, stage: 'media', importId: '42', mediaCount: 1 });
+    const scan = await request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'scan_ids', chatId: 2 }).expect(201);
+    expect(scan.body.job.params).toEqual({ chatId: 2 });
 
     (prisma as unknown as { dzhuraJob: { findFirst: () => Promise<unknown> } }).dzhuraJob.findFirst = async () => ({ id: 5, status: 'done' });
     const dup = await request(a).post('/admin/dzhura/jobs').set(auth).send(body).expect(409);

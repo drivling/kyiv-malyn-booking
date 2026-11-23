@@ -69,7 +69,9 @@ Roadmap і принципи: `Docs/dzhura-roadmap.md`. Ручний чекліс
   з WhatsApp»): `text` — файл у форматі експорту WhatsApp, повідомлення з'являються з іменами авторів, датами й позначкою
   «імпортовано»; `media` — картинки, згадані в тексті як `IMG-….jpg (file attached)`. Потрібні права адміна в групі.
   `dryRun` лише питає Telegram, чи розпізнано формат і чи пустить він імпорт у цей чат. Після імпорту текст і картинки
-  прибираються з `paramsJson`.
+  прибираються з `paramsJson`. Багато картинок — частинами: `stage: init` {text, mediaCount} → `importId` (рядок) →
+  `stage: media` {importId, media ≤ 20} скільки треба → `stage: start` {importId}; без start Telegram імпорт відкидає.
+- `scan_ids` {chatId} — які повідомлення чату Telegram досі віддає (`[[id, дата], …]`): що пережило очищення.
 - Картинки й файл імпорту готує локально `frontend/scripts/dzhura-history/render.mjs` (Chromium), ставлять у чергу
   `post.mjs` (пости) та `import.mjs` (імпорт).
 
