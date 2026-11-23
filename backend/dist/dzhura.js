@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.DZHURA_SEARCH_MAX_LEN = exports.DZHURA_MESSAGES_PAGE_MAX = exports.DZHURA_MESSAGES_PAGE = exports.DZHURA_QUEUE_RETRY_WINDOW_MS = exports.bigintReplacer = exports.DzhuraHttpError = exports.DZHURA_AUTOREPLY_NOTE_MAX_LEN = exports.DZHURA_AUTOREPLY_DELAY_MAX_SEC = exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = exports.DZHURA_IMPORT_MAX_MEDIA_TOTAL = exports.DZHURA_IMPORT_MAX_MEDIA = exports.DZHURA_IMPORT_MAX_TEXT = exports.DZHURA_POST_MAX_CAPTION = exports.DZHURA_POST_MAX_TEXT = exports.DZHURA_POST_MAX_PHOTO_BYTES = exports.DZHURA_POST_MAX_ITEMS = exports.DZHURA_GROUP_KINDS = exports.DZHURA_KYIV_TZ = exports.DZHURA_MAX_BACKFILL_DAYS = exports.DZHURA_HEARTBEAT_FRESH_MS = exports.DZHURA_EXPORT_LIMIT = void 0;
+exports.DZHURA_SEARCH_MAX_LEN = exports.DZHURA_MESSAGES_PAGE_MAX = exports.DZHURA_MESSAGES_PAGE = exports.DZHURA_QUEUE_RETRY_WINDOW_MS = exports.bigintReplacer = exports.DzhuraHttpError = exports.DZHURA_MODERATION_PROTECTED_MAX = exports.DZHURA_MODERATION_NOTE_MAX_LEN = exports.DZHURA_MODERATION_MODES = exports.DZHURA_AUTOREPLY_NOTE_MAX_LEN = exports.DZHURA_AUTOREPLY_DELAY_MAX_SEC = exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = exports.DZHURA_IMPORT_MAX_MEDIA_TOTAL = exports.DZHURA_IMPORT_MAX_MEDIA = exports.DZHURA_IMPORT_MAX_TEXT = exports.DZHURA_POST_MAX_CAPTION = exports.DZHURA_POST_MAX_TEXT = exports.DZHURA_POST_MAX_PHOTO_BYTES = exports.DZHURA_POST_MAX_ITEMS = exports.DZHURA_GROUP_KINDS = exports.DZHURA_KYIV_TZ = exports.DZHURA_MAX_BACKFILL_DAYS = exports.DZHURA_HEARTBEAT_FRESH_MS = exports.DZHURA_EXPORT_LIMIT = void 0;
 exports.parseIsoDate = parseIsoDate;
 exports.addDaysIso = addDaysIso;
 exports.daysBetweenInclusive = daysBetweenInclusive;
@@ -9,6 +9,7 @@ exports.kyivDayRangeUtc = kyivDayRangeUtc;
 exports.validateDateRange = validateDateRange;
 exports.exportFileName = exportFileName;
 exports.serializeChat = serializeChat;
+exports.parseProtectedList = parseProtectedList;
 exports.parseKindsFilter = parseKindsFilter;
 exports.listChats = listChats;
 exports.isAutoReplyAvailable = isAutoReplyAvailable;
@@ -50,6 +51,10 @@ exports.DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = 80;
 exports.DZHURA_AUTOREPLY_DELAY_MIN_SEC = 5;
 exports.DZHURA_AUTOREPLY_DELAY_MAX_SEC = 3600;
 exports.DZHURA_AUTOREPLY_NOTE_MAX_LEN = 2000;
+/** «Модерація» груп: режими, довжина підказки, скільки людей в адміністрації */
+exports.DZHURA_MODERATION_MODES = ['off', 'drafts'];
+exports.DZHURA_MODERATION_NOTE_MAX_LEN = 4000;
+exports.DZHURA_MODERATION_PROTECTED_MAX = 20;
 class DzhuraHttpError extends Error {
     constructor(status, message) {
         super(message);
@@ -150,11 +155,43 @@ function serializeChat(row) {
         autoReplyEnabled: row.autoReplyEnabled,
         autoReplyDelaySec: row.autoReplyDelaySec,
         autoReplyNote: row.autoReplyNote,
+        moderationMode: exports.DZHURA_MODERATION_MODES.includes(row.moderationMode)
+            ? row.moderationMode
+            : 'off',
+        moderationNote: row.moderationNote,
+        moderationProtected: parseProtectedList(row.moderationProtected, false),
         lastMessageAt: row.lastMessageAt ? row.lastMessageAt.toISOString() : null,
         lastCapturedAt: row.lastCapturedAt ? row.lastCapturedAt.toISOString() : null,
         dialogSyncedAt: row.dialogSyncedAt ? row.dialogSyncedAt.toISOString() : null,
         messagesCount: row._count.messages,
     };
+}
+/**
+ * Адміністрація чату для модерації: [{tgUserId, name, role}]. strict — для запиту (400 на помилку);
+ * інакше (читання з бази) погані записи просто пропускаються.
+ */
+function parseProtectedList(raw, strict = true) {
+    if (raw == null)
+        return [];
+    if (!Array.isArray(raw) || raw.length > exports.DZHURA_MODERATION_PROTECTED_MAX) {
+        if (strict)
+            throw new DzhuraHttpError(400, `moderationProtected — список до ${exports.DZHURA_MODERATION_PROTECTED_MAX} людей`);
+        return [];
+    }
+    const out = [];
+    for (const [i, it] of raw.entries()) {
+        const o = (it ?? {});
+        const tgUserId = String(o.tgUserId ?? '').trim();
+        const name = typeof o.name === 'string' ? o.name.trim() : '';
+        const role = typeof o.role === 'string' ? o.role.trim() : '';
+        if (!/^\d{1,20}$/.test(tgUserId) || !name || name.length > 60 || role.length > 120) {
+            if (strict)
+                throw new DzhuraHttpError(400, `Адміністрація ${i + 1}: tgUserId — число, name — 1–60, role — до 120 символів`);
+            continue;
+        }
+        out.push({ tgUserId, name, role });
+    }
+    return out;
 }
 /** ?kind=group,supergroup (default) | all | private … */
 function parseKindsFilter(raw) {
@@ -348,6 +385,24 @@ function parseChatPatch(body) {
         }
         patch.autoReplyNote = note || null;
     }
+    if ('moderationMode' in b) {
+        if (!exports.DZHURA_MODERATION_MODES.includes(b.moderationMode)) {
+            throw new DzhuraHttpError(400, `moderationMode — ${exports.DZHURA_MODERATION_MODES.join(' або ')}`);
+        }
+        patch.moderationMode = b.moderationMode;
+    }
+    if ('moderationNote' in b) {
+        if (b.moderationNote !== null && typeof b.moderationNote !== 'string') {
+            throw new DzhuraHttpError(400, 'moderationNote має бути рядком або null');
+        }
+        const note = (b.moderationNote ?? '').trim();
+        if (note.length > exports.DZHURA_MODERATION_NOTE_MAX_LEN) {
+            throw new DzhuraHttpError(400, `Підказка модерації задовга (до ${exports.DZHURA_MODERATION_NOTE_MAX_LEN} символів)`);
+        }
+        patch.moderationNote = note || null;
+    }
+    if ('moderationProtected' in b)
+        patch.moderationProtected = parseProtectedList(b.moderationProtected);
     if (Object.keys(patch).length === 0) {
         throw new DzhuraHttpError(400, 'Нема що змінювати');
     }
@@ -374,13 +429,25 @@ async function updateChatFlags(prisma, chatId, patch) {
         data.autoReplyDelaySec = patch.autoReplyDelaySec;
     if (patch.autoReplyNote !== undefined)
         data.autoReplyNote = patch.autoReplyNote;
+    if (patch.moderationMode === 'drafts' && (existing.isLunchGroup || !exports.DZHURA_GROUP_KINDS.includes(existing.kind))) {
+        throw new DzhuraHttpError(400, 'Модерація — лише для звичайних груп (не група обідів і не особисті)');
+    }
+    if (patch.moderationMode !== undefined)
+        data.moderationMode = patch.moderationMode;
+    if (patch.moderationNote !== undefined)
+        data.moderationNote = patch.moderationNote;
+    if (patch.moderationProtected !== undefined) {
+        data.moderationProtected = patch.moderationProtected;
+    }
     // Без читання нема куди дублювати і нема з чого відповідати (контекст і стиль беруться зі збереженого).
     const nextCapture = patch.captureEnabled ?? existing.captureEnabled;
     if (!nextCapture) {
-        if (patch.autoReplyEnabled === true)
+        if (patch.autoReplyEnabled === true || patch.moderationMode === 'drafts') {
             throw new DzhuraHttpError(400, 'Спершу ввімкніть «Читати»');
+        }
         data.relayToSaved = false;
         data.autoReplyEnabled = false;
+        data.moderationMode = 'off';
     }
     const row = await prisma.dzhuraChat.update({
         where: { id: chatId },
@@ -534,6 +601,13 @@ function parseJobRequest(body) {
         return { type: 'avatars', chatId: parseChatId(b.chatId) };
     if (b.type === 'scan_ids')
         return { type: 'scan_ids', chatId: parseChatId(b.chatId) };
+    if (b.type === 'moderation_preview') {
+        const chatId = parseChatId(b.chatId);
+        const at = String(b.atTgMessageId ?? '').trim();
+        if (!/^\d{1,20}$/.test(at))
+            throw new DzhuraHttpError(400, 'atTgMessageId — номер повідомлення в чаті');
+        return { type: 'moderation_preview', chatId, atTgMessageId: at };
+    }
     if (b.type === 'import_history')
         return parseImportRequest(b);
     if (b.type === 'post_items') {
@@ -574,7 +648,10 @@ async function createJob(prisma, req) {
             if (!isAutoReplyAvailable())
                 throw new DzhuraHttpError(400, 'У бекенда немає ANTHROPIC_API_KEY');
         }
-        if ((req.type === 'post_items' || req.type === 'import_history') && (chat.isLunchGroup || !exports.DZHURA_GROUP_KINDS.includes(chat.kind))) {
+        if (req.type === 'moderation_preview' && !chat.captureEnabled) {
+            throw new DzhuraHttpError(400, 'Спершу ввімкніть «Читати»');
+        }
+        if ((req.type === 'post_items' || req.type === 'import_history' || req.type === 'moderation_preview') && (chat.isLunchGroup || !exports.DZHURA_GROUP_KINDS.includes(chat.kind))) {
             throw new DzhuraHttpError(400, 'Публікуємо лише у звичайні групи (не в групу обідів і не в особисті)');
         }
     }
@@ -584,9 +661,11 @@ async function createJob(prisma, req) {
         ? importParams(req)
         : req.type === 'backfill'
             ? { chatId: req.chatId, from: req.from, to: req.to }
-            : req.type === 'autoreply_preview' || req.type === 'avatars' || req.type === 'scan_ids'
-                ? { chatId: req.chatId }
-                : undefined;
+            : req.type === 'moderation_preview'
+                ? { chatId: req.chatId, atTgMessageId: req.atTgMessageId }
+                : req.type === 'autoreply_preview' || req.type === 'avatars' || req.type === 'scan_ids'
+                    ? { chatId: req.chatId }
+                    : undefined;
     const active = await prisma.dzhuraJob.findFirst({
         where: { type: req.type, status: { in: ['pending', 'running'] } },
         orderBy: { createdAt: 'desc' },

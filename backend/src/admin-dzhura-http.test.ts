@@ -42,6 +42,9 @@ function makeStub() {
       autoReplyEnabled: false,
       autoReplyDelaySec: 80,
       autoReplyNote: null,
+      moderationMode: 'off',
+      moderationNote: null,
+      moderationProtected: null,
       lastMessageAt: new Date('2026-09-25T09:00:00Z'),
       lastCapturedAt: new Date('2026-09-25T09:00:01Z'),
       dialogSyncedAt: new Date('2026-09-25T08:00:00Z'),
@@ -60,6 +63,9 @@ function makeStub() {
       autoReplyEnabled: false,
       autoReplyDelaySec: 80,
       autoReplyNote: null,
+      moderationMode: 'off',
+      moderationNote: null,
+      moderationProtected: null,
       lastMessageAt: null,
       lastCapturedAt: null,
       dialogSyncedAt: null,
@@ -78,6 +84,9 @@ function makeStub() {
       autoReplyEnabled: false,
       autoReplyDelaySec: 80,
       autoReplyNote: null,
+      moderationMode: 'off',
+      moderationNote: null,
+      moderationProtected: null,
       lastMessageAt: null,
       lastCapturedAt: null,
       dialogSyncedAt: null,
@@ -255,7 +264,7 @@ describe('/admin/dzhura', () => {
       .expect(200);
     expect(on.body).toMatchObject({ id: 2, captureEnabled: true, relayToSaved: true });
     await request(a).patch('/admin/dzhura/chats/2').set(auth).send({ captureEnabled: false }).expect(200);
-    expect(updates[1].data).toEqual({ captureEnabled: false, relayToSaved: false, autoReplyEnabled: false });
+    expect(updates[1].data).toEqual({ captureEnabled: false, relayToSaved: false, autoReplyEnabled: false, moderationMode: 'off' });
     await request(a).patch('/admin/dzhura/chats/2').set(auth).send({}).expect(400);
     await request(a).patch('/admin/dzhura/chats/99').set(auth).send({ relayToSaved: true }).expect(404);
   });
@@ -294,7 +303,46 @@ describe('/admin/dzhura', () => {
     // без «Читати» відповідати нема з чого: галочка знімається разом із читанням, секунди лишаються
     const off = await request(a).patch('/admin/dzhura/chats/3').set(auth).send({ captureEnabled: false }).expect(200);
     expect(off.body).toMatchObject({ captureEnabled: false, autoReplyEnabled: false, autoReplyDelaySec: 120 });
-    expect(updates.at(-1)?.data).toEqual({ captureEnabled: false, relayToSaved: false, autoReplyEnabled: false });
+    expect(updates.at(-1)?.data).toEqual({ captureEnabled: false, relayToSaved: false, autoReplyEnabled: false, moderationMode: 'off' });
+  });
+
+  test('PATCH модерація: лише звичайна група з «Читати»; адміністрація й підказка; preview-задача', async () => {
+    const { prisma, chats } = makeStub();
+    const a = await app(prisma);
+    const protectedList = [
+      { tgUserId: '5566322982', name: 'Ирада', role: 'голова правління, адмін' },
+      { tgUserId: '1000184360', name: 'Софія', role: 'помічниця' },
+    ];
+    // група без «Читати» — спершу читання
+    await request(a).patch('/admin/dzhura/chats/2').set(auth).send({ moderationMode: 'drafts' }).expect(400);
+    const on = await request(a)
+      .patch('/admin/dzhura/chats/2')
+      .set(auth)
+      .send({ captureEnabled: true, moderationMode: 'drafts', moderationNote: '  Внески — ліфти й прибирання. ', moderationProtected: protectedList })
+      .expect(200);
+    expect(on.body).toMatchObject({ moderationMode: 'drafts', moderationNote: 'Внески — ліфти й прибирання.', moderationProtected: protectedList });
+    // особистий чат і група обідів — ні
+    await request(a).patch('/admin/dzhura/chats/3').set(auth).send({ moderationMode: 'drafts' }).expect(400);
+    await request(a).patch('/admin/dzhura/chats/1').set(auth).send({ moderationMode: 'drafts' }).expect(400);
+    // погані значення
+    await request(a).patch('/admin/dzhura/chats/2').set(auth).send({ moderationMode: 'live' }).expect(400);
+    await request(a).patch('/admin/dzhura/chats/2').set(auth).send({ moderationProtected: [{ tgUserId: 'x', name: 'A' }] }).expect(400);
+    await request(a).patch('/admin/dzhura/chats/2').set(auth).send({ moderationNote: 'x'.repeat(4001) }).expect(400);
+    // вимкнення читання вимикає й модерацію
+    const off = await request(a).patch('/admin/dzhura/chats/2').set(auth).send({ captureEnabled: false }).expect(200);
+    expect(off.body.moderationMode).toBe('off');
+    expect(chats.find((c) => c.id === 2)?.moderationMode).toBe('off');
+
+    // preview: лише чат, що читається
+    await request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'moderation_preview', chatId: 2, atTgMessageId: '7341' }).expect(400);
+    await request(a).patch('/admin/dzhura/chats/2').set(auth).send({ captureEnabled: true }).expect(200);
+    const job = await request(a)
+      .post('/admin/dzhura/jobs')
+      .set(auth)
+      .send({ type: 'moderation_preview', chatId: 2, atTgMessageId: 7341 })
+      .expect(201);
+    expect(job.body.job.params).toEqual({ chatId: 2, atTgMessageId: '7341' });
+    await request(a).post('/admin/dzhura/jobs').set(auth).send({ type: 'moderation_preview', chatId: 2, atTgMessageId: 'abc' }).expect(400);
   });
 
   test('POST jobs autoreply_preview: особистий чат із «Читати» і ключем Claude', async () => {

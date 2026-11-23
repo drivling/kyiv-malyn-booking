@@ -22,7 +22,8 @@ export type DzhuraJobType =
   | 'avatars'
   | 'post_items'
   | 'import_history'
-  | 'scan_ids';
+  | 'scan_ids'
+  | 'moderation_preview';
 /** Відновлення історії (`post_items`): пости в одній задачі, розмір картинки, довжини тексту й підпису Telegram */
 export const DZHURA_POST_MAX_ITEMS = 10;
 export const DZHURA_POST_MAX_PHOTO_BYTES = 1_000_000;
@@ -38,6 +39,17 @@ export const DZHURA_AUTOREPLY_DELAY_DEFAULT_SEC = 80;
 export const DZHURA_AUTOREPLY_DELAY_MIN_SEC = 5;
 export const DZHURA_AUTOREPLY_DELAY_MAX_SEC = 3600;
 export const DZHURA_AUTOREPLY_NOTE_MAX_LEN = 2000;
+/** «Модерація» груп: режими, довжина підказки, скільки людей в адміністрації */
+export const DZHURA_MODERATION_MODES = ['off', 'drafts'] as const;
+export type DzhuraModerationMode = (typeof DZHURA_MODERATION_MODES)[number];
+export const DZHURA_MODERATION_NOTE_MAX_LEN = 4000;
+export const DZHURA_MODERATION_PROTECTED_MAX = 20;
+
+export interface DzhuraProtectedPerson {
+  tgUserId: string;
+  name: string;
+  role: string;
+}
 
 export class DzhuraHttpError extends Error {
   constructor(public status: number, message: string) {
@@ -143,6 +155,10 @@ export interface DzhuraChatDto {
   autoReplyEnabled: boolean;
   autoReplyDelaySec: number;
   autoReplyNote: string | null;
+  /** «Модерація» (лише групи): drafts — чернетки відповіді на наїзди з флудом у «Обране», у групу нічого */
+  moderationMode: DzhuraModerationMode;
+  moderationNote: string | null;
+  moderationProtected: DzhuraProtectedPerson[];
   lastMessageAt: string | null;
   lastCapturedAt: string | null;
   dialogSyncedAt: string | null;
@@ -165,11 +181,41 @@ export function serializeChat(row: ChatRowWithCount): DzhuraChatDto {
     autoReplyEnabled: row.autoReplyEnabled,
     autoReplyDelaySec: row.autoReplyDelaySec,
     autoReplyNote: row.autoReplyNote,
+    moderationMode: (DZHURA_MODERATION_MODES as readonly string[]).includes(row.moderationMode)
+      ? (row.moderationMode as DzhuraModerationMode)
+      : 'off',
+    moderationNote: row.moderationNote,
+    moderationProtected: parseProtectedList(row.moderationProtected, false),
     lastMessageAt: row.lastMessageAt ? row.lastMessageAt.toISOString() : null,
     lastCapturedAt: row.lastCapturedAt ? row.lastCapturedAt.toISOString() : null,
     dialogSyncedAt: row.dialogSyncedAt ? row.dialogSyncedAt.toISOString() : null,
     messagesCount: row._count.messages,
   };
+}
+
+/**
+ * Адміністрація чату для модерації: [{tgUserId, name, role}]. strict — для запиту (400 на помилку);
+ * інакше (читання з бази) погані записи просто пропускаються.
+ */
+export function parseProtectedList(raw: unknown, strict = true): DzhuraProtectedPerson[] {
+  if (raw == null) return [];
+  if (!Array.isArray(raw) || raw.length > DZHURA_MODERATION_PROTECTED_MAX) {
+    if (strict) throw new DzhuraHttpError(400, `moderationProtected — список до ${DZHURA_MODERATION_PROTECTED_MAX} людей`);
+    return [];
+  }
+  const out: DzhuraProtectedPerson[] = [];
+  for (const [i, it] of raw.entries()) {
+    const o = (it ?? {}) as Record<string, unknown>;
+    const tgUserId = String(o.tgUserId ?? '').trim();
+    const name = typeof o.name === 'string' ? o.name.trim() : '';
+    const role = typeof o.role === 'string' ? o.role.trim() : '';
+    if (!/^\d{1,20}$/.test(tgUserId) || !name || name.length > 60 || role.length > 120) {
+      if (strict) throw new DzhuraHttpError(400, `Адміністрація ${i + 1}: tgUserId — число, name — 1–60, role — до 120 символів`);
+      continue;
+    }
+    out.push({ tgUserId, name, role });
+  }
+  return out;
 }
 
 /** ?kind=group,supergroup (default) | all | private … */
@@ -394,6 +440,9 @@ export interface DzhuraChatPatch {
   autoReplyDelaySec?: number;
   /** null або порожній рядок — прибрати підказку */
   autoReplyNote?: string | null;
+  moderationMode?: DzhuraModerationMode;
+  moderationNote?: string | null;
+  moderationProtected?: DzhuraProtectedPerson[];
 }
 
 export function parseChatPatch(body: unknown): DzhuraChatPatch {
@@ -436,6 +485,23 @@ export function parseChatPatch(body: unknown): DzhuraChatPatch {
     }
     patch.autoReplyNote = note || null;
   }
+  if ('moderationMode' in b) {
+    if (!(DZHURA_MODERATION_MODES as readonly unknown[]).includes(b.moderationMode)) {
+      throw new DzhuraHttpError(400, `moderationMode — ${DZHURA_MODERATION_MODES.join(' або ')}`);
+    }
+    patch.moderationMode = b.moderationMode as DzhuraModerationMode;
+  }
+  if ('moderationNote' in b) {
+    if (b.moderationNote !== null && typeof b.moderationNote !== 'string') {
+      throw new DzhuraHttpError(400, 'moderationNote має бути рядком або null');
+    }
+    const note = (b.moderationNote ?? '').trim();
+    if (note.length > DZHURA_MODERATION_NOTE_MAX_LEN) {
+      throw new DzhuraHttpError(400, `Підказка модерації задовга (до ${DZHURA_MODERATION_NOTE_MAX_LEN} символів)`);
+    }
+    patch.moderationNote = note || null;
+  }
+  if ('moderationProtected' in b) patch.moderationProtected = parseProtectedList(b.moderationProtected);
   if (Object.keys(patch).length === 0) {
     throw new DzhuraHttpError(400, 'Нема що змінювати');
   }
@@ -457,12 +523,23 @@ export async function updateChatFlags(prisma: PrismaClient, chatId: number, patc
   if (patch.autoReplyEnabled !== undefined) data.autoReplyEnabled = patch.autoReplyEnabled;
   if (patch.autoReplyDelaySec !== undefined) data.autoReplyDelaySec = patch.autoReplyDelaySec;
   if (patch.autoReplyNote !== undefined) data.autoReplyNote = patch.autoReplyNote;
+  if (patch.moderationMode === 'drafts' && (existing.isLunchGroup || !(DZHURA_GROUP_KINDS as readonly string[]).includes(existing.kind))) {
+    throw new DzhuraHttpError(400, 'Модерація — лише для звичайних груп (не група обідів і не особисті)');
+  }
+  if (patch.moderationMode !== undefined) data.moderationMode = patch.moderationMode;
+  if (patch.moderationNote !== undefined) data.moderationNote = patch.moderationNote;
+  if (patch.moderationProtected !== undefined) {
+    data.moderationProtected = patch.moderationProtected as unknown as Prisma.InputJsonValue;
+  }
   // Без читання нема куди дублювати і нема з чого відповідати (контекст і стиль беруться зі збереженого).
   const nextCapture = patch.captureEnabled ?? existing.captureEnabled;
   if (!nextCapture) {
-    if (patch.autoReplyEnabled === true) throw new DzhuraHttpError(400, 'Спершу ввімкніть «Читати»');
+    if (patch.autoReplyEnabled === true || patch.moderationMode === 'drafts') {
+      throw new DzhuraHttpError(400, 'Спершу ввімкніть «Читати»');
+    }
     data.relayToSaved = false;
     data.autoReplyEnabled = false;
+    data.moderationMode = 'off';
   }
   const row = await prisma.dzhuraChat.update({
     where: { id: chatId },
@@ -551,7 +628,9 @@ export type DzhuraJobRequest =
       media: Array<{ name: string; jpegBase64: string }>;
     }
   /** Які повідомлення чату Telegram досі віддає (пережили очищення) — у результат задачі */
-  | { type: 'scan_ids'; chatId: number };
+  | { type: 'scan_ids'; chatId: number }
+  /** Модерація «як було б»: через 16 хв після повідомлення atTgMessageId — у результат задачі, у чат нічого */
+  | { type: 'moderation_preview'; chatId: number; atTgMessageId: string };
 
 export type DzhuraImportStage = 'init' | 'media' | 'start';
 
@@ -660,6 +739,12 @@ export function parseJobRequest(body: unknown): DzhuraJobRequest {
   if (b.type === 'sync_dialogs') return { type: 'sync_dialogs' };
   if (b.type === 'avatars') return { type: 'avatars', chatId: parseChatId(b.chatId) };
   if (b.type === 'scan_ids') return { type: 'scan_ids', chatId: parseChatId(b.chatId) };
+  if (b.type === 'moderation_preview') {
+    const chatId = parseChatId(b.chatId);
+    const at = String(b.atTgMessageId ?? '').trim();
+    if (!/^\d{1,20}$/.test(at)) throw new DzhuraHttpError(400, 'atTgMessageId — номер повідомлення в чаті');
+    return { type: 'moderation_preview', chatId, atTgMessageId: at };
+  }
   if (b.type === 'import_history') return parseImportRequest(b);
   if (b.type === 'post_items') {
     const chatId = parseChatId(b.chatId);
@@ -692,7 +777,10 @@ export async function createJob(prisma: PrismaClient, req: DzhuraJobRequest): Pr
       if (!chat.captureEnabled) throw new DzhuraHttpError(400, 'Спершу ввімкніть «Читати»');
       if (!isAutoReplyAvailable()) throw new DzhuraHttpError(400, 'У бекенда немає ANTHROPIC_API_KEY');
     }
-    if ((req.type === 'post_items' || req.type === 'import_history') && (chat.isLunchGroup || !(DZHURA_GROUP_KINDS as readonly string[]).includes(chat.kind))) {
+    if (req.type === 'moderation_preview' && !chat.captureEnabled) {
+      throw new DzhuraHttpError(400, 'Спершу ввімкніть «Читати»');
+    }
+    if ((req.type === 'post_items' || req.type === 'import_history' || req.type === 'moderation_preview') && (chat.isLunchGroup || !(DZHURA_GROUP_KINDS as readonly string[]).includes(chat.kind))) {
       throw new DzhuraHttpError(400, 'Публікуємо лише у звичайні групи (не в групу обідів і не в особисті)');
     }
   }
@@ -702,6 +790,8 @@ export async function createJob(prisma: PrismaClient, req: DzhuraJobRequest): Pr
       ? (importParams(req) as unknown as Prisma.InputJsonValue)
       : req.type === 'backfill'
       ? { chatId: req.chatId, from: req.from, to: req.to }
+      : req.type === 'moderation_preview'
+        ? { chatId: req.chatId, atTgMessageId: req.atTgMessageId }
       : req.type === 'autoreply_preview' || req.type === 'avatars' || req.type === 'scan_ids'
         ? { chatId: req.chatId }
         : undefined;

@@ -34,6 +34,7 @@ from telethon.tl.types import (
 )
 
 from dzhura.db import DzhuraDB
+from dzhura.moderator import Moderator
 from dzhura.responder import AutoResponder
 from dzhura.relay import (
     chat_label,
@@ -106,6 +107,7 @@ class Capture:
         self.queue: asyncio.Queue = asyncio.Queue(maxsize=QUEUE_MAX)
         self.dropped = 0
         self.responder: Optional[AutoResponder] = None
+        self.moderator: Optional[Moderator] = None
 
     # ---------------- Telethon handlers (дешеві) ----------------
 
@@ -512,6 +514,12 @@ class Capture:
                             result = await import_history(self, job)
                         elif job["type"] == "scan_ids":
                             result = await scan_ids(self, job)
+                        elif job["type"] == "moderation_preview":
+                            if self.moderator is None:
+                                raise RuntimeError("модерація не підключена")
+                            result = await self.moderator.preview(
+                                int(job["params"]["chatId"]), int(str(job["params"]["atTgMessageId"]))
+                            )
                         elif job["type"] == "autoreply_preview":
                             if self.responder is None:
                                 raise RuntimeError("автовідповідь не підключена")
@@ -553,6 +561,7 @@ def attach(
     db = DzhuraDB(pool)
     cap = Capture(client, db, int(me.id), int(lunch_group_id), lunch_group_title)
     cap.responder = AutoResponder(client, db, cap, owner_name=getattr(me, "first_name", None))
+    cap.moderator = Moderator(db, cap)
     client.add_event_handler(cap.on_new_message, events.NewMessage())
     client.add_event_handler(cap.on_edited, events.MessageEdited())
     client.add_event_handler(cap.on_raw_reactions, events.Raw(types=[UpdateMessageReactions]))
@@ -565,4 +574,4 @@ def attach(
         f"attached me={me.id} lunch_group={lunch_group_id} "
         f"autoreply={'on' if cap.responder.available else 'off (немає ANTHROPIC_API_KEY або DZHURA_AUTOREPLY_ENABLED=0)'}"
     )
-    return [cap.writer(), cap.maintenance_loop(), cap.job_loop()]
+    return [cap.writer(), cap.maintenance_loop(), cap.job_loop(), cap.moderator.loop()]

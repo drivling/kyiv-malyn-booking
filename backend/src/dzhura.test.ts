@@ -20,6 +20,7 @@ import {
   parseIsoDate,
   compactJobParams,
   parseJobRequest,
+  parseProtectedList,
   parseKindsFilter,
   parseMessagesQuery,
   personDisplayName,
@@ -221,6 +222,28 @@ describe('parsers', () => {
     expect(() => parseJobRequest({ type: 'import_history', chatId: 4, stage: 'go', text })).toThrow(/stage/);
     expect(parseJobRequest({ type: 'scan_ids', chatId: '5' })).toEqual({ type: 'scan_ids', chatId: 5 });
     expect(() => parseJobRequest({ type: 'scan_ids' })).toThrow(/chatId/);
+  });
+
+  test('parseChatPatch / parseProtectedList: модерація', () => {
+    expect(parseChatPatch({ moderationMode: 'drafts', moderationNote: ' ', moderationProtected: [{ tgUserId: 7, name: ' Ирада ', role: '' }] })).toEqual({
+      moderationMode: 'drafts',
+      moderationNote: null,
+      moderationProtected: [{ tgUserId: '7', name: 'Ирада', role: '' }],
+    });
+    expect(() => parseChatPatch({ moderationMode: 'live' })).toThrow(/moderationMode/);
+    expect(() => parseChatPatch({ moderationProtected: 'Ирада' })).toThrow(/список/);
+    expect(() => parseChatPatch({ moderationProtected: [{ tgUserId: '1', name: '' }] })).toThrow(/name/);
+    // з бази — погані записи пропускаються мовчки
+    expect(parseProtectedList([{ tgUserId: '1', name: 'A' }, { tgUserId: 'x', name: 'B' }, 5], false)).toEqual([
+      { tgUserId: '1', name: 'A', role: '' },
+    ]);
+    expect(parseProtectedList('щось', false)).toEqual([]);
+    expect(parseJobRequest({ type: 'moderation_preview', chatId: 3, atTgMessageId: '7341' })).toEqual({
+      type: 'moderation_preview',
+      chatId: 3,
+      atTgMessageId: '7341',
+    });
+    expect(() => parseJobRequest({ type: 'moderation_preview', chatId: 3 })).toThrow(/atTgMessageId/);
   });
 
   test('compactJobParams: у списку задач без base64', () => {
