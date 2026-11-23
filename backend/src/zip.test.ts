@@ -1,36 +1,6 @@
 import { test } from 'vitest';
 import assert from 'node:assert/strict';
-import { inflateRawSync } from 'zlib';
-import { buildZip, crc32 } from './zip';
-
-/** Читач за central directory — так само, як розпаковують `unzip` і браузери */
-function readZip(zip: Buffer): Array<{ name: string; data: Buffer; method: number; crc: number }> {
-  const eocd = zip.length - 22;
-  assert.equal(zip.readUInt32LE(eocd), 0x06054b50, 'EOCD signature');
-  const count = zip.readUInt16LE(eocd + 10);
-  let p = zip.readUInt32LE(eocd + 16);
-  const out = [];
-  for (let i = 0; i < count; i++) {
-    assert.equal(zip.readUInt32LE(p), 0x02014b50, 'central header signature');
-    const method = zip.readUInt16LE(p + 10);
-    const crc = zip.readUInt32LE(p + 16);
-    const compressed = zip.readUInt32LE(p + 20);
-    const nameLen = zip.readUInt16LE(p + 28);
-    const extraLen = zip.readUInt16LE(p + 30);
-    const commentLen = zip.readUInt16LE(p + 32);
-    const localOffset = zip.readUInt32LE(p + 42);
-    const name = zip.subarray(p + 46, p + 46 + nameLen).toString('utf8');
-    assert.equal(zip.readUInt32LE(localOffset), 0x04034b50, 'local header signature');
-    const localNameLen = zip.readUInt16LE(localOffset + 26);
-    const localExtraLen = zip.readUInt16LE(localOffset + 28);
-    const start = localOffset + 30 + localNameLen + localExtraLen;
-    const body = zip.subarray(start, start + compressed);
-    const data = method === 8 ? inflateRawSync(body) : Buffer.from(body);
-    out.push({ name, data, method, crc });
-    p += 46 + nameLen + extraLen + commentLen;
-  }
-  return out;
-}
+import { buildZip, crc32, readZip } from './zip';
 
 test('crc32 matches the reference value for "123456789"', () => {
   assert.equal(crc32(Buffer.from('123456789')), 0xcbf43926);
