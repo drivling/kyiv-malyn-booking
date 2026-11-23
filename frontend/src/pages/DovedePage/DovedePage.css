@@ -2681,6 +2681,20 @@ button.dv-tear__slip:active {
 .dv-ride__agency {
   font-size: 12px;
 }
+.dv-ride__service {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--dv-ink);
+  font-variant-numeric: tabular-nums;
+}
+.dv-ride__service--gone {
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--dv-bad-soft);
+  color: var(--dv-bad);
+}
 .dv-ride__foot {
   display: flex;
   flex-wrap: wrap;

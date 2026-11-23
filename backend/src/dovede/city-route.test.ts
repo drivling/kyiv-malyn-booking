@@ -10,6 +10,7 @@ import { createDovedeSettings } from './settings';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
 import { MODE_PAIRS, SEED_PAIRS, createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, waypoint, type CityRouteQuery } from './city-route';
+import { KYIV_TAXI } from './kyiv-taxi-data';
 
 type Row = Record<string, unknown>;
 
@@ -871,4 +872,31 @@ test('HTTP адмінки «Місто»: дороги місця й попит 
   assert.equal((await request(server).get('/admin/dovede/city/demand?only=all').set('Authorization', AUTH)).status, 400);
   const d = await request(server).get('/admin/dovede/city/demand?city=Zhytomyr').set('Authorization', AUTH);
   assert.equal(d.body.demand[0].to, 'Польова 12');
+});
+
+test('Київ (крок 8б): маршрутка з переліку міста несе свою частоту — і щойно від Google, і з бази; у базі лишається відповідь Google', async () => {
+  const body = structuredClone(GOOGLE);
+  const transit = body.routes[0].legs[0].steps[2].transitDetails as { transitLine: { nameShort: string; vehicle: { type: string } } };
+  transit.transitLine.nameShort = '242';
+  transit.transitLine.vehicle.type = 'SHARE_TAXI';
+  const kq: CityRouteQuery = { ...Q, city: 'Kyiv', from: 'kyiv.pas', to: 'вулиця Ентузіастів 7' };
+  const taxi = KYIV_TAXI.routes.find((r) => r.no === '242');
+  assert.ok(taxi?.every);
+  const t = make({ ownEnabled: () => true }, body);
+  for (const source of ['google', 'stored']) {
+    const got = await t.svc.find(kq);
+    assert.ok(got.ok);
+    assert.equal(got.source, source);
+    const ride = got.steps.find((s) => s.kind === 'transit');
+    assert.deepEqual([ride?.own, ride?.headwayMin, ride?.headwayMax], [true, taxi.every[0], taxi.every[1]]);
+  }
+  assert.equal(t.calls.length, 1);
+  const saved = (t.dovedeCityRoute.rows[0].steps as Array<{ kind: string; own?: boolean; headwayMin?: number }>).find((s) => s.kind === 'transit');
+  assert.deepEqual([saved?.own, saved?.headwayMin], [undefined, 10]);
+
+  // перемикач власних даних вимкнено — як дав Google
+  const off = make({ ownEnabled: () => false }, body);
+  const plain = await off.svc.find(kq);
+  assert.ok(plain.ok);
+  assert.equal(plain.steps.find((s) => s.kind === 'transit')?.own, undefined);
 });

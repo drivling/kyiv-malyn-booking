@@ -140,13 +140,6 @@ of `dist` in a commit.
   «are you a bot?» → silence, the owner answers). `DzhuraJob` type `autoreply_preview` runs the same request without
   sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
-  **Group moderation — drafts only** (`Docs/dzhura-moderation.md`, `dzhura/moderation.py` + `moderator.py`): a group
-  with `DzhuraChat.moderationMode = 'drafts'` is checked every 3 min; when members attack or troll the chat
-  administration (`moderationProtected`, plus the owner) and it turns into flood, Claude drafts a playful hint to that
-  person in their own manner plus a flood warning with a line about paying bills on time. The drafts go only to the
-  owner's Saved Messages (nothing is posted to the group, so no invariant is broken): 12–15 min later and only if
-  the administration stayed silent, once per person per Kyiv day, one warning per 3 h per chat, quiet 23–08, journal
-  `DzhuraModeration`; `DzhuraJob` `moderation_preview` replays a past moment. Env `DZHURA_MODERATION_*`.
   **Second exception — history restore** (one-off, `Docs/dzhura-history-restore.md`): `DzhuraJob` type `post_items`
   (`dzhura/restore.py`) posts, as the owner, exactly the posts a job carries (HTML text / JPEG base64, ≤ 10 per job,
   `batch` + `seq` unique, a failed part stops the rest) into the group / supergroup the job names — never the lunch
@@ -539,7 +532,15 @@ of `dist` in a commit.
   directions with 2–8 control points, weekday / weekend departures, minutes between points by departure hour) and
   `REPORT.md`; a test keeps both equal to the generator. Shapes are not used (65 % are straight 2–3-point lines);
   marshrutkas and suburban buses are not in the feed, so Google stays for them. `--fetch` takes the export address from
-  `KPT_GTFS_URL` — never commit it; it is unreachable from the cloud sandbox.
+  `KPT_GTFS_URL` — never commit it; it is unreachable from the cloud sandbox. Kyiv marshrutkas come from the city's own
+  list (data.kyivcity.gov.ua, CKAN datastore; snapshot `data/kyiv-transport/taxi/routes.json`, `--fetch-taxi`) →
+  `kyiv-taxi-data.ts` (`KYIV_TAXI`: number, termini, route minutes, departures every A–B min). Step 8б: every Kyiv answer
+  (fresh Google or stored) passes `withKyivOwnLines` (`dovede/kyiv-own-lines.ts`, called from `ownLines` in
+  `city-route.ts`, switch `city.own`): a KPT line (mode + number, Latin look-alikes = Cyrillic) takes our headway; with
+  stop coordinates (Google's answer or `DovedeCityStop`) within 500 m of its control-point line in order, also our ride
+  minutes, «останній о …», «перший о …» and «сьогодні вже не ходить» (`lastDeparts` / `firstDeparts` / `gone`); a
+  marshrutka from the list takes `headwayMin`–`headwayMax`. Such steps carry `own: true`; the DB keeps Google's answer
+  as is. Cards: `headwayText` / `serviceText` in `DovedePage/ui/format.ts`.
   Korosten city questions (stage 1, `DovedePage/korosten/korostenCity.ts`): the page holds a city (`Malyn` / `Korosten`,
   URL `c=Korosten`) and remounts the search per city (one planner on screen); Korosten words in a question switch it.
   Places are `StopPlace` entries of Korosten stops plus folk names (`KOROSTEN_ALIASES`), answers are `intra` /

@@ -59,6 +59,7 @@ export const CITY_DAILY_CAP_MAX = GOOGLE_DAILY_MAX;
 export const isValidDailyCap = (v: unknown): v is number => typeof v === 'number' && Number.isInteger(v) && v >= CITY_DAILY_CAP_MIN && v <= CITY_DAILY_CAP_MAX;
 const TIMEOUT_MS = 4000;
 import { ownZhytomyrRoute } from './zhytomyr-own';
+import { withKyivOwnLines } from './kyiv-own-lines';
 import { OWN_DATASET_CITY_CODES, byLearnCity, isLearnCity, type LearnCityCode } from './learn-cities';
 
 /** Міста зі своїм датасетом: збережена дорога пари годиться на будь-яку годину (`findStored`) */
@@ -109,6 +110,16 @@ export interface CityStep {
   headwayMin?: number;
   /** 'HH:MM' — відправлення з розкладу (лише власні дані) */
   departs?: string;
+  /** інтервал «від–до»: headwayMin … headwayMax (маршрутки з переліку міста) */
+  headwayMax?: number;
+  /** крок несе свої дані (лінія КПТ чи маршрутка з переліку Києва), а не Google */
+  own?: true;
+  /** 'HH:MM' — останній рейс від цієї зупинки сьогодні (свій розклад, коли вже скоро чи пішов) */
+  lastDeparts?: string;
+  /** 'HH:MM' — перший рейс ще не скоро */
+  firstDeparts?: string;
+  /** за своїм розкладом сьогодні вже не ходить */
+  gone?: true;
 }
 
 /** Одна збережена дорога місця (адмінка «Місто» → «Місця» → розгортка) */
@@ -398,6 +409,34 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     const stops = new Map(rows.filter((s) => passenger.has(s.id)).map((s) => [s.id, { name: s.name, lat: s.lat, lng: s.lng }]));
     stopCache.set(city, { at: now().getTime(), stops });
     return stops.get(id) ?? null;
+  }
+
+  /** Зупинки, які вже назвав Google (`DovedeCityStop`): назва → координати; для своїх ліній Києва (крок 8б) */
+  let googleStops: { at: number; byName: Map<string, { lat: number; lng: number }> } | null = null;
+  async function knownStops(city: CityCode): Promise<Map<string, { lat: number; lng: number }>> {
+    if (googleStops && now().getTime() - googleStops.at < STOP_CACHE_MS) return googleStops.byName;
+    const rows = await prisma.dovedeCityStop
+      .findMany({ where: { cityCode: city, archivedAt: null, lat: { not: null }, lng: { not: null } }, select: { name: true, lat: true, lng: true } })
+      .catch(() => []);
+    const byName = new Map(rows.map((r) => [r.name, { lat: r.lat as number, lng: r.lng as number }]));
+    googleStops = { at: now().getTime(), byName };
+    return byName;
+  }
+
+  /**
+   * Київ: кроки лініями «Київпастрансу» й маршрутками з переліку міста несуть свої інтервал, хвилини й «останній о …»
+   * (`withKyivOwnLines`). Вимикається тим самим перемикачем, що й власні дані Житомира (`city.own`)
+   */
+  async function ownLines(q: CityRouteQuery, steps: CityStep[], minutes: number, fresh?: ParsedGoogleRoute['stops']): Promise<{ steps: CityStep[]; minutes: number }> {
+    if (q.city !== 'Kyiv' || !(await ownEnabled())) return { steps, minutes };
+    try {
+      const fromAnswer = new Map((fresh ?? []).filter((s) => s.lat != null && s.lng != null).map((s) => [s.name, { lat: s.lat as number, lng: s.lng as number }]));
+      const stored = await knownStops(q.city);
+      return withKyivOwnLines({ steps, minutes, date: q.date, time: q.time, stopAt: (name) => fromAnswer.get(name.trim()) ?? stored.get(name.trim()) ?? null });
+    } catch (e) {
+      console.error('❌ city-route: свої лінії Києва:', e);
+      return { steps, minutes };
+    }
   }
 
   /** Точка питання: зупинка датасету міста за id (з координатами) або те, що знає `resolveCityPoint` */
@@ -714,7 +753,8 @@ export function createCityRoutes(deps: CityRoutesDeps) {
       } else {
         await markAnswered(q.city, from, to);
       }
-      return { ok: true, source: stored.source === 'own' ? 'own' : 'stored', city: q.city, fromLabel: stored.fromLabel, toLabel: stored.toLabel, steps: stored.steps as unknown as CityStep[], minutes: stored.minutes, fetchedAt: stored.fetchedAt.toISOString() };
+      const mine = await ownLines(q, stored.steps as unknown as CityStep[], stored.minutes);
+      return { ok: true, source: stored.source === 'own' ? 'own' : 'stored', city: q.city, fromLabel: stored.fromLabel, toLabel: stored.toLabel, steps: mine.steps, minutes: mine.minutes, fetchedAt: stored.fetchedAt.toISOString() };
     }
 
     const got = await askGoogle(q, from, to, background ? 'learn' : 'people', trace);
@@ -728,7 +768,8 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     }
     if (background) await markAnswered(q.city, from, to);
     else await noteDemand(q.city, from, to, true);
-    return { ok: true, source: 'google', city: q.city, fromLabel: from.label, toLabel: to.label, steps: got.steps, minutes: got.minutes, fetchedAt: now().toISOString() };
+    const mine = await ownLines(q, got.steps, got.minutes, got.stops);
+    return { ok: true, source: 'google', city: q.city, fromLabel: from.label, toLabel: to.label, steps: mine.steps, minutes: mine.minutes, fetchedAt: now().toISOString() };
   }
 
   /**

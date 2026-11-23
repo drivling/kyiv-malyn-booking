@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { CityRoute, CityStep, StoryLeg } from '../compose/types';
 import { cityModeName } from '../compose/narrate';
-import { checkedAgo, durationText, metersText, stopsText } from './format';
+import { checkedAgo, durationText, headwayText, metersText, serviceText, stopsText } from './format';
 
 type CityLeg = Extract<StoryLeg, { kind: 'city' }>;
 
@@ -24,7 +24,8 @@ function Ride({ s }: { s: CityStep }) {
     s.headsign ? `у бік «${s.headsign}»` : null,
     s.stops ? stopsText(s.stops) : null,
     `≈ ${durationText(s.minutes)}`,
-    s.headwayMin ? `кожні ≈ ${s.headwayMin} хв` : null,
+    s.gone ? null : headwayText(s),
+    serviceText(s),
   ].filter(Boolean);
   return (
     <li className="dv-city__ride" style={{ '--dv-cc': lineColor(s) } as CSSProperties}>
