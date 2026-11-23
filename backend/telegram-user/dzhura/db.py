@@ -15,7 +15,7 @@ from typing import Any, Iterable, Optional
 
 import asyncpg
 
-from dzhura.relay import naive_utc
+from dzhura.relay import display_name, naive_utc
 
 
 def _json(value: Any) -> Optional[str]:
@@ -99,7 +99,8 @@ class DzhuraDB:
             rows = await conn.fetch(
                 """
                 SELECT id, "tgChatId", kind, title, "relayToSaved", "lastCapturedTgMessageId",
-                       "autoReplyEnabled", "autoReplyDelaySec", "autoReplyNote"
+                       "autoReplyEnabled", "autoReplyDelaySec", "autoReplyNote",
+                       "moderationMode", "moderationNote", "moderationProtected"
                 FROM "DzhuraChat"
                 WHERE "captureEnabled" = TRUE
                 """
@@ -114,6 +115,9 @@ class DzhuraDB:
                 "auto_reply": bool(r["autoReplyEnabled"]),
                 "auto_reply_delay_sec": int(r["autoReplyDelaySec"]),
                 "auto_reply_note": r["autoReplyNote"],
+                "moderation_mode": r["moderationMode"] or "off",
+                "moderation_note": r["moderationNote"],
+                "moderation_protected": _loads(r["moderationProtected"]) or [],
                 "last_captured_tg_message_id": int(r["lastCapturedTgMessageId"])
                 if r["lastCapturedTgMessageId"] is not None
                 else None,
@@ -273,7 +277,7 @@ class DzhuraDB:
         async with self.pool.acquire() as conn:
             r = await conn.fetchrow(
                 """
-                SELECT m.id, m.text, m."isOutgoing", m."senderPersonId", m."editedAt", m."deletedAt",
+                SELECT m.id, m.text, m."isOutgoing", m."senderPersonId", m."editedAt", m."deletedAt", m."sentAt",
                        p."tgUserId" AS sender_tg_id, p."firstName", p."lastName", p.username
                 FROM "DzhuraMessage" m
                 LEFT JOIN "DzhuraPerson" p ON p.id = m."senderPersonId"
@@ -295,6 +299,7 @@ class DzhuraDB:
             "username": r["username"],
             "edited_at": r["editedAt"],
             "deleted_at": r["deletedAt"],
+            "sent_at": r["sentAt"],
         }
 
     async def apply_edit(self, message_id: int, prev_text: str, new_text: str, edited_at: Optional[datetime]) -> None:
@@ -395,6 +400,144 @@ class DzhuraDB:
             }
             for r in reversed(rows)
         ]
+
+    # ---------- модерація групи (moderator.py) ----------
+
+    async def moderation_rows(self, chat_id: int, until: datetime, limit: int, hours: int) -> list[dict[str, Any]]:
+        """Останні повідомлення чату до моменту until (naive UTC) за hours годин, від старих до нових, з автором."""
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT m."tgMessageId", m."isOutgoing", m.text, m."mediaKind", m."replyToTgMessageId",
+                       m."sentAt", m."deletedAt", p."tgUserId", p."firstName", p."lastName", p.username
+                FROM "DzhuraMessage" m
+                LEFT JOIN "DzhuraPerson" p ON p.id = m."senderPersonId"
+                WHERE m."chatId" = $1 AND m."sentAt" <= $2 AND m."sentAt" >= $2 - make_interval(hours => $4)
+                ORDER BY m."sentAt" DESC, m."tgMessageId" DESC
+                LIMIT $3
+                """,
+                int(chat_id),
+                naive_utc(until),
+                int(limit),
+                int(hours),
+            )
+        out = []
+        for r in reversed(rows):
+            uid = int(r["tgUserId"]) if r["tgUserId"] is not None else None
+            out.append(
+                {
+                    "tg_message_id": int(r["tgMessageId"]),
+                    "is_outgoing": bool(r["isOutgoing"]),
+                    "text": r["text"] or "",
+                    "media_kind": r["mediaKind"],
+                    "reply_to_tg_message_id": int(r["replyToTgMessageId"]) if r["replyToTgMessageId"] is not None else None,
+                    "sent_at": r["sentAt"],
+                    "deleted_at": r["deletedAt"],
+                    "sender_tg_id": uid,
+                    "sender_name": display_name(r["firstName"], r["lastName"], r["username"], uid),
+                }
+            )
+        return out
+
+    async def person_samples(
+        self, chat_id: int, tg_user_ids: Iterable[int], before: datetime, per_person: int
+    ) -> dict[int, list[str]]:
+        """Попередні текстові повідомлення учасників у цьому чаті — зразки їхньої манери."""
+        ids = [int(x) for x in tg_user_ids]
+        if not ids:
+            return {}
+        async with self.pool.acquire() as conn:
+            rows = await conn.fetch(
+                """
+                SELECT uid, text FROM (
+                    SELECT p."tgUserId" AS uid, m.text, m."sentAt",
+                           ROW_NUMBER() OVER (PARTITION BY p."tgUserId" ORDER BY m."sentAt" DESC) AS rn
+                    FROM "DzhuraMessage" m
+                    JOIN "DzhuraPerson" p ON p.id = m."senderPersonId"
+                    WHERE m."chatId" = $1 AND p."tgUserId" = ANY($2::bigint[]) AND m."sentAt" < $3
+                      AND m.text <> '' AND m."deletedAt" IS NULL
+                ) t
+                WHERE rn <= $4
+                ORDER BY uid, "sentAt"
+                """,
+                int(chat_id),
+                ids,
+                naive_utc(before),
+                int(per_person),
+            )
+        out: dict[int, list[str]] = {}
+        for r in rows:
+            out.setdefault(int(r["uid"]), []).append(r["text"])
+        return out
+
+    async def moderation_calls_since(self, chat_id: int, since: datetime) -> int:
+        async with self.pool.acquire() as conn:
+            n = await conn.fetchval(
+                'SELECT COUNT(*) FROM "DzhuraModeration" WHERE "chatId" = $1 AND "createdAt" >= $2',
+                int(chat_id),
+                naive_utc(since),
+            )
+        return int(n or 0)
+
+    async def moderation_person_since(self, chat_id: int, tg_user_id: int, since: datetime) -> bool:
+        """Чи цій людині вже була відповідь (чернетка чи опублікована) з моменту since."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT 1 FROM "DzhuraModeration"
+                WHERE "chatId" = $1 AND "targetTgUserId" = $2 AND kind IN ('draft', 'posted') AND "createdAt" >= $3
+                LIMIT 1
+                """,
+                int(chat_id),
+                int(tg_user_id),
+                naive_utc(since),
+            )
+        return row is not None
+
+    async def moderation_last_warning(self, chat_id: int) -> Optional[datetime]:
+        async with self.pool.acquire() as conn:
+            return await conn.fetchval(
+                """
+                SELECT MAX("createdAt") FROM "DzhuraModeration"
+                WHERE "chatId" = $1 AND kind IN ('draft', 'posted') AND COALESCE(warning, '') <> ''
+                """,
+                int(chat_id),
+            )
+
+    async def insert_moderation(
+        self,
+        chat_id: int,
+        kind: str,
+        *,
+        reason: str,
+        target_tg_message_id: Optional[int] = None,
+        target_tg_user_id: Optional[int] = None,
+        hint: Optional[str] = None,
+        warning: Optional[str] = None,
+        model: Optional[str] = None,
+        window_to_tg_message_id: Optional[int] = None,
+    ) -> bool:
+        """Рядок журналу модерації; False — на це повідомлення вже була чернетка (унікальний індекс)."""
+        async with self.pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                INSERT INTO "DzhuraModeration"
+                    ("chatId", kind, "targetTgMessageId", "targetTgUserId", hint, warning, reason, model, "windowToTgMessageId")
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                ON CONFLICT ("chatId", "targetTgMessageId") DO NOTHING
+                RETURNING id
+                """,
+                int(chat_id),
+                kind,
+                target_tg_message_id,
+                target_tg_user_id,
+                hint,
+                warning,
+                (reason or "")[:2000],
+                model,
+                window_to_tg_message_id,
+            )
+        return row is not None
 
     async def mark_auto_reply(self, chat_id: int, tg_message_id: int) -> None:
         async with self.pool.acquire() as conn:

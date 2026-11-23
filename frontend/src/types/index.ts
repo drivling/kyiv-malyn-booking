@@ -915,6 +915,10 @@ export interface DzhuraChatRow {
   autoReplyEnabled: boolean;
   autoReplyDelaySec: number;
   autoReplyNote: string | null;
+  /** «Модерація» (лише групи): drafts — чернетки відповіді на наїзди з флудом у «Обране», у групу нічого */
+  moderationMode?: DzhuraModerationMode;
+  moderationNote?: string | null;
+  moderationProtected?: DzhuraProtectedPerson[];
   lastMessageAt: string | null;
   lastCapturedAt: string | null;
   dialogSyncedAt: string | null;
@@ -928,6 +932,18 @@ export interface DzhuraChatPatch {
   autoReplyEnabled?: boolean;
   autoReplyDelaySec?: number;
   autoReplyNote?: string | null;
+  moderationMode?: DzhuraModerationMode;
+  moderationNote?: string | null;
+  moderationProtected?: DzhuraProtectedPerson[];
+}
+
+export type DzhuraModerationMode = 'off' | 'drafts';
+
+/** Адміністрація чату для модерації Джури: її не модеруємо */
+export interface DzhuraProtectedPerson {
+  tgUserId: string;
+  name: string;
+  role: string;
 }
 
 /** Черга дублів у «Обране» */
@@ -979,7 +995,8 @@ export type DzhuraJobType =
   | 'avatars'
   | 'post_items'
   | 'import_history'
-  | 'scan_ids';
+  | 'scan_ids'
+  | 'moderation_preview';
 export type DzhuraJobStatus = 'pending' | 'running' | 'done' | 'failed';
 
 export interface DzhuraJob {
