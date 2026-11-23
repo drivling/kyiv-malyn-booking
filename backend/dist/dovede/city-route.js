@@ -53,6 +53,7 @@ const isValidDailyCap = (v) => typeof v === 'number' && Number.isInteger(v) && v
 exports.isValidDailyCap = isValidDailyCap;
 const TIMEOUT_MS = 4000;
 const zhytomyr_own_1 = require("./zhytomyr-own");
+const kyiv_own_lines_1 = require("./kyiv-own-lines");
 const learn_cities_1 = require("./learn-cities");
 /** Міста зі своїм датасетом: збережена дорога пари годиться на будь-яку годину (`findStored`) */
 const OWN_DATASET = new Set(learn_cities_1.OWN_DATASET_CITY_CODES);
@@ -257,6 +258,35 @@ function createCityRoutes(deps) {
         const stops = new Map(rows.filter((s) => passenger.has(s.id)).map((s) => [s.id, { name: s.name, lat: s.lat, lng: s.lng }]));
         stopCache.set(city, { at: now().getTime(), stops });
         return stops.get(id) ?? null;
+    }
+    /** Зупинки, які вже назвав Google (`DovedeCityStop`): назва → координати; для своїх ліній Києва (крок 8б) */
+    let googleStops = null;
+    async function knownStops(city) {
+        if (googleStops && now().getTime() - googleStops.at < STOP_CACHE_MS)
+            return googleStops.byName;
+        const rows = await prisma.dovedeCityStop
+            .findMany({ where: { cityCode: city, archivedAt: null, lat: { not: null }, lng: { not: null } }, select: { name: true, lat: true, lng: true } })
+            .catch(() => []);
+        const byName = new Map(rows.map((r) => [r.name, { lat: r.lat, lng: r.lng }]));
+        googleStops = { at: now().getTime(), byName };
+        return byName;
+    }
+    /**
+     * Київ: кроки лініями «Київпастрансу» й маршрутками з переліку міста несуть свої інтервал, хвилини й «останній о …»
+     * (`withKyivOwnLines`). Вимикається тим самим перемикачем, що й власні дані Житомира (`city.own`)
+     */
+    async function ownLines(q, steps, minutes, fresh) {
+        if (q.city !== 'Kyiv' || !(await ownEnabled()))
+            return { steps, minutes };
+        try {
+            const fromAnswer = new Map((fresh ?? []).filter((s) => s.lat != null && s.lng != null).map((s) => [s.name, { lat: s.lat, lng: s.lng }]));
+            const stored = await knownStops(q.city);
+            return (0, kyiv_own_lines_1.withKyivOwnLines)({ steps, minutes, date: q.date, time: q.time, stopAt: (name) => fromAnswer.get(name.trim()) ?? stored.get(name.trim()) ?? null });
+        }
+        catch (e) {
+            console.error('❌ city-route: свої лінії Києва:', e);
+            return { steps, minutes };
+        }
     }
     /** Точка питання: зупинка датасету міста за id (з координатами) або те, що знає `resolveCityPoint` */
     async function resolvePoint(city, raw) {
@@ -567,7 +597,8 @@ function createCityRoutes(deps) {
             else {
                 await markAnswered(q.city, from, to);
             }
-            return { ok: true, source: stored.source === 'own' ? 'own' : 'stored', city: q.city, fromLabel: stored.fromLabel, toLabel: stored.toLabel, steps: stored.steps, minutes: stored.minutes, fetchedAt: stored.fetchedAt.toISOString() };
+            const mine = await ownLines(q, stored.steps, stored.minutes);
+            return { ok: true, source: stored.source === 'own' ? 'own' : 'stored', city: q.city, fromLabel: stored.fromLabel, toLabel: stored.toLabel, steps: mine.steps, minutes: mine.minutes, fetchedAt: stored.fetchedAt.toISOString() };
         }
         const got = await askGoogle(q, from, to, background ? 'learn' : 'people', trace);
         if (typeof got === 'string') {
@@ -584,7 +615,8 @@ function createCityRoutes(deps) {
             await markAnswered(q.city, from, to);
         else
             await noteDemand(q.city, from, to, true);
-        return { ok: true, source: 'google', city: q.city, fromLabel: from.label, toLabel: to.label, steps: got.steps, minutes: got.minutes, fetchedAt: now().toISOString() };
+        const mine = await ownLines(q, got.steps, got.minutes, got.stops);
+        return { ok: true, source: 'google', city: q.city, fromLabel: from.label, toLabel: to.label, steps: mine.steps, minutes: mine.minutes, fetchedAt: now().toISOString() };
     }
     /**
      * Один крок фонового навчання: найзапитуваніші пари без свіжої відповіді (і стартовий набір, поки попиту немає),
