@@ -9,7 +9,7 @@ import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
 import { Select } from '@/components/Select';
 import { Alert } from '@/components/Alert';
-import type { Schedule, ScheduleFormData, TelegramUserSendError, TripPoint, TripRoute, TimetablePreviewResponse } from '@/types';
+import type { Schedule, ScheduleFormData, TripPoint, TripRoute, TimetablePreviewResponse } from '@/types';
 import { getRouteLabel } from '@/utils/constants';
 import { KYIV_MALYN_FARE_UAH } from '@/utils/fares';
 import { MapEditorTab } from './MapEditorTab';
@@ -27,6 +27,7 @@ import { DzhuraTab } from './DzhuraTab';
 import { NotificationSettingsTab } from './NotificationSettingsTab';
 import { PersonArchiveTab } from './PersonArchiveTab';
 import { PersonsTab } from './persons/PersonsTab';
+import { UserSenderErrorsTab } from './userSender/UserSenderErrorsTab';
 import './AdminPage.css';
 
 // «Доведе» (розділи /admin/dovede/<розділ>) тягне словник місць і вулиці міста — окремим чанком, лише коли вкладку відкрито
@@ -149,9 +150,6 @@ export const AdminPage: React.FC = () => {
   const [timetableSelectedIds, setTimetableSelectedIds] = useState<Set<number>>(new Set());
   const [timetableHtmlByUrl, setTimetableHtmlByUrl] = useState<Record<string, string>>({});
 
-  const [userSenderErrors, setUserSenderErrors] = useState<TelegramUserSendError[]>([]);
-  const [userSenderErrorsLoading, setUserSenderErrorsLoading] = useState(false);
-  const [userSenderErrorsClearing, setUserSenderErrorsClearing] = useState(false);
 
 
   useEffect(() => {
@@ -163,39 +161,9 @@ export const AdminPage: React.FC = () => {
       // MapEditor завантажує дані сам
     } else if (activeTab === 'scheduleEditor') {
       // ScheduleEditor завантажує дані сам
-    } else if (activeTab === 'userSenderErrors') {
-      loadUserSenderErrors();
     }
     // referrals — ReferralTab завантажує дані сам
   }, [activeTab]);
-
-  const loadUserSenderErrors = async () => {
-    setUserSenderErrorsLoading(true);
-    setError('');
-    try {
-      const data = await apiClient.getTelegramUserSendErrors();
-      setUserSenderErrors(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка завантаження помилок user-sender');
-    } finally {
-      setUserSenderErrorsLoading(false);
-    }
-  };
-
-  const handleClearUserSenderErrors = async () => {
-    if (!confirm('Видалити всі записи з таблиці помилок user-sender?')) return;
-    setUserSenderErrorsClearing(true);
-    setError('');
-    try {
-      const result = await apiClient.clearTelegramUserSendErrors();
-      setSuccess(`Обнулено: видалено ${result.deleted} записів`);
-      setUserSenderErrors([]);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Помилка обнулення');
-    } finally {
-      setUserSenderErrorsClearing(false);
-    }
-  };
 
   const loadSchedules = async (routeSlug?: string) => {
     setLoading(true);
@@ -753,75 +721,7 @@ export const AdminPage: React.FC = () => {
         {activeTab === 'notifications' && <NotificationSettingsTab />}
 
         {/* Помилки відправки через персональний акаунт (PRIVACY_PREMIUM_REQUIRED тощо) */}
-        {activeTab === 'userSenderErrors' && (
-          <div className="tab-content">
-            <h3 style={{ marginBottom: '8px' }}>Помилки user-sender (персональний акаунт)</h3>
-            <p style={{ marginBottom: '12px', color: 'var(--color-text-secondary, #666)' }}>
-              Контакти, до яких не вдалося надіслати повідомлення через send_message.py (наприклад PRIVACY_PREMIUM_REQUIRED).
-            </p>
-            <div style={{ marginBottom: '16px', display: 'flex', gap: '8px' }}>
-              <Button variant="secondary" onClick={loadUserSenderErrors} disabled={userSenderErrorsLoading}>
-                {userSenderErrorsLoading ? 'Завантаження...' : 'Оновити'}
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={handleClearUserSenderErrors}
-                disabled={userSenderErrorsClearing || userSenderErrors.length === 0}
-                title="Видалити всі записи"
-              >
-                {userSenderErrorsClearing ? 'Обнулення...' : 'Обнулити'}
-              </Button>
-            </div>
-            {userSenderErrorsLoading ? (
-              <div className="admin-loading">Завантаження...</div>
-            ) : userSenderErrors.length === 0 ? (
-              <div className="admin-empty">
-                <p className="admin-empty-text">Немає записів</p>
-              </div>
-            ) : (
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Контакт</th>
-                      <th>Тип</th>
-                      <th>Код</th>
-                      <th>Помилка</th>
-                      <th>Дата</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {userSenderErrors.map((r) => (
-                      <tr key={r.id}>
-                        <td>#{r.id}</td>
-                        <td>{r.contact}</td>
-                        <td>{r.contactType}</td>
-                        <td>{r.errorCode}</td>
-                        <td>
-                          <div
-                            title={r.errorText ?? ''}
-                            style={{
-                              maxWidth: '500px',
-                              maxHeight: '120px',
-                              overflow: 'auto',
-                              whiteSpace: 'pre-wrap',
-                              wordBreak: 'break-word',
-                              fontSize: '12px',
-                            }}
-                          >
-                            {r.errorText ?? '—'}
-                          </div>
-                        </td>
-                        <td>{new Date(r.createdAt).toLocaleString('uk-UA')}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === 'userSenderErrors' && <UserSenderErrorsTab />}
 
         {/* Модальне вікно для міста */}
         {isTripPointModalOpen && (

@@ -1,0 +1,93 @@
+/* Вкладка «Помилки user-sender» (userSender/UserSenderErrorsTab.tsx) на спільному наборі kit/ */
+
+.usend-tab .admin-kit-tiles,
+.usend-tab > .admin-kit-chips {
+  margin-bottom: 10px;
+}
+.usend-tab .admin-kit-tile-value small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.usend-muted {
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+}
+.usend-danger {
+  color: var(--pb-danger, #c5221f) !important;
+}
+.usend-hint {
+  margin: 0 0 10px;
+  font-size: 0.875rem;
+}
+
+.usend-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.usend-row {
+  display: grid;
+  grid-template-columns: 110px minmax(180px, 0.8fr) minmax(0, 2fr) auto;
+  gap: 4px 12px;
+  align-items: start;
+  padding: 8px 12px;
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  font-size: 0.875rem;
+}
+.usend-row:first-child {
+  border-top: 0;
+}
+.usend-when,
+.usend-id {
+  font-variant-numeric: tabular-nums;
+}
+.usend-contact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.usend-what {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
+}
+.usend-kind {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.usend-full summary {
+  cursor: pointer;
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+}
+.usend-full pre {
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--pb-bg-secondary, #f1f3f4);
+  font-size: 0.75rem;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 760px) {
+  .usend-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .usend-contact,
+  .usend-what {
+    grid-column: 1 / -1;
+  }
+  .usend-id {
+    grid-column: 2;
+    grid-row: 1;
+  }
+}
