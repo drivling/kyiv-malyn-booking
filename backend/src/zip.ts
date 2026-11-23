@@ -4,7 +4,7 @@
  * Без залежностей і без системного `zip`: deflate — `zlib.deflateRawSync`, CRC-32 — таблиця нижче.
  * Детермінований: однакові записи й `mtime` → ті самі байти (кеш за revision, два контейнери).
  */
-import { deflateRawSync } from 'zlib';
+import { deflateRawSync, inflateRawSync } from 'zlib';
 
 export interface ZipEntry {
   /** Ім'я у архіві (без шляху — файли лежать у корені) */
@@ -112,4 +112,35 @@ export function buildZip(entries: ZipEntry[], options: ZipOptions = {}): Buffer 
   eocd.writeUInt16LE(0, 20);
 
   return Buffer.concat([...locals, ...centrals, eocd]);
+}
+
+/**
+ * Читання ZIP за central directory (без zip64 і шифрування) — так само, як розпаковують `unzip` і браузери.
+ * Для GTFS-архівів, які приносять у репозиторій (data/kyiv-transport/kpt-gtfs/), і для тестів `buildZip`.
+ */
+export function readZip(zip: Buffer): Array<{ name: string; data: Buffer; method: number; crc: number }> {
+  let eocd = zip.length - 22;
+  while (eocd >= 0 && zip.readUInt32LE(eocd) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error('ZIP: немає кінця центрального каталогу');
+  const count = zip.readUInt16LE(eocd + 10);
+  let p = zip.readUInt32LE(eocd + 16);
+  const out: Array<{ name: string; data: Buffer; method: number; crc: number }> = [];
+  for (let i = 0; i < count; i++) {
+    if (zip.readUInt32LE(p) !== 0x02014b50) throw new Error('ZIP: зіпсований центральний каталог');
+    const method = zip.readUInt16LE(p + 10);
+    const crc = zip.readUInt32LE(p + 16);
+    const compressed = zip.readUInt32LE(p + 20);
+    const nameLen = zip.readUInt16LE(p + 28);
+    const extraLen = zip.readUInt16LE(p + 30);
+    const commentLen = zip.readUInt16LE(p + 32);
+    const localOffset = zip.readUInt32LE(p + 42);
+    const name = zip.subarray(p + 46, p + 46 + nameLen).toString('utf8');
+    if (zip.readUInt32LE(localOffset) !== 0x04034b50) throw new Error(`ZIP: зіпсований заголовок ${name}`);
+    const start = localOffset + 30 + zip.readUInt16LE(localOffset + 26) + zip.readUInt16LE(localOffset + 28);
+    const body = zip.subarray(start, start + compressed);
+    if (method !== 0 && method !== 8) throw new Error(`ZIP: невідоме стиснення ${method} у ${name}`);
+    out.push({ name, data: method === 8 ? inflateRawSync(body) : Buffer.from(body), method, crc });
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return out;
 }
