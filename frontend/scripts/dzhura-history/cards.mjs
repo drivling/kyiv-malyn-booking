@@ -500,24 +500,28 @@ export function postParts(m, ctx, captionLimit = CAPTION_LIMIT, textLimit = TEXT
 
 // ---------- режим import: файл у форматі експорту WhatsApp для вбудованого імпорту історії Telegram ----------
 
-const waDate = new Intl.DateTimeFormat('en-GB', {
-  timeZone: KYIV_TZ,
-  day: '2-digit',
-  month: '2-digit',
-  year: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-});
+/**
+ * Час у файлі імпорту Telegram читає як UTC+3 — незалежно від сезону (перевірено 2026-11-23: «22:41» вересневого
+ * повідомлення став 19:41 UTC, «14:12» листопадового — 11:12 UTC). Тому пишемо UTC+3, а не київський час: тоді
+ * в Києві показується правильний час і влітку (EEST = UTC+3), і взимку (EET = UTC+2).
+ */
+export const WA_IMPORT_OFFSET_MIN = 180;
 
-function waParts(iso) {
-  const p = Object.fromEntries(waDate.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
-  return p;
+function waParts(iso, offsetMin) {
+  const d = new Date(Date.parse(iso) + offsetMin * 60_000);
+  const two = (n) => String(n).padStart(2, '0');
+  return {
+    day: two(d.getUTCDate()),
+    month: two(d.getUTCMonth() + 1),
+    year: two(d.getUTCFullYear() % 100),
+    hour: two(d.getUTCHours()),
+    minute: two(d.getUTCMinutes()),
+  };
 }
 
-/** Рядок-префікс у форматі WhatsApp: android «23.11.26, 19:00 - », ios «[23.11.26, 19:00:00] » */
-export function waPrefix(iso, format) {
-  const p = waParts(iso);
+/** Рядок-префікс у форматі WhatsApp: android «23.11.26, 19:00 - », ios «[23.11.26, 19:00:00] » (час — UTC+offset) */
+export function waPrefix(iso, format, offsetMin = WA_IMPORT_OFFSET_MIN) {
+  const p = waParts(iso, offsetMin);
   if (format === 'ios') return `[${p.day}.${p.month}.${p.year}, ${p.hour}:${p.minute}:00] `;
   if (format === 'android-slash') return `${p.day}/${p.month}/20${p.year}, ${p.hour}:${p.minute} - `;
   return `${p.day}.${p.month}.${p.year}, ${p.hour}:${p.minute} - `;
@@ -532,7 +536,7 @@ export function waName(name) {
  * Чат у форматі WhatsApp: відповіді — рядком «↪ Ім'я: «…»», переслане й медіа, що не збереглося, — позначкою.
  * attach: Map tgMessageId → ім'я файлу картинки, яку прикласти до цього повідомлення.
  */
-export function whatsappText(messages, ctx, { format = 'android', attach = new Map() } = {}) {
+export function whatsappText(messages, ctx, { format = 'android', attach = new Map(), offsetMin = WA_IMPORT_OFFSET_MIN } = {}) {
   const lines = [];
   for (const m of messages) {
     const body = [];
@@ -550,7 +554,7 @@ export function whatsappText(messages, ctx, { format = 'android', attach = new M
     const text = String(m.text ?? '').trim();
     if (text) body.push(text);
     if (!body.length) continue;
-    lines.push(`${waPrefix(m.sentAt, format)}${waName(m.sender?.name)}: ${body.join('\n')}`);
+    lines.push(`${waPrefix(m.sentAt, format, offsetMin)}${waName(m.sender?.name)}: ${body.join('\n')}`);
   }
   return `${lines.join('\n')}\n`;
 }

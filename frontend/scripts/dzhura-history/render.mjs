@@ -4,12 +4,12 @@
  *
  *   node scripts/dzhura-history/render.mjs --export osbb.json [--export older.json] \
  *     --mode single|chunk|text|posts|import [--from <tgMessageId>] [--to <tgMessageId>] [--ids 1,2,3] \
- *     [--avatars avatars.json] [--format android|ios|android-slash] [--attach-avatars] --out <dir>
+ *     [--avatars avatars.json] [--format android|ios|android-slash] [--attach-avatars | --attach-headers] --out <dir>
  *
  * Режими: single — картинка на повідомлення; chunk — «скріншоти» розмови; text — HTML-пости по кілька
  * повідомлень; posts — пост на повідомлення: шапка-картинка (аватарка, ім'я, час) + текст підписом;
  * import — chat.txt у форматі експорту WhatsApp для вбудованого імпорту Telegram (--attach-avatars прикладає
- * аватарку до першого повідомлення кожного автора).
+ * аватарку до першого повідомлення кожного автора, --attach-headers — шапку як у posts до кожного повідомлення).
  * Експорт — GET /admin/dzhura/chats/:id/export?from=&to= (до 366 днів за раз, кілька файлів можна скласти).
  * Аватарки — результат задачі слухача `avatars` ({ avatars: { <tgUserId>: <jpeg base64> } }); без них — кружечки
  * з ініціалами, як Telegram малює людей без фото. У <dir> пишуться файли і manifest.json для post.mjs / import.mjs.
@@ -35,7 +35,7 @@ import {
 const MODES = ['single', 'chunk', 'text', 'posts', 'import'];
 
 function parseArgs(argv) {
-  const out = { exports: [], mode: 'chunk', quality: 88, format: 'android', attachAvatars: false };
+  const out = { exports: [], mode: 'chunk', quality: 88, format: 'android', attachAvatars: false, attachHeaders: false };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     const v = () => argv[++i];
@@ -47,6 +47,7 @@ function parseArgs(argv) {
     else if (a === '--avatars') out.avatars = v();
     else if (a === '--format') out.format = v();
     else if (a === '--attach-avatars') out.attachAvatars = true;
+    else if (a === '--attach-headers') out.attachHeaders = true;
     else if (a === '--out') out.out = v();
     else if (a === '--quality') out.quality = Number(v());
     else throw new Error(`Невідомий аргумент ${a}`);
@@ -95,13 +96,25 @@ if (args.mode === 'text') {
 } else if (args.mode === 'import') {
   const attach = new Map();
   manifest.media = [];
-  if (args.attachAvatars) {
+  const mediaName = (m) => `IMG-${m.sentAt.slice(0, 10).replace(/-/g, '')}-WA${String(manifest.media.length + 1).padStart(4, '0')}.jpg`;
+  if (args.attachHeaders) {
+    await withPage(headersPageHtml(messages, ctx), async (page) => {
+      for (const m of messages) {
+        const file = mediaName(m);
+        await page
+          .locator(`.hdr[data-id="${m.tgMessageId}"]`)
+          .screenshot({ path: path.join(args.out, file), type: 'jpeg', quality: args.quality });
+        attach.set(String(m.tgMessageId), file);
+        manifest.media.push(file);
+      }
+    });
+  } else if (args.attachAvatars) {
     const done = new Set();
     for (const m of messages) {
       const uid = String(m.sender?.tgUserId ?? '');
       if (!uid || done.has(uid) || !avatars[uid]) continue;
       done.add(uid);
-      const file = `IMG-${m.sentAt.slice(0, 10).replace(/-/g, '')}-WA${String(manifest.media.length + 1).padStart(4, '0')}.jpg`;
+      const file = mediaName(m);
       await writeFile(path.join(args.out, file), Buffer.from(avatars[uid], 'base64'));
       attach.set(String(m.tgMessageId), file);
       manifest.media.push(file);
