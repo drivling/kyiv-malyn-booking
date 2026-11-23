@@ -144,7 +144,9 @@ of `dist` in a commit.
   (`dzhura/restore.py`) posts, as the owner, exactly the posts a job carries (HTML text / JPEG base64, ≤ 10 per job,
   `batch` + `seq` unique, a failed part stops the rest) into the group / supergroup the job names — never the lunch
   group or a private chat; type `avatars` returns small profile photos of a chat's authors; type `import_history`
-  runs Telegram's own history import (a WhatsApp-format file, admin rights in the group, `dryRun` only checks). The
+  runs Telegram's own history import (a WhatsApp-format file, admin rights in a supergroup, `dryRun` only checks;
+  many pictures go in stages `init` → `media`… → `start`, `importId` as a string); type `scan_ids` lists the message ids
+  Telegram still has in a chat (what survived a clearing). The
   pictures and the import file are made locally from the chat export by `frontend/scripts/dzhura-history/render.mjs`
   (Chromium) and queued by `post.mjs` / `import.mjs`.
 

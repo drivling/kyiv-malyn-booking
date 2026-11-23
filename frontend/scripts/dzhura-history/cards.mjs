@@ -440,13 +440,17 @@ export function splitText(text, max) {
   return parts;
 }
 
-/** Шапка-картинка: аватарка, ім'я кольором Telegram, дата й час */
-export function headerHtml(m, ctx) {
+/**
+ * Шапка-картинка. style 'full' — аватарка, ім'я кольором Telegram, дата й час (на білому);
+ * 'date' — лише аватарка й дата з часом на прозорому тлі (ім'я при імпорті Telegram показує сам).
+ */
+export function headerHtml(m, ctx, style = 'full') {
   const c = peerColor(m.sender?.tgUserId);
   const when = `${dayLabel(m.sentAt)} · ${kyivTime(m.sentAt)}`;
-  return `<div class="hdr" data-id="${escapeHtml(String(m.tgMessageId))}">
+  const name = style === 'date' ? '' : `<b style="color:${c.name}">${escapeHtml(m.sender?.name ?? '')}</b>`;
+  return `<div class="hdr hdr--${style}" data-id="${escapeHtml(String(m.tgMessageId))}">
   ${avatarHtml(m.sender, ctx)}
-  <div class="who"><b style="color:${c.name}">${escapeHtml(m.sender?.name ?? '')}</b><span>${escapeHtml(when)}</span></div>
+  <div class="who">${name}<span>${escapeHtml(when)}</span></div>
 </div>`;
 }
 
@@ -456,11 +460,14 @@ export const HEADER_CSS = `
 .hdr .who { display: flex; flex-direction: column; min-width: 0; }
 .hdr .who b { font-size: 16px; font-weight: 600; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hdr .who span { font-size: 13px; color: #8e9aa6; line-height: 1.3; }
+.hdr--date { background: transparent; padding: 6px 12px; }
+.hdr--date .who span { font-size: 14px; font-weight: 500; }
 `;
 
-export function headersPageHtml(messages, ctx) {
-  return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><style>${PAGE_CSS}${HEADER_CSS}</style></head>
-<body>${messages.map((m) => headerHtml(m, ctx)).join('\n')}</body></html>`;
+export function headersPageHtml(messages, ctx, style = 'full') {
+  const clear = style === 'date' ? 'html, body { background: transparent !important; }' : '';
+  return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><style>${PAGE_CSS}${HEADER_CSS}${clear}</style></head>
+<body>${messages.map((m) => headerHtml(m, ctx, style)).join('\n')}</body></html>`;
 }
 
 /**
@@ -536,7 +543,14 @@ export function waName(name) {
  * Чат у форматі WhatsApp: відповіді — рядком «↪ Ім'я: «…»», переслане й медіа, що не збереглося, — позначкою.
  * attach: Map tgMessageId → ім'я файлу картинки, яку прикласти до цього повідомлення.
  */
-export function whatsappText(messages, ctx, { format = 'android', attach = new Map(), offsetMin = WA_IMPORT_OFFSET_MIN } = {}) {
+/** Підпис до картинки в імпорті — як у звичайного фото, до 1024 символів; решту несемо окремими повідомленнями */
+export const WA_CAPTION_LIMIT = 950;
+
+export function whatsappText(
+  messages,
+  ctx,
+  { format = 'android', attach = new Map(), offsetMin = WA_IMPORT_OFFSET_MIN, captionLimit = WA_CAPTION_LIMIT } = {},
+) {
   const lines = [];
   for (const m of messages) {
     const body = [];
@@ -554,7 +568,16 @@ export function whatsappText(messages, ctx, { format = 'android', attach = new M
     const text = String(m.text ?? '').trim();
     if (text) body.push(text);
     if (!body.length) continue;
-    lines.push(`${waPrefix(m.sentAt, format, offsetMin)}${waName(m.sender?.name)}: ${body.join('\n')}`);
+    const prefix = `${waPrefix(m.sentAt, format, offsetMin)}${waName(m.sender?.name)}: `;
+    const joined = body.join('\n');
+    if (!file || joined.length <= captionLimit + file.length + 20) {
+      lines.push(prefix + joined);
+      continue;
+    }
+    // картинка + перший шматок (≤ captionLimit), далі той самий автор і час — продовження
+    const [head, ...more] = splitText(body.slice(1).join('\n'), captionLimit);
+    lines.push(`${prefix}${body[0]}\n${head}`);
+    for (const part of more.length ? splitText(more.join('\n'), TEXT_POST_LIMIT - 300) : []) lines.push(prefix + part);
   }
   return `${lines.join('\n')}\n`;
 }
