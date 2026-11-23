@@ -15,6 +15,7 @@ exports.createAdminDovedeRouter = createAdminDovedeRouter;
  * тоді відповідає з місцевого розбору, людина помилки не бачить. GET /admin/dovede/queries — журнал цих питань (лише адмін).
  */
 const express_1 = __importDefault(require("express"));
+const kyiv_kpt_gps_1 = require("../dovede/kyiv-kpt-gps");
 const require_admin_1 = require("../middleware/require-admin");
 const access_1 = require("../dovede/access");
 const arrival_reports_1 = require("../arrival-reports");
@@ -173,6 +174,20 @@ function createAdminDovedeRouter(deps) {
     r.get('/dovede/page-data', (0, access_1.requireDovedeAccess)(access), async (_req, res) => {
         res.set('Cache-Control', 'private, no-store');
         res.json({ values: await pageData.values() });
+    });
+    // Крок 8г: онлайн-рух «Київпастрансу» — стан запису й час між контрольними точками за GPS проти розкладу
+    r.get('/admin/dovede/kyiv/gps', require_admin_1.requireAdmin, async (req, res) => {
+        const days = (0, kyiv_kpt_gps_1.parseKyivGpsDays)(req.query.days);
+        if (days == null)
+            return res.status(400).json({ error: `days — ціле від 1 до ${kyiv_kpt_gps_1.KYIV_GPS_DAYS_MAX}` });
+        try {
+            const report = await (0, kyiv_kpt_gps_1.kyivGpsReport)(prisma, days, clock());
+            res.json({ recording: !!deps.kyivGps, last: deps.kyivGps?.status() ?? null, ...report });
+        }
+        catch (e) {
+            console.error('❌ GET /admin/dovede/kyiv/gps:', e);
+            res.status(500).json({ error: 'Не вдалося прочитати онлайн-рух Києва' });
+        }
     });
     r.get('/admin/dovede/page-data', require_admin_1.requireAdmin, async (_req, res) => {
         try {

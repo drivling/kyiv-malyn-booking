@@ -7,6 +7,7 @@
  */
 import express, { type Response, type Router } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
+import { KYIV_GPS_DAYS_MAX, kyivGpsReport, parseKyivGpsDays, type KyivGpsRecorder } from '../dovede/kyiv-kpt-gps';
 import { isAdminRequest, requireAdmin, safeEqual } from '../middleware/require-admin';
 import {
   createLoginFailures,
@@ -101,6 +102,8 @@ export function createAdminDovedeRouter(deps: {
   quality?: CityQuality;
   /** Дані сторінки, які власник міняє сам (метро-замінник, години й тариф метро) */
   pageData?: DovedePageData;
+  /** Запис онлайн-руху Києва (крок 8г): стан останнього тіку; немає — запис вимкнено (KYIV_GTFS_RT_URL не задано) */
+  kyivGps?: Pick<KyivGpsRecorder, 'status'>;
 }): Router {
   const { prisma } = deps;
   const understand = deps.understand === undefined ? understandFromEnv() : deps.understand;
@@ -208,6 +211,19 @@ export function createAdminDovedeRouter(deps: {
   r.get('/dovede/page-data', requireDovedeAccess(access), async (_req, res) => {
     res.set('Cache-Control', 'private, no-store');
     res.json({ values: await pageData.values() });
+  });
+
+  // Крок 8г: онлайн-рух «Київпастрансу» — стан запису й час між контрольними точками за GPS проти розкладу
+  r.get('/admin/dovede/kyiv/gps', requireAdmin, async (req, res) => {
+    const days = parseKyivGpsDays(req.query.days);
+    if (days == null) return res.status(400).json({ error: `days — ціле від 1 до ${KYIV_GPS_DAYS_MAX}` });
+    try {
+      const report = await kyivGpsReport(prisma, days, clock());
+      res.json({ recording: !!deps.kyivGps, last: deps.kyivGps?.status() ?? null, ...report });
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/kyiv/gps:', e);
+      res.status(500).json({ error: 'Не вдалося прочитати онлайн-рух Києва' });
+    }
   });
 
   r.get('/admin/dovede/page-data', requireAdmin, async (_req, res) => {

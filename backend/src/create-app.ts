@@ -24,6 +24,7 @@ import { createAdminReferralsRouter } from './routes/admin-referrals';
 import { createAdminLunchRouter } from './routes/admin-lunch';
 import { createAdminDzhuraRouter } from './routes/admin-dzhura';
 import { createAdminDovedeRouter } from './routes/admin-dovede';
+import type { KyivGpsRecorder } from './dovede/kyiv-kpt-gps';
 import { createAdsRouter } from './routes/ads';
 import type { UnderstandFn } from './dovede/understand';
 import type { CityRoutes } from './dovede/city-route';
@@ -63,6 +64,8 @@ export type CreateAppDeps = {
   dovedeSettings?: DovedeSettings;
   /** «Доведе» · кампанії навчання міста: той самий обʼєкт, що веде фонова задача (index.ts); немає — роутер створить свій */
   cityCampaigns?: CityCampaigns;
+  /** «Доведе» · запис онлайн-руху Києва (крок 8г): стан останнього тіку для адмінки; немає — запис вимкнено */
+  kyivGps?: Pick<KyivGpsRecorder, 'status'>;
   /** Телефони «Зубастика» (zubastyk-phones.ts): той самий обʼєкт, що оновлює памʼять у index.ts; немає — роутер створить свій */
   zubastykPhones?: ZubastykPhonesStore;
   /** Стеження за джерелами розкладу (transport-source-watch.ts): тести підміняють мережу й сповіщення */
@@ -159,7 +162,7 @@ app.use(createAdminReferralsRouter({ prisma }));
 app.use(createAdminLunchRouter({ prisma }));
 app.use(createAdminDzhuraRouter({ prisma }));
 // одна «дорога містом» на весь сервер: лічильник Google, пауза після відмови й фонове навчання — спільні (index.ts)
-app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess, ...(deps.cityRoutes ? { cityRoutes: deps.cityRoutes } : {}), ...(deps.dovedeSettings ? { settings: deps.dovedeSettings } : {}), ...(deps.cityCampaigns ? { campaigns: deps.cityCampaigns } : {}) }));
+app.use(createAdminDovedeRouter({ prisma, understand: deps.dovedeUnderstand, access: deps.dovedeAccess, ...(deps.cityRoutes ? { cityRoutes: deps.cityRoutes } : {}), ...(deps.dovedeSettings ? { settings: deps.dovedeSettings } : {}), ...(deps.cityCampaigns ? { campaigns: deps.cityCampaigns } : {}), ...(deps.kyivGps ? { kyivGps: deps.kyivGps } : {}) }));
 app.use(createSiteSettingsRouter({ prisma, ...(deps.zubastykPhones ? { zubastykPhones: deps.zubastykPhones } : {}) }));
 app.use(createAdsRouter({ prisma, adminPassword: ADMIN_PASSWORD, access: deps.dovedeAccess }));
 app.use(createAdminNotificationSettingsRouter({ prisma }));
