@@ -1,4 +1,4 @@
-import type { GpsRunSpan } from '@/types';
+import type { GpsRunSpan, GpsTimeCandidate } from '@/types';
 
 /** «3,5 хв»: час відрізка з точністю до пів хвилини не буває — показуємо десяті */
 export function minutes(sec: number | null): string {
@@ -24,3 +24,21 @@ export function isNotable(span: GpsRunSpan): boolean {
 export const DIRECTION_LABEL: Record<'there' | 'back', string> = { there: 'Туди', back: 'Назад' };
 
 export const CONFIDENCE_LABEL: Record<GpsRunSpan['confidence'], string> = { ok: '', few: 'мало проїздів', none: 'немає даних' };
+
+/** Висновок звірки хвилин трьома джерелами — що робити власнику */
+export const TIME_VERDICT_LABEL: Record<GpsTimeCandidate['verdict'], string> = {
+  recalc: 'Перерахувати: GPS і Google разом',
+  gps: 'Перерахувати за GPS',
+  google_only: 'Лише Google — чекати GPS',
+  ok: 'GPS підтверджує наш час',
+};
+
+/** «14 хв» / «—» */
+export function wholeMinutes(value: number | null): string {
+  return value === null ? '—' : `${String(Math.round(value * 10) / 10).replace('.', ',')} хв`;
+}
+
+/** Кандидати на «Перерахувати час» спершу; «GPS підтверджує» — окремим лічильником */
+export function splitCandidates(list: GpsTimeCandidate[]): { todo: GpsTimeCandidate[]; confirmed: number } {
+  return { todo: list.filter((c) => c.verdict !== 'ok'), confirmed: list.filter((c) => c.verdict === 'ok').length };
+}

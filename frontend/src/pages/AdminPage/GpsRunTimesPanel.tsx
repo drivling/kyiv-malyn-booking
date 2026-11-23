@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { apiClient } from '@/api/client';
 import type { GpsRunTimesReport } from '@/types';
 import { ChipGroup, EmptyState } from './kit';
-import { CONFIDENCE_LABEL, DIRECTION_LABEL, difference, isNotable, minutes } from './gpsRunTimesText';
+import { CONFIDENCE_LABEL, DIRECTION_LABEL, TIME_VERDICT_LABEL, difference, isNotable, minutes, splitCandidates, wholeMinutes } from './gpsRunTimesText';
 import './GpsRunTimesPanel.css';
 
 const PERIODS = [
@@ -67,6 +67,7 @@ export const GpsRunTimesPanel: React.FC<{ city: string }> = ({ city }) => {
                 змінюються.
               </p>
               {data.unknownRouteNos.length ? <p className="gps-times-hint">Номери з GPS, яких немає серед маршрутів: {data.unknownRouteNos.join(', ')}.</p> : null}
+              {data.timeCheck ? <TimeCheck check={data.timeCheck} /> : null}
               {data.routes.map((route) => (
                 <section key={route.routeId} className="gps-times-route" aria-label={`Маршрут №${route.routeNo}`}>
                   <h4>№{route.routeNo}</h4>
@@ -123,5 +124,56 @@ export const GpsRunTimesPanel: React.FC<{ city: string }> = ({ city }) => {
         </div>
       ) : null}
     </details>
+  );
+};
+
+/**
+ * Ділянки звірки з Google (початок → кінець, початок → середина, середина → кінець кожного напрямку) трьома джерелами:
+ * наш час, GPS (головний) і Google (друга думка). Кандидати на «Перерахувати час» — угорі.
+ */
+const TimeCheck: React.FC<{ check: NonNullable<GpsRunTimesReport['timeCheck']> }> = ({ check }) => {
+  const { todo, confirmed } = splitCandidates(check.candidates);
+  return (
+    <section className="gps-times-check-block" aria-label="Звірка хвилин: GPS і Google">
+      <h4>Наш час, GPS і Google</h4>
+      <p className="gps-times-hint">
+        Ділянки зі звірки з Google ({day(check.finishedAt)}). GPS — головне джерело, Google — друга думка. {confirmed ? `GPS підтверджує наш час на ${confirmed} ділянках.` : ''}
+      </p>
+      {todo.length ? (
+        <table className="gps-times-table dovede-log-table dovede-log-table--cards">
+          <thead>
+            <tr>
+              <th>Маршрут</th>
+              <th>Ділянка</th>
+              <th>Наш час</th>
+              <th>За GPS</th>
+              <th>Google</th>
+              <th>Що робити</th>
+            </tr>
+          </thead>
+          <tbody>
+            {todo.map((c) => (
+              <tr key={`${c.routeNo}-${c.direction}-${c.from}-${c.to}`} className={c.verdict === 'google_only' || c.weak ? 'is-weak' : 'is-notable'}>
+                <td data-label="Маршрут">
+                  №{c.routeNo} · {DIRECTION_LABEL[c.direction].toLowerCase()}
+                </td>
+                <td data-label="Ділянка">
+                  {c.from} → {c.to}
+                </td>
+                <td data-label="Наш час">{wholeMinutes(c.ourMin)}</td>
+                <td data-label="За GPS">{wholeMinutes(c.gpsMin)}</td>
+                <td data-label="Google">{wholeMinutes(c.googleMin)}</td>
+                <td data-label="Що робити">
+                  {TIME_VERDICT_LABEL[c.verdict]}
+                  {c.weak ? ' · мало проїздів' : ''}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="gps-times-hint">Кандидатів на перерахунок немає.</p>
+      )}
+    </section>
   );
 };

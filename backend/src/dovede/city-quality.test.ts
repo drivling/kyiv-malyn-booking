@@ -12,6 +12,8 @@ import { createAdminDovedeRouter } from '../routes/admin-dovede';
 import { adminAuthToken, setAdminPassword } from '../middleware/require-admin';
 import type { CityRoutes } from './city-route';
 import { createDovedeSettings } from './settings';
+import { CHECK_DATASET } from './city-check.fixture';
+import { ownTimetable } from './own-timetable';
 
 const bus = { kind: 'transit', minutes: 10, mode: 'BUS', line: '5' };
 const walk = { kind: 'walk', minutes: 30 };
@@ -98,6 +100,29 @@ function fakePrisma(routes: Array<QualityRouteRow & { source?: string; archivedA
   return { prisma, places };
 }
 
+test('свій датасет (Коростень): лінія не в ту годину, електричка містом; пішки й «туди-назад» — лише в години руху; наші зупинки не перевіряємо', () => {
+  const own = { Korosten: ownTimetable(CHECK_DATASET) };
+  const k = (over: Partial<QualityRouteRow>) => row({ cityCode: 'Korosten', fromKey: 'korosten.vokzal', fromLabel: 'вокзал', toKey: 'агромаш', toLabel: 'Агромаш', minutes: 17, ...over });
+  const ride = (line: string, mode = 'SHARE_TAXI') => [{ kind: 'transit', minutes: 12, mode, line }];
+  const reasons = (rows: QualityRouteRow[]) => findSuspicious(rows, new Set(), own).flatMap((i) => i.reasons.map((r) => `${i.label}: ${r.code}: ${r.text}`));
+  // «1-А» у будні — 06:30 і 09:55: о 9-й є, о 13-й нема; «2» щодня о 12:00; «7» у нас нема зовсім
+  assert.deepEqual(reasons([k({ steps: ride('1-А') }), k({ hour: 12, steps: ride('2') })]), []);
+  assert.deepEqual(reasons([k({ hour: 13, steps: ride('1-А') })]), ['Агромаш: line_not_running: будні, 13:00: №1-А — у нашому розкладі цієї години рейсу нема']);
+  assert.deepEqual(reasons([k({ steps: ride('7') })]), ['Агромаш: line_not_running: будні, 09:00: лінії №7 у нашому розкладі нема']);
+  assert.deepEqual(reasons([k({ steps: ride('6461/6462', 'HEAVY_RAIL') })]), ['Агромаш: rail_in_city: будні, 09:00: Google везе електричкою 6461/6462 містом']);
+  // лише пішки 30 хв: у будні автобуси ходять 6–12 — о 22-й це правда, о 10-й — підозріло
+  assert.deepEqual(reasons([k({ hour: 22, minutes: 30, steps: [walk] })]), []);
+  assert.deepEqual(reasons([k({ hour: 10, minutes: 30, steps: [walk] })]).map((x) => x.split(': ')[1]), ['walk_only']);
+  // туди 10 хв о 9-й, назад 45 хв о 22-й — та сама пара, але вночі; удень — підозріло
+  const back = (hour: number) => k({ fromKey: 'агромаш', fromLabel: 'Агромаш', toKey: 'korosten.vokzal', toLabel: 'вокзал', hour, minutes: 45, steps: ride('2') });
+  assert.deepEqual(reasons([k({ minutes: 10, hour: 12, steps: ride('2') }), back(22)]).filter((x) => x.includes('asymmetric')), []);
+  assert.deepEqual(reasons([k({ minutes: 10, hour: 12, steps: ride('2') }), back(12)]).map((x) => x.split(': ')[1]), ['asymmetric']);
+  // наша зупинка («Школа» в назві) — сторінка Google про неї не питає, звіт не перевіряє
+  assert.deepEqual(reasons([k({ toKey: 'загальноосвітня школа №1', toLabel: 'Загальноосвітня школа №1', minutes: 3, steps: ride('7') })]), []);
+  // Київ — як і було: свого розкладу нема, лінію не перевіряємо
+  assert.deepEqual(findSuspicious([row({ steps: [{ kind: 'transit', minutes: 10, mode: 'HEAVY_RAIL', line: 'E1' }] })], new Set(), own), []);
+});
+
 test('звіт: лише Google не в архіві; «Нормально» прибирає й повертає; HTTP лише адміну', async () => {
   const db = fakePrisma([
     row({ toKey: 'теу', toLabel: 'ТЕУ', minutes: 4 }),
@@ -105,7 +130,7 @@ test('звіт: лише Google не в архіві; «Нормально» п�
     row({ toKey: 'свої', toLabel: 'Свої', minutes: 3, source: 'own' }),
     row({ cityCode: 'Zhytomyr', fromKey: 'zhytomyr.avtovokzal', toKey: 'ринок', toLabel: 'Ринок', minutes: 2 }),
   ]);
-  const q = createCityQuality(db.prisma);
+  const q = createCityQuality(db.prisma, { dataset: async () => CHECK_DATASET });
   const all = await q.report();
   assert.deepEqual(
     all.items.map((i) => `${i.city}:${i.label}`),

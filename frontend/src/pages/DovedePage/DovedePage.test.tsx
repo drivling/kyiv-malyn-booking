@@ -80,7 +80,7 @@ describe('«Доведе» — Коростень (етап 2: Claude з про�
     vi.restoreAllMocks();
   });
 
-  it('місце словами, якого немає в наших даних: сервер дає дорогу містом (зупинка своїм id), картка без «не знаю, де це»', async () => {
+  it('місце словами, якого немає в наших даних: від Google — зупинка й пішки, автобус — наш розклад (зупинка своїм id)', async () => {
     vi.spyOn(apiClient, 'dovedeUnderstand').mockResolvedValue(null);
     const cityRoute = vi.spyOn(apiClient, 'dovedeCityRoute').mockResolvedValue({
       source: 'google',
@@ -88,8 +88,9 @@ describe('«Доведе» — Коростень (етап 2: Claude з про�
       toLabel: 'Вигадана 22',
       minutes: 10,
       fetchedAt: '2026-11-13T08:00:00.000Z',
+      // Google: «Міська лікарня» — це наша «Міськлікарня»; його час рейсу не беремо
       steps: [
-        { kind: 'transit', minutes: 2, mode: 'SHARE_TAXI', line: '7', fromStop: 'Пашини', toStop: 'Міський Центральний ринок', stops: 1 },
+        { kind: 'transit', minutes: 2, mode: 'SHARE_TAXI', line: '2', fromStop: 'Пашини', toStop: 'Міська лікарня', stops: 1 },
         { kind: 'walk', minutes: 7, meters: 530 },
       ],
     });
@@ -98,8 +99,30 @@ describe('«Доведе» — Коростень (етап 2: Claude з про�
     await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'з Пашин на Вигадану 22{Enter}');
     await waitFor(() => expect(cityRoute).toHaveBeenCalled());
     expect(cityRoute.mock.calls[0][0]).toMatchObject({ city: 'Korosten', from: 'st_1087', to: 'Вигадана 22' });
-    expect(await screen.findByText(/Міський Центральний ринок/)).toBeInTheDocument();
+    // наш №2 о 16:00 з розкладу, далі пішки 530 м
+    expect((await screen.findAllByText(/16:00/)).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/530 м/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/не знаю/i)).toBeNull();
+  });
+
+  it('зупинки Google в нас нема, а його лінії в нашому розкладі нема — людям не показуємо: кнопка карти', async () => {
+    vi.spyOn(apiClient, 'dovedeUnderstand').mockResolvedValue(null);
+    vi.spyOn(apiClient, 'dovedeCityRoute').mockResolvedValue({
+      source: 'google',
+      fromLabel: 'зупинка «Пашини»',
+      toLabel: 'Вигадана 22',
+      minutes: 10,
+      fetchedAt: '2026-11-13T08:00:00.000Z',
+      steps: [
+        { kind: 'transit', minutes: 2, mode: 'SHARE_TAXI', line: '7', fromStop: 'Пашини', toStop: 'Агромаш', stops: 1 },
+        { kind: 'walk', minutes: 7, meters: 530 },
+      ],
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<DovedePage />, { initialEntries: ['/dovede?c=Korosten'] });
+    await user.type(await screen.findByLabelText('Куди вам потрібно доїхати?'), 'з Пашин на Вигадану 22{Enter}');
+    expect(await screen.findByText(/Цієї дороги містом я ще не знаю/)).toBeInTheDocument();
+    expect(screen.queryByText(/Агромаш/)).toBeNull();
   });
 
   it('адреса з наших даних (вулиця й будинок Коростеня): сервер про дорогу не питаємо', async () => {

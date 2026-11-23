@@ -406,7 +406,13 @@ of `dist` in a commit.
   ours by `korostenStopForName` in `korostenPlaces.ts`, byte-identical in the backend; no match, e.g. «Агромаш», or a
   walk-only answer → Google's answer as is); the server serves a stored answer of the pair at any hour and day
   (`findStored`, `peekMany`), prefers one with a ride over walk-only; campaigns drop our own stops from their seeds
-  (except `check` and `custom`), never walk deeper (depth 0), and the `refill-*` presets are not offered there. A passenger stop of a city's
+  (except `check` and `custom`), never walk deeper (depth 0), and the `refill-*` presets are not offered there. A Google
+  answer the page could not move onto our timetable is still checked against it (`googleOffTimetable`: a train inside
+  the city, or a line with no trip of ours within −60…+30 min → the Google Maps button, never shown as a ride); the
+  quality report of such a city (`own-timetable.ts`, `findSuspicious(…, own)`) adds `line_not_running` / `rail_in_city`,
+  skips our own stops and counts walk-only / asymmetric only within the city's service hours; and the «Час у дорозі за
+  GPS» card shows each pair of the latest `check` campaign with our minutes, GPS (the main source) and Google
+  (`transport-time-check.ts` → `timeCheck` of `GET /admin/transport/gps/run-times`: recalc / gps / google_only / ok). A passenger stop of a city's
   dataset (`st_…`) is a known point with coordinates (`resolvePoint` in `city-route.ts`, technical points refused), and a
   point with coordinates goes to Google as `location.latLng` (`waypoint`), not as an address string.
   On the Malyn page «у Коростені …» with Korosten not an end of the trip, no other city and no Malyn-only place is a

@@ -9,9 +9,15 @@
 import type { PrismaClient } from '@prisma/client';
 import { ARRIVAL_POINTS, POINT_LABEL, type CrawlCity } from './crawl-core';
 import type { CityStep } from './city-route';
-import { isLearnCity } from './learn-cities';
+import { OWN_DATASET_CITY_CODES, isLearnCity } from './learn-cities';
+import { loadTransportDataset, type TransportDataset } from '../local-transport';
+import { ownTimetable, type OwnTimetable } from './own-timetable';
 
-export type QualityCode = 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only';
+/**
+ * `line_not_running` і `rail_in_city` — лише для міста зі своїм датасетом (Коростень): Google везе лінією в годину, коли
+ * її нема в нашому розкладі, або електричкою містом (аналіз 2026-11-23, пункт 3)
+ */
+export type QualityCode = 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only' | 'line_not_running' | 'rail_in_city';
 
 export interface QualityRouteRow {
   cityCode: string;
@@ -31,7 +37,7 @@ export interface QualityItem {
   key: string;
   label: string;
   reasons: Array<{ code: QualityCode; text: string }>;
-  routes: Array<{ origin: string; originLabel: string; dir: 'to' | 'from'; dayType: string; hour: number; minutes: number; rides: number }>;
+  routes: Array<{ origin: string; originLabel: string; dir: 'to' | 'from'; dayType: string; hour: number; minutes: number; rides: number; lines?: string[] }>;
 }
 
 /** Дорога з такою кількістю хвилин від точки — «одразу поруч»: Google, мабуть, знайшов саму точку */
@@ -50,12 +56,20 @@ const KYIV_STATION = 'kyiv.pas';
 
 const isPoint = (city: string, key: string): boolean => (ARRIVAL_POINTS as Record<string, string[]>)[city]?.includes(key) || key.startsWith('kyiv.m.');
 
-const rides = (steps: unknown): number => (Array.isArray(steps) ? (steps as CityStep[]).filter((s) => s.kind === 'transit').length : 0);
+const transits = (steps: unknown): CityStep[] => (Array.isArray(steps) ? (steps as CityStep[]).filter((s) => s?.kind === 'transit') : []);
+const rides = (steps: unknown): number => transits(steps).length;
+/** Залізниця в межах міста — електричка, поїзд (Google: HEAVY_RAIL, RAIL, COMMUTER_TRAIN, LONG_DISTANCE_TRAIN…) */
+const isRail = (mode: string | undefined): boolean => /RAIL|TRAIN/.test(String(mode ?? '')) && !/LIGHT_RAIL/.test(String(mode ?? ''));
+const DAY_UK: Record<string, string> = { weekday: 'будні', saturday: 'субота', sunday: 'неділя' };
 
 const pointLabel = (key: string, label: string) => POINT_LABEL[key] ?? label;
 
-/** Підозрілі місця за правилами вище; `skip` — «місто|ключ», які власник уже визнав нормальними */
-export function findSuspicious(rows: QualityRouteRow[], skip: Set<string> = new Set()): QualityItem[] {
+/**
+ * Підозрілі місця за правилами вище; `skip` — «місто|ключ», які власник уже визнав нормальними. `own` — свій розклад
+ * міст зі своїм датасетом (пункт 4 аналізу 2026-11-23): там наші зупинки не перевіряємо, «лише пішки» й «туди й назад
+ * удвічі» рахуємо лише в години, коли ходять автобуси (уночі пішки — це правда), і додаємо перевірку лінії й години.
+ */
+export function findSuspicious(rows: QualityRouteRow[], skip: Set<string> = new Set(), own: Partial<Record<string, OwnTimetable>> = {}): QualityItem[] {
   const byPlace = new Map<string, QualityItem>();
   for (const r of rows) {
     if (!isLearnCity(r.cityCode)) continue;
@@ -66,8 +80,11 @@ export function findSuspicious(rows: QualityRouteRow[], skip: Set<string> = new 
       : [r.fromKey, r.fromLabel, r.toKey, pointLabel(r.toKey, r.toLabel), 'from' as const];
     const id = `${r.cityCode}|${key}`;
     if (skip.has(id)) continue;
+    // свій датасет: про нашу зупинку сторінка Google не питає — і звіт її не перевіряє
+    if (own[r.cityCode]?.isOwnStop(label)) continue;
     const item = byPlace.get(id) ?? { city: r.cityCode as CrawlCity, key, label, reasons: [], routes: [] };
-    item.routes.push({ origin, originLabel, dir, dayType: r.dayType, hour: r.hour, minutes: r.minutes, rides: rides(r.steps) });
+    const lines = transits(r.steps).map((x) => `${x.mode ?? ''} ${x.line ?? ''}`.trim());
+    item.routes.push({ origin, originLabel, dir, dayType: r.dayType, hour: r.hour, minutes: r.minutes, rides: rides(r.steps), ...(own[r.cityCode] ? { lines } : {}) });
     byPlace.set(id, item);
   }
 
@@ -75,6 +92,13 @@ export function findSuspicious(rows: QualityRouteRow[], skip: Set<string> = new 
   for (const item of byPlace.values()) {
     const add = (code: QualityCode, text: string) => {
       if (!item.reasons.some((x) => x.code === code)) item.reasons.push({ code, text });
+    };
+    const tt = own[item.city];
+    // години руху цього типу дня: поза ними «лише пішки» й довга дорога — правда, а не помилка Google
+    const inService = (r: { dayType: string; hour: number }) => {
+      if (!tt) return true;
+      const h = tt.hours(r.dayType);
+      return Boolean(h && r.hour >= h.first && r.hour <= h.last);
     };
     const near = item.routes.filter((r) => r.minutes <= NEAR_MIN).sort((a, b) => a.minutes - b.minutes)[0];
     if (near) add('next_to_point', `${near.minutes} хв від ${near.originLabel} — можливо, Google знайшов саму точку або щось поруч`);
@@ -87,23 +111,53 @@ export function findSuspicious(rows: QualityRouteRow[], skip: Set<string> = new 
     }
 
     for (const a of item.routes) {
-      if (a.dir !== 'to') continue;
-      const back = item.routes.filter((b) => b.dir === 'from' && b.origin === a.origin && b.dayType === a.dayType);
+      if (a.dir !== 'to' || !inService(a)) continue;
+      const back = item.routes.filter((b) => b.dir === 'from' && b.origin === a.origin && b.dayType === a.dayType && inService(b));
       for (const b of back) {
         const [lo, hi] = a.minutes < b.minutes ? [a.minutes, b.minutes] : [b.minutes, a.minutes];
         if (hi >= lo * 2 && hi - lo >= ASYM_MIN) add('asymmetric', `туди ${a.minutes} хв, назад ${b.minutes} хв (від: ${a.originLabel})`);
       }
     }
 
-    const walk = item.routes.filter((r) => r.rides === 0 && r.minutes >= WALK_ONLY_MIN).sort((a, b) => b.minutes - a.minutes)[0];
+    const walk = item.routes.filter((r) => r.rides === 0 && r.minutes >= WALK_ONLY_MIN && inService(r)).sort((a, b) => b.minutes - a.minutes)[0];
     if (walk) add('walk_only', `лише пішки ${walk.minutes} хв від: ${walk.originLabel} — транспорту Google не знайшов`);
+
+    if (tt) {
+      for (const r of item.routes) {
+        for (const l of r.lines ?? []) {
+          const [mode, ...rest] = l.split(' ');
+          const line = rest.join(' ');
+          const when = `${DAY_UK[r.dayType] ?? r.dayType}, ${String(r.hour).padStart(2, '0')}:00`;
+          if (isRail(mode)) add('rail_in_city', `${when}: Google везе електричкою${line ? ` ${line}` : ''} містом`);
+          else if (line && tt.lineRuns(line, r.dayType, r.hour) !== true) {
+            add('line_not_running', tt.lineRuns(line, r.dayType, r.hour) === null ? `${when}: лінії №${line} у нашому розкладі нема` : `${when}: №${line} — у нашому розкладі цієї години рейсу нема`);
+          }
+        }
+      }
+    }
 
     if (item.reasons.length) out.push(item);
   }
   return out.sort((a, b) => b.reasons.length - a.reasons.length || a.label.localeCompare(b.label, 'uk'));
 }
 
-export function createCityQuality(prisma: PrismaClient) {
+export function createCityQuality(prisma: PrismaClient, deps: { dataset?: (city: string) => Promise<TransportDataset> } = {}) {
+  const dataset = deps.dataset ?? ((city: string) => loadTransportDataset(prisma, city));
+
+  /** Свій розклад міст зі своїм датасетом, які є в звіті; датасет не прочитався — без перевірок свого розкладу */
+  async function ownOf(city?: CrawlCity): Promise<Partial<Record<string, OwnTimetable>>> {
+    const out: Partial<Record<string, OwnTimetable>> = {};
+    for (const code of OWN_DATASET_CITY_CODES) {
+      if (city && city !== code) continue;
+      try {
+        out[code] = ownTimetable(await dataset(code));
+      } catch (e) {
+        console.error(`❌ city-quality: датасет ${code} не прочитано:`, e instanceof Error ? e.message : e);
+      }
+    }
+    return out;
+  }
+
   /** Підозрілі місця міста (або обох міст) і скільки місць переглянуто */
   async function report(city?: CrawlCity): Promise<{ items: QualityItem[]; places: number; okPlaces: number }> {
     const [rows, marks] = await Promise.all([
@@ -115,7 +169,7 @@ export function createCityQuality(prisma: PrismaClient) {
     ]);
     const ok = new Set(marks.map((m) => `${m.cityCode}|${m.key}`));
     const places = new Set(rows.map((r) => `${r.cityCode}|${isPoint(r.cityCode, r.fromKey) ? r.toKey : r.fromKey}`));
-    return { items: findSuspicious(rows, ok), places: places.size, okPlaces: ok.size };
+    return { items: findSuspicious(rows, ok, await ownOf(city)), places: places.size, okPlaces: ok.size };
   }
 
   /** «Нормально» (true) — більше не показувати; false — показувати знову. Архіву не чіпає */

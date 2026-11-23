@@ -9,7 +9,7 @@ import express from 'express';
 import request from 'supertest';
 import { listenLocal } from '../http-test-server';
 import type { PrismaClient } from '@prisma/client';
-import { CampaignInputError, buildPlan, createCityCampaigns, estimateCost, expandSeeds, reserveFor, type CampaignPlan } from './city-campaign';
+import { CampaignInputError, buildPlan, createCityCampaigns, estimateCost, expandSeeds, latestCheckResults, reserveFor, type CampaignPlan } from './city-campaign';
 import { LEARN_PLACES } from './learn-places';
 import { createAdminDovedeRouter } from '../routes/admin-dovede';
 import { adminAuthToken, setAdminPassword } from '../middleware/require-admin';
@@ -659,6 +659,12 @@ test('«Звірити свій розклад з Google»: пари зупин�
   const row = got?.recent.find((r) => r.place === 'Завод' && r.origin === 'Вокзал') as { verdict?: string } | undefined;
   assert.equal(row?.verdict, 'same');
   assert.match(t.sent[0], /Звірка \(6 пар\): збігається 1, Google швидше 0, наше швидше 1, інша лінія 1, пішки 1, немає 2\./);
+  // для картки «Час у дорозі за GPS» — усі пари з відповіддю, разом зі «збігається»
+  const all = await latestCheckResults(t.prisma, 'Korosten');
+  assert.equal(all?.campaignId, made.id);
+  assert.deepEqual(all?.rows.map((r) => r.verdict).sort(), ['none', 'none', 'other_line', 'ours_faster', 'same', 'walk']);
+  assert.deepEqual(all?.rows.find((r) => r.verdict === 'same'), { verdict: 'same', routeNo: '1-А', ownMin: 12, googleMin: 13, googleLines: ['1А'], from: 'Вокзал', to: 'Завод', routes: ['1-А', '2'], ours: 10 });
+  assert.equal(await latestCheckResults(t.prisma, 'Kyiv'), null);
 });
 
 test('звірка: поки кампанія йде, перегляд показує вердикти за відповідями, що вже є', async () => {

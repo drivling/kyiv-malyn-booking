@@ -27,6 +27,8 @@ import { arrivalReportStats, buildArrivalRow, parseArrivalReport, parseReportDay
 import { GTFS_ZIP_FILENAME, createGtfsFeedProvider, isGtfsFeedFile } from '../gtfs-feed';
 import { listGpsPointsSince, listGpsPositions, parseGpsRange, parseRunTimesDays, RUN_TIMES_DAYS_MAX } from '../transport-gps';
 import { buildRunTimes } from '../transport-gps-times';
+import { timeCandidates } from '../transport-time-check';
+import { latestCheckResults } from '../dovede/city-campaign';
 import { DEFAULT_TRANSPORT_CITY, parseTransportCity, resolveTransportCity, type TransportCityAccess } from '../transport-city';
 import {
   WATCHED_SOURCES,
@@ -512,6 +514,12 @@ export function createTransportRouter(deps: {
         if (t < first) first = t;
         if (t > last) last = t;
       }
+      const runTimes = buildRunTimes(dataset, points);
+      // друга думка — остання звірка розкладу з Google (Коростень); не прочиталась — картка без неї
+      const check = await latestCheckResults(prisma, cityCode).catch((e) => {
+        console.error('[GET /admin/transport/gps/run-times] звірка з Google:', e);
+        return null;
+      });
       res.set('Cache-Control', 'private, no-store');
       res.json({
         cityCode,
@@ -520,7 +528,8 @@ export function createTransportRouter(deps: {
         from: points.length ? new Date(first).toISOString() : null,
         to: points.length ? new Date(last).toISOString() : null,
         revision: dataset.revision ?? null,
-        ...buildRunTimes(dataset, points),
+        ...runTimes,
+        timeCheck: check ? { campaignId: check.campaignId, finishedAt: check.finishedAt, candidates: timeCandidates(runTimes, check.rows) } : null,
       });
     } catch (e) {
       console.error('[GET /admin/transport/gps/run-times]', e);
