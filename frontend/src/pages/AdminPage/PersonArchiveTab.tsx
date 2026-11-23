@@ -1,42 +1,45 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { apiClient } from '@/api/client';
 import { Alert } from '@/components/Alert';
-import { Button } from '@/components/Button';
 import { formatPhoneDisplay } from '@/utils/constants';
 import type { PersonDataArchiveDetail, PersonDataArchiveSummary } from '@/types';
+import { AdminSectionHeader, EmptyState, StatTile, StatTiles } from './kit';
+import { archiveTiles, countTags, kyivDateTime, payloadSections } from './archive/archiveText';
+import './SchedulesTab.css';
 import './PersonArchiveTab.css';
 
-/** Підсумок по знімку одним рядком — щоб не розгортати JSON заради трьох чисел. */
-function countsLabel(a: PersonDataArchiveSummary): string {
-  const c = a.deletedCounts;
-  if (!c) return '—';
-  const parts = [
-    c.bookings ? `бронювань ${c.bookings}` : null,
-    c.viberListings ? `оголошень ${c.viberListings}` : null,
-    c.viberRideEvents ? `ViberRide ${c.viberRideEvents}` : null,
-    c.referralRewardsKeptPaid ? `виплачених збережено ${c.referralRewardsKeptPaid}` : null,
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(' · ') : 'порожньо';
+/** Знімок файлом — щоб віддати людині її дані або зберегти поза базою */
+function downloadJson(detail: PersonDataArchiveDetail) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(detail.payload, null, 2)], { type: 'application/json;charset=utf-8' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `archive-${detail.id}-${detail.phoneNormalized}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 /**
- * Вкладка «Архів»: JSON-знімки персональних даних, зроблені кнопкою «Архівувати всі дані».
- * Тільки перегляд — відновлення й видалення тут навмисно немає.
+ * Вкладка «Архів» (`/admin/archive`): JSON-знімки персональних даних, зроблені кнопкою «Архівувати» у вкладці «Дані».
+ * Плитки (знімків, за 30 днів, записів прибрано, виплачених збережено), пошук, один знімок — один рядок з усіма
+ * лічильниками; у вікні — знімок по розділах і файлом. Тільки перегляд — відновлення й видалення тут навмисно немає.
  */
 export const PersonArchiveTab: React.FC = () => {
   const [archives, setArchives] = useState<PersonDataArchiveSummary[]>([]);
   const [search, setSearch] = useState('');
+  const [searched, setSearched] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [detail, setDetail] = useState<PersonDataArchiveDetail | null>(null);
   const [detailLoadingId, setDetailLoadingId] = useState<number | null>(null);
 
-  const load = useCallback(async (query?: string) => {
+  const load = useCallback(async (query: string) => {
     setLoading(true);
     setError('');
     try {
-      const data = await apiClient.getPersonDataArchives(query);
-      setArchives(data);
+      setArchives(await apiClient.getPersonDataArchives(query || undefined));
+      setSearched(query);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Не вдалося завантажити архів');
     } finally {
@@ -45,8 +48,11 @@ export const PersonArchiveTab: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    void load();
+    void load('');
   }, [load]);
+
+  const tiles = useMemo(() => archiveTiles(archives), [archives]);
+  const sections = useMemo(() => (detail ? payloadSections(detail.payload) : []), [detail]);
 
   const openDetail = async (id: number) => {
     setDetailLoadingId(id);
@@ -61,99 +67,123 @@ export const PersonArchiveTab: React.FC = () => {
   };
 
   return (
-    <div className="tab-content">
-      <h3 className="person-archive-title">Архів персональних даних</h3>
-      <p className="person-archive-hint">
-        Знімки, зроблені кнопкою «Архівувати всі дані» у вкладці «Дані». Робочі записи цих людей
-        видалені — тут лишається єдина копія на момент звернення. Відновлення немає.
-      </p>
+    <div className="tab-content archive-tab">
+      <AdminSectionHeader
+        title="Архів персональних даних"
+        purpose="Знімки, зроблені кнопкою «Архівувати» у вкладці «Дані». Робочі записи цих людей видалені — тут єдина копія на момент звернення. Відновлення немає."
+        actions={
+          <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={() => void load(searched)} disabled={loading}>
+            Оновити
+          </button>
+        }
+      />
+
+      <StatTiles label="Архів">
+        <StatTile label={searched ? `Знайдено за «${searched}»` : 'Знімків'} value={tiles.total} sub={tiles.people !== tiles.total ? `номерів ${tiles.people}` : undefined} />
+        <StatTile label="За 30 днів" value={tiles.month} />
+        <StatTile label="Записів прибрано" value={tiles.removed} sub="з робочих таблиць" />
+        <StatTile label="Виплачених збережено" value={tiles.keptPaid} sub="знеособлені, для звіту виплат" />
+      </StatTiles>
 
       {error && <Alert variant="error">{error}</Alert>}
 
-      <div className="controls">
+      <form
+        className="archive-toolbar"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void load(search.trim());
+        }}
+      >
         <input
-          type="text"
-          className="control-input"
-          placeholder="Пошук за телефоном, імʼям або причиною..."
+          type="search"
+          className="archive-input"
+          placeholder="Телефон, імʼя або причина — Enter"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void load(search);
-          }}
+          aria-label="Пошук в архіві"
         />
-        <Button onClick={() => void load(search)}>Пошук</Button>
-        <Button
-          variant="secondary"
-          onClick={() => {
-            setSearch('');
-            void load('');
-          }}
-        >
-          Оновити список
-        </Button>
-      </div>
+        <button type="submit" className="admin-kit-btn" disabled={loading}>
+          Шукати
+        </button>
+        {searched && (
+          <button
+            type="button"
+            className="admin-kit-linkbtn"
+            onClick={() => {
+              setSearch('');
+              void load('');
+            }}
+          >
+            Увесь архів
+          </button>
+        )}
+      </form>
 
-      {loading ? (
-        <div className="admin-loading" aria-live="polite">Завантаження...</div>
+      {loading && !archives.length ? (
+        <p className="archive-muted">Завантаження…</p>
       ) : archives.length === 0 ? (
-        <div className="admin-empty">
-          <p className="admin-empty-text">Архів порожній</p>
-        </div>
+        <EmptyState>{searched ? 'За цим пошуком знімків немає.' : 'Архів порожній.'}</EmptyState>
       ) : (
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Дата</th>
-                <th>Телефон</th>
-                <th>Імʼя на момент архівації</th>
-                <th>Причина</th>
-                <th>Що було в знімку</th>
-                <th>Дії</th>
-              </tr>
-            </thead>
-            <tbody>
-              {archives.map((a) => (
-                <tr key={a.id}>
-                  <td>#{a.id}</td>
-                  <td>{new Date(a.createdAt).toLocaleString('uk-UA')}</td>
-                  <td>{formatPhoneDisplay(a.phoneNormalized)}</td>
-                  <td>{a.fullName ?? '—'}</td>
-                  <td className="person-archive-reason" title={a.reason}>{a.reason}</td>
-                  <td>{countsLabel(a)}</td>
-                  <td>
-                    <Button
-                      variant="secondary"
-                      onClick={() => void openDetail(a.id)}
-                      disabled={detailLoadingId === a.id}
-                    >
-                      {detailLoadingId === a.id ? 'Завантаження…' : 'Показати JSON'}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="archive-rows" aria-label="Знімки">
+          {archives.map((a) => {
+            const tags = countTags(a.deletedCounts);
+            return (
+              <li key={a.id} className="archive-row" aria-label={`Архів #${a.id}`}>
+                <span className="archive-when">
+                  <span className="archive-muted">#{a.id}</span> {kyivDateTime(a.createdAt)}
+                </span>
+                <span className="archive-who">
+                  <strong>{a.fullName || <span className="archive-muted">без імені</span>}</strong>
+                  <span className="archive-phone">{formatPhoneDisplay(a.phoneNormalized)}</span>
+                  {a.personId ? <span className="archive-muted">персона #{a.personId}</span> : null}
+                </span>
+                <span className="archive-what">
+                  <span className="archive-reason">{a.reason}</span>
+                  <span className="sched-tags">
+                    {tags.length ? tags.map((t) => <span key={t} className="sched-tag">{t}</span>) : <span className="sched-tag">порожньо</span>}
+                  </span>
+                </span>
+                <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={() => void openDetail(a.id)} disabled={detailLoadingId === a.id}>
+                  {detailLoadingId === a.id ? 'Завантаження…' : 'Знімок'}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
       )}
 
       {detail && (
-        <div className="modal" onClick={(e) => e.target === e.currentTarget && setDetail(null)}>
-          <div className="modal-content">
+        <div className="modal" role="dialog" aria-modal="true" aria-label={`Архів #${detail.id}`} onClick={(e) => e.target === e.currentTarget && setDetail(null)}>
+          <div className="modal-content archive-modal">
             <div className="modal-header">
-              <h2>Архів #{detail.id} · {formatPhoneDisplay(detail.phoneNormalized)}</h2>
-              <button className="close-btn" onClick={() => setDetail(null)}>&times;</button>
+              <h2>
+                Архів #{detail.id} · {formatPhoneDisplay(detail.phoneNormalized)}
+              </h2>
+              <button type="button" className="close-btn" aria-label="Закрити" onClick={() => setDetail(null)}>
+                &times;
+              </button>
             </div>
-            <p className="modal-hint">Причина: {detail.reason}</p>
-            <textarea
-              className="person-archive-payload"
-              readOnly
-              rows={24}
-              value={JSON.stringify(detail.payload, null, 2)}
-            />
+            <p className="modal-hint">
+              {kyivDateTime(detail.createdAt)} · {detail.fullName || 'без імені'} · причина: {detail.reason}
+            </p>
+            <div className="archive-sections" aria-label="Розділи знімка">
+              {sections.map((s) => (
+                <details key={s.key} className={`archive-section${s.count === 0 ? ' is-empty' : ''}`}>
+                  <summary>
+                    {s.label}
+                    {s.count != null ? <span className="archive-muted"> · {s.count}</span> : null}
+                  </summary>
+                  <pre>{JSON.stringify(s.value, null, 2)}</pre>
+                </details>
+              ))}
+            </div>
             <div className="form-actions">
-              <Button variant="secondary" onClick={() => setDetail(null)}>Закрити</Button>
+              <button type="button" className="admin-kit-btn admin-kit-btn--quiet" onClick={() => downloadJson(detail)}>
+                Завантажити JSON
+              </button>
+              <button type="button" className="admin-kit-btn" onClick={() => setDetail(null)}>
+                Закрити
+              </button>
             </div>
           </div>
         </div>

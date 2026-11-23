@@ -1,26 +1,125 @@
-.person-archive-title {
-  margin-bottom: 8px;
+/* Вкладка «Архів» (PersonArchiveTab.tsx) на спільному наборі kit/: один знімок — один рядок */
+
+.archive-tab .admin-kit-tiles {
+  margin-bottom: 12px;
+}
+.archive-tab .admin-kit-tile-value small {
+  display: block;
+}
+.archive-muted {
+  color: var(--pb-text-hint, #737373);
+  font-size: 0.8125rem;
+  font-weight: 400;
 }
 
-.person-archive-hint {
-  margin-bottom: 16px;
-  color: var(--color-text-secondary, #666);
+.archive-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 10px;
+}
+.archive-input {
+  flex: 1 1 240px;
+  max-width: 380px;
+  padding: 6px 10px;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  font: inherit;
+  font-size: 0.875rem;
+}
+
+.archive-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: var(--pb-radius, 8px);
+  background: var(--pb-card-bg, #fff);
+}
+.archive-row {
+  display: grid;
+  grid-template-columns: 170px minmax(180px, 0.8fr) minmax(0, 2fr) auto;
+  gap: 4px 12px;
+  align-items: start;
+  padding: 8px 12px;
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  font-size: 0.875rem;
+}
+.archive-row:first-child {
+  border-top: 0;
+}
+.archive-when {
+  font-variant-numeric: tabular-nums;
+}
+.archive-what {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.archive-who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  min-width: 0;
+}
+.archive-phone {
+  font-variant-numeric: tabular-nums;
+}
+.archive-reason {
+  overflow-wrap: anywhere;
+}
+
+.archive-modal {
+  width: 100%;
   max-width: 760px;
 }
-
-.person-archive-reason {
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.archive-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 60vh;
+  overflow: auto;
+  margin-bottom: 10px;
 }
-
-.person-archive-payload {
-  width: 100%;
+.archive-section {
+  border: 1px solid var(--pb-border, #e0e0e0);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+.archive-section summary {
+  padding: 6px 10px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.archive-section.is-empty summary {
+  color: var(--pb-text-hint, #737373);
+  font-weight: 400;
+}
+.archive-section pre {
+  margin: 0;
+  padding: 8px 10px;
+  border-top: 1px solid var(--pb-border, #e0e0e0);
+  background: var(--pb-bg-secondary, #fafafa);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 12px;
   line-height: 1.45;
-  white-space: pre;
-  overflow: auto;
-  resize: vertical;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 860px) {
+  .archive-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .archive-who,
+  .archive-what {
+    grid-column: 1 / -1;
+  }
+  .archive-row > button {
+    grid-column: 2;
+    grid-row: 1;
+  }
 }
