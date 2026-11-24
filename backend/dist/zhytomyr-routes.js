@@ -7,6 +7,8 @@ exports.loadZhytomyrRoutes = loadZhytomyrRoutes;
 exports.buildZhytomyrRoutes = buildZhytomyrRoutes;
 exports.buildZhytomyrStops = buildZhytomyrStops;
 exports.buildZhytomyrReport = buildZhytomyrReport;
+exports.zhytomyrTimedDirections = zhytomyrTimedDirections;
+exports.ztStopSide = ztStopSide;
 exports.buildZhytomyrOwnData = buildZhytomyrOwnData;
 /**
  * data/zhytomyr-transport/routes.json зі збережених сторінок zt.rozklad.in.ua. Окремо від скрипта, щоб тест міг
@@ -67,23 +69,16 @@ function buildZhytomyrReport(root) {
     return (0, zhytomyr_google_check_1.buildCheckReport)(routes, stops, (0, zhytomyr_google_check_1.checkSpans)(routes, stops.stops), verdicts, osm);
 }
 /**
- * backend/src/dovede/zhytomyr-own-data.ts — те, з чого сервер «Доведе» складає пряму поїздку Житомиром без Google:
- * зупинки з хвилинами (виправленими за Google) й координатами та відправлення від першої зупинки. Каталогу `data/`
- * на сервері немає, тому дані їдуть модулем. `checked` — три великі відрізки напрямку збіглися з Google або
- * виправлені за ним (REPORT.md); лише такі напрямки йдуть у відповідь людині. Рейси «у депо» сюди не потрапляють: вони не йдуть до кінцевої.
+ * Хвилини між зупинками — за Google там, де він їх знає (рішення власника 2026-11-17: розклад сайту давній,
+ * «Google точно знає краще»). Відрізок із справді іншими хвилинами розтягуємо чи стискаємо до часу Google,
+ * решту ланцюжка зсуваємо. Напрямок «звірено», коли всі три великі відрізки збіглись або виправлені.
  */
-function buildZhytomyrOwnData(root) {
+function zhytomyrTimedDirections(root) {
     const routes = loadZhytomyrRoutes(root);
     const stops = JSON.parse(buildZhytomyrStops(root)).stops;
-    const byId = new Map(stops.map((s) => [s.id, s]));
     const verdicts = readJson(node_path_1.default.join(root, 'google/checks.json'), { checks: {} }).checks;
     const thirds = (0, zhytomyr_google_check_1.checkSpans)(routes, stops).filter((sp) => sp.level === 'thirds');
-    const side = (name) => name.replace(/\s+\[?0\d{1,2}\]?\s*$/, '').trim();
-    const times = (list) => list.filter((d) => !d.note?.includes('depot')).map((d) => d.time);
     const dirs = routes.routes.flatMap((r) => r.directions.map((d) => {
-        // Хвилини між зупинками — за Google там, де він їх знає (рішення власника 2026-11-17: розклад сайту давній,
-        // «Google точно знає краще»). Відрізок із справді іншими хвилинами розтягуємо чи стискаємо до часу Google,
-        // решту ланцюжка зсуваємо. Напрямок «звірено», коли всі три великі відрізки збіглись або виправлені.
         const minutes = d.stops.map((x) => x.minutes);
         const mine = thirds.filter((sp) => sp.dirId === d.dirId);
         let checked = mine.length > 0;
@@ -114,19 +109,36 @@ function buildZhytomyrOwnData(root) {
         const whole = minutes.map((m) => Math.round(m));
         for (let i = 1; i < whole.length; i++)
             whole[i] = Math.max(whole[i], whole[i - 1]);
-        return {
-            id: d.dirId,
-            no: r.number,
-            name: d.name,
-            checked,
-            stops: d.stops.map((x, i) => {
-                const at = byId.get(x.id);
-                // приблизна координата (між сусідами) для пошуку «поруч» не годиться
-                return at && at.source !== 'interpolated' ? [side(x.name), whole[i], at.lat, at.lng] : [side(x.name), whole[i], null, null];
-            }),
-            wd: times(d.workdays),
-            we: times(d.weekend),
-        };
+        return { route: r, dir: d, minutes: whole, checked };
+    }));
+    return { routes, stops, dirs };
+}
+/** Назва зупинки без номера боку дороги: «Панчішна фабрика 01» → «Панчішна фабрика» */
+function ztStopSide(name) {
+    return name.replace(/\s+\[?0\d{1,2}\]?\s*$/, '').trim();
+}
+/**
+ * backend/src/dovede/zhytomyr-own-data.ts — те, з чого сервер «Доведе» складає пряму поїздку Житомиром без Google:
+ * зупинки з хвилинами (виправленими за Google) й координатами та відправлення від першої зупинки. Каталогу `data/`
+ * на сервері немає, тому дані їдуть модулем. `checked` — три великі відрізки напрямку збіглися з Google або
+ * виправлені за ним (REPORT.md); лише такі напрямки йдуть у відповідь людині. Рейси «у депо» сюди не потрапляють: вони не йдуть до кінцевої.
+ */
+function buildZhytomyrOwnData(root) {
+    const { routes, stops, dirs: timed } = zhytomyrTimedDirections(root);
+    const byId = new Map(stops.map((s) => [s.id, s]));
+    const times = (list) => list.filter((d) => !d.note?.includes('depot')).map((d) => d.time);
+    const dirs = timed.map(({ route: r, dir: d, minutes: whole, checked }) => ({
+        id: d.dirId,
+        no: r.number,
+        name: d.name,
+        checked,
+        stops: d.stops.map((x, i) => {
+            const at = byId.get(x.id);
+            // приблизна координата (між сусідами) для пошуку «поруч» не годиться
+            return at && at.source !== 'interpolated' ? [ztStopSide(x.name), whole[i], at.lat, at.lng] : [ztStopSide(x.name), whole[i], null, null];
+        }),
+        wd: times(d.workdays),
+        we: times(d.weekend),
     }));
     const validFrom = routes.routes.flatMap((r) => r.directions.map((d) => d.validFrom)).find(Boolean) ?? null;
     return [

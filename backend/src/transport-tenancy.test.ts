@@ -85,12 +85,13 @@ function scoped(call: StoreCall): boolean {
   return false;
 }
 
-test('parseTransportCity: без параметра — Малин; відоме активне місто без урахування регістру; решта — null', () => {
+test('parseTransportCity: без параметра — Малин; місто з транспортом без урахування регістру; решта — null', () => {
   assert.equal(parseTransportCity(undefined), DEFAULT_TRANSPORT_CITY);
   assert.equal(parseTransportCity(''), 'Malyn');
   assert.equal(parseTransportCity(' malyn '), 'Malyn');
   assert.equal(parseTransportCity('KOROSTEN'), 'Korosten');
-  assert.equal(parseTransportCity('Zhytomyr'), null); // сайт ще не активний
+  // домен Житомира ще не підключено, але транспорт міста вже готується (site-domains.ts, transport)
+  assert.equal(parseTransportCity('zhytomyr'), 'Zhytomyr');
   assert.equal(parseTransportCity('Kyiv'), null);
   assert.equal(parseTransportCity(['Malyn']), null);
 });
@@ -184,7 +185,12 @@ test('?city=: неопубліковане місто бачить лише ад
   await request(app).get('/transport/stops/st_1001?city=Korosten').expect(404);
   await request(app).get('/transport/stop-redirects?city=Korosten').expect(404);
   await request(app).get('/transport/dataset?city=Atlantis').expect(404);
-  await request(app).get('/transport/dataset?city=Zhytomyr').set(auth).expect(404);
+  await request(app).get('/transport/dataset?city=Kyiv').set(auth).expect(404);
+  // Житомир без домену: публічно 404, адмін бачить (поки порожній) датасет без кешу
+  await request(app).get('/transport/dataset?city=Zhytomyr').expect(404);
+  const zt = await request(app).get('/transport/dataset?city=Zhytomyr').set(auth).expect(200);
+  assert.equal(zt.headers['cache-control'], 'private, no-store');
+  assert.deepEqual(zt.body.stops, []);
 
   const admin = await request(app).get('/transport/dataset?city=korosten').set(auth).expect(200);
   assert.equal(admin.headers['cache-control'], 'private, no-store');

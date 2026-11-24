@@ -87,6 +87,11 @@ function createApp(deps) {
     // gzip для JSON (каталоги/оголошення стискаються в 5–10×); маленькі відповіді не чіпаємо
     app.use((0, compression_1.default)({ threshold: 1024 }));
     app.use((0, cors_1.default)(corsOptions));
+    // Повний датасет транспорту міста — один PUT від адміна; Житомир (трамвай, тролейбуси й автобуси, ~4,5 тис. рейсів)
+    // важить ~1,7 МБ, тож цьому шляху — більший ліміт. Тіло, розібране тут, загальний парсер нижче вже не чіпає.
+    const bigDatasetJson = express_1.default.json({ limit: '8mb' });
+    // лише для адміна: решта йде звичайним лімітом і далі — у 401 від requireAdmin
+    app.put('/transport/dataset', (req, res, next) => ((0, require_admin_1.isAdminRequest)(req) ? bigDatasetJson(req, res, next) : next()));
     app.use(express_1.default.json({ limit: '2mb' }));
     app.use('/poputky', (0, poputky_1.createPoputkyRouter)({ prisma }));
     const ADMIN_PASSWORD = (0, require_admin_1.resolveAdminPassword)(deps.adminPassword);

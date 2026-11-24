@@ -34,6 +34,8 @@ export interface SiteConfig {
   isPrimary: boolean;
   /** Домен підключено і він обслуговує трафік (неактивні міста живуть на головному сайті) */
   active: boolean;
+  /** Місто має міський транспорт у базі: ?city=, перемикач міст в адмінці, перегляд адміном (незалежно від домену) */
+  transport: boolean;
 }
 
 export const SITES: Record<SiteKey, SiteConfig> = SITE_MAP as Record<SiteKey, SiteConfig>;
