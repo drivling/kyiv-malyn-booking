@@ -60,6 +60,7 @@ export const isValidDailyCap = (v: unknown): v is number => typeof v === 'number
 const TIMEOUT_MS = 4000;
 import { ownZhytomyrRoute } from './zhytomyr-own';
 import { withKyivOwnLines } from './kyiv-own-lines';
+import { halvesOf, ownKyivTrip, type OwnTrip, type TripHalf } from './kyiv-own-trip';
 import { OWN_DATASET_CITY_CODES, byLearnCity, isLearnCity, type LearnCityCode } from './learn-cities';
 
 /** Міста зі своїм датасетом: збережена дорога пари годиться на будь-яку годину (`findStored`) */
@@ -439,6 +440,34 @@ export function createCityRoutes(deps: CityRoutesDeps) {
     }
   }
 
+  /**
+   * Київ, крок 8б-2: «половинки» збережених відповідей Google — з якої зупинки сідають біля `from` (дороги з нього
+   * будь-куди) і на якій виходять біля `to` (дороги в нього звідки завгодно) — і своя поїздка однією лінією КПТ між ними
+   */
+  async function ownKyiv(q: CityRouteQuery, from: CityPoint, to: CityPoint): Promise<OwnTrip | null> {
+    const freshFrom = await freshSince();
+    const base = { cityCode: q.city, archivedAt: null, source: 'google', fetchedAt: { gte: freshFrom } };
+    const select = { steps: true, fetchedAt: true } as const;
+    const [outs, ins] = await Promise.all([
+      prisma.dovedeCityRoute.findMany({ where: { ...base, fromKey: from.key }, select, orderBy: { fetchedAt: 'desc' }, take: 60 }),
+      prisma.dovedeCityRoute.findMany({ where: { ...base, toKey: to.key }, select, orderBy: { fetchedAt: 'desc' }, take: 60 }),
+    ]);
+    if (!outs.length || !ins.length) return null;
+    const stops = await knownStops(q.city);
+    const collect = (rows: typeof outs, side: 'start' | 'end'): TripHalf[] => {
+      const seen = new Map<string, TripHalf>();
+      for (const r of rows) {
+        const h = halvesOf((r.steps as unknown as CityStep[]) ?? [])[side];
+        const at = h ? stops.get(h.stop.trim()) : null;
+        if (!h || !at) continue;
+        const prev = seen.get(h.stop);
+        if (!prev || h.walkMin < prev.walkMin) seen.set(h.stop, { stop: h.stop, lat: at.lat, lng: at.lng, walkMin: h.walkMin, walkM: h.walkM, fetchedAt: r.fetchedAt.toISOString() });
+      }
+      return [...seen.values()];
+    };
+    return ownKyivTrip({ starts: collect(outs, 'start'), ends: collect(ins, 'end'), date: q.date, time: q.time });
+  }
+
   /** Точка питання: зупинка датасету міста за id (з координатами) або те, що знає `resolveCityPoint` */
   async function resolvePoint(city: CityCode, raw: string): Promise<CityPoint | null> {
     const value = raw.trim();
@@ -755,6 +784,19 @@ export function createCityRoutes(deps: CityRoutesDeps) {
       }
       const mine = await ownLines(q, stored.steps as unknown as CityStep[], stored.minutes);
       return { ok: true, source: stored.source === 'own' ? 'own' : 'stored', city: q.city, fromLabel: stored.fromLabel, toLabel: stored.toLabel, steps: mine.steps, minutes: mine.minutes, fetchedAt: stored.fetchedAt.toISOString() };
+    }
+
+    // Київ (крок 8б-2): одна лінія «Київпастрансу» між зупинками, які Google уже показав біля обох кінців, — без Google
+    if (!force && q.city === 'Kyiv' && (await ownEnabled())) {
+      const own = await ownKyiv(q, from, to).catch((e) => {
+        console.error('❌ city-route: своя поїздка Києвом:', e);
+        return null;
+      });
+      if (own) {
+        if (background) await markAnswered(q.city, from, to);
+        else await noteDemand(q.city, from, to, true);
+        return { ok: true, source: 'own', city: q.city, fromLabel: from.label, toLabel: to.label, steps: own.steps, minutes: own.minutes, fetchedAt: own.fetchedAt };
+      }
     }
 
     const got = await askGoogle(q, from, to, background ? 'learn' : 'people', trace);

@@ -9,8 +9,9 @@ import { listenLocal } from '../http-test-server';
 import { createDovedeSettings } from './settings';
 import assert from 'node:assert/strict';
 import type { PrismaClient } from '@prisma/client';
-import { MODE_PAIRS, SEED_PAIRS, createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, waypoint, type CityRouteQuery } from './city-route';
+import { MODE_PAIRS, SEED_PAIRS, createCityRoutes, dayTypeOf, nextSlot, nextWeekdayMorning, normalizeKey, parseGoogleRoute, refreshLeadDays, resolveCityPoint, storedPoint, waypoint, type CityRouteQuery, type CityStep } from './city-route';
 import { KYIV_TAXI } from './kyiv-taxi-data';
+import { KYIV_KPT } from './kyiv-kpt-data';
 
 type Row = Record<string, unknown>;
 
@@ -899,4 +900,40 @@ test('Київ (крок 8б): маршрутка з переліку міста
   const plain = await off.svc.find(kq);
   assert.ok(plain.ok);
   assert.equal(plain.steps.find((s) => s.kind === 'transit')?.own, undefined);
+});
+
+test('Київ (крок 8б-2): нова пара з половинок збережених доріг — одна лінія КПТ, без Google; у базу не пишемо', async () => {
+  // справжній напрямок КПТ, що ходить у будні о 10-й: сідаємо біля першої точки, виходимо біля останньої
+  const dir = KYIV_KPT.dirs.find((d) => d.id.endsWith('/0') && d.points.length >= 3 && d.wd.some((t) => t >= 600 && t <= 620) && d.wd.some((t) => t > 620 && t <= 640));
+  assert.ok(dir);
+  const [, aLat, aLng] = dir.points[0];
+  const [, bLat, bLng] = dir.points[dir.points.length - 1];
+  const t = make({ ownEnabled: () => true });
+  const at = new Date('2026-11-16T08:00:00.000Z');
+  const ride = (from: string, to: string): CityStep => ({ kind: 'transit', minutes: 20, mode: 'BUS', line: '999', fromStop: from, toStop: to });
+  t.dovedeCityRoute.rows.push(
+    { id: 1, cityCode: 'Kyiv', fromKey: 'kyiv.pas', toKey: 'деінде', dayType: 'weekday', hour: 9, source: 'google', archivedAt: null, fetchedAt: at, minutes: 30, steps: [{ kind: 'walk', minutes: 3, meters: 200 }, ride('Старт', 'Інша'), { kind: 'walk', minutes: 2, meters: 100 }] },
+    { id: 2, cityCode: 'Kyiv', fromKey: 'ще десь', toKey: 'вулиця ціль 1', dayType: 'weekday', hour: 18, source: 'google', archivedAt: null, fetchedAt: at, minutes: 40, steps: [ride('Третя', 'Фініш'), { kind: 'walk', minutes: 4, meters: 300 }] },
+  );
+  t.dovedeCityStop.rows.push(
+    { id: 1, cityCode: 'Kyiv', name: 'Старт', lat: aLat, lng: aLng, archivedAt: null },
+    { id: 2, cityCode: 'Kyiv', name: 'Фініш', lat: bLat, lng: bLng, archivedAt: null },
+  );
+  const q: CityRouteQuery = { city: 'Kyiv', from: 'kyiv.pas', to: 'вулиця Ціль 1', date: '2026-11-18', time: '10:00', departAt: new Date('2026-11-18T08:00:00.000Z') };
+  const got = await t.svc.find(q);
+  assert.ok(got.ok);
+  assert.equal(got.source, 'own');
+  const r = got.steps.find((s) => s.kind === 'transit');
+  assert.deepEqual([r?.own, r?.fromStop, r?.toStop], [true, 'Старт', 'Фініш']);
+  assert.equal(t.calls.length, 0);
+  assert.equal(t.dovedeCityRoute.rows.length, 2);
+  assert.equal(t.dovedeCityDemand.rows[0].answered, true);
+
+  // перемикач власних даних вимкнено — питаємо Google
+  const off = make({ ownEnabled: () => false });
+  off.dovedeCityRoute.rows.push(...t.dovedeCityRoute.rows.map((x) => ({ ...x })));
+  off.dovedeCityStop.rows.push(...t.dovedeCityStop.rows.map((x) => ({ ...x })));
+  const plain = await off.svc.find(q);
+  assert.equal(plain.ok && plain.source, 'google');
+  assert.equal(off.calls.length, 1);
 });

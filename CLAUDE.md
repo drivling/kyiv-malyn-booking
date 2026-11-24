@@ -544,7 +544,11 @@ of `dist` in a commit.
   stop coordinates (Google's answer or `DovedeCityStop`) within 500 m of its control-point line in order, also our ride
   minutes, «останній о …», «перший о …» and «сьогодні вже не ходить» (`lastDeparts` / `firstDeparts` / `gone`); a
   marshrutka from the list takes `headwayMin`–`headwayMax`. Such steps carry `own: true`; the DB keeps Google's answer
-  as is. Cards: `headwayText` / `serviceText` in `DovedePage/ui/format.ts`.
+  as is. Cards: `headwayText` / `serviceText` in `DovedePage/ui/format.ts`. Step 8б-2: before Google, a new Kyiv pair is answered
+  from «halves» of stored Google answers — the boarding stop near the start (roads from it anywhere) and the alighting
+  stop near the place (roads to it from anywhere), walks ≤ 15 min, coordinates from `DovedeCityStop` — joined by one main
+  KPT direction passing ≤ 300 m from both in order (`dovede/kyiv-own-trip.ts`, `ownKyiv` in `city-route.ts`, switch
+  `city.own`): `source: 'own'`, never stored, no exact departure time (half the headway as the wait).
   Korosten city questions (stage 1, `DovedePage/korosten/korostenCity.ts`): the page holds a city (`Malyn` / `Korosten`,
   URL `c=Korosten`) and remounts the search per city (one planner on screen); Korosten words in a question switch it.
   Places are `StopPlace` entries of Korosten stops plus folk names (`KOROSTEN_ALIASES`), answers are `intra` /
