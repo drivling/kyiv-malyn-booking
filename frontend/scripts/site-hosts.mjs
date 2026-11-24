@@ -26,6 +26,11 @@ export const SITES = {
     isPrimary: true,
     /** Домен підключено і він обслуговує трафік */
     active: true,
+    /**
+     * Місто має міський транспорт у базі (?city=, перемикач міст в адмінці, перегляд адміном) — незалежно від домену.
+     * Людям сторінки міста відкриває прапорець «Міський транспорт» в адмінці й підключений домен.
+     */
+    transport: true,
   },
   korosten: {
     key: 'korosten',
@@ -50,6 +55,7 @@ export const SITES = {
     ],
     isPrimary: false,
     active: true,
+    transport: true,
   },
   zhytomyr: {
     key: 'zhytomyr',
@@ -58,9 +64,19 @@ export const SITES = {
     cityNameUk: 'Житомир',
     cityNameUkGenitive: 'Житомира',
     cityNameUkLocative: 'Житомирі',
+    /**
+     * Джерела даних міського транспорту (підвал сторінок /transport*): автобуси — сайт власника zt.rozklad.in.ua;
+     * координати зупинок — OpenStreetMap (ODbL). Сайт EasyWay (трамвай і тролейбуси) не згадуємо — рішення власника 2026-11-24
+     */
+    transportSources: [
+      { href: 'https://zt.rozklad.in.ua/', label: 'Розклад автобусів: zt.rozklad.in.ua' },
+      { href: 'https://www.openstreetmap.org/copyright', label: 'Координати зупинок: © учасники OpenStreetMap' },
+    ],
     isPrimary: false,
     // Домен ще не куплено/не підключено: Житомир поки живе на головному сайті.
     active: false,
+    // Транспорт Житомира готуємо до підключення домену (Docs/zhytomyr-transport-2026-11.md)
+    transport: true,
   },
 };
 

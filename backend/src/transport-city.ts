@@ -14,15 +14,15 @@ import { DEFAULT_TRANSPORT_CITY } from './transport-city-code';
 export { DEFAULT_TRANSPORT_CITY };
 
 /**
- * ?city= / body.city → канонічний код міста. Порожньо — Малин; інакше код міста з активним сайтом
- * (site-domains.ts), без урахування регістру. null — такого міста нема.
+ * ?city= / body.city → канонічний код міста. Порожньо — Малин; інакше код міста з транспортом (site-domains.ts,
+ * `transport`; домен може бути ще не підключено), без урахування регістру. null — такого міста нема.
  */
 export function parseTransportCity(raw: unknown): string | null {
   if (raw === undefined || raw === null || raw === '') return DEFAULT_TRANSPORT_CITY;
   if (typeof raw !== 'string') return null;
   const wanted = raw.trim().toLowerCase();
   if (!wanted) return DEFAULT_TRANSPORT_CITY;
-  const site = Object.values(SITES).find((s) => s.active && s.cityCode.toLowerCase() === wanted);
+  const site = Object.values(SITES).find((s) => s.transport && s.cityCode.toLowerCase() === wanted);
   return site ? site.cityCode : null;
 }
 

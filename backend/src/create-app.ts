@@ -38,7 +38,7 @@ import { createTransportRouter } from './routes/transport';
 import type { SourceWatchDeps } from './transport-source-watch';
 import { requestTiming } from './middleware/request-timing';
 import { materializeTelegramUserSession } from './telegram-user-session';
-import { resolveAdminPassword, setAdminPassword } from './middleware/require-admin';
+import { isAdminRequest, resolveAdminPassword, setAdminPassword } from './middleware/require-admin';
 
 export type CreateAppDeps = {
   prisma: PrismaClient;
@@ -125,6 +125,11 @@ app.use(requestTiming());
 // gzip для JSON (каталоги/оголошення стискаються в 5–10×); маленькі відповіді не чіпаємо
 app.use(compression({ threshold: 1024 }));
 app.use(cors(corsOptions));
+// Повний датасет транспорту міста — один PUT від адміна; Житомир (трамвай, тролейбуси й автобуси, ~4,5 тис. рейсів)
+// важить ~1,7 МБ, тож цьому шляху — більший ліміт. Тіло, розібране тут, загальний парсер нижче вже не чіпає.
+const bigDatasetJson = express.json({ limit: '8mb' });
+// лише для адміна: решта йде звичайним лімітом і далі — у 401 від requireAdmin
+app.put('/transport/dataset', (req, res, next) => (isAdminRequest(req) ? bigDatasetJson(req, res, next) : next()));
 app.use(express.json({ limit: '2mb' }));
 app.use('/poputky', createPoputkyRouter({ prisma }));
 

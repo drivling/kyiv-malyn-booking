@@ -23,6 +23,7 @@ exports.SITES = {
         platformLabel: 'Поїздки Київ, Житомир, Коростень ↔️ Малин',
         isPrimary: true,
         active: true,
+        transport: true,
     },
     korosten: {
         key: 'korosten',
@@ -32,6 +33,7 @@ exports.SITES = {
         platformLabel: 'Поїздки Коростень ↔️ Київ, Житомир, Малин',
         isPrimary: false,
         active: true,
+        transport: true,
     },
     zhytomyr: {
         key: 'zhytomyr',
@@ -42,6 +44,8 @@ exports.SITES = {
         isPrimary: false,
         // Домен ще не підключено — Житомир поки живе на головному сайті
         active: false,
+        // Транспорт Житомира готуємо до підключення домену (Docs/zhytomyr-transport-2026-11.md)
+        transport: true,
     },
 };
 exports.PRIMARY_SITE = exports.SITES.malyn;

@@ -1,0 +1,756 @@
+easyway_route_id,number,type,direction,seq,easyway_stop_id,stop_name
+17,1,bus,forward,1,82,Панчішна фабрика
+17,1,bus,forward,2,80,"Ринок ""Хмільники"""
+17,1,bus,forward,3,408,вул. Олександра Клосовського
+17,1,bus,forward,4,403,вул. Захисників України
+17,1,bus,forward,5,262,бул. Польський
+17,1,bus,forward,6,405,пров. 2-й Хмельовий
+17,1,bus,forward,7,406,пров. 1-й Винокурний
+17,1,bus,forward,8,402,вул. Котляревського
+17,1,bus,forward,9,260,вул. Григорія Сковороди
+17,1,bus,forward,10,66,вул. Домбровського
+17,1,bus,forward,11,71,Майдан Короленка
+17,1,bus,forward,12,63,вул. Ольжича
+17,1,bus,forward,13,77,Майдан Перемоги
+17,1,bus,forward,14,44,вул. Театральна
+17,1,bus,forward,15,23,пл. Корольова
+17,1,bus,forward,16,27,Старий Бульвар
+17,1,bus,forward,17,28,Університет ім. Івана Франка
+17,1,bus,forward,18,33,вул. Довженка
+17,1,bus,forward,19,34,вул. Вороного
+17,1,bus,forward,20,37,вул. Жуйка
+17,1,bus,forward,21,40,пров. 3-й Магазинний
+17,1,bus,forward,22,41,Майдан Смолянський
+17,1,bus,forward,23,43,вул. Лук’яненка
+17,1,bus,forward,24,47,вул. Івана Огієнка
+17,1,bus,forward,25,50,вул. Ціолковського
+17,1,bus,forward,26,186,пров. Шкільний
+17,1,bus,forward,27,191,вул. Космонавтів
+17,1,bus,backward,1,191,вул. Космонавтів
+17,1,bus,backward,2,33207,Ліцей №14
+17,1,bus,backward,3,189,вул. Кибальчича
+17,1,bus,backward,4,33188,пров. Селецький
+17,1,bus,backward,5,187,вул. Селецька
+17,1,bus,backward,6,188,Військове кладовище
+17,1,bus,backward,7,42,пл. Смолянська
+17,1,bus,backward,8,39,пров. 3-й Магазинний
+17,1,bus,backward,9,27788,вул. Вороного
+17,1,bus,backward,10,32,вул. Довженка
+17,1,bus,backward,11,30,Університет ім. Івана Франка
+17,1,bus,backward,12,25,Старий Бульвар
+17,1,bus,backward,13,24,пл. Корольова
+17,1,bus,backward,14,45,вул. Театральна
+17,1,bus,backward,15,76,пл. Перемоги
+17,1,bus,backward,16,62,вул. Ольжича
+17,1,bus,backward,17,64,вул. Лесі Українки
+17,1,bus,backward,18,65,вул. Домбровського
+17,1,bus,backward,19,67,вул. Миколи Сціборського
+17,1,bus,backward,20,69,Майдан Визволення
+17,1,bus,backward,21,78,пр. Миру
+17,1,bus,backward,22,81,"Ринок ""Хмільники"""
+17,1,bus,backward,23,83,Панчішна фабрика
+20,4,bus,forward,1,5732,проїзд Андріївський
+20,4,bus,forward,2,5734,вул. Будівельна
+20,4,bus,forward,3,5730,вул. Танкістів
+20,4,bus,forward,4,120,вул. Андріївська
+20,4,bus,forward,5,5726,вул. Цегляна
+20,4,bus,forward,6,118,м/н Крошня
+20,4,bus,forward,7,116,вул. Гранітна
+20,4,bus,forward,8,114,вул. Чеська Крошня
+20,4,bus,forward,9,113,вул. Северина Наливайка
+20,4,bus,forward,10,110,Стоматологічна поліклініка
+20,4,bus,forward,11,108,Агротехнічний коледж
+20,4,bus,forward,12,107,вул. Героїв Чорнобиля
+20,4,bus,forward,13,105,пр. Незалежності
+20,4,bus,forward,14,103,пров. 2-й Капітульний
+20,4,bus,forward,15,102,Сінний ринок
+20,4,bus,forward,16,98,вул. Лесі Українки
+20,4,bus,forward,17,96,вул. Грушевського
+20,4,bus,forward,18,95,вул. Київська
+20,4,bus,forward,19,20,вул. Театральна
+20,4,bus,forward,20,23,пл. Корольова
+20,4,bus,forward,21,27,Старий Бульвар
+20,4,bus,forward,22,28,Університет ім. Івана Франка
+20,4,bus,forward,23,33,вул. Довженка
+20,4,bus,forward,24,34,вул. Вороного
+20,4,bus,forward,25,5692,вул. Жуйка
+20,4,bus,forward,26,5693,ТЕС
+20,4,bus,forward,27,5697,ш. Сквирське
+20,4,bus,forward,28,5698,Обласна дитяча лікарня
+20,4,bus,backward,1,5698,Обласна дитяча лікарня
+20,4,bus,backward,2,5695,ш. Бердичівське
+20,4,bus,backward,3,5694,Бердичівський міст
+20,4,bus,backward,4,27788,вул. Вороного
+20,4,bus,backward,5,32,вул. Довженка
+20,4,bus,backward,6,30,Університет ім. Івана Франка
+20,4,bus,backward,7,25,Старий Бульвар
+20,4,bus,backward,8,24,пл. Корольова
+20,4,bus,backward,9,21,Телецентр
+20,4,bus,backward,10,15,вул. Київська
+20,4,bus,backward,11,94,вул. Львівська
+20,4,bus,backward,12,97,вул. Грушевського
+20,4,bus,backward,13,99,вул. Лесі Українки
+20,4,bus,backward,14,101,Сінний ринок
+20,4,bus,backward,15,104,пров. 2-й Капітульний
+20,4,bus,backward,16,106,пр. Незалежності
+20,4,bus,backward,17,27780,вул. Героїв Чорнобиля
+20,4,bus,backward,18,109,Агротехнічний коледж
+20,4,bus,backward,19,111,Стоматологічна поліклініка
+20,4,bus,backward,20,112,вул. Северина Наливайка
+20,4,bus,backward,21,115,вул. Гранітна
+20,4,bus,backward,22,5725,вул. Богдана Хмельницького
+20,4,bus,backward,23,117,вул. Звягельська
+20,4,bus,backward,24,5691,вул. Андріївська
+20,4,bus,backward,25,5731,вул. Танкістів
+20,4,bus,backward,26,5733,вул. Будівельна
+20,4,bus,backward,27,5732,проїзд Андріївський
+30,26,bus,forward,1,,"Ресторан ""Ялинка"""
+30,26,bus,forward,2,,вул. Офіцерська
+30,26,bus,forward,3,,Фертпласт
+30,26,bus,forward,4,,вул. Романа Шухевича
+30,26,bus,forward,5,,вул. Героїв Десантників
+30,26,bus,forward,6,,Панчішна фабрика
+30,26,bus,forward,7,,"Ринок ""Хмільники"""
+30,26,bus,forward,8,,Майдан Визволення
+30,26,bus,forward,9,,пр. Незалежності
+30,26,bus,forward,10,,вул. Покровська
+30,26,bus,forward,11,,вул. Отаманів Соколовських
+30,26,bus,forward,12,,вул. Івана Мазепи
+30,26,bus,forward,13,,вул. Болгарська
+30,26,bus,forward,14,,вул. Монтана
+30,26,bus,forward,15,,вул. Михайла Грушевського
+30,26,bus,forward,16,,Майдан Згоди
+30,26,bus,forward,17,,"ТЦ ""Глобал"""
+30,26,bus,forward,18,,Автовокзал
+30,26,bus,forward,19,,Залізничний вокзал
+30,26,bus,forward,20,,вул. Гоголівська
+30,26,bus,forward,21,,вул. Шевченка
+30,26,bus,forward,22,,"ТЦ ""За Так"""
+30,26,bus,forward,23,,вул. Корольова
+30,26,bus,forward,24,,Майдан Польовий
+30,26,bus,forward,25,,"Фонтан ""Космонавт"""
+30,26,bus,forward,26,,вул. Івана Огієнка
+30,26,bus,forward,27,,Військове кладовище
+30,26,bus,forward,28,,Житомирський РЕМ
+30,26,bus,forward,29,,вул. Кибальчича
+30,26,bus,forward,30,,вул. Ціолковського
+30,26,bus,forward,31,,Школа №30
+30,26,bus,forward,32,,Хінчанка
+30,26,bus,forward,33,,"ПАТ ""Верстатуніверсалмаш"""
+30,26,bus,forward,34,,вул. Сергія Параджанова
+30,26,bus,forward,35,,Льонокомбінат
+30,26,bus,forward,36,,М'ясокомбінат
+30,26,bus,backward,1,,М'ясокомбінат
+30,26,bus,backward,2,,Льонокомбінат
+30,26,bus,backward,3,,вул. Корольова
+30,26,bus,backward,4,,"ПАТ ""Верстатуніверсалмаш"""
+30,26,bus,backward,5,,Хінчанка
+30,26,bus,backward,6,,Школа №30
+30,26,bus,backward,7,,вул. Космонавтів
+30,26,bus,backward,8,,Ліцей №14
+30,26,bus,backward,9,,вул. Кибальчича
+30,26,bus,backward,10,,пров. Селецький
+30,26,bus,backward,11,,вул. Селецька
+30,26,bus,backward,12,,Військове кладовище
+30,26,bus,backward,13,,вул. Івана Огієнка
+30,26,bus,backward,14,,Майдан Польовий
+30,26,bus,backward,15,,вул. Корольова
+30,26,bus,backward,16,,ЖТТУ
+30,26,bus,backward,17,,"ТЦ ""За Так"""
+30,26,bus,backward,18,,вул. Шевченка
+30,26,bus,backward,19,,вул. Гоголівська
+30,26,bus,backward,20,,Залізничний вокзал
+30,26,bus,backward,21,,Автовокзал
+30,26,bus,backward,22,,"ТЦ ""Глобал"""
+30,26,bus,backward,23,,Майдан Згоди
+30,26,bus,backward,24,,вул. Монтана
+30,26,bus,backward,25,,вул. Болгарська
+30,26,bus,backward,26,,вул. Малинська
+30,26,bus,backward,27,,вул. Отаманів Соколовських
+30,26,bus,backward,28,,вул. Покровська
+30,26,bus,backward,29,,пл. Визволення
+30,26,bus,backward,30,,пр. Миру
+30,26,bus,backward,31,,"Ринок ""Хмільники"""
+30,26,bus,backward,32,,Панчішна фабрика
+30,26,bus,backward,33,,вул. Героїв Десантників
+30,26,bus,backward,34,,вул. Романа Шухевича
+30,26,bus,backward,35,,вул. Миру
+30,26,bus,backward,36,,Фертпласт
+30,26,bus,backward,37,,вул. Офіцерська
+30,26,bus,backward,38,,"Ресторан ""Ялинка"""
+1,T,tram,forward,1,277,пл. Перемоги
+1,T,tram,forward,2,33107,вул. Покровська
+1,T,tram,forward,3,211,вул. Небесної сотні
+1,T,tram,forward,4,213,"Універмаг ""Центральний"""
+1,T,tram,forward,5,215,вул. Бориса Лятошинського
+1,T,tram,forward,6,32947,вул. Бориса Тена
+1,T,tram,forward,7,33112,вул. Князів Острозьких
+1,T,tram,forward,8,32951,вул. Івана Мазепи
+1,T,tram,forward,9,224,вул. Східна
+1,T,tram,forward,10,226,вул. Шевченка
+1,T,tram,forward,11,228,вул. Корольова
+1,T,tram,forward,12,230,Ботанічний сад
+1,T,tram,forward,13,232,вул. Вітрука
+1,T,tram,forward,14,233,пров. Шкільний
+1,T,tram,forward,15,32940,Хінчанка
+1,T,tram,forward,16,32937,"ПАТ ""Верстатуніверсалмаш"""
+1,T,tram,forward,17,252,вул. Сергія Параджанова
+1,T,tram,forward,18,32626,На вимогу
+1,T,tram,forward,19,276,Льонокомбінат
+1,T,tram,backward,1,32930,Льонокомбінат
+1,T,tram,backward,2,235,вул. Корольова
+1,T,tram,backward,3,32936,"ПАТ ""Верстатуніверсалмаш"""
+1,T,tram,backward,4,32941,Хінчанка
+1,T,tram,backward,5,234,пров. Шкільний
+1,T,tram,backward,6,231,вул. Вітрука
+1,T,tram,backward,7,229,Ботанічний сад
+1,T,tram,backward,8,227,вул. Східна
+1,T,tram,backward,9,225,вул. Шевченка
+1,T,tram,backward,10,223,вул. Бориса Тена
+1,T,tram,backward,11,32953,вул. Івана Мазепи
+1,T,tram,backward,12,219,вул. Князів Острозьких
+1,T,tram,backward,13,218,вул. Хлібна
+1,T,tram,backward,14,216,вул. Небесної сотні
+1,T,tram,backward,15,32943,вул. Київська
+1,T,tram,backward,16,32945,вул. Михайла Грушевського
+1,T,tram,backward,17,210,вул. Покровська
+1,T,tram,backward,18,278,пл. Перемоги
+2,1А,trolleybus,forward,1,60,Залізничний вокзал
+2,1А,trolleybus,forward,2,1,Автовокзал
+2,1А,trolleybus,forward,3,7,"ТЦ ""Глобал"""
+2,1А,trolleybus,forward,4,5,Майдан Згоди
+2,1А,trolleybus,forward,5,8,вул. Князів Острозьких
+2,1А,trolleybus,forward,6,11,вул. Хлібна
+2,1А,trolleybus,forward,7,13,вул. Небесної сотні
+2,1А,trolleybus,forward,8,16,вул. Покровська
+2,1А,trolleybus,forward,9,20,вул. Театральна
+2,1А,trolleybus,forward,10,23,пл. Корольова
+2,1А,trolleybus,forward,11,27,Старий Бульвар
+2,1А,trolleybus,forward,12,28,Університет ім. Івана Франка
+2,1А,trolleybus,forward,13,33,вул. Довженка
+2,1А,trolleybus,forward,14,34,вул. Вороного
+2,1А,trolleybus,forward,15,37,вул. Жуйка
+2,1А,trolleybus,forward,16,40,пров. 3-й Магазинний
+2,1А,trolleybus,forward,17,41,Майдан Смолянський
+2,1А,trolleybus,forward,18,43,вул. Лук’яненка
+2,1А,trolleybus,forward,19,47,вул. Івана Огієнка
+2,1А,trolleybus,forward,20,49,Майдан Польовий
+2,1А,trolleybus,forward,21,52,вул. Корольова
+2,1А,trolleybus,forward,22,33189,ЖТТУ
+2,1А,trolleybus,forward,23,54,"ТЦ ""За Так"""
+2,1А,trolleybus,forward,24,57,вул. Шевченка
+2,1А,trolleybus,forward,25,59,вул. Гоголівська
+2,1А,trolleybus,forward,26,60,Залізничний вокзал
+3,2,trolleybus,forward,1,93,"Ресторан ""Ялинка"""
+3,2,trolleybus,forward,2,92,вул. Офіцерська
+3,2,trolleybus,forward,3,90,Фертпласт
+3,2,trolleybus,forward,4,86,вул. Романа Шухевича
+3,2,trolleybus,forward,5,85,вул. Героїв Десантників
+3,2,trolleybus,forward,6,82,Панчішна фабрика
+3,2,trolleybus,forward,7,80,"Ринок ""Хмільники"""
+3,2,trolleybus,forward,8,79,Майдан Визволення
+3,2,trolleybus,forward,9,70,вул. Каракульна
+3,2,trolleybus,forward,10,68,вул. Миколи Сціборського
+3,2,trolleybus,forward,11,66,вул. Домбровського
+3,2,trolleybus,forward,12,71,Майдан Короленка
+3,2,trolleybus,forward,13,63,вул. Ольжича
+3,2,trolleybus,forward,14,74,пл. Перемоги
+3,2,trolleybus,forward,15,15,вул. Київська
+3,2,trolleybus,forward,16,33006,Укртелеком
+3,2,trolleybus,forward,17,14,вул. Небесної сотні
+3,2,trolleybus,forward,18,9,вул. Князів Острозьких
+3,2,trolleybus,forward,19,4,Майдан Згоди
+3,2,trolleybus,forward,20,6,"ТЦ ""Глобал"""
+3,2,trolleybus,forward,21,417,Автовокзал
+3,2,trolleybus,forward,22,61,Залізничний вокзал
+3,2,trolleybus,forward,23,58,вул. Гоголівська
+3,2,trolleybus,forward,24,56,вул. Шевченка
+3,2,trolleybus,forward,25,55,"ТЦ ""За Так"""
+3,2,trolleybus,forward,26,51,вул. Корольова
+3,2,trolleybus,forward,27,48,Майдан Польовий
+3,2,trolleybus,backward,1,48,Майдан Польовий
+3,2,trolleybus,backward,2,32927,"Фонтан ""Космонавт"""
+3,2,trolleybus,backward,3,46,вул. Івана Огієнка
+3,2,trolleybus,backward,4,42,пл. Смолянська
+3,2,trolleybus,backward,5,39,пров. 3-й Магазинний
+3,2,trolleybus,backward,6,35,вул. Гагаріна
+3,2,trolleybus,backward,7,32,вул. Довженка
+3,2,trolleybus,backward,8,30,Університет ім. Івана Франка
+3,2,trolleybus,backward,9,25,Старий Бульвар
+3,2,trolleybus,backward,10,24,пл. Корольова
+3,2,trolleybus,backward,11,21,Телецентр
+3,2,trolleybus,backward,12,75,пл. Перемоги
+3,2,trolleybus,backward,13,62,вул. Ольжича
+3,2,trolleybus,backward,14,64,вул. Лесі Українки
+3,2,trolleybus,backward,15,65,вул. Домбровського
+3,2,trolleybus,backward,16,67,вул. Миколи Сціборського
+3,2,trolleybus,backward,17,69,Майдан Визволення
+3,2,trolleybus,backward,18,78,пр. Миру
+3,2,trolleybus,backward,19,81,"Ринок ""Хмільники"""
+3,2,trolleybus,backward,20,83,Панчішна фабрика
+3,2,trolleybus,backward,21,84,вул. Героїв Десантників
+3,2,trolleybus,backward,22,87,вул. Романа Шухевича
+3,2,trolleybus,backward,23,88,вул. Миру
+3,2,trolleybus,backward,24,89,Фертпласт
+3,2,trolleybus,backward,25,91,вул. Офіцерська
+3,2,trolleybus,backward,26,93,"Ресторан ""Ялинка"""
+4,3,trolleybus,forward,1,93,"Ресторан ""Ялинка"""
+4,3,trolleybus,forward,2,92,вул. Офіцерська
+4,3,trolleybus,forward,3,90,Фертпласт
+4,3,trolleybus,forward,4,86,вул. Романа Шухевича
+4,3,trolleybus,forward,5,85,вул. Героїв Десантників
+4,3,trolleybus,forward,6,82,Панчішна фабрика
+4,3,trolleybus,forward,7,80,"Ринок ""Хмільники"""
+4,3,trolleybus,forward,8,79,Майдан Визволення
+4,3,trolleybus,forward,9,70,вул. Каракульна
+4,3,trolleybus,forward,10,68,вул. Миколи Сціборського
+4,3,trolleybus,forward,11,66,вул. Домбровського
+4,3,trolleybus,forward,12,71,Майдан Короленка
+4,3,trolleybus,forward,13,63,вул. Ольжича
+4,3,trolleybus,forward,14,74,пл. Перемоги
+4,3,trolleybus,forward,15,20,вул. Театральна
+4,3,trolleybus,forward,16,23,пл. Корольова
+4,3,trolleybus,forward,17,27,Старий Бульвар
+4,3,trolleybus,forward,18,28,Університет ім. Івана Франка
+4,3,trolleybus,forward,19,33,вул. Довженка
+4,3,trolleybus,forward,20,34,вул. Вороного
+4,3,trolleybus,forward,21,37,вул. Жуйка
+4,3,trolleybus,forward,22,40,пров. 3-й Магазинний
+4,3,trolleybus,forward,23,41,Майдан Смолянський
+4,3,trolleybus,forward,24,43,вул. Лук’яненка
+4,3,trolleybus,forward,25,47,вул. Івана Огієнка
+4,3,trolleybus,forward,26,49,Майдан Польовий
+4,3,trolleybus,forward,27,52,вул. Корольова
+4,3,trolleybus,backward,1,33189,ЖТТУ
+4,3,trolleybus,backward,2,54,"ТЦ ""За Так"""
+4,3,trolleybus,backward,3,57,вул. Шевченка
+4,3,trolleybus,backward,4,59,вул. Гоголівська
+4,3,trolleybus,backward,5,60,Залізничний вокзал
+4,3,trolleybus,backward,6,1,Автовокзал
+4,3,trolleybus,backward,7,7,"ТЦ ""Глобал"""
+4,3,trolleybus,backward,8,5,Майдан Згоди
+4,3,trolleybus,backward,9,8,вул. Князів Острозьких
+4,3,trolleybus,backward,10,11,вул. Хлібна
+4,3,trolleybus,backward,11,13,вул. Небесної сотні
+4,3,trolleybus,backward,12,16,вул. Покровська
+4,3,trolleybus,backward,13,75,пл. Перемоги
+4,3,trolleybus,backward,14,62,вул. Ольжича
+4,3,trolleybus,backward,15,64,вул. Лесі Українки
+4,3,trolleybus,backward,16,65,вул. Домбровського
+4,3,trolleybus,backward,17,67,вул. Миколи Сціборського
+4,3,trolleybus,backward,18,69,Майдан Визволення
+4,3,trolleybus,backward,19,78,пр. Миру
+4,3,trolleybus,backward,20,81,"Ринок ""Хмільники"""
+4,3,trolleybus,backward,21,83,Панчішна фабрика
+4,3,trolleybus,backward,22,84,вул. Героїв Десантників
+4,3,trolleybus,backward,23,87,вул. Романа Шухевича
+4,3,trolleybus,backward,24,88,вул. Миру
+4,3,trolleybus,backward,25,89,Фертпласт
+4,3,trolleybus,backward,26,91,вул. Офіцерська
+4,3,trolleybus,backward,27,93,"Ресторан ""Ялинка"""
+5,4,trolleybus,forward,1,118,м/н Крошня
+5,4,trolleybus,forward,2,116,вул. Гранітна
+5,4,trolleybus,forward,3,114,вул. Чеська Крошня
+5,4,trolleybus,forward,4,113,вул. Северина Наливайка
+5,4,trolleybus,forward,5,110,Стоматологічна поліклініка
+5,4,trolleybus,forward,6,108,Агротехнічний коледж
+5,4,trolleybus,forward,7,107,вул. Героїв Чорнобиля
+5,4,trolleybus,forward,8,105,пр. Незалежності
+5,4,trolleybus,forward,9,103,пров. 2-й Капітульний
+5,4,trolleybus,forward,10,102,Сінний ринок
+5,4,trolleybus,forward,11,98,вул. Лесі Українки
+5,4,trolleybus,forward,12,96,вул. Грушевського
+5,4,trolleybus,forward,13,33006,Укртелеком
+5,4,trolleybus,forward,14,14,вул. Небесної сотні
+5,4,trolleybus,forward,15,9,вул. Князів Острозьких
+5,4,trolleybus,forward,16,4,Майдан Згоди
+5,4,trolleybus,forward,17,6,"ТЦ ""Глобал"""
+5,4,trolleybus,forward,18,417,Автовокзал
+5,4,trolleybus,forward,19,60,Залізничний вокзал
+5,4,trolleybus,backward,1,60,Залізничний вокзал
+5,4,trolleybus,backward,2,1,Автовокзал
+5,4,trolleybus,backward,3,7,"ТЦ ""Глобал"""
+5,4,trolleybus,backward,4,5,Майдан Згоди
+5,4,trolleybus,backward,5,8,вул. Князів Острозьких
+5,4,trolleybus,backward,6,11,вул. Хлібна
+5,4,trolleybus,backward,7,13,вул. Небесної сотні
+5,4,trolleybus,backward,8,94,вул. Львівська
+5,4,trolleybus,backward,9,97,вул. Грушевського
+5,4,trolleybus,backward,10,99,вул. Лесі Українки
+5,4,trolleybus,backward,11,101,Сінний ринок
+5,4,trolleybus,backward,12,104,пров. 2-й Капітульний
+5,4,trolleybus,backward,13,106,пр. Незалежності
+5,4,trolleybus,backward,14,27780,вул. Героїв Чорнобиля
+5,4,trolleybus,backward,15,109,Агротехнічний коледж
+5,4,trolleybus,backward,16,111,Стоматологічна поліклініка
+5,4,trolleybus,backward,17,112,вул. Северина Наливайка
+5,4,trolleybus,backward,18,115,вул. Гранітна
+5,4,trolleybus,backward,19,118,м/н Крошня
+11,10,trolleybus,forward,1,93,"Ресторан ""Ялинка"""
+11,10,trolleybus,forward,2,92,вул. Офіцерська
+11,10,trolleybus,forward,3,90,Фертпласт
+11,10,trolleybus,forward,4,86,вул. Романа Шухевича
+11,10,trolleybus,forward,5,85,вул. Героїв Десантників
+11,10,trolleybus,forward,6,82,Панчішна фабрика
+11,10,trolleybus,forward,7,80,"Ринок ""Хмільники"""
+11,10,trolleybus,forward,8,79,Майдан Визволення
+11,10,trolleybus,forward,9,154,пр. Незалежності
+11,10,trolleybus,forward,10,151,вул. Покровська
+11,10,trolleybus,forward,11,149,вул. Отаманів Соколовських
+11,10,trolleybus,forward,12,148,вул. Івана Мазепи
+11,10,trolleybus,forward,13,143,вул. Болгарська
+11,10,trolleybus,forward,14,144,вул. Монтана
+11,10,trolleybus,forward,15,146,вул. Михайла Грушевського
+11,10,trolleybus,forward,16,4,Майдан Згоди
+11,10,trolleybus,forward,17,6,"ТЦ ""Глобал"""
+11,10,trolleybus,forward,18,2,Автовокзал
+11,10,trolleybus,forward,19,239,вул. Нобелівська
+11,10,trolleybus,forward,20,162,вул. Сергія Параджанова
+11,10,trolleybus,forward,21,165,пров. 1-й Матросова
+11,10,trolleybus,forward,22,166,Тарний комбінат
+11,10,trolleybus,forward,23,169,вул. Кооперативна
+11,10,trolleybus,forward,24,170,вул. Металістів
+11,10,trolleybus,forward,25,180,ЗОК
+11,10,trolleybus,forward,26,185,"Завод ""Вібросепаратор"""
+11,10,trolleybus,forward,27,177,вул. Корольова
+11,10,trolleybus,forward,28,174,"""Домобудівник"""
+11,10,trolleybus,forward,29,33129,Автоколона
+11,10,trolleybus,forward,30,411,вул. Промислова
+11,10,trolleybus,forward,31,413,Ізоват
+11,10,trolleybus,forward,32,415,Прикордонна частина
+11,10,trolleybus,forward,33,33128,Агробудіндустрія
+11,10,trolleybus,backward,1,33127,Агробудіндустрія
+11,10,trolleybus,backward,2,414,Прикордонна частина
+11,10,trolleybus,backward,3,412,Євроголд
+11,10,trolleybus,backward,4,410,"ПАТ ""Хімволокно"""
+11,10,trolleybus,backward,5,173,вул. Корольова
+11,10,trolleybus,backward,6,175,"""Домобудівник"""
+11,10,trolleybus,backward,7,178,вул. Сергія Параджанова
+11,10,trolleybus,backward,8,184,"Завод ""Вібросепаратор"""
+11,10,trolleybus,backward,9,179,ЗОК
+11,10,trolleybus,backward,10,171,вул. Металістів
+11,10,trolleybus,backward,11,168,вул. Кооперативна
+11,10,trolleybus,backward,12,167,Тарний комбінат
+11,10,trolleybus,backward,13,164,пров. 1-й Матросова
+11,10,trolleybus,backward,14,163,вул. Новогоголівська
+11,10,trolleybus,backward,15,240,Ліктрави
+11,10,trolleybus,backward,16,1,Автовокзал
+11,10,trolleybus,backward,17,7,"ТЦ ""Глобал"""
+11,10,trolleybus,backward,18,3,Майдан Згоди
+11,10,trolleybus,backward,19,145,вул. Монтана
+11,10,trolleybus,backward,20,142,вул. Болгарська
+11,10,trolleybus,backward,21,147,вул. Малинська
+11,10,trolleybus,backward,22,5605,вул. Отаманів Соколовських
+11,10,trolleybus,backward,23,152,вул. Покровська
+11,10,trolleybus,backward,24,153,пл. Визволення
+11,10,trolleybus,backward,25,78,пр. Миру
+11,10,trolleybus,backward,26,81,"Ринок ""Хмільники"""
+11,10,trolleybus,backward,27,83,Панчішна фабрика
+11,10,trolleybus,backward,28,84,вул. Героїв Десантників
+11,10,trolleybus,backward,29,87,вул. Романа Шухевича
+11,10,trolleybus,backward,30,88,вул. Миру
+11,10,trolleybus,backward,31,89,Фертпласт
+11,10,trolleybus,backward,32,91,вул. Офіцерська
+11,10,trolleybus,backward,33,93,"Ресторан ""Ялинка"""
+14,15А,trolleybus,forward,1,141,Гідропарк
+14,15А,trolleybus,forward,2,140,вул. Івана Богуна
+14,15А,trolleybus,forward,3,137,"спорткомплекс ""Динамо"""
+14,15А,trolleybus,forward,4,136,"Завод ""Агромаш"""
+14,15А,trolleybus,forward,5,134,Житомирська Політехніка
+14,15А,trolleybus,forward,6,132,Торгівельно-економічний коледж
+14,15А,trolleybus,forward,7,130,Монумент Слави
+14,15А,trolleybus,forward,8,127,вул. Дмитра Донцова
+14,15А,trolleybus,forward,9,126,вул. Мала Бердичівська
+14,15А,trolleybus,forward,10,21,Телецентр
+14,15А,trolleybus,forward,11,15,вул. Київська
+14,15А,trolleybus,forward,12,33006,Укртелеком
+14,15А,trolleybus,forward,13,14,вул. Небесної сотні
+14,15А,trolleybus,forward,14,9,вул. Князів Острозьких
+14,15А,trolleybus,forward,15,4,Майдан Згоди
+14,15А,trolleybus,forward,16,6,"ТЦ ""Глобал"""
+14,15А,trolleybus,forward,17,417,Автовокзал
+14,15А,trolleybus,forward,18,61,Залізничний вокзал
+14,15А,trolleybus,forward,19,58,вул. Гоголівська
+14,15А,trolleybus,forward,20,56,вул. Шевченка
+14,15А,trolleybus,forward,21,55,"ТЦ ""За Так"""
+14,15А,trolleybus,forward,22,33271,ЖТТУ
+14,15А,trolleybus,backward,1,51,вул. Корольова
+14,15А,trolleybus,backward,2,48,Майдан Польовий
+14,15А,trolleybus,backward,3,32927,"Фонтан ""Космонавт"""
+14,15А,trolleybus,backward,4,46,вул. Івана Огієнка
+14,15А,trolleybus,backward,5,42,пл. Смолянська
+14,15А,trolleybus,backward,6,39,пров. 3-й Магазинний
+14,15А,trolleybus,backward,7,35,вул. Гагаріна
+14,15А,trolleybus,backward,8,32,вул. Довженка
+14,15А,trolleybus,backward,9,193,Інститут медсестринства
+14,15А,trolleybus,backward,10,245,Агроекологічний університет
+14,15А,trolleybus,backward,11,195,Агроекологічний університет
+14,15А,trolleybus,backward,12,197,Філармонія
+14,15А,trolleybus,backward,13,128,вул. Леха Качинського
+14,15А,trolleybus,backward,14,129,Монумент Слави
+14,15А,trolleybus,backward,15,131,Торгівельно-економічний коледж
+14,15А,trolleybus,backward,16,133,Житомирська Політехніка
+14,15А,trolleybus,backward,17,135,вул. Зв'язківців
+14,15А,trolleybus,backward,18,138,"спорткомплекс ""Динамо"""
+14,15А,trolleybus,backward,19,139,вул. Чумацький шлях
+14,15А,trolleybus,backward,20,141,Гідропарк
+15,4A,trolleybus,forward,1,118,м/н Крошня
+15,4A,trolleybus,forward,2,116,вул. Гранітна
+15,4A,trolleybus,forward,3,114,вул. Чеська Крошня
+15,4A,trolleybus,forward,4,113,вул. Северина Наливайка
+15,4A,trolleybus,forward,5,110,Стоматологічна поліклініка
+15,4A,trolleybus,forward,6,108,Агротехнічний коледж
+15,4A,trolleybus,forward,7,107,вул. Героїв Чорнобиля
+15,4A,trolleybus,forward,8,105,пр. Незалежності
+15,4A,trolleybus,forward,9,103,пров. 2-й Капітульний
+15,4A,trolleybus,forward,10,102,Сінний ринок
+15,4A,trolleybus,forward,11,98,вул. Лесі Українки
+15,4A,trolleybus,forward,12,96,вул. Грушевського
+15,4A,trolleybus,forward,13,16,вул. Покровська
+15,4A,trolleybus,forward,14,20,вул. Театральна
+15,4A,trolleybus,forward,15,125,вул. Мала Бердичівська
+15,4A,trolleybus,forward,16,128,вул. Леха Качинського
+15,4A,trolleybus,forward,17,127,вул. Дмитра Донцова
+15,4A,trolleybus,forward,18,198,Філармонія
+15,4A,trolleybus,forward,19,196,Агроекологічний університет
+15,4A,trolleybus,forward,20,246,Військовий шпиталь
+15,4A,trolleybus,forward,21,194,Інститут медсестринства
+15,4A,trolleybus,forward,22,33,вул. Довженка
+15,4A,trolleybus,forward,23,34,вул. Вороного
+15,4A,trolleybus,forward,24,37,вул. Жуйка
+15,4A,trolleybus,forward,25,40,пров. 3-й Магазинний
+15,4A,trolleybus,forward,26,41,Майдан Смолянський
+15,4A,trolleybus,forward,27,199,вул. Івана Гонти
+15,4A,trolleybus,forward,28,204,пров. 1-й Смолянський
+15,4A,trolleybus,forward,29,203,Інститут бізнесу і технологій
+15,4A,trolleybus,forward,30,201,Майдан Станишівський
+15,4A,trolleybus,backward,1,201,Майдан Станишівський
+15,4A,trolleybus,backward,2,206,Плодоовочевий комбінат
+15,4A,trolleybus,backward,3,33212,Королівська бочка
+15,4A,trolleybus,backward,4,202,Інститут бізнесу і технологій
+15,4A,trolleybus,backward,5,200,пров. 1-й Смолянський
+15,4A,trolleybus,backward,6,32955,"Маслозавод ""Рудь"""
+15,4A,trolleybus,backward,7,42,пл. Смолянська
+15,4A,trolleybus,backward,8,39,пров. 3-й Магазинний
+15,4A,trolleybus,backward,9,35,вул. Гагаріна
+15,4A,trolleybus,backward,10,32,вул. Довженка
+15,4A,trolleybus,backward,11,30,Університет ім. Івана Франка
+15,4A,trolleybus,backward,12,25,Старий Бульвар
+15,4A,trolleybus,backward,13,24,пл. Корольова
+15,4A,trolleybus,backward,14,21,Телецентр
+15,4A,trolleybus,backward,15,15,вул. Київська
+15,4A,trolleybus,backward,16,94,вул. Львівська
+15,4A,trolleybus,backward,17,97,вул. Грушевського
+15,4A,trolleybus,backward,18,99,вул. Лесі Українки
+15,4A,trolleybus,backward,19,101,Сінний ринок
+15,4A,trolleybus,backward,20,104,пров. 2-й Капітульний
+15,4A,trolleybus,backward,21,106,пр. Незалежності
+15,4A,trolleybus,backward,22,27780,вул. Героїв Чорнобиля
+15,4A,trolleybus,backward,23,109,Агротехнічний коледж
+15,4A,trolleybus,backward,24,111,Стоматологічна поліклініка
+15,4A,trolleybus,backward,25,112,вул. Северина Наливайка
+15,4A,trolleybus,backward,26,115,вул. Гранітна
+15,4A,trolleybus,backward,27,118,м/н Крошня
+67,5,trolleybus,forward,1,5681,"м/н Мальованка (Фабрика ""Крок"")"
+67,5,trolleybus,forward,2,5682,вул. Кармелюка
+67,5,trolleybus,forward,3,5676,вул. Святого Йоана Павла ІІ
+67,5,trolleybus,forward,4,32965,вул. Троянівська
+67,5,trolleybus,forward,5,32966,вул. Скульптора Олішкевича
+67,5,trolleybus,forward,6,33269,вул. Чуднівська
+67,5,trolleybus,forward,7,130,Монумент Слави
+67,5,trolleybus,forward,8,127,вул. Дмитра Донцова
+67,5,trolleybus,forward,9,126,вул. Мала Бердичівська
+67,5,trolleybus,forward,10,21,Телецентр
+67,5,trolleybus,forward,11,15,вул. Київська
+67,5,trolleybus,forward,12,33006,Укртелеком
+67,5,trolleybus,forward,13,14,вул. Небесної сотні
+67,5,trolleybus,forward,14,9,вул. Князів Острозьких
+67,5,trolleybus,forward,15,4,Майдан Згоди
+67,5,trolleybus,forward,16,6,"ТЦ ""Глобал"""
+67,5,trolleybus,forward,17,2,Автовокзал
+67,5,trolleybus,forward,18,417,Автовокзал
+67,5,trolleybus,forward,19,60,Залізничний вокзал
+67,5,trolleybus,backward,1,60,Залізничний вокзал
+67,5,trolleybus,backward,2,1,Автовокзал
+67,5,trolleybus,backward,3,7,"ТЦ ""Глобал"""
+67,5,trolleybus,backward,4,5,Майдан Згоди
+67,5,trolleybus,backward,5,8,вул. Князів Острозьких
+67,5,trolleybus,backward,6,11,вул. Хлібна
+67,5,trolleybus,backward,7,13,вул. Небесної сотні
+67,5,trolleybus,backward,8,16,вул. Покровська
+67,5,trolleybus,backward,9,20,вул. Театральна
+67,5,trolleybus,backward,10,125,вул. Мала Бердичівська
+67,5,trolleybus,backward,11,128,вул. Леха Качинського
+67,5,trolleybus,backward,12,129,Монумент Слави
+67,5,trolleybus,backward,13,33270,Житомирський Фармацевтичний коледж
+67,5,trolleybus,backward,14,32967,вул. Скульптора Олішкевича
+67,5,trolleybus,backward,15,32964,вул. Троянівська
+67,5,trolleybus,backward,16,5677,вул. Святого Йоана Павла ІІ
+67,5,trolleybus,backward,17,5683,вул. Кармелюка
+67,5,trolleybus,backward,18,5681,"м/н Мальованка (Фабрика ""Крок"")"
+69,7А,trolleybus,forward,1,33127,Агробудіндустрія
+69,7А,trolleybus,forward,2,414,Прикордонна частина
+69,7А,trolleybus,forward,3,412,Євроголд
+69,7А,trolleybus,forward,4,410,"ПАТ ""Хімволокно"""
+69,7А,trolleybus,forward,5,173,вул. Корольова
+69,7А,trolleybus,forward,6,175,"""Домобудівник"""
+69,7А,trolleybus,forward,7,178,вул. Сергія Параджанова
+69,7А,trolleybus,forward,8,184,"Завод ""Вібросепаратор"""
+69,7А,trolleybus,forward,9,179,ЗОК
+69,7А,trolleybus,forward,10,171,вул. Металістів
+69,7А,trolleybus,forward,11,168,вул. Кооперативна
+69,7А,trolleybus,forward,12,167,Тарний комбінат
+69,7А,trolleybus,forward,13,164,пров. 1-й Матросова
+69,7А,trolleybus,forward,14,163,вул. Новогоголівська
+69,7А,trolleybus,forward,15,240,Ліктрави
+69,7А,trolleybus,forward,16,1,Автовокзал
+69,7А,trolleybus,forward,17,7,"ТЦ ""Глобал"""
+69,7А,trolleybus,forward,18,5,Майдан Згоди
+69,7А,trolleybus,forward,19,8,вул. Князів Острозьких
+69,7А,trolleybus,forward,20,11,вул. Хлібна
+69,7А,trolleybus,forward,21,13,вул. Небесної сотні
+69,7А,trolleybus,forward,22,16,вул. Покровська
+69,7А,trolleybus,forward,23,75,пл. Перемоги
+69,7А,trolleybus,forward,24,62,вул. Ольжича
+69,7А,trolleybus,forward,25,64,вул. Лесі Українки
+69,7А,trolleybus,forward,26,259,вул. Новосінна
+69,7А,trolleybus,forward,27,261,вул. Григорія Сковороди
+69,7А,trolleybus,forward,28,401,вул. Котляревського
+69,7А,trolleybus,forward,29,407,пров. 1-й Винокурний
+69,7А,trolleybus,forward,30,33057,пров. 2-й Хмельовий
+69,7А,trolleybus,forward,31,404,вул. Захисникiв України
+69,7А,trolleybus,backward,1,404,вул. Захисникiв України
+69,7А,trolleybus,backward,2,405,пров. 2-й Хмельовий
+69,7А,trolleybus,backward,3,406,пров. 1-й Винокурний
+69,7А,trolleybus,backward,4,402,вул. Котляревського
+69,7А,trolleybus,backward,5,260,вул. Григорія Сковороди
+69,7А,trolleybus,backward,6,66,вул. Домбровського
+69,7А,trolleybus,backward,7,71,Майдан Короленка
+69,7А,trolleybus,backward,8,63,вул. Ольжича
+69,7А,trolleybus,backward,9,74,пл. Перемоги
+69,7А,trolleybus,backward,10,15,вул. Київська
+69,7А,trolleybus,backward,11,33006,Укртелеком
+69,7А,trolleybus,backward,12,14,вул. Небесної сотні
+69,7А,trolleybus,backward,13,9,вул. Князів Острозьких
+69,7А,trolleybus,backward,14,4,Майдан Згоди
+69,7А,trolleybus,backward,15,6,"ТЦ ""Глобал"""
+69,7А,trolleybus,backward,16,417,Автовокзал
+69,7А,trolleybus,backward,17,239,вул. Нобелівська
+69,7А,trolleybus,backward,18,162,вул. Сергія Параджанова
+69,7А,trolleybus,backward,19,165,пров. 1-й Матросова
+69,7А,trolleybus,backward,20,166,Тарний комбінат
+69,7А,trolleybus,backward,21,169,вул. Кооперативна
+69,7А,trolleybus,backward,22,170,вул. Металістів
+69,7А,trolleybus,backward,23,180,ЗОК
+69,7А,trolleybus,backward,24,185,"Завод ""Вібросепаратор"""
+69,7А,trolleybus,backward,25,177,вул. Корольова
+69,7А,trolleybus,backward,26,174,"""Домобудівник"""
+69,7А,trolleybus,backward,27,33129,Автоколона
+69,7А,trolleybus,backward,28,411,вул. Промислова
+69,7А,trolleybus,backward,29,413,Ізоват
+69,7А,trolleybus,backward,30,415,Прикордонна частина
+69,7А,trolleybus,backward,31,33128,Агробудіндустрія
+70,7,trolleybus,forward,1,60,Залізничний вокзал
+70,7,trolleybus,forward,2,1,Автовокзал
+70,7,trolleybus,forward,3,7,"ТЦ ""Глобал"""
+70,7,trolleybus,forward,4,5,Майдан Згоди
+70,7,trolleybus,forward,5,8,вул. Князів Острозьких
+70,7,trolleybus,forward,6,11,вул. Хлібна
+70,7,trolleybus,forward,7,13,вул. Небесної сотні
+70,7,trolleybus,forward,8,16,вул. Покровська
+70,7,trolleybus,forward,9,75,пл. Перемоги
+70,7,trolleybus,forward,10,62,вул. Ольжича
+70,7,trolleybus,forward,11,64,вул. Лесі Українки
+70,7,trolleybus,forward,12,259,вул. Новосінна
+70,7,trolleybus,forward,13,261,вул. Григорія Сковороди
+70,7,trolleybus,forward,14,401,вул. Котляревського
+70,7,trolleybus,forward,15,407,пров. 1-й Винокурний
+70,7,trolleybus,forward,16,33057,пров. 2-й Хмельовий
+70,7,trolleybus,forward,17,404,вул. Захисникiв України
+70,7,trolleybus,backward,1,404,вул. Захисникiв України
+70,7,trolleybus,backward,2,405,пров. 2-й Хмельовий
+70,7,trolleybus,backward,3,406,пров. 1-й Винокурний
+70,7,trolleybus,backward,4,402,вул. Котляревського
+70,7,trolleybus,backward,5,260,вул. Григорія Сковороди
+70,7,trolleybus,backward,6,66,вул. Домбровського
+70,7,trolleybus,backward,7,71,Майдан Короленка
+70,7,trolleybus,backward,8,63,вул. Ольжича
+70,7,trolleybus,backward,9,74,пл. Перемоги
+70,7,trolleybus,backward,10,15,вул. Київська
+70,7,trolleybus,backward,11,33006,Укртелеком
+70,7,trolleybus,backward,12,14,вул. Небесної сотні
+70,7,trolleybus,backward,13,9,вул. Князів Острозьких
+70,7,trolleybus,backward,14,4,Майдан Згоди
+70,7,trolleybus,backward,15,6,"ТЦ ""Глобал"""
+70,7,trolleybus,backward,16,417,Автовокзал
+70,7,trolleybus,backward,17,617,Залізничний вокзал
+86,1Б,trolleybus,forward,1,61,Залізничний вокзал
+86,1Б,trolleybus,forward,2,58,вул. Гоголівська
+86,1Б,trolleybus,forward,3,56,вул. Шевченка
+86,1Б,trolleybus,forward,4,55,"ТЦ ""За Так"""
+86,1Б,trolleybus,forward,5,51,вул. Корольова
+86,1Б,trolleybus,forward,6,50,вул. Ціолковського
+86,1Б,trolleybus,forward,7,191,вул. Космонавтів
+86,1Б,trolleybus,forward,8,189,вул. Кибальчича
+86,1Б,trolleybus,forward,9,33188,пров. Селецький
+86,1Б,trolleybus,forward,10,187,вул. Селецька
+86,1Б,trolleybus,forward,11,188,Військове кладовище
+86,1Б,trolleybus,forward,12,42,пл. Смолянська
+86,1Б,trolleybus,forward,13,39,пров. 3-й Магазинний
+86,1Б,trolleybus,forward,14,35,вул. Гагаріна
+86,1Б,trolleybus,forward,15,32,вул. Довженка
+86,1Б,trolleybus,forward,16,30,Університет ім. Івана Франка
+86,1Б,trolleybus,forward,17,25,Старий Бульвар
+86,1Б,trolleybus,forward,18,24,пл. Корольова
+86,1Б,trolleybus,forward,19,21,Телецентр
+86,1Б,trolleybus,forward,20,15,вул. Київська
+86,1Б,trolleybus,forward,21,33006,Укртелеком
+86,1Б,trolleybus,forward,22,14,вул. Небесної сотні
+86,1Б,trolleybus,forward,23,9,вул. Князів Острозьких
+86,1Б,trolleybus,forward,24,4,Майдан Згоди
+86,1Б,trolleybus,forward,25,6,"ТЦ ""Глобал"""
+86,1Б,trolleybus,forward,26,417,Автовокзал
+86,1Б,trolleybus,forward,27,61,Залізничний вокзал
+97,15,trolleybus,forward,1,141,Гідропарк
+97,15,trolleybus,forward,2,140,вул. Івана Богуна
+97,15,trolleybus,forward,3,137,"спорткомплекс ""Динамо"""
+97,15,trolleybus,forward,4,136,"Завод ""Агромаш"""
+97,15,trolleybus,forward,5,134,Житомирська Політехніка
+97,15,trolleybus,forward,6,132,Торгівельно-економічний коледж
+97,15,trolleybus,forward,7,130,Монумент Слави
+97,15,trolleybus,forward,8,127,вул. Дмитра Донцова
+97,15,trolleybus,forward,9,126,вул. Мала Бердичівська
+97,15,trolleybus,forward,10,23,пл. Корольова
+97,15,trolleybus,forward,11,27,Старий Бульвар
+97,15,trolleybus,forward,12,28,Університет ім. Івана Франка
+97,15,trolleybus,forward,13,33,вул. Довженка
+97,15,trolleybus,forward,14,34,вул. Вороного
+97,15,trolleybus,forward,15,37,вул. Жуйка
+97,15,trolleybus,forward,16,40,пров. 3-й Магазинний
+97,15,trolleybus,forward,17,41,Майдан Смолянський
+97,15,trolleybus,forward,18,43,вул. Лук’яненка
+97,15,trolleybus,forward,19,47,вул. Івана Огієнка
+97,15,trolleybus,forward,20,49,Майдан Польовий
+97,15,trolleybus,forward,21,52,вул. Корольова
+97,15,trolleybus,backward,1,33189,ЖТТУ
+97,15,trolleybus,backward,2,54,"ТЦ ""За Так"""
+97,15,trolleybus,backward,3,57,вул. Шевченка
+97,15,trolleybus,backward,4,59,вул. Гоголівська
+97,15,trolleybus,backward,5,60,Залізничний вокзал
+97,15,trolleybus,backward,6,1,Автовокзал
+97,15,trolleybus,backward,7,7,"ТЦ ""Глобал"""
+97,15,trolleybus,backward,8,5,Майдан Згоди
+97,15,trolleybus,backward,9,8,вул. Князів Острозьких
+97,15,trolleybus,backward,10,11,вул. Хлібна
+97,15,trolleybus,backward,11,13,вул. Небесної сотні
+97,15,trolleybus,backward,12,16,вул. Покровська
+97,15,trolleybus,backward,13,20,вул. Театральна
+97,15,trolleybus,backward,14,125,вул. Мала Бердичівська
+97,15,trolleybus,backward,15,128,вул. Леха Качинського
+97,15,trolleybus,backward,16,129,Монумент Слави
+97,15,trolleybus,backward,17,131,Торгівельно-економічний коледж
+97,15,trolleybus,backward,18,133,Житомирська Політехніка
+97,15,trolleybus,backward,19,135,вул. Зв'язківців
+97,15,trolleybus,backward,20,138,"спорткомплекс ""Динамо"""
+97,15,trolleybus,backward,21,139,вул. Чумацький шлях
+97,15,trolleybus,backward,22,141,Гідропарк

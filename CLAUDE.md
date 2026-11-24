@@ -1027,6 +1027,14 @@ host `scripts/serve-dist.mjs` and the SPA via `frontend/src/site/siteConfig.ts`)
   is the source. On the site, `VERIFIED_ROUTE_IDS` is a Malyn list: `isVerifiedRoute` / `verifiedRouteIds()` treat every route
   of another city as verified (`setVerifiedRoutesCity`, switched by `useTransportDataset`), and the map centre comes from the
   city's profile.
+- **Zhytomyr city transport** (`Docs/zhytomyr-transport-2026-11.md`, recovery file): third transport city. Buses from the
+  owner's zt.rozklad.in.ua (`data/zhytomyr-transport/`, same minutes as «Доведе» via `zhytomyrTimedDirections`), tram and
+  trolleybuses from the hand-taken EasyWay snapshot in `data/zhytomyr-transport/easyway/` (no coordinates there: stops are
+  matched by name to our bus stops / OSM, minutes between stops estimated). `npm run zhytomyr:dataset` (backend) builds
+  `dataset/zhytomyr-dataset.json` + `REPORT.md`; a test keeps them equal to the generator; `--apply` / `--dry-run` as
+  Korosten. A city is a transport tenant by `transport: true` in both site maps (`site-domains.ts`, `site-hosts.mjs`),
+  independent of `active` (domain served): `parseTransportCity`, `canonicalTransportCity` and the admin city switcher use
+  `transport`, while `siteForCityCode` / notifications still use `active`.
 - **Transport tenancy** (`Docs/transport-tenancy-2026-11.md`): the 11 city-transport tables carry `cityCode`
   (`TripPoint.code`, default `'Malyn'`). Every Prisma call on them is scoped by it — the DB functions take
   `cityCode = DEFAULT_TRANSPORT_CITY` / `opts.cityCode`, and `transport-tenancy.test.ts` fails on an unscoped call (add

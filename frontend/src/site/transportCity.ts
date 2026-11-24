@@ -17,18 +17,18 @@ export const DEFAULT_TRANSPORT_CITY = 'Malyn';
 export const TRANSPORT_CITY_PARAM = 'city';
 const PREVIEW_STORAGE_KEY = 'transport-preview-city';
 
-/** Код міста з активного сайту (без урахування регістру) → TripPoint.code; null — такого міста нема */
+/** Код міста з транспортом (site-hosts.mjs, `transport`; домен може бути ще не підключено) → TripPoint.code; null — нема */
 export function canonicalTransportCity(raw: string | null | undefined): string | null {
   const wanted = (raw ?? '').trim().toLowerCase();
   if (!wanted) return null;
-  const site = Object.values(SITES).find((s) => s.active && s.cityCode.toLowerCase() === wanted);
+  const site = Object.values(SITES).find((s) => s.transport && s.cityCode.toLowerCase() === wanted);
   return site ? site.cityCode : null;
 }
 
-/** Міста, між якими перемикається адмінка: активні сайти, головний першим */
+/** Міста, між якими перемикається адмінка: міста з транспортом, головний першим */
 export function transportCityOptions(): Array<{ cityCode: string; name: string }> {
   return Object.values(SITES)
-    .filter((s) => s.active)
+    .filter((s) => s.transport)
     .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary))
     .map((s) => ({ cityCode: s.cityCode, name: s.cityNameUk }));
 }
@@ -171,6 +171,7 @@ const MALYN_PROFILE: TransportProfile = {
 /** Центри міст без власного профілю — для порожньої карти, поки в датасеті нема meta.center */
 const CITY_CENTERS: Record<string, [number, number]> = {
   Korosten: [50.9506, 28.6384],
+  Zhytomyr: [50.2547, 28.6587],
 };
 
 /** Міста, крім Малина, зі схемою маршрутів (LocalTransportPage/scheme/registry.ts; Docs/korosten-scheme-2026-11.md) */

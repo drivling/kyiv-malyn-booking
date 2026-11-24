@@ -20,6 +20,12 @@ export interface SiteDomainConfig {
   isPrimary: boolean;
   /** Домен підключено; неактивні міста лишаються на головному сайті */
   active: boolean;
+  /**
+   * Місто має свій міський транспорт у базі (?city=, перемикач міст в адмінці). Не залежить від домену:
+   * дані міста можна готувати й переглядати адміном, поки домен не підключено. Людям їх відкриває прапорець
+   * «Міський транспорт» (TripPoint.hasLocalTransport) в адмінці.
+   */
+  transport: boolean;
 }
 
 export const SITES: Record<SiteKey, SiteDomainConfig> = {
@@ -31,6 +37,7 @@ export const SITES: Record<SiteKey, SiteDomainConfig> = {
     platformLabel: 'Поїздки Київ, Житомир, Коростень ↔️ Малин',
     isPrimary: true,
     active: true,
+    transport: true,
   },
   korosten: {
     key: 'korosten',
@@ -40,6 +47,7 @@ export const SITES: Record<SiteKey, SiteDomainConfig> = {
     platformLabel: 'Поїздки Коростень ↔️ Київ, Житомир, Малин',
     isPrimary: false,
     active: true,
+    transport: true,
   },
   zhytomyr: {
     key: 'zhytomyr',
@@ -50,6 +58,8 @@ export const SITES: Record<SiteKey, SiteDomainConfig> = {
     isPrimary: false,
     // Домен ще не підключено — Житомир поки живе на головному сайті
     active: false,
+    // Транспорт Житомира готуємо до підключення домену (Docs/zhytomyr-transport-2026-11.md)
+    transport: true,
   },
 };
 

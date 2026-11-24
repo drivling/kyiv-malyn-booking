@@ -9,8 +9,8 @@ const site_domains_1 = require("./site-domains");
 const transport_city_code_1 = require("./transport-city-code");
 Object.defineProperty(exports, "DEFAULT_TRANSPORT_CITY", { enumerable: true, get: function () { return transport_city_code_1.DEFAULT_TRANSPORT_CITY; } });
 /**
- * ?city= / body.city → канонічний код міста. Порожньо — Малин; інакше код міста з активним сайтом
- * (site-domains.ts), без урахування регістру. null — такого міста нема.
+ * ?city= / body.city → канонічний код міста. Порожньо — Малин; інакше код міста з транспортом (site-domains.ts,
+ * `transport`; домен може бути ще не підключено), без урахування регістру. null — такого міста нема.
  */
 function parseTransportCity(raw) {
     if (raw === undefined || raw === null || raw === '')
@@ -20,7 +20,7 @@ function parseTransportCity(raw) {
     const wanted = raw.trim().toLowerCase();
     if (!wanted)
         return transport_city_code_1.DEFAULT_TRANSPORT_CITY;
-    const site = Object.values(site_domains_1.SITES).find((s) => s.active && s.cityCode.toLowerCase() === wanted);
+    const site = Object.values(site_domains_1.SITES).find((s) => s.transport && s.cityCode.toLowerCase() === wanted);
     return site ? site.cityCode : null;
 }
 /**

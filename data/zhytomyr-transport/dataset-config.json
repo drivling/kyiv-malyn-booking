@@ -1,0 +1,13 @@
+{
+  "_about": "Ручні рішення для генератора датасету Житомира (backend/src/zhytomyr-dataset.ts; Docs/zhytomyr-transport-2026-11.md). Решта береться з джерел як є.",
+  "defaultSec": 120,
+  "_ewSpeedKmh": "Середня швидкість трамвая й тролейбусів для оцінки часу між зупинками EasyWay (у знімку нема ні часу між зупинками, ні координат).",
+  "ewSpeedKmh": 17,
+  "_easywayExtraTrips": "Вечірні рейси автобусів, які є в EasyWay, але нема на zt.rozklad.in.ua. Рішення власника; поки ні — лише в REPORT.md.",
+  "easywayExtraTrips": false,
+  "easywayModes": ["tram", "trolleybus"],
+  "_routeIds": "Номер → id маршруту, коли транслітерація не годиться. Ключ: номер автобуса або «trolleybus:<номер>» / «tram:<номер>».",
+  "routeIds": {},
+  "colors": {},
+  "easyway": { "takenAt": "2026-11-24" }
+}

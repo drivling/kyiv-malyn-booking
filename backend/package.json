@@ -17,6 +17,7 @@
     "korosten:snapshot": "node dist/scripts/korosten-source-snapshot.js",
     "korosten:dataset": "node dist/scripts/korosten-dataset.js",
     "zhytomyr:snapshot": "node dist/scripts/zhytomyr-snapshot.js",
+    "zhytomyr:dataset": "node dist/scripts/zhytomyr-dataset.js",
     "kyiv:kpt": "node dist/scripts/kyiv-kpt.js",
     "calculate:segments": "ts-node src/scripts/calculate-segment-durations.ts",
     "test": "vitest run",
