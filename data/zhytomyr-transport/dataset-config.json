@@ -9,5 +9,5 @@
   "_routeIds": "Номер → id маршруту, коли транслітерація не годиться. Ключ: номер автобуса або «trolleybus:<номер>» / «tram:<номер>».",
   "routeIds": {},
   "colors": {},
-  "easyway": { "sourceUrl": "https://eway.in.ua/", "takenAt": "2026-11-24" }
+  "easyway": { "takenAt": "2026-11-24" }
 }

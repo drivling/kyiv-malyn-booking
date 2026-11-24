@@ -66,11 +66,10 @@ export const SITES = {
     cityNameUkLocative: 'Житомирі',
     /**
      * Джерела даних міського транспорту (підвал сторінок /transport*): автобуси — сайт власника zt.rozklad.in.ua;
-     * трамвай і тролейбуси — EasyWay (з дозволу); координати зупинок — OpenStreetMap (ODbL)
+     * координати зупинок — OpenStreetMap (ODbL). Сайт EasyWay (трамвай і тролейбуси) не згадуємо — рішення власника 2026-11-24
      */
     transportSources: [
       { href: 'https://zt.rozklad.in.ua/', label: 'Розклад автобусів: zt.rozklad.in.ua' },
-      { href: 'https://eway.in.ua/', label: 'Трамвай і тролейбуси: EasyWay' },
       { href: 'https://www.openstreetmap.org/copyright', label: 'Координати зупинок: © учасники OpenStreetMap' },
     ],
     isPrimary: false,

@@ -40,7 +40,7 @@ export interface ZhytomyrDatasetConfig {
   /** кольори ліній за id маршруту */
   colors?: Record<string, string>;
   zt: { sourceUrl: string; fetchedAt: string; validFrom: string | null };
-  easyway: { sourceUrl: string; takenAt: string } | null;
+  easyway: { takenAt: string } | null;
 }
 
 export interface ZhytomyrDatasetInput {
@@ -433,8 +433,9 @@ export function buildZhytomyrDataset(input: ZhytomyrDatasetInput): ZhytomyrDatas
         scheme: 'city',
         note:
           `${MODE_UK[line.mode] ?? line.mode} №${number}${line.name ? `: ${line.name}` : ''}${loop ? ' (кільцевий)' : ''}. ` +
-          `Відправлення від першої зупинки — EasyWay (${config.easyway?.takenAt ?? ''}); час між зупинками орієнтовний.`,
-        sourceUrl: config.easyway?.sourceUrl ?? '',
+          'Час між зупинками орієнтовний.',
+        // сайт EasyWay на сторінках не згадуємо (рішення власника 2026-11-24)
+        sourceUrl: '',
         unreliable: false,
         variants: [],
       });
@@ -471,7 +472,7 @@ export function buildZhytomyrDataset(input: ZhytomyrDatasetInput): ZhytomyrDatas
       defaultSec: config.defaultSec,
       center: ZHYTOMYR_CENTER,
       routeColors: b.colors,
-      source: `Чернетка: zt.rozklad.in.ua (${config.zt.fetchedAt})${config.easyway ? `, EasyWay (${config.easyway.takenAt}, з дозволу)` : ''}, OpenStreetMap (ODbL)`,
+      source: `Чернетка: zt.rozklad.in.ua (${config.zt.fetchedAt}), OpenStreetMap (ODbL)`,
     },
   };
 

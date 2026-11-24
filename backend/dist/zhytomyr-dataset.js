@@ -414,8 +414,9 @@ function buildZhytomyrDataset(input) {
                 toName: b.stops.get(finalChains[0][finalChains[0].length - 1])?.name ?? '',
                 scheme: 'city',
                 note: `${MODE_UK[line.mode] ?? line.mode} №${number}${line.name ? `: ${line.name}` : ''}${loop ? ' (кільцевий)' : ''}. ` +
-                    `Відправлення від першої зупинки — EasyWay (${config.easyway?.takenAt ?? ''}); час між зупинками орієнтовний.`,
-                sourceUrl: config.easyway?.sourceUrl ?? '',
+                    'Час між зупинками орієнтовний.',
+                // сайт EasyWay на сторінках не згадуємо (рішення власника 2026-11-24)
+                sourceUrl: '',
                 unreliable: false,
                 variants: [],
             });
@@ -454,7 +455,7 @@ function buildZhytomyrDataset(input) {
             defaultSec: config.defaultSec,
             center: exports.ZHYTOMYR_CENTER,
             routeColors: b.colors,
-            source: `Чернетка: zt.rozklad.in.ua (${config.zt.fetchedAt})${config.easyway ? `, EasyWay (${config.easyway.takenAt}, з дозволу)` : ''}, OpenStreetMap (ODbL)`,
+            source: `Чернетка: zt.rozklad.in.ua (${config.zt.fetchedAt}), OpenStreetMap (ODbL)`,
         },
     };
     const count = (pred) => dataset.stops.filter(pred).length;
