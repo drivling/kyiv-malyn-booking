@@ -1,6 +1,6 @@
 /**
  * Ролик перед табло зупинки (stickerAd.ts): міні-тизер «Крапка» або привітання вокзалу — «Вітаємо в Малині» чи
- * «Вітаємо в Коростені» (8 с) — на весь екран —
+ * «Вітаємо в Коростені» (8 с), а пасажирові № 1000 — «Тисяча крапок» (10 с) — на весь екран —
  * так само, як вступ /dovede (useAdVideo.ts: без перемотки, поля в колір кадру). Після скану QR людина ще нічого не
  * торкалась, тож звук браузер не дасть: ролик одразу йде без звуку (`silentStart`), а звук вмикає «Увімкнути звук»;
  * «▶ Дивитися» — лише коли браузер не грає навіть без звуку. Табло відкривається колом із тієї точки кадру, де ролик лишив крапку. Табло під роликом уже завантажується;
@@ -15,13 +15,15 @@ import { newViewId, trackAd } from './adEvents';
 import { HINT_NAME, HINT_POSTER, HINT_SECONDS, HINT_VIDEO } from './hintMedia';
 import { markSeen } from './seen';
 import { AD_SEEN_KEYS, type StickerAdVideo } from './stickerAd';
+import { THOUSAND_NAME, THOUSAND_POSTER, THOUSAND_SECONDS, THOUSAND_VIDEO } from './thousandMedia';
 import { WELCOME_KOROSTEN_NAME, WELCOME_KOROSTEN_POSTER, WELCOME_KOROSTEN_SECONDS, WELCOME_KOROSTEN_VIDEO } from './welcomeKorostenMedia';
 import { WELCOME_NAME, WELCOME_POSTER, WELCOME_SECONDS, WELCOME_VIDEO } from './welcomeMedia';
 
 /**
  * Ролики: файл, позначка «бачив», підписи й точка кадру 1080×1920, з якої відкривається табло —
  * у тизері там згасає крапка (центр безпечної зони сторіс), у привітанні вона стоїть крапкою після «в Малині» /
- * «в Коростені» (scripts/teaser/scene.html; інший текст чи кегль — переміряти: центр синіх пікселів останнього кадру)
+ * «в Коростені» (scripts/teaser/scene.html; інший текст чи кегль — переміряти: центр синіх пікселів останнього кадру),
+ * у «Тисячі крапок» — після «пасажир» (scripts/teaser/thousand.html: `dovede:teaser -- thousand` друкує цю точку)
  */
 const VIDEOS: Record<StickerAdVideo, { src: string; poster: string; seconds: number; name: string; seenKey: string; title: string; dot: { x: number; y: number } }> = {
   hint: { src: HINT_VIDEO, poster: HINT_POSTER, seconds: HINT_SECONDS, name: HINT_NAME, seenKey: AD_SEEN_KEYS.hint, title: 'Ролик «Доведе.»', dot: { x: 540, y: 902 } },
@@ -34,6 +36,15 @@ const VIDEOS: Record<StickerAdVideo, { src: string; poster: string; seconds: num
     seenKey: AD_SEEN_KEYS.welcomeKorosten,
     title: 'Ролик «Вітаємо в Коростені»',
     dot: { x: 951, y: 998 },
+  },
+  thousand: {
+    src: THOUSAND_VIDEO,
+    poster: THOUSAND_POSTER,
+    seconds: THOUSAND_SECONDS,
+    name: THOUSAND_NAME,
+    seenKey: AD_SEEN_KEYS.thousand,
+    title: 'Ролик «Ви — тисячний пасажир»',
+    dot: { x: 663, y: 1270 },
   },
 };
 const IRIS_MS = 760;

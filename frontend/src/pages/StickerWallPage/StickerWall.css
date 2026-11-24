@@ -1068,6 +1068,136 @@ body.wall-mode {
 }
 
 /*
+ * Лічильник до тисячі (passengerCountdown у stickerWall.ts, WallFlapCounter.tsx): останні 20 новеньких перед круглою
+ * тисячею. Та сама крапка падає й тричі підскакує, але на табло з пластинками, як на вокзалі; на третьому приземленні
+ * (1,13 с, «клац» у wallSound.ts) пластинки перегортаються — 0986 → 0987, на тисячі перенос іде через усі чотири
+ * справа наліво, і табло синіє. Назва зупинки менша, щоб табло вмістилося на телефоні горизонтально.
+ */
+.wall-cele--countdown .wall-cele-name {
+  font-size: 2.1em;
+}
+
+.wall-cele-counter {
+  --tile-w: 3.4em;
+  position: relative;
+  padding-top: 2.5em;
+  margin: 0.15em 0 0.3em;
+}
+
+/* крапка стоїть на пластинці одиниць */
+.wall-cele-counter > .wall-cele-dot {
+  position: absolute;
+  top: 0.5em;
+  right: calc((var(--tile-w) - 2em) / 2);
+}
+
+.wall-flap-board {
+  display: flex;
+  gap: 0.07em;
+  font-size: 2.72em;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.wall-flap {
+  position: relative;
+  width: 1.25em;
+  height: 1.62em;
+  perspective: 5em;
+}
+
+.wall-flap-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(50% - 0.02em);
+  overflow: hidden;
+  background: #003f53;
+  color: #ffffff;
+  backface-visibility: hidden;
+}
+
+.wall-flap-top {
+  top: 0;
+  border-radius: 0.14em 0.14em 0 0;
+  transform-origin: 50% 100%;
+}
+
+.wall-flap-bottom {
+  bottom: 0;
+  border-radius: 0 0 0.14em 0.14em;
+  transform-origin: 50% 0;
+}
+
+/* цифра на всю висоту пластинки: верхня половина показує її верх, нижня — низ */
+.wall-flap-half > span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: calc(200% + 0.04em);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wall-flap-top > span {
+  top: 0;
+}
+
+.wall-flap-bottom > span {
+  bottom: 0;
+}
+
+.wall-flap-fold {
+  animation: wall-flap-fold 0.18s ease-in var(--d) both;
+}
+
+.wall-flap-unfold {
+  animation: wall-flap-unfold 0.18s ease-out calc(var(--d) + 0.18s) both;
+}
+
+@keyframes wall-flap-fold {
+  from {
+    transform: rotateX(0deg);
+    filter: brightness(1);
+  }
+  to {
+    transform: rotateX(-90deg);
+    filter: brightness(0.55);
+  }
+}
+
+@keyframes wall-flap-unfold {
+  from {
+    transform: rotateX(90deg);
+    filter: brightness(0.55);
+  }
+  to {
+    transform: rotateX(0deg);
+    filter: brightness(1);
+  }
+}
+
+/* тисяча: після переносу пластинки синіють одна за одною зліва направо (фірмовий блакитний, трохи глибший — білі
+   цифри мають ≥ 3 : 1) */
+.wall-flap-board--goal .wall-flap-half:not(.wall-flap-fold):not(.wall-flap-unfold) {
+  animation: wall-flap-blue 0.35s ease calc(var(--settled) + var(--i) * 0.07s) both;
+}
+
+.wall-flap-board--goal .wall-flap-unfold {
+  animation:
+    wall-flap-unfold 0.18s ease-out calc(var(--d) + 0.18s) both,
+    wall-flap-blue 0.35s ease calc(var(--settled) + var(--i) * 0.07s) both;
+}
+
+@keyframes wall-flap-blue {
+  to {
+    background: #008ed8;
+  }
+}
+
+/*
  * Квиток «Доведе» (на /dovede подивилися ролик і прокомпостували талон): біле тло, той самий талон, що на сайті
  * (порт .dv-talon з DovedePage/intro/DovedeIntro.css, у em). Хід — у такт зі звуком `ticket` (wallSound.ts):
  * талон виїжджає (0,2 с), щелепа падає (0,95 с), дірки (1,04 с), штамп «щасливий» (1,27 с), конфеті (1,4 с).

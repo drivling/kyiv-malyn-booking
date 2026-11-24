@@ -159,7 +159,7 @@ export function cacheControlFor(pathname) {
  * Малин, `public/ads/welcome-korosten-<хеш>.*` — Коростень).
  * У назві — хеш вмісту, новий ролик = нова назва, тож файл кешується назавжди, як `/assets/*`.
  */
-const DOVEDE_INTRO_FILE = /^\/(dovede\/intro|ads\/(?:hint|welcome|welcome-korosten))-[0-9a-f]{8}\.(mp4|jpg)$/;
+const DOVEDE_INTRO_FILE = /^\/(dovede\/intro|ads\/(?:hint|welcome|welcome-korosten|thousand))-[0-9a-f]{8}\.(mp4|jpg)$/;
 
 /**
  * Один діапазон із заголовка `Range` (RFC 9110 §14.1.2) — без нього Safari на iPhone не грає MP4 (питає

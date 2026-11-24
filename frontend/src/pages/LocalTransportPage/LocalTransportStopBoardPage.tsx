@@ -32,8 +32,8 @@ import { getStopArticle, stopArticlePlainText } from '@/content/stops';
 import { RouteMap } from './RouteMap';
 import { DateTimeControls } from './DateTimeControls';
 import { formatDistance, useNearestStops } from './useNearestStops';
-import { useStickerScan } from './stickerScan';
-import { stickerAdFor } from '@/ads/stickerAd';
+import { onPassengerReply, parseStickerCampaign, useStickerScan } from './stickerScan';
+import { passengerAdFor, stickerAdFor } from '@/ads/stickerAd';
 import { ArrivalReportSheet } from './ArrivalReportSheet';
 import { isReportableStopId, type ArrivalTarget } from './arrivalReport';
 import { useLongPress } from './useLongPress';
@@ -121,18 +121,32 @@ const AD_COVER: React.CSSProperties = { position: 'fixed', inset: 0, zIndex: 214
 /**
  * Табло зупинки. Хто прийшов скануванням наклейки й ще не бачив ролик цієї зупинки (міні-тизер «Доведе», на вокзалі —
  * привітання), спершу дивиться його (8 с) — табло під ним уже вантажиться й відкривається колом, коли ролик закінчиться. Рішення — з першої адреси: скан
- * одразу переписує `utm_source=sticker` на `reload` (stickerScan.ts).
+ * одразу переписує `utm_source=sticker` на `reload` (stickerScan.ts). Пасажир № 1000 свого міста дізнається про це з
+ * відповіді на скан, коли тизер уже на екрані (зазвичай ще на білому першому кадрі): ролик підміняється «Тисячею
+ * крапок» (stickerAd.ts, `PASSENGER_VIDEOS`), а якщо ролика не було — він зʼявляється над табло.
  */
 export const LocalTransportStopBoardPage: React.FC = () => {
   const { search } = useLocation();
-  const [ad] = useState(() => stickerAdFor(search));
+  const [firstSearch] = useState(search);
+  const [ad, setAd] = useState(() => stickerAdFor(search));
   const [showAd, setShowAd] = useState(ad != null);
+  useEffect(() => {
+    const stopId = parseStickerCampaign(firstSearch)?.stopId;
+    if (!stopId) return;
+    return onPassengerReply((person) => {
+      const video = passengerAdFor(person.number);
+      if (!video) return;
+      setAd((cur) => (cur?.video === video ? cur : { stopId, video }));
+      setShowAd(true);
+    });
+  }, [firstSearch]);
   return (
     <>
       <StopBoard />
       {showAd && ad ? (
         <Suspense fallback={<div style={AD_COVER} aria-hidden="true" />}>
-          <StickerAdIntro stopId={ad.stopId} video={ad.video} onDone={() => setShowAd(false)} />
+          {/* key: підміна ролика — новий перегляд (свій облік, свій «бачив») */}
+          <StickerAdIntro key={ad.video} stopId={ad.stopId} video={ad.video} onDone={() => setShowAd(false)} />
         </Suspense>
       ) : null}
     </>

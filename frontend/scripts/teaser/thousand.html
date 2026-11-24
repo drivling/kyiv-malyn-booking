@@ -1,0 +1,794 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Ролик «Тисячний пасажир»: сцена</title>
+<!--
+  Сцена ролика для тисячного пасажира з наклейок (`npm run dovede:teaser -- thousand --v <варіант>`; відкрити в
+  браузері — ?play=1&v=…). Ті самі крапка, кольори, шрифт і підпис компанії, що в «Крапці» й «Вітаємо в Малині»;
+  звук не з ролика «Крапка», а синтез (OfflineAudioContext): дзвіночки святкувань табло на стіні
+  (src/pages/StickerWallPage/wallSound.ts), удари, «шурх». Варіанти (?v=):
+  - zeros   «Три нулі»: крапка тричі стрибає й щоразу лишає по собі нуль, згори падає «1» — 1000;
+  - dots    «Тисяча крапок»: 999 крапок злітаються в «1000» з однією дірочкою, наша крапка стрибає в неї — число спалахує;
+  - counter «Лічильник»: крапка стрибає по табло 0997 → 0998 → 0999, тоді з розгону — 1000.
+  Наприкінці підпис «Ви — тисячний / пасажир.» (?l1=…&l2=…): у «нулях» і «лічильнику» його друкує крапка, як у
+  привітаннях. Усе залежить лише від номера кадру — жодних таймерів.
+-->
+<style>
+html,body{margin:0;background:#fff}
+svg{display:block}
+</style>
+</head>
+<body>
+<svg id="stage" xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920"></svg>
+<script>
+'use strict';
+const W = 1080, H = 1920, FPS = 30;
+const BLUE = '#00A0FA', INK = '#003F53', PALE = '#9FDDFF', GOLD = '#FFB703';
+const FONT = "'Golos Text', sans-serif";
+const WEIGHT = 800;
+const q = new URLSearchParams(location.search);
+const V = ['zeros', 'dots', 'counter'].includes(q.get('v')) ? q.get('v') : 'zeros';
+const CAPTION = [q.get('l1') ?? 'Ви — тисячний', q.get('l2') ?? 'пасажир'];
+const stage = document.getElementById('stage');
+const NS = 'http://www.w3.org/2000/svg';
+const set = (n, attrs) => { for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v); return n; };
+const el = (name, attrs = {}, parent = stage) => {
+  const n = document.createElementNS(NS, name);
+  set(n, attrs);
+  parent.appendChild(n);
+  return n;
+};
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const smooth = (t) => { t = clamp(t); return t * t * (3 - 2 * t); };
+const backOut = (t) => { t = clamp(t); const c = 1.9; return 1 + (c + 1) * (t - 1) ** 3 + c * (t - 1) ** 2; };
+const easeIn = (t) => clamp(t) ** 2;
+const easeOut3 = (t) => 1 - (1 - clamp(t)) ** 3;
+const lerp = (a, b, t) => a + (b - a) * t;
+/** Відтворюваний випадок: той самий кадр — ті самі конфеті */
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const ctx = document.createElement('canvas').getContext('2d');
+const font = (size) => `${WEIGHT} ${size}px ${FONT}`;
+const rgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+const mix = (c1, c2, t) => { const a = rgb(c1), b = rgb(c2); return `rgb(${a.map((v, i) => Math.round(lerp(v, b[i], clamp(t)))).join(',')})`; };
+
+/* ── Крапка ──────────────────────────────────────────────────────────────────────────────────────────────────── */
+/** Крапка стоїть на лінії `ground` (низ крапки) */
+const stand = (x, ground, d) => ({ cx: x, cy: ground - d / 2, w: d, h: d });
+const squash = (x, ground, d, k) => ({ cx: x, cy: ground - (d * (1 - k * 0.9)) / 2, w: d * (1 + k), h: d * (1 - k * 0.9) });
+/** Стрибок за кадри f0…f1 від (x0, g0) до (x1, g1), дуга на `lift` px над прямою; діаметр d0 → d1 */
+function hop(f, f0, f1, x0, g0, x1, g1, lift, d0, d1 = d0) {
+  const t = clamp((f - f0) / (f1 - f0));
+  return stand(lerp(x0, x1, t), lerp(g0, g1, t) - lift * 4 * t * (1 - t), lerp(d0, d1, t));
+}
+/** Поява як у «Крапці»: діаметр на перших п'яти кадрах */
+const POP = [8, 20, 36, 48, 52];
+const popSize = (f, f0, d) => (f < f0 ? 0 : f - f0 < POP.length ? (POP[f - f0] / 52) * d : d);
+/** «Серцебиття»: [кадр, розмах] — після удару крапка на мить більшає */
+function beat(f, beats, d) {
+  let out = d;
+  for (const [b, amp] of beats) if (f >= b) out = d + amp * Math.exp(-(f - b) / 2.6);
+  return out;
+}
+function dotNodes(parent = stage) {
+  const glow = el('ellipse', { fill: BLUE, opacity: 0, filter: 'url(#glow)' }, parent);
+  const dot = el('ellipse', { fill: BLUE, opacity: 0 }, parent);
+  return (d) => {
+    const on = !!d && d.w > 0.5;
+    glow.setAttribute('opacity', on ? 0.3 : 0);
+    dot.setAttribute('opacity', on ? 1 : 0);
+    if (!on) return;
+    set(dot, { cx: d.cx, cy: d.cy, rx: d.w / 2, ry: d.h / 2 });
+    set(glow, { cx: d.cx, cy: d.cy + d.h * 0.16, rx: d.w / 2, ry: d.h / 2 });
+  };
+}
+/** Відрізки шляху крапки: [від, до, кадр → крапка] */
+const path = (segs) => (f) => {
+  for (const [a, b, fn] of segs) if (f >= a && f < b) return fn(f);
+  return null;
+};
+
+/* ── Кола й конфеті ──────────────────────────────────────────────────────────────────────────────────────────── */
+const RING_LIFE = 29;
+const ringNode = (parent = stage) => el('circle', { fill: 'none', stroke: BLUE, opacity: 0 }, parent);
+/** Кільце від крапки — як у «Крапці» (там крапка 91 px, scale = діаметр / 91) */
+function smallRing(node, f, born, cx, cy, scale) {
+  const a = f - born;
+  if (a < 0 || a > RING_LIFE) return node.setAttribute('opacity', 0);
+  set(node, { cx, cy, r: (47 + 3.6 * a) * scale, 'stroke-width': (13 + 0.32 * a) * scale, opacity: (0.95 * (1 - a / RING_LIFE) ** 1.15).toFixed(3) });
+}
+/** Велике коло святкування, як на табло: від r0 до r1 за `life` кадрів */
+function burstRing(node, f, born, cx, cy, r0, r1, life, sw) {
+  const a = f - born;
+  if (a < 0 || a > life) return node.setAttribute('opacity', 0);
+  const t = a / life;
+  set(node, { cx, cy, r: lerp(r0, r1, easeOut3(t)), 'stroke-width': sw * (1 - 0.7 * t), opacity: (0.9 * (1 - t) ** 1.3).toFixed(3) });
+}
+/** Конфеті: кружечки й паперові смужки злітають угору від `origins` і падають */
+function confetti(seed, n, origins, f0, palette, parent = stage) {
+  const r = rng(seed);
+  const g = el('g', {}, parent);
+  const pieces = Array.from({ length: n }, (_, i) => {
+    const o = origins[i % origins.length];
+    const ang = -Math.PI / 2 + (r() - 0.5) * Math.PI * 1.7;
+    const sp = 16 + r() * 22;
+    const size = 16 + r() * 20;
+    const round = r() < 0.5;
+    const fill = palette[Math.floor(r() * palette.length)];
+    const node = round
+      ? el('circle', { r: size / 2.3, fill, opacity: 0 }, g)
+      : el('rect', { x: -size / 2, y: -size * 0.28, width: size, height: size * 0.56, rx: size * 0.1, fill, opacity: 0 }, g);
+    return { o, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, rot: r() * 360, vr: (r() - 0.5) * 26, spin: 0.18 + r() * 0.25,
+      phase: r() * 6.28, delay: Math.floor(r() * 4), life: 64 + Math.floor(r() * 34), round, node };
+  });
+  return (f) => {
+    for (const p of pieces) {
+      const a = f - f0 - p.delay;
+      if (a < 0 || a > p.life) { p.node.setAttribute('opacity', 0); continue; }
+      const s = (1 - 0.92 ** a) / 0.08;
+      const x = p.o.x + p.vx * s + Math.sin(a * 0.15 + p.phase) * 10;
+      const y = p.o.y + p.vy * s + 0.16 * a * a;
+      p.node.setAttribute('opacity', clamp((p.life - a) / 14).toFixed(3));
+      p.node.setAttribute('transform', p.round
+        ? `translate(${x.toFixed(1)} ${y.toFixed(1)})`
+        : `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(p.rot + p.vr * a).toFixed(1)}) scale(1 ${Math.cos(a * p.spin + p.phase).toFixed(3)})`);
+    }
+  };
+}
+
+/* ── Підпис «Ви — тисячний / пасажир.» ───────────────────────────────────────────────────────────────────────── */
+/** Розкладка як у «Вітаємо в Малині»: два рядки зліва врівень, крапка після другого */
+function caption(lines, centerY, maxSize) {
+  const SIDE = 110;
+  ctx.font = font(100);
+  const at100 = lines.map((t) => ctx.measureText(t).width);
+  const need = Math.max(at100[0], at100[1] + 5.5 + 46) / 100;
+  const size = Math.min(maxSize, Math.floor((W - 2 * SIDE) / need));
+  ctx.font = font(size);
+  const D = Math.round(size * 0.46), gap = size * 0.055, R = D / 2;
+  const w = lines.map((t) => ctx.measureText(t).width);
+  const x0 = (W - Math.max(w[0], w[1] + gap + D)) / 2;
+  const lead = size * 1.13;
+  const y1 = Math.round(centerY - lead / 2 + size * 0.35), y2 = Math.round(y1 + lead);
+  const letters = lines.map((t, k) => [...t].map((ch, i) => ({
+    ch, x: x0 + ctx.measureText([...t].slice(0, i).join('')).width,
+    right: x0 + ctx.measureText([...t].slice(0, i + 1).join('')).width, y: k ? y2 : y1,
+  })).filter((l) => l.ch.trim()));
+  return {
+    size, D, R, letters,
+    a: { x: x0 - gap - R, y: y1 }, b: { x: x0 + w[0] + gap + R, y: y1 },
+    c: { x: x0 - gap - R, y: y2 }, e: { x: x0 + w[1] + gap + R, y: y2 },
+  };
+}
+/** Крапка друкує підпис: кадри T = [на початку рядка 1, у кінці 1, на початку 2, крапкою в кінці 2] */
+function typeDot(f, L, T) {
+  const { D, R, size } = L;
+  const [L0, L1, L2, L3] = T;
+  if (f === L0) return squash(L.a.x, L.a.y, D, 0.18);
+  if (f < L1) {
+    const t = (f - L0) / (L1 - L0);
+    return { cx: lerp(L.a.x, L.b.x, t), cy: L.a.y - R - size * 0.57 * 4 * t * (1 - t), w: D, h: D };
+  }
+  if (f === L1) return squash(L.b.x, L.b.y, D, 0.12);
+  if (f < L2) {                                   // повернення каретки
+    const t = (f - L1) / (L2 - L1);
+    return { cx: lerp(L.b.x, L.c.x, smooth((t - 0.12) / 0.88)), cy: L.b.y - R + (L.c.y - L.b.y) * (1 - (1 - t) ** 2.2), w: D, h: D };
+  }
+  if (f === L2) return squash(L.c.x, L.c.y, D, 0.08);
+  if (f < L3) {
+    const t = (f - L2) / (L3 - L2);
+    return { cx: lerp(L.c.x, L.e.x, t), cy: L.c.y - R - size * 0.18 * 4 * t * (1 - t), w: D, h: D };
+  }
+  let pulse = 0;                                  // стоїть крапкою; з кожним кільцем трохи більшає
+  for (const b of [L3, L3 + 29]) {
+    const a = f - b;
+    if (a >= 0) pulse = a < 2 ? a / 2 : a <= 19 ? 1 : clamp(1 - (a - 19) / 8);
+  }
+  const d = D * (1 + 0.13 * pulse);
+  return { cx: L.e.x, cy: L.e.y - R, w: d, h: d };
+}
+function letterNodes(L) {
+  const g = el('g', { fill: INK, 'font-family': FONT, 'font-weight': WEIGHT, 'font-size': L.size });
+  return L.letters.flat().map((l) => {
+    const t = el('text', { x: l.x, y: l.y, opacity: 0 }, g);
+    t.textContent = l.ch;
+    return { ...l, node: t, shown: null };
+  });
+}
+/** Літера з'являється, щойно крапка її проминула */
+function typedLetters(L, T) {
+  const letters = letterNodes(L);
+  for (let f = T[0]; f <= T[3]; f++) {
+    const d = typeDot(f, L, T);
+    const row = f < T[1] ? L.a.y : f >= T[2] ? L.c.y : null;
+    for (const l of letters) if (l.shown == null && l.y === row && d.cx - d.w / 2 >= l.right - L.size * 0.2) l.shown = f;
+  }
+  for (const l of letters) if (l.shown == null) l.shown = l.y === L.a.y ? T[1] : T[3];
+  return letters;
+}
+function showLetters(letters, f) {
+  for (const l of letters) {
+    const t = clamp((f - l.shown + 1) / 5);
+    l.node.setAttribute('opacity', f >= l.shown ? clamp(t * 1.6).toFixed(3) : 0);
+    l.node.setAttribute('transform', `translate(0 ${((1 - backOut(t)) * 18).toFixed(2)})`);
+  }
+}
+
+/* ── Звук: події на кадрах, синтез — у renderAudio() ────────────────────────────────────────────────────────── */
+const N = { G5: 783.99, B5: 987.77, D6: 1174.66, E6: 1318.51, G6: 1567.98, B6: 1975.53, D7: 2349.32, E7: 2637.02, G7: 3135.96 };
+const PENTA = [N.D6, N.E6, N.G6, N.B6, N.D7, N.E7, N.G7];
+/** Мелодії табло на стіні (wallSound.ts): «рубіж» і «дзинь» новенького */
+const MILESTONE = [[N.G5, 0], [N.B5, 0.1], [N.D6, 0.2], [N.G6, 0.3], [N.B6, 0.42], [N.D6, 0.62, 2.2], [N.G6, 0.62, 2.2], [N.B6, 0.62, 2.2]];
+const DING = [[N.G6, 0, 2.6], [N.B6, 0, 2.6], [N.D7, 0, 2.6]];
+const SOUND = [];
+const sec = (f) => f / FPS;
+const sfx = {
+  bell: (f, freq, len = 1.4, level = 1, pan = 0) => SOUND.push({ k: 'bell', t: sec(f), freq, len, level, pan }),
+  thump: (f, from = 130, to = 50, level = 0.8, len = 0.16) => SOUND.push({ k: 'thump', t: sec(f), from, to, level, len }),
+  plip: (f, level = 0.6) => { sfx.thump(f, 260, 120, 0.35 * level, 0.1); sfx.bell(f, N.G5, 0.45, 0.45 * level); },
+  tick: (f, level = 0.3, pan = 0) => SOUND.push({ k: 'tick', t: sec(f), level, pan }),
+  clack: (f, level = 1) => SOUND.push({ k: 'clack', t: sec(f), level }),
+  whoosh: (f, len, from, to, level = 0.25) => SOUND.push({ k: 'whoosh', t: sec(f), len, from, to, level }),
+  boom: (f, level = 1) => SOUND.push({ k: 'boom', t: sec(f), level }),
+  shimmer: (f, len, level = 0.12) => SOUND.push({ k: 'shimmer', t: sec(f), len, level }),
+  melody: (f, notes, level = 1) => {
+    const chord = notes.filter((n) => n[1] === notes[notes.length - 1][1]).length;
+    for (const [freq, dt, len, gain] of notes) sfx.bell(f + dt * FPS, freq, len ?? 1.3, (level * (gain ?? 1)) / Math.sqrt(Math.max(1, chord)));
+  },
+  sparkles: (seed, f0, f1, n, level = 0.22) => {
+    const r = rng(seed);
+    for (let i = 0; i < n; i++) sfx.bell(lerp(f0, f1, r()), PENTA[2 + Math.floor(r() * 5)], 0.8, level * (0.5 + r() * 0.5), (r() - 0.5) * 1.4);
+  },
+};
+
+async function renderAudio(seconds) {
+  const SR = 48000;
+  const ac = new OfflineAudioContext(2, Math.ceil(SR * seconds), SR);
+  const r = rng(99);
+  const comp = ac.createDynamicsCompressor();
+  comp.threshold.value = -12; comp.knee.value = 8; comp.ratio.value = 5; comp.attack.value = 0.003; comp.release.value = 0.2;
+  comp.connect(ac.destination);
+  const master = ac.createGain();
+  master.gain.value = 0.9;
+  master.connect(comp);
+  // дзвіночки — з відлунням, як на табло
+  const bells = ac.createGain();
+  bells.gain.value = 0.5;
+  bells.connect(master);
+  const delay = ac.createDelay(1); delay.delayTime.value = 0.19;
+  const fb = ac.createGain(); fb.gain.value = 0.28;
+  const tone = ac.createBiquadFilter(); tone.type = 'lowpass'; tone.frequency.value = 3200;
+  bells.connect(delay); delay.connect(tone); tone.connect(fb); fb.connect(delay); tone.connect(master);
+  const noise = (len, shape) => {
+    const b = ac.createBuffer(1, Math.max(1, Math.floor(SR * len)), SR);
+    const d = b.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = (r() * 2 - 1) * (shape ? shape(i / d.length) : 1);
+    const src = ac.createBufferSource();
+    src.buffer = b;
+    return src;
+  };
+  const filter = (type, freq, Q = 1) => { const n = ac.createBiquadFilter(); n.type = type; n.frequency.value = freq; n.Q.value = Q; return n; };
+  const panTo = (pan, dest) => { const p = ac.createStereoPanner(); p.pan.value = pan; p.connect(dest); return p; };
+  const thump = (t, from, to, level, len) => {
+    const osc = ac.createOscillator();
+    osc.frequency.setValueAtTime(from, t);
+    osc.frequency.exponentialRampToValueAtTime(to, t + len);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(level, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + len);
+    osc.connect(g); g.connect(master);
+    osc.start(t); osc.stop(t + len + 0.02);
+  };
+  for (const e of SOUND) {
+    const t = e.t;
+    if (e.k === 'bell') {
+      const out = ac.createGain();
+      out.gain.setValueAtTime(0.0001, t);
+      out.gain.exponentialRampToValueAtTime(0.5 * e.level, t + 0.012);
+      out.gain.exponentialRampToValueAtTime(0.0001, t + e.len);
+      out.connect(panTo(e.pan, bells));
+      for (const [mult, gain, type] of [[1, 1, 'sine'], [2, 0.28, 'sine'], [2.76, 0.08, 'triangle']]) {
+        const osc = ac.createOscillator();
+        osc.type = type;
+        osc.frequency.value = e.freq * mult;
+        const g = ac.createGain();
+        g.gain.value = gain;
+        osc.connect(g); g.connect(out);
+        osc.start(t); osc.stop(t + e.len + 0.05);
+      }
+    } else if (e.k === 'thump') {
+      thump(t, e.from, e.to, e.level, e.len);
+    } else if (e.k === 'tick') {                  // клавіша: короткий шерхіт і ледь чутний «тік»
+      const src = noise(0.02, (x) => (1 - x) ** 4);
+      const g = ac.createGain(); g.gain.value = e.level * 1.6;
+      src.connect(filter('bandpass', 4200, 1.2)).connect(g).connect(panTo(e.pan, master));
+      src.start(t);
+      thump(t, 1900, 1400, e.level * 0.25, 0.03);
+    } else if (e.k === 'clack') {                 // пластинка табло: «клац», як компостер на стіні
+      const src = noise(0.07, (x) => (1 - x) ** 5);
+      const g = ac.createGain(); g.gain.value = 1.4 * e.level;
+      src.connect(filter('bandpass', 2600, 1.4)).connect(g).connect(master);
+      src.start(t);
+      thump(t, 170, 55, 1.2 * e.level, 0.13);
+    } else if (e.k === 'whoosh') {
+      const src = noise(e.len);
+      const band = filter('bandpass', e.from, 0.9);
+      band.frequency.setValueAtTime(e.from, t);
+      band.frequency.exponentialRampToValueAtTime(e.to, t + e.len);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(e.level, t + e.len * 0.65);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + e.len);
+      src.connect(band).connect(g).connect(master);
+      src.start(t);
+    } else if (e.k === 'boom') {
+      thump(t, 95, 34, 1.1 * e.level, 0.7);
+      const src = noise(0.35, (x) => (1 - x) ** 2);
+      const g = ac.createGain(); g.gain.value = 0.7 * e.level;
+      src.connect(filter('lowpass', 380)).connect(g).connect(master);
+      src.start(t);
+    } else if (e.k === 'shimmer') {               // «дощ» крапок
+      const src = noise(e.len);
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.linearRampToValueAtTime(e.level, t + e.len * 0.7);
+      g.gain.linearRampToValueAtTime(0.0001, t + e.len);
+      src.connect(filter('highpass', 5500, 0.7)).connect(g).connect(master);
+      src.start(t);
+    }
+  }
+  return wavBase64(await ac.startRendering());
+}
+function wavBase64(buf) {
+  const ch = buf.numberOfChannels, len = buf.length;
+  const bytes = new Uint8Array(44 + len * ch * 2);
+  const v = new DataView(bytes.buffer);
+  const str = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + len * ch * 2, true); str(8, 'WAVE'); str(12, 'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, ch, true); v.setUint32(24, buf.sampleRate, true);
+  v.setUint32(28, buf.sampleRate * ch * 2, true); v.setUint16(32, ch * 2, true); v.setUint16(34, 16, true);
+  str(36, 'data'); v.setUint32(40, len * ch * 2, true);
+  const data = [...Array(ch)].map((_, c) => buf.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < len; i++) for (let c = 0; c < ch; c++) {
+    const s = clamp(data[c][i], -1, 1);
+    v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    o += 2;
+  }
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return btoa(bin);
+}
+
+/* ── Варіант «Три нулі» ──────────────────────────────────────────────────────────────────────────────────────── */
+function zeros() {
+  const FRAMES = 300;
+  el('rect', { width: W, height: H, fill: '#fff' });
+  const world = el('g');
+  // число: «1» і три кола-нулі заввишки з «1»
+  ctx.font = font(100);
+  const m = ctx.measureText('1');
+  const inkL = -m.actualBoundingBoxLeft, inkW = m.actualBoundingBoxLeft + m.actualBoundingBoxRight, asc = m.actualBoundingBoxAscent;
+  const per = (inkW + asc * 3.4) / 100;
+  const S = Math.floor(860 / per), k = S / 100;
+  const Dz = asc * k, SW = Dz * 0.24;
+  const ZY = 740, base = ZY + Dz / 2;
+  const xs = (W - per * S) / 2;
+  const Z = [0, 1, 2].map((i) => ({ x: xs + inkW * k + 0.16 * Dz + Dz / 2 + i * Dz * 1.12, y: ZY }));
+  const oneCx = xs + (inkW * k) / 2;
+  const bursts = [ringNode(world), ringNode(world)];
+  const one = el('text', { x: xs - inkL * k, y: base, 'font-family': FONT, 'font-weight': WEIGHT, 'font-size': S, fill: INK, opacity: 0 }, world);
+  one.textContent = '1';
+  const rings = Z.map(() => el('circle', { fill: 'none', stroke: BLUE, opacity: 0 }, world));
+  const L = caption(CAPTION, 1210, 128);
+  const T = [178, 196, 210, 228];
+  const letters = typedLetters(L, T);
+  const capRings = [ringNode(world), ringNode(world)];
+  const LAND = [48, 74, 100];                     // крапка падає в місце нуля й роздувається в кільце
+  const ONE = [116, 132];                         // «1» падає згори
+  const CELEB = 136, JUMP = 162;
+  const conf = confetti(11, 110, [...Z, { x: oneCx, y: ZY }], CELEB, [BLUE, BLUE, INK, PALE, GOLD], world);
+  const D0 = 56, START = { x: W / 2, g: 1060 }, zG = ZY + D0 / 2;
+  const setDot = dotNodes(world);
+  const dotAt = path([
+    [0, 34, (f) => { const d = beat(f, [[12, 7], [22, 9], [30, 9]], popSize(f, 5, D0)); return d ? stand(START.x, START.g, d) : null; }],
+    [34, 48, (f) => hop(f, 34, 48, START.x, START.g, Z[0].x, zG, 260, D0)],
+    [48, 49, () => squash(Z[0].x, zG, D0, 0.2)],
+    [55, 62, (f) => stand(Z[0].x, zG, popSize(f, 55, D0))],
+    [62, 74, (f) => hop(f, 62, 74, Z[0].x, zG, Z[1].x, zG, 150, D0)],
+    [74, 75, () => squash(Z[1].x, zG, D0, 0.2)],
+    [81, 88, (f) => stand(Z[1].x, zG, popSize(f, 81, D0))],
+    [88, 100, (f) => hop(f, 88, 100, Z[1].x, zG, Z[2].x, zG, 150, D0)],
+    [100, 101, () => squash(Z[2].x, zG, D0, 0.2)],
+    [107, ONE[1], (f) => stand(Z[2].x, zG, beat(f, [[114, 8], [124, 11]], popSize(f, 107, D0)))],
+    [ONE[1], 144, (f) => hop(f, ONE[1], 144, Z[2].x, zG, Z[2].x, zG, 90, D0)],   // підкинуло ударом «1»
+    [144, JUMP, (f) => stand(Z[2].x, zG, beat(f, [[150, 8]], D0))],
+    [JUMP, T[0], (f) => hop(f, JUMP, T[0], Z[2].x, zG, L.a.x, L.a.y, 170, D0, L.D)],
+    [T[0], FRAMES + 1, (f) => typeDot(f, L, T)],
+  ]);
+  /** Нуль i: кадр після приземлення крапка роздувається в кільце; від удару «1» кільця гойдаються */
+  const ringAt = (i, f) => {
+    const a = f - (LAND[i] + 1);
+    if (a < 0) return null;
+    const outer = D0 + (Dz - D0) * backOut(a / 11);
+    const inner = (Dz - 2 * SW) * smooth((a - 1) / 10);
+    const w0 = ONE[1] + i * 3;
+    const s = 1 + (f >= w0 ? 0.1 * Math.exp(-(f - w0) / 6) * Math.cos((f - w0) * 0.9) : 0);
+    return { r: ((outer + inner) / 4) * s, sw: ((outer - inner) / 2) * s };
+  };
+
+  sfx.plip(5);
+  for (const f of [12, 22, 30]) sfx.thump(f, 120, 55, 0.55, 0.16);
+  sfx.whoosh(34, 0.45, 500, 2200, 0.16);
+  LAND.forEach((f, i) => { sfx.thump(f, 170, 60, 0.75, 0.14); sfx.bell(f + 1, [N.G5, N.B5, N.D6][i], 1.6, 0.9); });
+  for (const f of [55, 81, 107]) sfx.plip(f, 0.5);
+  for (const f of [62, 88]) sfx.whoosh(f, 0.38, 600, 2000, 0.12);
+  for (const f of [114, 124]) sfx.thump(f, 140, 60, 0.6, 0.15);
+  sfx.whoosh(ONE[0], 0.5, 3200, 380, 0.3);
+  sfx.boom(ONE[1]);
+  sfx.clack(ONE[1], 0.6);
+  sfx.melody(CELEB, MILESTONE);
+  sfx.sparkles(5, CELEB + 6, CELEB + 80, 22);
+  sfx.whoosh(JUMP, 0.45, 700, 2400, 0.14);
+  for (const l of letters) sfx.tick(l.shown, 0.28, (l.x / W - 0.5) * 0.8);
+  sfx.thump(T[0], 170, 70, 0.5, 0.12);
+  sfx.melody(T[3], DING, 0.9);
+
+  return {
+    frames: FRAMES, credit: [232, 272], dot: { x: L.e.x, y: L.e.y - L.R },
+    set(f) {
+      const a = f - ONE[1];
+      world.setAttribute('transform', a >= 0 ? `translate(${(16 * Math.exp(-a / 4) * Math.sin(a * 2.3)).toFixed(2)} ${(7 * Math.exp(-a / 4) * Math.sin(a * 1.7)).toFixed(2)})` : '');
+      if (f < ONE[0]) one.setAttribute('opacity', 0);
+      else {
+        const dy = f < ONE[1] ? -(base + 40) * (1 - easeIn((f - ONE[0]) / (ONE[1] - ONE[0]))) : 0;
+        const sq = a >= 0 ? 0.11 * Math.exp(-a / 3.5) * Math.cos(a * 0.8) : 0;
+        set(one, { opacity: 1, transform: `translate(0 ${dy.toFixed(1)}) translate(${oneCx} ${base}) scale(${1 + sq * 0.6} ${1 - sq}) translate(${-oneCx} ${-base})` });
+      }
+      rings.forEach((n, i) => {
+        const r = ringAt(i, f);
+        if (!r) return n.setAttribute('opacity', 0);
+        set(n, { opacity: 1, cx: Z[i].x, cy: ZY, r: r.r.toFixed(2), 'stroke-width': r.sw.toFixed(2) });
+      });
+      bursts.forEach((n, i) => burstRing(n, f, CELEB + i * 10, W / 2, ZY, Dz * 0.8, 1150, 42, 26));
+      conf(f);
+      showLetters(letters, f);
+      capRings.forEach((n, i) => smallRing(n, f, T[3] + i * 29, L.e.x, L.e.y - L.R, L.D / 91));
+      setDot(dotAt(f));
+    },
+  };
+}
+
+/* ── Варіант «Тисяча крапок» ─────────────────────────────────────────────────────────────────────────────────── */
+function dots() {
+  const FRAMES = 300;
+  el('rect', { width: W, height: H, fill: '#fff' });
+  const NUM = '1000';
+  ctx.font = font(100);
+  const S = Math.min(440, Math.floor(900 / (ctx.measureText(NUM).width / 100)));
+  ctx.font = font(S);
+  const width = ctx.measureText(NUM).width, asc = ctx.measureText('1').actualBoundingBoxAscent;
+  const NY = 720, base = NY + asc / 2, x0 = (W - width) / 2;
+  // 1000 точок у формі числа: шестикутна сітка з найбільшим кроком, за якого точок вистачає
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const c2 = cv.getContext('2d');
+  c2.font = font(S);
+  c2.fillText(NUM[0], x0, base);
+  // нулі — овальні кільця на місцях цифр: у Golos дірочка нуля вузька, з точок вона не читається
+  const adv0 = ctx.measureText('0').width, ZW = S * 0.25;
+  const rings = [1, 2, 3].map((i) => ({ x: x0 + ctx.measureText(NUM.slice(0, i)).width + adv0 / 2, y: base - asc / 2, rx: adv0 * 0.45, ry: asc * 0.51 }));
+  for (const z of rings) {
+    c2.beginPath();
+    c2.ellipse(z.x, z.y, z.rx, z.ry, 0, 0, Math.PI * 2);
+    c2.ellipse(z.x, z.y, z.rx - ZW, z.ry - ZW, 0, 0, Math.PI * 2);
+    c2.fill('evenodd');
+  }
+  const alpha = c2.getImageData(0, 0, W, H).data;
+  const inside = (x, y) => {
+    const xi = Math.round(x), yi = Math.round(y);
+    return xi >= 0 && yi >= 0 && xi < W && yi < H && alpha[(yi * W + xi) * 4 + 3] > 140;
+  };
+  const grid = (s) => {
+    const pts = [];
+    let row = 0;
+    for (let y = base - asc - s; y < base + s; y += s * 0.866, row++) {
+      for (let x = x0 - s + (row % 2) * (s / 2); x < x0 + width + s; x += s) if (inside(x, y)) pts.push({ x, y });
+    }
+    return pts;
+  };
+  let s = 34;
+  while (s > 6 && grid(s).length < 1000) s -= 0.25;
+  const r = rng(7);
+  const pts = grid(s).map((p) => ({ x: p.x + (r() - 0.5) * s * 0.14, y: p.y + (r() - 0.5) * s * 0.14 }));
+  while (pts.length > 1000) pts.splice(Math.floor(r() * pts.length), 1);
+  // дірочка для тисячної — угорі праворуч на останньому нулі, посередині кільця
+  const z3 = rings[2], hole = { x: z3.x + (z3.rx - ZW / 2) * Math.SQRT1_2, y: z3.y - (z3.ry - ZW / 2) * Math.SQRT1_2 };
+  let gi = 0;
+  pts.forEach((p, i) => { if (Math.hypot(p.x - hole.x, p.y - hole.y) < Math.hypot(pts[gi].x - hole.x, pts[gi].y - hole.y)) gi = i; });
+  const G = pts.splice(gi, 1)[0];
+  const rr = s * 0.36;
+
+  const bursts = [ringNode(), ringNode()];
+  const C = { x: W / 2, y: NY };
+  const parts = pts.map((p) => {
+    const ang = r() * Math.PI * 2, dist = 1300 + r() * 320;
+    const from = { x: C.x + Math.cos(ang) * dist * 0.75, y: C.y + Math.sin(ang) * dist };
+    const arrive = Math.round(46 + 64 * ((r() + r()) / 2));
+    const dur = 28 + Math.floor(r() * 16);
+    const dx = p.x - from.x, dy = p.y - from.y, bend = 0.26 + r() * 0.2;
+    const color = [BLUE, BLUE, PALE, INK, GOLD][Math.floor(r() * 5)];
+    return {
+      to: p, from, arrive, start: arrive - dur, color, phase: r() * 6.28,
+      ctrl: { x: (from.x + p.x) / 2 - dy * bend, y: (from.y + p.y) / 2 + dx * bend },
+      node: el('circle', { r: rr, fill: color, opacity: 0 }),
+    };
+  });
+  const JUMP = [124, 146];                        // наша крапка стрибає в дірочку
+  for (const p of parts) p.wave = JUMP[1] + 2 + Math.hypot(p.to.x - G.x, p.to.y - G.y) / 30;
+  const conf = confetti(21, 100, [G], JUMP[1] + 2, [BLUE, BLUE, INK, PALE, GOLD]);
+  const L = caption(CAPTION, 1190, 124);
+  const CAP0 = 176;
+  const letters = letterNodes(L);
+  letters.forEach((l, i) => { l.shown = Math.round(CAP0 + i * 1.6); });
+  const PERIOD = Math.round(CAP0 + letters.length * 1.6) + 4;
+  const capRings = [ringNode(), ringNode()];
+  const YOU = [0, 1, 2, 3].map((i) => JUMP[1] + 1 + i * 40);  // «ви тут» — кільце кожні 40 кадрів
+  const youRings = YOU.map(() => ringNode());
+  const D0 = 58, YG = 1340, DG = rr * 2 * 2.5;
+  const setDot = dotNodes();
+  const setPeriod = dotNodes();
+  const dotAt = path([
+    [0, JUMP[0], (f) => { const d = beat(f, [[14, 7], [26, 9], [60, 5], [80, 6], [96, 8], [106, 9], [114, 10], [120, 12]], popSize(f, 5, D0)); return d ? stand(W / 2, YG, d) : null; }],
+    [JUMP[0], JUMP[1], (f) => hop(f, JUMP[0], JUMP[1], W / 2, YG, G.x, G.y + DG / 2, 300, D0, DG)],
+    [JUMP[1], JUMP[1] + 1, () => squash(G.x, G.y + DG / 2, DG, 0.22)],
+    [JUMP[1] + 1, FRAMES + 1, (f) => {
+      let pulse = 0;
+      for (const b of YOU) {
+        const a = f - b;
+        if (a >= 0) pulse = a < 2 ? a / 2 : a <= 19 ? 1 : clamp(1 - (a - 19) / 8);
+      }
+      return stand(G.x, G.y + DG / 2, DG * (1 + 0.18 * pulse));
+    }],
+  ]);
+
+  sfx.plip(5);
+  for (const f of [14, 26]) sfx.thump(f, 120, 55, 0.55, 0.16);
+  sfx.shimmer(22, 3.1, 0.1);
+  parts.forEach((p, i) => { if (i % 12 === 0) sfx.tick(p.arrive, 0.1 + 0.08 * ((i * 7) % 5) / 4, (p.to.x / W - 0.5) * 1.2); });
+  sfx.sparkles(3, 40, 112, 18, 0.15);
+  [96, 106, 114, 120].forEach((f, i) => sfx.thump(f, 120 + i * 14, 55, 0.5 + i * 0.07, 0.15));
+  sfx.whoosh(JUMP[0], 0.75, 450, 2600, 0.22);
+  sfx.thump(JUMP[1], 180, 70, 0.8, 0.14);
+  sfx.boom(JUMP[1] + 1, 0.6);
+  PENTA.forEach((n, i) => sfx.bell(JUMP[1] + 2 + i * 2.2, n, 1.2, 0.55, (i / 6 - 0.5) * 0.8));   // хвиля: глісандо вгору
+  sfx.melody(JUMP[1] + 17, [[N.D6, 0, 2.4], [N.G6, 0, 2.4], [N.B6, 0, 2.4]]);
+  sfx.sparkles(9, JUMP[1] + 8, JUMP[1] + 90, 22);
+  for (const l of letters) sfx.tick(l.shown, 0.16, (l.x / W - 0.5) * 0.8);
+  sfx.melody(PERIOD, DING, 0.9);
+
+  return {
+    frames: FRAMES, credit: [232, 272], dot: { x: L.e.x, y: L.e.y - L.R },
+    set(f) {
+      for (const p of parts) {
+        if (f < p.start) { p.node.setAttribute('opacity', 0); continue; }
+        let x, y, rad = rr, fill;
+        if (f < p.arrive) {                       // летить по дузі: усі в один бік — вихор
+          const t = easeOut3((f - p.start) / (p.arrive - p.start)), u = 1 - t;
+          x = u * u * p.from.x + 2 * u * t * p.ctrl.x + t * t * p.to.x;
+          y = u * u * p.from.y + 2 * u * t * p.ctrl.y + t * t * p.to.y;
+          rad = rr * 1.3;
+          fill = p.color;
+        } else {
+          x = p.to.x; y = p.to.y;
+          const a = f - p.arrive;
+          rad = rr * (1 + 0.5 * Math.exp(-a / 3));
+          fill = mix(p.color, INK, a / 8);
+          if (f >= p.wave) {                      // хвиля від тисячної: синіє й підстрибує
+            const w = f - p.wave;
+            fill = mix(INK, BLUE, w / 5);
+            rad = rr * (1 + 0.8 * Math.exp(-w / 3) + (w > 12 ? 0.07 * Math.sin(f * 0.3 + p.phase) : 0));
+          }
+        }
+        set(p.node, { opacity: 1, cx: x.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(2), fill });
+      }
+      bursts.forEach((n, i) => burstRing(n, f, JUMP[1] + i * 10, G.x, G.y, DG, 1200, 44, 26));
+      conf(f);
+      youRings.forEach((n, i) => smallRing(n, f, YOU[i], G.x, G.y, (DG / 91) * 1.5));
+      showLetters(letters, f);
+      setPeriod(f < PERIOD ? null : stand(L.e.x, L.e.y, beat(f, [[PERIOD + 29, 5]], popSize(f, PERIOD, L.D))));
+      capRings.forEach((n, i) => smallRing(n, f, PERIOD + i * 29, L.e.x, L.e.y - L.R, L.D / 91));
+      setDot(dotAt(f));
+    },
+  };
+}
+
+/* ── Варіант «Лічильник» ─────────────────────────────────────────────────────────────────────────────────────── */
+function counter() {
+  const FRAMES = 300;
+  el('rect', { width: W, height: H, fill: '#fff' });
+  const defs = stage.querySelector('defs');
+  const NT = 4, TW = 188, TH = 262, GAP = 18, BY = 740;
+  const X0 = (W - (NT * TW + (NT - 1) * GAP)) / 2, TOP = BY - TH / 2;
+  const FS = 232;
+  ctx.font = font(FS);
+  const baseY = BY + ctx.measureText('0').actualBoundingBoxAscent / 2;
+  const bursts = [ringNode(), ringNode()];
+  const board = el('g');
+  const START = [0, 9, 9, 7];
+  const FLIP = 8;
+  const IMPACT = 130, CELEB = 148;
+  /** [пластинка, кадр, з, на]: дві мʼякі — від підскоків, далі перенос від одиниць до тисяч */
+  const FLIPS = [[3, 34, 7, 8], [3, 58, 8, 9], [3, IMPACT, 9, 0], [2, IMPACT + 3, 9, 0], [1, IMPACT + 6, 9, 0], [0, IMPACT + 9, 0, 1]];
+  const tiles = START.map((_, i) => {
+    const x = X0 + i * (TW + GAP), cx = x + TW / 2;
+    el('rect', { x: x - 4, y: TOP - 4, width: TW + 8, height: TH / 2 + 2 }, el('clipPath', { id: `t${i}` }, defs));
+    el('rect', { x: x - 4, y: BY + 2, width: TW + 8, height: TH / 2 + 4 }, el('clipPath', { id: `b${i}` }, defs));
+    const tile = el('g', {}, board);
+    const half = (clip, parent) => {
+      const g = el('g', { 'clip-path': `url(#${clip})` }, parent);
+      const bg = el('rect', { x, y: TOP, width: TW, height: TH, rx: 26, fill: INK }, g);
+      const tx = el('text', { x: cx, y: baseY, 'text-anchor': 'middle', 'font-family': FONT, 'font-weight': WEIGHT, 'font-size': FS, fill: '#fff' }, g);
+      const shade = el('rect', { x, y: TOP, width: TW, height: TH, rx: 26, fill: '#000', opacity: 0 }, g);
+      return { g, bg, tx, shade };
+    };
+    const topS = half(`t${i}`, tile), botS = half(`b${i}`, tile);
+    const flapTopOuter = el('g', {}, tile), flapBotOuter = el('g', {}, tile);
+    const flapT = half(`t${i}`, flapTopOuter), flapB = half(`b${i}`, flapBotOuter);
+    const flash = el('rect', { x, y: TOP, width: TW, height: TH, rx: 26, fill: '#fff', opacity: 0 }, tile);
+    return { cx, topS, botS, flapTopOuter, flapBotOuter, flapT, flapB, flash, halves: [topS, botS, flapT, flapB] };
+  });
+  const state = (i, f) => {
+    let cur = START[i], flip = null;
+    for (const fl of FLIPS) if (fl[0] === i && f >= fl[1]) { if (f < fl[1] + FLIP) flip = fl; else cur = fl[3]; }
+    return { cur, flip };
+  };
+  const fold = (k) => `translate(0 ${BY}) scale(1 ${k.toFixed(3)}) translate(0 ${-BY})`;
+  const setTile = (tile, i, f) => {
+    const blue = f - (CELEB + i * 2);
+    const fill = blue < 0 ? INK : mix(INK, BLUE, blue / 4);
+    for (const h of tile.halves) h.bg.setAttribute('fill', fill);
+    tile.flash.setAttribute('opacity', blue >= 0 ? (0.75 * Math.exp(-blue / 3)).toFixed(3) : 0);
+    const { cur, flip } = state(i, f);
+    if (!flip) {
+      tile.topS.tx.textContent = cur; tile.botS.tx.textContent = cur;
+      tile.flapTopOuter.setAttribute('opacity', 0); tile.flapBotOuter.setAttribute('opacity', 0);
+      return;
+    }
+    const [, s, A, B] = flip, t = (f - s) / FLIP;
+    tile.topS.tx.textContent = B;
+    tile.botS.tx.textContent = A;
+    tile.flapT.tx.textContent = A;
+    tile.flapB.tx.textContent = B;
+    if (t < 0.5) {                                // верхня половина старої цифри складається вниз
+      set(tile.flapTopOuter, { opacity: 1, transform: fold(1 - 2 * t) });
+      tile.flapT.shade.setAttribute('opacity', (t * 0.9).toFixed(3));
+      tile.flapBotOuter.setAttribute('opacity', 0);
+    } else {                                      // нижня половина нової розкладається
+      tile.flapTopOuter.setAttribute('opacity', 0);
+      set(tile.flapBotOuter, { opacity: 1, transform: fold(2 * t - 1) });
+      tile.flapB.shade.setAttribute('opacity', ((1 - t) * 0.9).toFixed(3));
+    }
+  };
+  const boardDy = (f) => (f >= IMPACT ? 18 * Math.exp(-(f - IMPACT) / 5) * Math.cos((f - IMPACT) * 0.6) : 0);
+  const boardDx = (f) => (f >= 70 && f < 104 ? Math.sin(f * 2.2) * 3.5 * ((f - 70) / 34) : 0);
+  const conf = confetti(31, 110, [0, 1, 2, 3].map((i) => ({ x: tiles[i].cx, y: TOP })), CELEB, [BLUE, BLUE, INK, PALE, GOLD]);
+  const L = caption(CAPTION, 1220, 128);
+  const T = [182, 200, 214, 232];
+  const letters = typedLetters(L, T);
+  const capRings = [ringNode(), ringNode()];
+  const D0 = 60, DX = tiles[3].cx;
+  const setDot = dotNodes();
+  const dotAt = path([
+    [0, 20, (f) => { const d = beat(f, [[14, 8]], popSize(f, 5, D0)); return d ? stand(DX, TOP, d) : null; }],
+    [20, 34, (f) => hop(f, 20, 34, DX, TOP, DX, TOP, 150, D0)],
+    [34, 35, () => squash(DX, TOP, D0, 0.22)],
+    [35, 44, () => stand(DX, TOP, D0)],
+    [44, 58, (f) => hop(f, 44, 58, DX, TOP, DX, TOP, 175, D0)],
+    [58, 59, () => squash(DX, TOP, D0, 0.22)],
+    [59, 104, (f) => stand(DX + boardDx(f), TOP, beat(f, [[66, 8], [78, 9], [88, 10], [95, 11], [100, 13]], D0))],
+    [104, IMPACT, (f) => {                        // з розгону: вгору, зависла, і вниз — щосили
+      const up = f < 118, t = up ? easeOut3((f - 104) / 14) : easeIn((f - 118) / (IMPACT - 118));
+      const y = up ? lerp(TOP, TOP - 440, t) : lerp(TOP - 440, TOP, t);
+      const d = D0 * (up ? 1 : 1 - 0.12 * t);
+      return { cx: DX, cy: y - d / 2, w: d * (up ? 1 : 1 - 0.1 * t), h: d * (up ? 1 : 1 + 0.25 * t) };
+    }],
+    [IMPACT, IMPACT + 1, () => squash(DX, TOP + 12, D0, 0.34)],
+    [IMPACT + 1, CELEB, (f) => stand(DX, TOP + boardDy(f), D0)],
+    [CELEB, CELEB + 14, (f) => hop(f, CELEB, CELEB + 14, DX, TOP, DX, TOP, 130, D0)],
+    [CELEB + 14, 166, () => stand(DX, TOP, D0)],
+    [166, T[0], (f) => hop(f, 166, T[0], DX, TOP, L.a.x, L.a.y, 160, D0, L.D)],
+    [T[0], FRAMES + 1, (f) => typeDot(f, L, T)],
+  ]);
+
+  sfx.plip(5);
+  sfx.thump(14, 120, 55, 0.5, 0.16);
+  for (const f of [20, 44]) sfx.whoosh(f, 0.4, 600, 2000, 0.1);
+  for (const f of [34, 58]) { sfx.thump(f, 170, 60, 0.7, 0.13); sfx.clack(f, 0.9); }
+  [66, 78, 88, 95, 100].forEach((f, i) => sfx.thump(f, 110 + i * 15, 50, 0.45 + i * 0.08, 0.15));
+  sfx.whoosh(104, 0.5, 500, 2800, 0.22);
+  sfx.whoosh(118, 0.4, 2800, 600, 0.18);
+  sfx.boom(IMPACT);
+  for (const fl of FLIPS.slice(2)) sfx.clack(fl[1], 1);
+  sfx.melody(CELEB, MILESTONE);
+  sfx.sparkles(13, CELEB + 6, CELEB + 80, 22);
+  sfx.whoosh(166, 0.45, 700, 2400, 0.14);
+  for (const l of letters) sfx.tick(l.shown, 0.28, (l.x / W - 0.5) * 0.8);
+  sfx.thump(T[0], 170, 70, 0.5, 0.12);
+  sfx.melody(T[3], DING, 0.9);
+
+  return {
+    frames: FRAMES, credit: [234, 274], dot: { x: L.e.x, y: L.e.y - L.R },
+    set(f) {
+      board.setAttribute('transform', `translate(${boardDx(f).toFixed(2)} ${boardDy(f).toFixed(2)})`);
+      tiles.forEach((t, i) => setTile(t, i, f));
+      bursts.forEach((n, i) => burstRing(n, f, CELEB + i * 10, W / 2, BY, TH * 0.6, 1250, 44, 28));
+      conf(f);
+      showLetters(letters, f);
+      capRings.forEach((n, i) => smallRing(n, f, T[3] + i * 29, L.e.x, L.e.y - L.R, L.D / 91));
+      setDot(dotAt(f));
+    },
+  };
+}
+
+/* ── Сцена ───────────────────────────────────────────────────────────────────────────────────────────────────── */
+let scene = null, creditNode = null;
+function build(creditSvg) {
+  const defs = el('defs');
+  const blur = el('filter', { id: 'glow', x: '-80%', y: '-80%', width: '260%', height: '260%' }, defs);
+  el('feGaussianBlur', { stdDeviation: 13 }, blur);
+  scene = { zeros, dots, counter }[V]();
+  // підпис компанії — той самий, що в «Крапці» й привітаннях
+  const inner = new DOMParser().parseFromString(creditSvg, 'image/svg+xml').documentElement;
+  const [, , cw, ch] = inner.getAttribute('viewBox').split(/\s+/).map(Number);
+  const k = 34 / ch;
+  creditNode = el('g', { opacity: 0 });
+  const box = el('g', { transform: `translate(${(W - cw * k) / 2} ${1668 - 17}) scale(${k})` }, creditNode);
+  for (const n of [...inner.childNodes]) box.appendChild(document.importNode(n, true));
+}
+function setFrame(f) {
+  scene.set(f);
+  const p = smooth((f - scene.credit[0]) / (scene.credit[1] - scene.credit[0]));
+  creditNode.setAttribute('opacity', p.toFixed(3));
+  creditNode.setAttribute('transform', `translate(0 ${((1 - p) * 14).toFixed(2)})`);
+}
+
+window.teaser = {
+  FPS,
+  async init(creditSvg) {
+    await document.fonts.load(`${WEIGHT} 100px ${FONT}`, CAPTION.join('') + '0123456789');
+    const ok = [...document.fonts].some((x) => x.family.replace(/["']/g, '') === 'Golos Text' && x.status === 'loaded');
+    if (!ok) throw new Error('Golos Text не завантажився — потрібна мережа (Google Fonts)');
+    build(creditSvg);
+    setFrame(0);
+    return { mode: 'thousand', variant: V, frames: scene.frames, fps: FPS, dot: { x: Math.round(scene.dot.x), y: Math.round(scene.dot.y) } };
+  },
+  setFrame,
+  /** Звук ролика: WAV (48 кГц, стерео) у base64 */
+  audio: () => renderAudio(scene.frames / FPS),
+};
+
+if (q.get('play')) {                              // перегляд у браузері без звуку: python3 -m http.server у scripts/teaser
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=Golos+Text:wght@800&display=block';
+  document.head.appendChild(link);
+  link.onload = async () => {
+    await window.teaser.init(await (await fetch('technologies-logo-uk-line.svg')).text());
+    const t0 = performance.now();
+    const tick = () => { setFrame(Math.floor(((performance.now() - t0) / 1000) * FPS) % (scene.frames + 30)); requestAnimationFrame(tick); };
+    tick();
+  };
+}
+</script>
+</body>
+</html>

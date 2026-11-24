@@ -5,9 +5,11 @@
  */
 /**
  * `newcomer` — відлуння тизера «Крапка»: три «тук» (крапка підскакує) і «дзинь»;
- * `ticket` — компостер, як на /dovede (DovedePage/intro/punchSound.ts): «клац», штамп «тук», тоді «дзинь»
+ * `ticket` — компостер, як на /dovede (DovedePage/intro/punchSound.ts): «клац», штамп «тук», тоді «дзинь»;
+ * `countdown` — новенький № 981–1000: «тук» на табло-лічильнику, «клац» пластинки (1,13 с), «дзинь»;
+ * `thousand` — тисячний: «тук», чотири «клац» переносу (WallFlapCounter.tsx), тоді мелодія рубежу
  */
-export type WallSound = 'hello' | 'scan' | 'milestone' | 'record' | 'newcomer' | 'ticket';
+export type WallSound = 'hello' | 'scan' | 'milestone' | 'record' | 'newcomer' | 'ticket' | 'countdown' | 'thousand';
 
 type Ctx = AudioContext;
 let ctx: Ctx | null = null;
@@ -123,6 +125,14 @@ const HITS: Partial<Record<WallSound, Array<[(start: number) => void, number]>>>
     [clack, 1.04],
     [(at) => thump(at, 110, 45, 0.9, 0.16), 1.27],
   ],
+  // пластинки табло-лічильника: третє приземлення крапки — 1,13 с, перенос — кожні 0,13 с (WallFlapCounter.tsx)
+  countdown: [[clack, 1.13]],
+  thousand: [
+    [clack, 1.13],
+    [clack, 1.26],
+    [clack, 1.39],
+    [clack, 1.52],
+  ],
 };
 
 // Ноти пентатоніки соль-мажор — будь-яке поєднання звучить приємно
@@ -169,6 +179,29 @@ const MELODIES: Record<WallSound, Array<[number, number, number?, number?]>> = {
     [N.G6, 1.4, 2.6],
     [N.B6, 1.4, 2.6],
     [N.D7, 1.4, 2.6],
+  ],
+  countdown: [
+    [N.D5, 0.45, 0.32, 0.7],
+    [N.D5, 0.84, 0.28, 0.55],
+    [N.D5, 1.13, 0.24, 0.4],
+    [N.G6, 1.45, 2.6],
+    [N.B6, 1.45, 2.6],
+    [N.D7, 1.45, 2.6],
+  ],
+  // тисячний: підскоки, перенос, і мелодія рубежу, коли табло синіє
+  thousand: [
+    [N.D5, 0.45, 0.32, 0.7],
+    [N.D5, 0.84, 0.28, 0.55],
+    [N.D5, 1.13, 0.24, 0.4],
+    [N.G5, 1.8],
+    [N.B5, 1.9],
+    [N.D6, 2.0],
+    [N.G6, 2.1],
+    [N.B6, 2.22],
+    [N.D6, 2.42, 2.6],
+    [N.G6, 2.42, 2.6],
+    [N.B6, 2.42, 2.6],
+    [N.D7, 2.42, 2.6],
   ],
   // «дзинь» після штампа
   ticket: [

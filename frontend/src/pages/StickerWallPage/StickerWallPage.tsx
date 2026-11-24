@@ -28,6 +28,7 @@ import {
   freshNewcomers,
   freshTickets,
   newcomerHeadline,
+  passengerCountdown,
   isNightHour,
   isQuietHour,
   loadWallSettings,
@@ -55,6 +56,12 @@ const SOUND_BY_KIND: Record<Celebration['kind'], WallSound> = {
   newcomer: 'newcomer',
   ticket: 'ticket',
 };
+/** Звук святкування: новенький № 981–1000 — з «клац» табло-лічильника, тисячний — з переносом і мелодією рубежу */
+function soundOf(c: Celebration): WallSound {
+  const countdown = c.kind === 'newcomer' ? passengerCountdown(c.passenger) : null;
+  if (countdown) return countdown.left === 0 ? 'thousand' : 'countdown';
+  return SOUND_BY_KIND[c.kind];
+}
 const CONTROLS_MS = 8_000;
 
 /**
@@ -236,7 +243,7 @@ export function StickerWallPage({
   // Черга святкувань: мелодія на початку кожного, через CELEBRATION_MS — наступне або табло
   useEffect(() => {
     if (!current) return;
-    if (soundOnRef.current) playWallSound(SOUND_BY_KIND[current.kind]);
+    if (soundOnRef.current) playWallSound(soundOf(current));
     const t = window.setTimeout(() => setQueue((q) => q.slice(1)), CELEBRATION_MS);
     return () => window.clearTimeout(t);
   }, [current]);
@@ -277,7 +284,7 @@ export function StickerWallPage({
     saveWallSettings(next);
   };
 
-  const testCelebration = (kind: 'scan' | 'newcomer' | 'ticket') => {
+  const testCelebration = (kind: 'scan' | 'newcomer' | 'ticket', number?: number) => {
     if (kind === 'ticket') {
       const key = `test-${Date.now()}`;
       const today = (ads?.dovede.today.punched ?? 0) + 1;
@@ -303,8 +310,8 @@ export function StickerWallPage({
     }
     const top = topStops(stops, 1)[0];
     const total = snapshot?.total ?? 0;
-    // наступний номер пасажира — як було б зараз
-    const passenger = kind === 'newcomer' ? (people?.total ?? 0) + 1 : null;
+    // наступний номер пасажира — як було б зараз (або заданий: перевірка лічильника до тисячі)
+    const passenger = kind === 'newcomer' ? number ?? (people?.total ?? 0) + 1 : null;
     setQueue((q) => [
       ...q,
       {
@@ -374,6 +381,12 @@ export function StickerWallPage({
           </button>
           <button type="button" onClick={() => testCelebration('newcomer')}>
             🔵 Новий пасажир
+          </button>
+          <button type="button" onClick={() => testCelebration('newcomer', 987)}>
+            🔢 Лічильник: № 987
+          </button>
+          <button type="button" onClick={() => testCelebration('newcomer', 1000)}>
+            🎉 № 1000
           </button>
           <button type="button" onClick={() => testCelebration('ticket')}>
             🎫 Квиток «Доведе»
