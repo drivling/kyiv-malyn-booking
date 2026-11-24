@@ -1,9 +1,12 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.NEAR_LINE_M = void 0;
+exports.along = exports.clock = exports.NEAR_LINE_M = void 0;
 exports.normLineNo = normLineNo;
+exports.isWeekend = isWeekend;
 exports.projectOnDir = projectOnDir;
+exports.offsetAt = offsetAt;
 exports.kptDirsFor = kptDirsFor;
+exports.departures = departures;
 exports.kptStepInfo = kptStepInfo;
 exports.taxiFor = taxiFor;
 exports.withKyivOwnLines = withKyivOwnLines;
@@ -43,6 +46,7 @@ const clock = (mins) => {
     const m = ((Math.round(mins) % 1440) + 1440) % 1440;
     return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };
+exports.clock = clock;
 function isWeekend(isoDate) {
     const [y, m, d] = isoDate.split('-').map(Number);
     const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
@@ -89,6 +93,7 @@ const along = (dir, at) => {
     const b = dir.points[at.seg + 1];
     return m + at.frac * (0, korosten_osm_1.distanceM)({ lat: a[1], lng: a[2] }, { lat: b[1], lng: b[2] });
 };
+exports.along = along;
 const words = (s) => new Set(s
     .toLowerCase()
     .replace(/[«»"'’ʼ().,]/g, ' ')
@@ -121,7 +126,7 @@ function kptDirsFor(step, at, data = kyiv_kpt_data_1.KYIV_KPT) {
     if (at.from && at.to) {
         const fits = main
             .map((dir) => ({ dir, from: projectOnDir(dir, at.from), to: projectOnDir(dir, at.to) }))
-            .filter((m) => !!m.from && !!m.to && m.from.off <= exports.NEAR_LINE_M && m.to.off <= exports.NEAR_LINE_M && along(m.dir, m.from) < along(m.dir, m.to))
+            .filter((m) => !!m.from && !!m.to && m.from.off <= exports.NEAR_LINE_M && m.to.off <= exports.NEAR_LINE_M && (0, exports.along)(m.dir, m.from) < (0, exports.along)(m.dir, m.to))
             .sort((a, b) => a.from.off + a.to.off - (b.from.off + b.to.off));
         if (fits.length)
             return [fits[0]];
@@ -159,13 +164,13 @@ function kptStepInfo(matches, boardAt, date, googleMinutes) {
             // точні години — лише коли знаємо, де посадка на лінії
             if (next < 0) {
                 info.gone = true;
-                info.lastDeparts = clock(at[at.length - 1]);
+                info.lastDeparts = (0, exports.clock)(at[at.length - 1]);
             }
             else if (at[at.length - 1] - boardAt <= LAST_SOON_MIN) {
-                info.lastDeparts = clock(at[at.length - 1]);
+                info.lastDeparts = (0, exports.clock)(at[at.length - 1]);
             }
             else if (next === 0 && at[0] - boardAt >= FIRST_LATER_MIN) {
-                info.firstDeparts = clock(at[0]);
+                info.firstDeparts = (0, exports.clock)(at[0]);
             }
             if (m.to) {
                 const ride = Math.round(offsetAt(m.dir, m.to, hour) - offset);

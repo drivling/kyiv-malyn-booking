@@ -39,18 +39,18 @@ export function normLineNo(s: string): string {
     .replace(/[\s-]+/g, '');
 }
 
-const clock = (mins: number): string => {
+export const clock = (mins: number): string => {
   const m = ((Math.round(mins) % 1440) + 1440) % 1440;
   return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
 };
 
-function isWeekend(isoDate: string): boolean {
+export function isWeekend(isoDate: string): boolean {
   const [y, m, d] = isoDate.split('-').map(Number);
   const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay();
   return wd === 0 || wd === 6;
 }
 
-interface OnLine {
+export interface OnLine {
   /** відстань від зупинки до ламаної, м */
   off: number;
   /** індекс відрізка ламани й частка на ньому */
@@ -79,7 +79,7 @@ export function projectOnDir(dir: KptDir, p: LatLng): OnLine | null {
 }
 
 /** Хвилини від першої точки до місця на ламаній за рейсами цієї години (найближча година, що є в розкладі) */
-function offsetAt(dir: KptDir, at: OnLine, hour: number): number {
+export function offsetAt(dir: KptDir, at: OnLine, hour: number): number {
   const hours = Object.keys(dir.run).map(Number);
   if (!hours.length) return 0;
   const h = hours.reduce((a, b) => (Math.abs(b - hour) < Math.abs(a - hour) ? b : a));
@@ -90,7 +90,7 @@ function offsetAt(dir: KptDir, at: OnLine, hour: number): number {
 }
 
 /** Позиція вздовж ламаної (для порядку посадка → висадка) */
-const along = (dir: KptDir, at: OnLine): number => {
+export const along = (dir: KptDir, at: OnLine): number => {
   let m = 0;
   for (let i = 0; i < at.seg; i++) m += distanceM({ lat: dir.points[i][1], lng: dir.points[i][2] }, { lat: dir.points[i + 1][1], lng: dir.points[i + 1][2] });
   const a = dir.points[at.seg];
@@ -144,7 +144,7 @@ export function kptDirsFor(step: CityStep, at: { from?: LatLng | null; to?: LatL
 }
 
 /** Відправлення напрямку в цей тип дня; ті, що після півночі (понад 1440), — і на початку цієї доби (рейси вчорашнього вечора) */
-function departures(dir: KptDir, weekend: boolean): number[] {
+export function departures(dir: KptDir, weekend: boolean): number[] {
   const own = weekend ? dir.we : dir.wd;
   const night = own.filter((d) => d >= 1440).map((d) => d - 1440);
   return night.length ? [...night, ...own].sort((a, b) => a - b) : own;
