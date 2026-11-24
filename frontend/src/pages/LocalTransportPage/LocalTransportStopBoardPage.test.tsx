@@ -12,7 +12,8 @@ import { TEST_API_URL } from '@/test/msw/handlers';
 import { invalidateTransportDatasetCache } from './dataset/useTransportDataset';
 import { tomorrowDateUrl } from './dateUrl';
 import { LocalTransportStopBoardPage } from './LocalTransportStopBoardPage';
-import { HINT_SEEN_KEY, WELCOME_SEEN_KEY } from '@/ads/stickerAd';
+import { AD_SEEN_KEYS, HINT_SEEN_KEY, WELCOME_SEEN_KEY } from '@/ads/stickerAd';
+import { PASSPORT_KEY } from './stickerPassport';
 
 // Карта: замість Leaflet — кнопка, що імітує тап по маркеру зупинки st_c
 vi.mock('./RouteMap', () => ({
@@ -528,6 +529,52 @@ describe('LocalTransportStopBoardPage: analytics events', () => {
       localStorage.removeItem('sticker-origin');
       localStorage.removeItem(HINT_SEEN_KEY);
       localStorage.removeItem(WELCOME_SEEN_KEY);
+    }
+  });
+
+  it('відповідь на скан каже «пасажир № 1000» — тизер підміняється «Тисячею крапок», зі своєю позначкою «бачив» і обліком', async () => {
+    const play = vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(() => {});
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+    vi.stubGlobal('matchMedia', vi.fn((q: string) => ({ matches: q.includes('reduce'), media: q, addEventListener: vi.fn(), removeEventListener: vi.fn() })));
+    const ads: { placement: string; event: string; stopId?: string; video?: string }[] = [];
+    const person = { number: 1000, scans: 1, stops: 1, firstStopId: 'st_a', firstAt: '2026-11-24T08:00:00.000Z', isNew: true };
+    server.use(
+      http.post(`${TEST_API_URL}/transport/sticker-scans`, () => HttpResponse.json({ ok: true, counted: true, person }, { status: 201 })),
+      http.post(`${TEST_API_URL}/ads/events`, async ({ request }) => {
+        ads.push((await request.json()) as (typeof ads)[number]);
+        return HttpResponse.json({ ok: true, counted: true }, { status: 201 });
+      })
+    );
+    const url = '/transport/stop/st_a?utm_source=sticker&utm_medium=qr&utm_campaign=st_a-b';
+    try {
+      const first = renderBoard(url);
+      const dialog = await screen.findByRole('dialog', { name: 'Ролик «Ви — тисячний пасажир» перед розкладом зупинки' });
+      const video = dialog.querySelector('video') as HTMLVideoElement;
+      expect(video.getAttribute('src')).toMatch(/^\/ads\/thousand-[0-9a-f]{8}\.mp4$/);
+      await waitFor(() => expect(play).toHaveBeenCalled());
+      video.dispatchEvent(new Event('playing'));
+      video.dispatchEvent(new Event('ended'));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(localStorage.getItem(AD_SEEN_KEYS.thousand)).not.toBeNull();
+      // тизер так і не досмотріли — наступного разу він ще буде
+      expect(localStorage.getItem(HINT_SEEN_KEY)).toBeNull();
+      expect(JSON.parse(localStorage.getItem(PASSPORT_KEY) ?? '{}')).toMatchObject({ number: 1000 });
+      const own = () => ads.filter((a) => /^thousand-[0-9a-f]{8}$/.test(a.video ?? ''));
+      await waitFor(() => expect(own().map((a) => a.event)).toEqual(['shown', 'started', 'completed']));
+      expect(own().every((a) => a.placement === 'sticker' && a.stopId === 'st_a')).toBe(true);
+      // підмінений тизер (якщо встиг зʼявитись) досмотреним не рахується — на стіні святкуємо лише тисячного
+      expect(ads.filter((a) => a.event === 'completed')).toHaveLength(1);
+      // удруге з паспортом № 1000 — ролик уже бачив, далі звичайний тизер
+      first.unmount();
+      sessionStorage.clear();
+      renderBoard(url);
+      expect(await screen.findByRole('dialog', { name: 'Ролик «Доведе.» перед розкладом зупинки' })).toBeInTheDocument();
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+      sessionStorage.clear();
+      for (const key of ['sticker-origin', PASSPORT_KEY, ...Object.values(AD_SEEN_KEYS)]) localStorage.removeItem(key);
     }
   });
 

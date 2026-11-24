@@ -122,10 +122,10 @@ describe('serve-dist rules: transport PWA files (Docs/transport-pwa-2026-10.md, 
 
 describe('serve-dist rules: «Доведе» intro video (Range for Safari on iPhone, hashed file names)', () => {
   it('caches the hashed intro video and poster for good, but not other files under /dovede/', () => {
-    for (const p of ['/dovede/intro-3f9a1c2b.mp4', '/dovede/intro-3f9a1c2b.jpg', '/ads/hint-711724d9.mp4', '/ads/hint-711724d9.jpg', '/ads/welcome-0a1b2c3d.mp4', '/ads/welcome-0a1b2c3d.jpg', '/ads/welcome-korosten-0a1b2c3d.mp4', '/ads/welcome-korosten-0a1b2c3d.jpg']) {
+    for (const p of ['/dovede/intro-3f9a1c2b.mp4', '/dovede/intro-3f9a1c2b.jpg', '/ads/hint-711724d9.mp4', '/ads/hint-711724d9.jpg', '/ads/welcome-0a1b2c3d.mp4', '/ads/welcome-0a1b2c3d.jpg', '/ads/welcome-korosten-0a1b2c3d.mp4', '/ads/welcome-korosten-0a1b2c3d.jpg', '/ads/thousand-0ad620ba.mp4', '/ads/thousand-0ad620ba.jpg']) {
       expect(cacheHeadersFor(p), p).toEqual({ 'Cache-Control': 'public, max-age=31536000, immutable' });
     }
-    for (const p of ['/dovede/intro.mp4', '/dovede/intro-3F9A1C2B.mp4', '/dovede/intro-3f9a1c2b.mp4.bak', '/intro-3f9a1c2b.mp4', '/ads/intro-3f9a1c2b.mp4', '/ads/hint.mp4', '/ads/welcome.mp4', '/dovede/welcome-0a1b2c3d.mp4', '/ads/welcome-zhytomyr-0a1b2c3d.mp4', '/ads/welcome-korosten.mp4']) {
+    for (const p of ['/dovede/intro.mp4', '/dovede/intro-3F9A1C2B.mp4', '/dovede/intro-3f9a1c2b.mp4.bak', '/intro-3f9a1c2b.mp4', '/ads/intro-3f9a1c2b.mp4', '/ads/hint.mp4', '/ads/welcome.mp4', '/dovede/welcome-0a1b2c3d.mp4', '/ads/welcome-zhytomyr-0a1b2c3d.mp4', '/ads/welcome-korosten.mp4', '/ads/thousand.mp4', '/ads/thousand-2000-0ad620ba.mp4']) {
       expect(cacheControlFor(p), p).toBe('public, max-age=3600');
     }
   });

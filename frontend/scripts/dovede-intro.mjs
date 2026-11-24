@@ -1,11 +1,13 @@
 /**
- * Ролики «Доведе» для сайту: `npm run dovede:intro -- <ролик.mp4> [--slot intro|hint|welcome|welcomeKorosten] [--width 1080] [--crf 28] [--dry <тека>]`.
+ * Ролики «Доведе» для сайту: `npm run dovede:intro -- <ролик.mp4> [--slot intro|hint|welcome|welcomeKorosten|thousand] [--width 1080] [--crf 28] [--dry <тека>]`.
  * - `intro` (типово) — ролик-вступ /dovede: `public/dovede/intro-<хеш>.*`, `src/pages/DovedePage/intro/introMedia.ts`;
  * - `hint` — міні-тизер перед табло зупинки після скану наклейки: `public/ads/hint-<хеш>.*`, `src/ads/hintMedia.ts`;
  * - `welcome` — привітання «Вітаємо в Малині» замість тизера на вокзалі Малина (`WELCOME_STOPS`, src/ads/stickerAd.ts):
  *   `public/ads/welcome-<хеш>.*`, `src/ads/welcomeMedia.ts`;
  * - `welcomeKorosten` — «Вітаємо в Коростені» на вокзалі Коростеня: `public/ads/welcome-korosten-<хеш>.*`,
- *   `src/ads/welcomeKorostenMedia.ts`.
+ *   `src/ads/welcomeKorostenMedia.ts`;
+ * - `thousand` — «Тисяча крапок» пасажирові № 1000 з наклейок (`PASSENGER_VIDEOS`, src/ads/stickerAd.ts):
+ *   `public/ads/thousand-<хеш>.*`, `src/ads/thousandMedia.ts`; сам ролик — `npm run dovede:teaser -- thousand --v dots`.
  *
  * Локальний скрипт (потрібен ffmpeg; не для CI й не для Railway). Кодує тизер для вебу — H.264 High, `+faststart`
  * (грає, ще не докачавшись), колір bt709, AAC 128 кбіт/с — і знімає постер з першого кадру. Назва файлів — хеш
@@ -37,10 +39,11 @@ const SLOTS = {
   hint: { dir: 'ads', prefix: 'hint', media: ['src', 'ads', 'hintMedia.ts'], name: 'HINT', title: 'Міні-тизер перед табло зупинки' },
   welcome: { dir: 'ads', prefix: 'welcome', media: ['src', 'ads', 'welcomeMedia.ts'], name: 'WELCOME', title: 'Ролик-привітання перед табло зупинки' },
   welcomeKorosten: { dir: 'ads', prefix: 'welcome-korosten', media: ['src', 'ads', 'welcomeKorostenMedia.ts'], name: 'WELCOME_KOROSTEN', title: 'Ролик-привітання на вокзалі Коростеня' },
+  thousand: { dir: 'ads', prefix: 'thousand', media: ['src', 'ads', 'thousandMedia.ts'], name: 'THOUSAND', title: 'Ролик «Тисяча крапок» пасажирові № 1000 з наклейок' },
 };
 const slot = SLOTS[opt('slot', 'intro')];
 if (!slot) {
-  console.error('--slot: intro | hint | welcome | welcomeKorosten');
+  console.error('--slot: intro | hint | welcome | welcomeKorosten | thousand');
   process.exit(1);
 }
 const width = Number(opt('width', '1080'));

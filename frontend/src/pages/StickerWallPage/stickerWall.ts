@@ -186,6 +186,19 @@ export function nextPassengerMilestone(total: number): number {
   return PASSENGER_MILESTONES.find((m) => m > total) ?? (Math.floor(total / 1000) + 1) * 1000;
 }
 
+/** Скільки останніх новеньких перед круглою тисячею стіна рахує табло-лічильником (№ 981–1000, 1981–2000…) */
+export const COUNTDOWN_LAST = 20;
+
+/**
+ * Лічильник до тисячі: новенький № 981–1000 (і так перед кожною тисячею) — табло перегортається з `from` на `to`;
+ * `left` — скільки ще до `goal` (0 — це він, тисячний). null — звичайне святкування з крапкою.
+ */
+export function passengerCountdown(n: number | null | undefined): { from: number; to: number; goal: number; left: number } | null {
+  if (!n || !Number.isInteger(n) || n < 1) return null;
+  const goal = Math.ceil(n / 1000) * 1000;
+  return goal - n < COUNTDOWN_LAST ? { from: n - 1, to: n, goal, left: goal - n } : null;
+}
+
 /** Заголовок святкування новенького: на рубежі — «Сотий пасажир!», інакше — «Новий пасажир № 37!» */
 export function newcomerHeadline(passenger: number | null | undefined): { headline: string; milestone: boolean } {
   if (passenger && PASSENGER_MILESTONES.includes(passenger)) {

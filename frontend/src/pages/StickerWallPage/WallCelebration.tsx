@@ -1,7 +1,8 @@
 import type { CSSProperties } from 'react';
 import { WallBadges } from './WallBadges';
+import { WallFlapCounter } from './WallFlapCounter';
 import { WallTalon } from './WallTalon';
-import { newcomerHeadline, plural, schemePalette, seeded, textOn, type Celebration, type WallTicket } from './stickerWall';
+import { newcomerHeadline, passengerCountdown, plural, schemePalette, seeded, textOn, type Celebration, type WallTicket } from './stickerWall';
 
 const PIECES = 30;
 /** Тизер «Крапка»: біле тло, блакитна крапка, темно-бірюзовий текст (video/src/brand/tokens.ts, сторінка /dovede) */
@@ -27,6 +28,8 @@ function ticketMeta(t: WallTicket): string[] {
  * «як від QR», летять конфеті в кольорах схеми; назва зупинки, лінії, «+1» і скільки вже сьогодні.
  * Новий пасажир (`newcomer` — досмотрів тизер, тобто прийшов уперше) — відлуння самого тизера: біле тло, блакитна
  * крапка падає й тричі підскакує («тук-тук-тук» у wallSound.ts), «дзинь» — і кола «ви тут» від крапки.
+ * Останні 20 новеньких перед круглою тисячею (№ 981–1000) — табло-лічильник: крапка підстрибує на ньому, і на третьому
+ * приземленні пластинки перегортаються на номер новенького; на тисячі — перенос через усі й табло синіє.
  * Квиток (`ticket` — на /dovede подивилися ролик і прокомпостували талон) — той самий талон, що на сайті: компостер
  * пробиває три дірки, штамп «щасливий» («клац», «тук» і «дзинь» у wallSound.ts), тоді конфеті.
  */
@@ -60,9 +63,10 @@ export function WallCelebration({ celebration: c }: { celebration: Celebration }
   const special = white || c.kind === 'first' || c.kind === 'milestone' || c.kind === 'record';
   // рубіж номера пасажира (10-й, 100-й…) — заголовок більший
   const milestone = newcomer && newcomerHeadline(c.passenger).milestone;
+  const countdown = newcomer ? passengerCountdown(c.passenger) : null;
   return (
     <div
-      className={`wall-cele wall-cele--${c.kind}`}
+      className={`wall-cele wall-cele--${c.kind}${countdown ? ' wall-cele--countdown' : ''}`}
       style={{ '--c': white ? DOT : c.color, '--fg': fg } as CSSProperties}
       role="status"
       aria-live="assertive"
@@ -101,11 +105,22 @@ export function WallCelebration({ celebration: c }: { celebration: Celebration }
 }
 
 function WallCeleBody({ c, newcomer }: { c: Celebration; newcomer: boolean }) {
+  const countdown = newcomer ? passengerCountdown(c.passenger) : null;
+  const newToday = (
+    <>
+      нових сьогодні <b>{c.newToday ?? c.added}</b>
+    </>
+  );
   return (
     <>
       <h2 className="wall-cele-name">{c.name}</h2>
       <WallBadges lines={c.lines} max={8} />
-      {newcomer ? (
+      {countdown ? (
+        <div className="wall-cele-counter" aria-hidden="true">
+          <span className="wall-cele-dot" />
+          <WallFlapCounter from={countdown.from} to={countdown.to} goal={countdown.left === 0} />
+        </div>
+      ) : newcomer ? (
         <div className="wall-cele-dot-stage" aria-hidden="true">
           <span className="wall-cele-dot" />
         </div>
@@ -115,7 +130,17 @@ function WallCeleBody({ c, newcomer }: { c: Celebration; newcomer: boolean }) {
         </div>
       )}
       <p className="wall-cele-meta">
-        {newcomer ? (
+        {countdown ? (
+          countdown.left === 0 ? (
+            <>
+              {countdown.goal === 1000 ? 'тисяча людей прийшли з наклейок' : `${countdown.goal} людей прийшли з наклейок`} · {newToday}
+            </>
+          ) : (
+            <>
+              {countdown.goal === 1000 ? 'до тисячі' : `до № ${countdown.goal}`} — ще <b>{countdown.left}</b> · {newToday}
+            </>
+          )
+        ) : newcomer ? (
           <>
             {c.stopId ? 'уперше тут — досмотрів тизер «Доведе»' : 'досмотріли тизер «Доведе»'} · нових сьогодні{' '}
             <b>{c.newToday ?? c.added}</b>

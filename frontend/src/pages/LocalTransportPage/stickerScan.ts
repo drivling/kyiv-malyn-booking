@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { gaTrackEvent } from '@/analytics/googleAnalytics';
 import { visitorId } from '@/analytics/visitorId';
 import { sendOrQueue } from '@/pwa/outbox';
-import type { StickerSide } from '@/types';
+import type { PassengerSummary, StickerSide } from '@/types';
 import { getKyivDateString } from './kyivTime';
 import { noteStickerScan, rememberPassengerNumber } from './stickerPassport';
 import { rememberStickerOrigin } from './stickerReturn';
@@ -31,6 +31,18 @@ export function toReloadMark(search: string): string {
   if (p.get('utm_source') === 'sticker') p.set('utm_source', 'reload');
   const q = p.toString();
   return q ? `?${q}` : '';
+}
+
+type PassengerListener = (person: PassengerSummary) => void;
+const passengerListeners = new Set<PassengerListener>();
+
+/**
+ * Відповідь сервера на скан приніс номер пасажира — для ролика тисячному (LocalTransportStopBoardPage.tsx): табло
+ * дізнається номер, коли ролик уже на екрані. Повертає відписку.
+ */
+export function onPassengerReply(listener: PassengerListener): () => void {
+  passengerListeners.add(listener);
+  return () => passengerListeners.delete(listener);
 }
 
 /** Стан переходу, який GoogleAnalyticsTracker не рахує як новий page_view */
@@ -73,7 +85,10 @@ export function useStickerScan(search: string): void {
       void sendOrQueue('sticker-scan', clientId ? { ...scan, clientId } : scan, key)
         .then((sent) => {
           // скан із черги офлайн номера не дасть — допише наступний
-          if (!sent.queued) rememberPassengerNumber(sent.result.person);
+          if (sent.queued) return;
+          const person = sent.result.person;
+          rememberPassengerNumber(person);
+          if (person) for (const listener of [...passengerListeners]) listener(person);
         })
         .catch(() => undefined);
     }

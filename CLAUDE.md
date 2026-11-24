@@ -194,11 +194,15 @@ of `dist` in a commit.
   logo as outlines); on the railway stations of `WELCOME_STOPS` in `stickerAd.ts` (keyed by the site's city: Malyn
   `st_0019`, Korosten `st_1001`) the city's greeting plays **instead of** the dot teaser — Malyn's
   `public/ads/welcome-<hash>.mp4` (`dovede:intro --slot welcome` → `src/ads/welcomeMedia.ts`), Korosten's «Вітаємо в
-  Коростені» `public/ads/welcome-korosten-<hash>.mp4` (`--slot welcomeKorosten` → `welcomeKorostenMedia.ts`); three videos,
-  three once-per-browser flags named after the video (`AD_SEEN_KEYS`: `dovede-hint:v1`, `malyn-welcome:v1`,
-  `korosten-welcome:v1`), so no video cancels another and the dot is never shown at a station (storage is per domain
-  anyway); a new greeting text or size = re-measure the dot point in `StickerAdIntro.tsx` (centre of the blue pixels of the
-  last frame);
+  Коростені» `public/ads/welcome-korosten-<hash>.mp4` (`--slot welcomeKorosten` → `welcomeKorostenMedia.ts`); passenger
+  № 1000 of its city (number from the scan reply) sees «Тисяча крапок» once instead (`PASSENGER_VIDEOS`,
+  `public/ads/thousand-<hash>.mp4`, `--slot thousand`; made by `npm run dovede:teaser -- thousand --v dots` —
+  `scripts/teaser/thousand.html`, its own synthesized sound, variants `zeros` / `counter` kept; the reply arrives while the
+  teaser is already on screen, so the board swaps the video — `onPassengerReply` in `stickerScan.ts`; a known passport
+  number picks it at once); four videos, four once-per-browser flags named after the video (`AD_SEEN_KEYS`:
+  `dovede-hint:v1`, `malyn-welcome:v1`, `korosten-welcome:v1`, `thousand-passenger:v1`), so no video cancels another and
+  the dot is never shown at a station (storage is per domain anyway); a new greeting text or size = re-measure the dot
+  point in `StickerAdIntro.tsx` (centre of the blue pixels of the last frame; `dovede:teaser -- thousand` prints its own);
   both stop videos start without a touch: when the browser refuses sound (after a QR scan it nearly always does) they play
   muted with an «Увімкнути звук» button (`useAdVideo(…, { silentStart: true })`, `AdSoundButton`), and «▶ Дивитися» is
   left for a browser that will not play even muted — the /dovede intro still waits for «▶ Дивитися»; in Playwright any
@@ -763,7 +767,9 @@ rather than reading module-level singletons, so tests can inject stubs/mocks. Ke
   Wall widget `/admin/wall?key=…` (`src/pages/StickerWallPage/`, rendered without NavBar): a phone in
   landscape polls `GET /transport/sticker-wall?key=&after=<id>` every 30 s and celebrates each new scan
   (colour of the stop's line, Web Audio chime) — a finished «Доведе» teaser (`GET /ads/wall`, shown once per browser,
-  so a new person) gets its own white «new passenger» celebration with the teaser's bouncing dot, and a talon punched
+  so a new person) gets its own white «new passenger» celebration with the teaser's bouncing dot — the last 20 before each
+  round thousand (№ 981–1000) get a split-flap counter the dot lands on instead (`passengerCountdown`,
+  `WallFlapCounter.tsx`; 0999 → 1000 carries through all tiles and turns blue) — and a talon punched
   after the /dovede intro video (`AdEvent` `punched`) gets the site's own talon, punched and stamped; the header shows
   the city of `?city=`; a 4th tab «Люди» shows passengers from stickers; the key is read-only, `HMAC(ADMIN_PASSWORD)` from
   `backend/src/sticker-wall.ts`, issued by `GET /admin/transport/sticker-wall-key`.
