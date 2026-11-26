@@ -8,6 +8,7 @@
   * не одразу — через 12–15 хв: на повідомлення, старші за 12 хв (перевірка раз на 3 хв), і лише якщо
     адміністрація після нього мовчала;
   * одній людині — не частіше разу на київську добу; попередження за флуд — не частіше разу на 3 год на чат;
+  * після втручання чат годину не чіпаємо (одна сварка — одна відповідь);
   * уночі (23:00–08:00) не перевіряємо; не більше DZHURA_MODERATION_DAILY_CAP запитів до моделі на чат за добу.
 
 Задача `moderation_preview` {chatId, atTgMessageId} проганяє те саме «як було б» через 13 хв після вказаного
@@ -26,7 +27,6 @@ from dzhura.moderation import (
     CONTEXT_HOURS,
     CONTEXT_MESSAGES,
     DELAY_MIN,
-    MIN_RELATED,
     SAMPLES_PER_PERSON,
     WINDOW_MIN,
     ModerationPlan,
@@ -44,6 +44,8 @@ from dzhura.responder import kyiv_day_start_utc
 DEFAULT_CHECK_SEC = 180
 DEFAULT_DAILY_CAP = 24
 WARNING_COOLDOWN = timedelta(hours=3)
+# Після втручання чат годину не чіпаємо: одна сварка — одна відповідь, а не по одній кожному учаснику
+CHAT_COOLDOWN = timedelta(hours=1)
 MAX_SAMPLED_PEOPLE = 8
 
 
@@ -145,12 +147,15 @@ class Moderator:
 
     async def check_chat(self, chat: dict[str, Any], now: datetime) -> None:
         protected, rows, related, eligible = await self._prepare(chat, now)
-        if len(related) < MIN_RELATED or not eligible:
+        if not related or not eligible:
             return
         key = max(int(r["tg_message_id"]) for r in eligible)
         if key <= self._last_key.get(chat["id"], 0):
             return
         self._last_key[chat["id"]] = key
+        last_draft = await self.db.moderation_last_draft(chat["id"])
+        if last_draft is not None and now - as_utc(last_draft) < CHAT_COOLDOWN:
+            return
         day_start = kyiv_day_start_utc(now)
         if await self.db.moderation_calls_since(chat["id"], day_start) >= _env_int(
             "DZHURA_MODERATION_DAILY_CAP", DEFAULT_DAILY_CAP
@@ -212,8 +217,8 @@ class Moderator:
             "eligible": [int(r["tg_message_id"]) for r in eligible],
             "quietHours": quiet_hours(now),
         }
-        if len(related) < MIN_RELATED or not eligible:
-            result.update(action="skip", reason="фільтр: замало повідомлень про адміністрацію або всі ще свіжі / вже з відповіддю")
+        if not related or not eligible:
+            result.update(action="skip", reason="фільтр: ні наїзду на адміністрацію, ні сварки сусідів, або все ще свіже / вже з відповіддю")
             return result
         plan = await self._ask(full, now, protected, rows, related, eligible)
         result.update(
@@ -223,5 +228,6 @@ class Moderator:
             hint=plan.hint,
             warning=plan.warning,
             reason=plan.reason,
+            case=plan.case,
         )
         return result

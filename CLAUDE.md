@@ -140,6 +140,15 @@ of `dist` in a commit.
   «are you a bot?» → silence, the owner answers). `DzhuraJob` type `autoreply_preview` runs the same request without
   sending anything. Env: `ANTHROPIC_API_KEY` (shared with the menu OCR), `DZHURA_AUTOREPLY_ENABLED`,
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
+  **Group moderation — drafts only** (`Docs/dzhura-moderation.md`, `dzhura/moderation.py` + `moderator.py`): a group
+  with `DzhuraChat.moderationMode = 'drafts'` is checked every 3 min; when members attack or troll the chat
+  administration (`moderationProtected`, plus the owner) and it turns into flood — or neighbours quarrel among
+  themselves and get personal (`CONFLICT_RE` + back-and-forth replies, case `neighbors`) — Claude drafts a playful hint
+  in that person's manner (no sides taken in a quarrel) plus a flood warning with a line about paying bills on time.
+  The drafts go only to the owner's Saved Messages (nothing is posted to the group, so no invariant is broken): 12–15 min
+  later and only if the administration stayed silent, once per person per Kyiv day, one warning per 3 h per chat, 1 h
+  pause per chat after a draft, quiet 23–08, journal `DzhuraModeration`; `DzhuraJob` `moderation_preview` replays a past
+  moment. Env `DZHURA_MODERATION_*`.
   **Second exception — history restore** (one-off, `Docs/dzhura-history-restore.md`): `DzhuraJob` type `post_items`
   (`dzhura/restore.py`) posts, as the owner, exactly the posts a job carries (HTML text / JPEG base64, ≤ 10 per job,
   `batch` + `seq` unique, a failed part stops the rest) into the group / supergroup the job names — never the lunch
