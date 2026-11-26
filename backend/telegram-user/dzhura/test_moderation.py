@@ -110,6 +110,74 @@ def test_eligible_waits_and_respects_admin_reply():
     assert eligible5 == []
 
 
+ELENA, KATE, SERHII, IVAN = 501, 502, 503, 504
+
+
+def squabble_rows():
+    """26.11 10:00–10:33 за Києвом (T0 тут — початок): питання по ділу, потім перехід на особистості."""
+    return [
+        row(101, 0, ELENA, "По какой причине исчезла горячая вода?", name="Elena"),
+        row(102, 6, IVAN, "Бойлер встановіть і усі питання відпадуть", name="Ivan"),
+        row(103, 15, KATE, "Специально вам отключили😄", name="Екатерина", reply=101),
+        row(104, 24, ELENA, "Не умничайте! Спустите воды ведро и у вас будет гор вода.", name="Elena", reply=103),
+        row(105, 27, KATE, "Я это уже сделала и без вас) Не разводите срач снова😂", name="Екатерина"),
+        row(106, 28, SERHII, "А то без вас бы не розобралися)", name="Serhii", reply=104),
+        row(107, 32, ELENA, "Если бы разобрались, то глупость бы не писали.", name="Elena", reply=106),
+        row(108, 33, SERHII, "Кто бы говорил", name="Serhii", reply=107),
+    ]
+
+
+def test_squabble_channel():
+    rows = squabble_rows()
+    now = T0 + timedelta(minutes=46)  # 13 хв після останньої репліки
+    related, eligible = eligible_targets(rows, PROTECTED, now)
+    # питання по ділу (#101) і порада (#102) не гарячі; перепалка — так
+    assert [r["tg_message_id"] for r in related] == [103, 104, 105, 106, 107, 108], related
+    assert [r["tg_message_id"] for r in eligible] == [103, 104, 105, 106, 107, 108]
+    # адміністрація втрутилась (Софія о +40) — відповідати вже ні на що
+    _, e2 = eligible_targets(rows + [row(109, 40, SOFIA, "Сусіди, давайте поважати одне одного")], PROTECTED, now)
+    assert e2 == []
+    # спокійна суперечка по суті з відповідями туди-сюди, без різких слів — фільтр мовчить
+    calm = [
+        row(201, 0, ELENA, "На 4 этаже есть гор вода", name="Elena"),
+        row(202, 2, KATE, "А на 8 нет", name="Екатерина", reply=201),
+        row(203, 3, ELENA, "Значит насос", name="Elena", reply=202),
+        row(204, 4, KATE, "Скорее стояк", name="Екатерина", reply=203),
+    ]
+    assert eligible_targets(calm, PROTECTED, T0 + timedelta(minutes=20)) == ([], [])
+    # різкий лише один учасник — це не сварка
+    alone = [
+        row(301, 0, ELENA, "Это бред", name="Elena"),
+        row(302, 1, ELENA, "Какой срач", name="Elena"),
+        row(303, 2, ELENA, "Позор", name="Elena"),
+    ]
+    assert eligible_targets(alone, PROTECTED, T0 + timedelta(minutes=20)) == ([], [])
+    # різкі слова — лише з початку слова: «процедура», «поступово», «доступом», «наступі» — ні
+    from dzhura.moderation import CONFLICT_RE
+
+    for ok in ("Не умничайте!", "глупость бы не писали", "Не разводите срач", "Кто бы говорил", "хамские нравоучения", "дура"):
+        assert CONFLICT_RE.search(ok), ok
+    for no in ("процедура", "поступово", "доступом", "на наступі", "Михаил", "графство"):
+        assert not CONFLICT_RE.search(no), no
+    assert eligible_targets(
+        [row(401, 0, ELENA, "процедура", name="Elena"), row(402, 1, KATE, "процедура", name="K"), row(403, 2, IVAN, "процедура")],
+        PROTECTED,
+        T0 + timedelta(minutes=20),
+    ) == ([], [])
+
+
+def test_parse_plan_case_and_draft_title():
+    plan = parse_plan(
+        {"action": "intervene", "case": "neighbors", "target_message_id": 108, "target_name": "Serhii", "hint": "жарт",
+         "warning": "⚠️", "reason": "сварка"},
+        {108},
+    )
+    assert plan.intervene and plan.case == "neighbors"
+    assert parse_plan({"action": "intervene", "case": "що завгодно", "target_message_id": 2, "hint": "x"}, {2}).case == "admin"
+    html = format_draft("ОСББ", row(108, 33, SERHII, "Кто бы говорил", name="Serhii"), plan)
+    assert "чернетка (сварка сусідів)" in html
+
+
 def test_quiet_hours():
     assert quiet_hours(datetime(2026, 11, 23, 21, 30, tzinfo=timezone.utc))  # 23:30 Київ
     assert quiet_hours(datetime(2026, 11, 23, 5, 0, tzinfo=timezone.utc))  # 07:00 Київ
@@ -160,6 +228,7 @@ class FakeDB:
         self.saved = []
         self.person_done = set()
         self.last_warning = None
+        self.last_draft = None
 
     async def moderation_rows(self, chat_id, until, limit, hours):
         u = until.replace(tzinfo=None) if until.tzinfo else until
@@ -176,6 +245,10 @@ class FakeDB:
 
     async def moderation_last_warning(self, chat_id):
         return self.last_warning
+
+    async def moderation_last_draft(self, chat_id):
+        drafts = [e for e in self.log if e[0] == "draft"]
+        return self.last_draft if not drafts else datetime(2099, 1, 1)
 
     async def insert_moderation(self, chat_id, kind, **kw):
         if kw.get("target_tg_message_id") is not None and any(
@@ -261,6 +334,29 @@ def test_moderator_limits():
         # без ключа — нічого
         m4 = Moderator(FakeDB(flood_rows()), cap, decide_fn=fake_decide, api_key="")
         assert not m4.available
+
+    asyncio.run(run())
+
+
+def test_moderator_chat_cooldown():
+    async def run():
+        db = FakeDB(flood_rows())
+        db.last_draft = T0 + timedelta(minutes=20)  # втручались 36 хв тому
+        calls = []
+
+        async def fake_decide(rows, **kw):
+            calls.append(1)
+            return ModerationPlan("intervene", 2, "13942", "натяк", "⚠️", "флуд")
+
+        cap = type("Cap", (), {"watched": {CHAT["tg_chat_id"]: CHAT}})()
+        m = Moderator(db, cap, decide_fn=fake_decide, api_key="sk-test")
+        await m.tick((T0 + timedelta(minutes=56)).replace(tzinfo=timezone.utc))
+        assert calls == [] and db.saved == []
+        # через годину після втручання — знову дивимось
+        db.rows.append(row(40, 70, B, "Де председатель?"))
+        db.last_draft = T0 - timedelta(minutes=10)
+        await m.tick((T0 + timedelta(minutes=83)).replace(tzinfo=timezone.utc))
+        assert calls == [1]
 
     asyncio.run(run())
 

@@ -494,6 +494,17 @@ class DzhuraDB:
             )
         return row is not None
 
+    async def moderation_last_draft(self, chat_id: int) -> Optional[datetime]:
+        """Коли Джура востаннє втрутилась у цей чат (чернетка чи опубліковане)."""
+        async with self.pool.acquire() as conn:
+            return await conn.fetchval(
+                """
+                SELECT MAX("createdAt") FROM "DzhuraModeration"
+                WHERE "chatId" = $1 AND kind IN ('draft', 'posted')
+                """,
+                int(chat_id),
+            )
+
     async def moderation_last_warning(self, chat_id: int) -> Optional[datetime]:
         async with self.pool.acquire() as conn:
             return await conn.fetchval(
