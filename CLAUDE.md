@@ -142,7 +142,8 @@ of `dist` in a commit.
   `DZHURA_AUTOREPLY_MODEL`, `DZHURA_AUTOREPLY_DAILY_CAP`. Never log message texts of private chats.
   **Group moderation — drafts only** (`Docs/dzhura-moderation.md`, `dzhura/moderation.py` + `moderator.py`): a group
   with `DzhuraChat.moderationMode = 'drafts'` is checked every 3 min; when members attack or troll the chat
-  administration (`moderationProtected`, plus the owner) and it turns into flood — or neighbours quarrel among
+  administration (`moderationProtected`, plus the owner) and it turns into flood (a reproach the same person repeats
+  within the Kyiv day counts as flood even when it is only the second message: `reproaches_today`) — or neighbours quarrel among
   themselves and get personal (`CONFLICT_RE` + back-and-forth replies, case `neighbors`) — Claude drafts a playful hint
   in that person's manner (no sides taken in a quarrel) plus a flood warning with a line about paying bills on time.
   The drafts go only to the owner's Saved Messages (nothing is posted to the group, so no invariant is broken): 12–15 min

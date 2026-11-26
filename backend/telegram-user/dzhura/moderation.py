@@ -74,8 +74,10 @@ SYSTEM_PROMPT = """Ти — «Джура», помічник адміністр�
 А. Наїзд на адміністрацію (case = "admin") — обидві умови:
 1. Хтось жорстко наїжджає на когось з адміністрації або тонко тролить: сарказм і глузування («пішла в підпілля», \
 «як завжди мовчить»), перекручування імені, натяки на бездіяльність, некомпетентність чи нечесність без фактів.
-2. Це переростає у флуд не по ділу: те саме питання чи докір по колу, кілька повідомлень (зазвичай три й більше \
-за годину від однієї чи кількох людей) без нових фактів і без пропозицій.
+2. Це переростає у флуд не по ділу: те саме питання чи докір по колу без нових фактів і без пропозицій — кілька \
+повідомлень за годину від однієї чи кількох людей, АБО людина вже не вперше за день повертається до докору \
+адміністрації (дивись список «Сьогодні вже не вперше…» внизу), АБО шпильку одразу підхоплює хтось інший. У двох \
+останніх випадках досить і двох реплік: повторний за день докір — уже флуд, навіть якщо між ними минули години.
 Б. Сварка сусідів між собою (case = "neighbors"): двоє чи більше учасників кілька реплік поспіль переходять на \
 особистості — зверхність, підколки, «не умничайте», «глупость пишете», «кто бы говорил», — замість суті; суть \
 питання вже загубилась або вирішена, а перепалка триває.
@@ -84,7 +86,8 @@ SYSTEM_PROMPT = """Ти — «Джура», помічник адміністр�
 - питання по ділу, навіть різкі; скарги з фактами; технічні суперечки; пропозиції;
 - суперечка сусідів по суті, навіть гостра (як краще, хто винен у конкретній речі), без переходу на особистості;
 - одна шпилька, яку ніхто не підхопив; один жарт у відповідь;
-- після наїзду чи сварки хтось з адміністрації вже втрутився, або розмова сама вщухла;
+- після наїзду чи сварки хтось з адміністрації вже втрутився, або розмова сама вщухла (крім повторного за день \
+докору адміністрації — він не «вщухає»);
 - повідомлення самої адміністрації — їх ти ніколи не модеруєш;
 - ти не впевнена.
 
@@ -208,6 +211,27 @@ def visible(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
     return [r for r in rows if not r.get("deleted_at") and r.get("sender_name") != "Imported Message"]
 
 
+def reproaches_today(
+    rows: Sequence[dict[str, Any]], protected: Sequence[dict[str, Any]], now: datetime
+) -> dict[int, list[dict[str, Any]]]:
+    """Повідомлення учасників про адміністрацію (роль, ім'я, відповідь їй) з початку київської доби — по людях."""
+    rows = visible(rows)
+    ids = {p["tg_user_id"] for p in protected}
+    stems = name_stems(protected)
+    by_tg = {int(r["tg_message_id"]): r for r in rows}
+    now = as_utc(now)
+    day_start = now.astimezone(KYIV).replace(hour=0, minute=0, second=0, microsecond=0).astimezone(timezone.utc)
+    out: dict[int, list[dict[str, Any]]] = {}
+    for r in rows:
+        at = as_utc(r["sent_at"])
+        uid = r.get("sender_tg_id")
+        if at < day_start or at > now or uid is None or is_admin(r, ids):
+            continue
+        if about_admin(r, by_tg, ids, stems):
+            out.setdefault(uid, []).append(r)
+    return out
+
+
 def heated(
     row: dict[str, Any], by_tg: dict[int, dict[str, Any]], ids: set[int], pairs: set[tuple[int, int]]
 ) -> bool:
@@ -234,7 +258,8 @@ def eligible_targets(
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """
     (related, eligible). related — кандидати двох правил за вікно, лише коли правило набрало свій поріг:
-    повідомлення учасників про адміністрацію (≥ MIN_RELATED) і гарячі репліки сварки сусідів (≥ MIN_SQUABBLE від
+    повідомлення учасників про адміністрацію (≥ MIN_RELATED, або одне — від людини, яка сьогодні вже не вперше пише про
+    адміністрацію) і гарячі репліки сварки сусідів (≥ MIN_SQUABBLE від
     ≥ 2 людей, хоч одна з різким словом). eligible — ті з них, на які вже можна відповісти: старші за delay_min,
     не старші за stale_hours, і після них адміністрація в чаті мовчала.
     """
@@ -258,7 +283,12 @@ def eligible_targets(
         and len({r.get("sender_tg_id") for r in hot}) >= 2
         and any(CONFLICT_RE.search(r.get("text") or "") for r in hot)
     )
-    chosen = {int(r["tg_message_id"]) for r in about} if len(about) >= MIN_RELATED else set()
+    if len(about) >= MIN_RELATED:
+        chosen = {int(r["tg_message_id"]) for r in about}
+    else:
+        # одна репліка про адміністрацію — теж привід спитати модель, якщо людина сьогодні вже до цього поверталась
+        repeaters = {uid for uid, ms in reproaches_today(rows, protected, now).items() if len(ms) >= 2}
+        chosen = {int(r["tg_message_id"]) for r in about if r.get("sender_tg_id") in repeaters}
     if squabble:
         chosen |= {int(r["tg_message_id"]) for r in hot}
     related = [r for r in window if int(r["tg_message_id"]) in chosen]
@@ -327,6 +357,13 @@ def build_user_text(
     if note:
         head.append(f"Підказка власника: {note}")
     body = "\n".join(head) + "\n\nЛистування (від старих до нових):\n" + format_transcript(rows, protected, eligible_ids)
+    repeats = {uid: ms for uid, ms in reproaches_today(rows, protected, now).items() if len(ms) >= 2}
+    if repeats:
+        body += "\n\nСьогодні вже не вперше пишуть про адміністрацію чи відповідають їй (чи це той самий докір по колу — вирішуй сама):"
+        for ms in repeats.values():
+            body += f"\n— {ms[0].get('sender_name') or 'Без імені'}: " + ", ".join(
+                f"#{m['tg_message_id']} о {kyiv_time(m['sent_at']):%H:%M}" for m in ms
+            )
     if samples:
         body += "\n\nЯк пишуть учасники (їхні попередні повідомлення в цьому чаті):"
         for name, texts in samples.items():
