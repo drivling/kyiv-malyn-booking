@@ -166,6 +166,28 @@ def test_squabble_channel():
     ) == ([], [])
 
 
+def test_repeat_reproach_within_day():
+    from dzhura.moderation import reproaches_today
+
+    # T0 = 19:44 за Києвом; Олена докоряла голові о 16:24 (відповідь Ираді), Ирада відповіла, і о 19:44 — знову сама
+    morning = row(601, -200, ELENA, "Не хамила, а получила ряд хамских нравоучений", name="Elena", reply=600)
+    irada = row(600, -210, IRADA, "Объясняю про горячую воду")
+    irada_after = row(602, -180, IRADA, "Случаев сбоя инвертора раньше не было")
+    again = row(603, 0, ELENA, "Если бы было хорошо, не переизбирался бы председатель!", name="Elena")
+    rows = [irada, morning, irada_after, again]
+    now = T0 + timedelta(minutes=13)
+    assert [m["tg_message_id"] for m in reproaches_today(rows, PROTECTED, now)[ELENA]] == [601, 603]
+    related, eligible = eligible_targets(rows, PROTECTED, now)
+    assert [r["tg_message_id"] for r in related] == [603] and [r["tg_message_id"] for r in eligible] == [603]
+    text = build_user_text(rows, chat_title="ОСББ", protected=PROTECTED, note=None, eligible_ids={603}, samples={}, now=now)
+    assert "Сьогодні вже не вперше" in text and "— Elena: #601 о 16:24, #603 о 19:44" in text, text
+    # та сама репліка без ранкового докору — одна шпилька, моделі не питаємо
+    assert eligible_targets([again], PROTECTED, now) == ([], [])
+    # учорашнє не рахується (−22 год = 21:44 попереднього дня за Києвом)
+    yesterday = row(604, -22 * 60, ELENA, "председатель опять молчит", name="Elena")
+    assert eligible_targets([yesterday, again], PROTECTED, now) == ([], [])
+
+
 def test_parse_plan_case_and_draft_title():
     plan = parse_plan(
         {"action": "intervene", "case": "neighbors", "target_message_id": 108, "target_name": "Serhii", "hint": "жарт",
