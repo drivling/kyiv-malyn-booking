@@ -558,7 +558,10 @@ of `dist` in a commit.
   from «halves» of stored Google answers — the boarding stop near the start (roads from it anywhere) and the alighting
   stop near the place (roads to it from anywhere), walks ≤ 15 min, coordinates from `DovedeCityStop` — joined by one main
   KPT direction passing ≤ 300 m from both in order (`dovede/kyiv-own-trip.ts`, `ownKyiv` in `city-route.ts`, switch
-  `city.own`): `source: 'own'`, never stored, no exact departure time (half the headway as the wait).
+  `city.own`): `source: 'own'`, never stored, no exact departure time (half the headway as the wait). Step 8в-1: «Лінії: що є в наших
+  даних» (`dovede/kyiv-lines-report.ts`, `GET /admin/dovede/city/lines?city=Kyiv`, `AdminPage/DovedeCityLines.tsx` in
+  «Місто» for Kyiv) — every line in stored Google answers marked KPT / list marshrutka / metro / ring / funicular / rail /
+  not ours; the Kyiv quality report adds `kpt_not_running` (a KPT line at an hour it has no trip, `kptLineRunsAt`).
   Korosten city questions (stage 1, `DovedePage/korosten/korostenCity.ts`): the page holds a city (`Malyn` / `Korosten`,
   URL `c=Korosten`) and remounts the search per city (one planner on screen); Korosten words in a question switch it.
   Places are `StopPlace` entries of Korosten stops plus folk names (`KOROSTEN_ALIASES`), answers are `intra` /

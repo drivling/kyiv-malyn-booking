@@ -1644,9 +1644,17 @@ export interface DovedeQualityItem {
   city: DovedeCampaignCity;
   key: string;
   label: string;
-  /** `line_not_running`, `rail_in_city` — лише місто зі своїм розкладом (Коростень) */
-  reasons: Array<{ code: 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only' | 'line_not_running' | 'rail_in_city'; text: string }>;
+  /** `line_not_running`, `rail_in_city` — лише місто зі своїм розкладом (Коростень); `kpt_not_running` — Київ */
+  reasons: Array<{ code: 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only' | 'line_not_running' | 'rail_in_city' | 'kpt_not_running'; text: string }>;
   routes: Array<{ origin: string; originLabel: string; dir: DovedeCampaignDir; dayType: string; hour: number; minutes: number; rides: number; lines?: string[] }>;
+}
+
+/** «Доведе» · Київ: лінії Google у збережених відповідях проти наших даних (GET /admin/dovede/city/lines) */
+export type DovedeLineKind = 'kpt' | 'taxi' | 'metro' | 'ring' | 'rail' | 'funicular' | 'none';
+export interface DovedeKyivLines {
+  roads: number;
+  lines: Array<{ mode: string; line: string; kind: DovedeLineKind; rides: number; roads: number; name?: string }>;
+  byKind: Record<DovedeLineKind, { lines: number; rides: number }>;
 }
 
 export interface DovedeQualityReport {

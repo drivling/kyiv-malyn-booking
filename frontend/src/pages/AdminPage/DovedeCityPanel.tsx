@@ -4,6 +4,7 @@ import { apiClient } from '@/api/client';
 import type { DovedeCityDemandRow, DovedeCityStats, DovedeLearnCity } from '@/types';
 import { learnCityName, useLearnCities } from './dovede/useLearnCities';
 import { DovedeCityPlaces } from './DovedeCityPlaces';
+import { DovedeCityLines } from './DovedeCityLines';
 import { StatTile, StatTiles } from './kit';
 import { googleErrorLine, quotaTime } from './dovede/googleError';
 import { dovedePath } from './dovede/sections';
@@ -196,6 +197,7 @@ export const DovedeCityPanel: React.FC = () => {
           </StatTiles>
 
           <CityDemand city={city} version={version} />
+          {city === 'Kyiv' ? <DovedeCityLines version={version} /> : null}
           <DovedeCityPlaces city={city} onChange={load} />
 
           <details className="dovede-city-danger">

@@ -8,6 +8,7 @@
 import express, { type Response, type Router } from 'express';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { KYIV_GPS_DAYS_MAX, kyivGpsReport, parseKyivGpsDays, type KyivGpsRecorder } from '../dovede/kyiv-kpt-gps';
+import { kyivLinesReport } from '../dovede/kyiv-lines-report';
 import { isAdminRequest, requireAdmin, safeEqual } from '../middleware/require-admin';
 import {
   createLoginFailures,
@@ -501,6 +502,21 @@ export function createAdminDovedeRouter(deps: {
     } catch (e) {
       console.error('❌ GET /admin/dovede/city/quality:', e);
       res.status(500).json({ error: 'Не вдалося зібрати звіт' });
+    }
+  });
+
+  /** Київ (крок 8в-1): якими лініями возить Google у збережених відповідях і що з них є в наших даних */
+  r.get('/admin/dovede/city/lines', requireAdmin, async (req, res) => {
+    if (String(req.query.city ?? 'Kyiv') !== 'Kyiv') {
+      res.status(400).json({ error: 'city: поки лише Kyiv' });
+      return;
+    }
+    try {
+      const rows = await prisma.dovedeCityRoute.findMany({ where: { cityCode: 'Kyiv', source: 'google', archivedAt: null }, select: { fromKey: true, toKey: true, steps: true } });
+      res.json(kyivLinesReport(rows));
+    } catch (e) {
+      console.error('❌ GET /admin/dovede/city/lines:', e);
+      res.status(500).json({ error: 'Не вдалося зібрати звіт ліній' });
     }
   });
 
