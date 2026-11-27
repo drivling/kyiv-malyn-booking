@@ -7,6 +7,7 @@ const crawl_core_1 = require("./crawl-core");
 const learn_cities_1 = require("./learn-cities");
 const local_transport_1 = require("../local-transport");
 const own_timetable_1 = require("./own-timetable");
+const kyiv_lines_report_1 = require("./kyiv-lines-report");
 /** Дорога з такою кількістю хвилин від точки — «одразу поруч»: Google, мабуть, знайшов саму точку */
 exports.NEAR_MIN = 5;
 /** Лише пішки від стількох хвилин — транспорту Google не знайшов */
@@ -51,7 +52,7 @@ function findSuspicious(rows, skip = new Set(), own = {}) {
             continue;
         const item = byPlace.get(id) ?? { city: r.cityCode, key, label, reasons: [], routes: [] };
         const lines = transits(r.steps).map((x) => `${x.mode ?? ''} ${x.line ?? ''}`.trim());
-        item.routes.push({ origin, originLabel, dir, dayType: r.dayType, hour: r.hour, minutes: r.minutes, rides: rides(r.steps), ...(own[r.cityCode] ? { lines } : {}) });
+        item.routes.push({ origin, originLabel, dir, dayType: r.dayType, hour: r.hour, minutes: r.minutes, rides: rides(r.steps), ...(own[r.cityCode] || r.cityCode === 'Kyiv' ? { lines } : {}) });
         byPlace.set(id, item);
     }
     const out = [];
@@ -100,6 +101,20 @@ function findSuspicious(rows, skip = new Set(), own = {}) {
                         add('rail_in_city', `${when}: Google везе електричкою${line ? ` ${line}` : ''} містом`);
                     else if (line && tt.lineRuns(line, r.dayType, r.hour) !== true) {
                         add('line_not_running', tt.lineRuns(line, r.dayType, r.hour) === null ? `${when}: лінії №${line} у нашому розкладі нема` : `${when}: №${line} — у нашому розкладі цієї години рейсу нема`);
+                    }
+                }
+            }
+        }
+        // Київ (крок 8в-1): Google везе лінією «Київпастрансу» о годині, коли за її розкладом рейсів нема
+        if (item.city === 'Kyiv') {
+            for (const r of item.routes) {
+                for (const l of r.lines ?? []) {
+                    const [mode, ...rest] = l.split(' ');
+                    const line = rest.join(' ');
+                    if (!line || isRail(mode))
+                        continue;
+                    if ((0, kyiv_lines_report_1.kptLineRunsAt)(mode, line, r.dayType, r.hour) === false) {
+                        add('kpt_not_running', `${DAY_UK[r.dayType] ?? r.dayType}, ${String(r.hour).padStart(2, '0')}:00: №${line} — за розкладом «Київпастрансу» цієї години рейсу нема`);
                     }
                 }
             }

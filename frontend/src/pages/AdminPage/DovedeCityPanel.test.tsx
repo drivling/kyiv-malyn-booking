@@ -90,6 +90,18 @@ function mock(over: Partial<DovedeCityStats> = {}, extraPlaces: DovedeCityPlace[
       else Object.assign(p, { routes: p.routes + p.archivedRoutes, archivedRoutes: 0, archivedAt: null });
       return HttpResponse.json({ action: body.action, city: body.city, key: body.key, routes: moved });
     }),
+    http.get(`${TEST_API_URL}/admin/dovede/city/lines`, () => {
+      calls.push('lines');
+      return HttpResponse.json({
+        roads: 4,
+        lines: [
+          { mode: 'BUS', line: '820', kind: 'none', rides: 12, roads: 3 },
+          { mode: 'TROLLEYBUS', line: '39', kind: 'kpt', rides: 5, roads: 2, name: 'Оболонь - Центр' },
+          { mode: 'SHARE_TAXI', line: '242', kind: 'taxi', rides: 2, roads: 1, name: 'вул. А – вул. Б' },
+        ],
+        byKind: { kpt: { lines: 1, rides: 5 }, taxi: { lines: 1, rides: 2 }, metro: { lines: 0, rides: 0 }, ring: { lines: 0, rides: 0 }, rail: { lines: 0, rides: 0 }, funicular: { lines: 0, rides: 0 }, none: { lines: 1, rides: 12 } },
+      });
+    }),
     http.post(`${TEST_API_URL}/admin/dovede/city/demand/reset`, () => {
       calls.push('reset');
       return HttpResponse.json({ reset: 3 });
@@ -158,6 +170,21 @@ describe('DovedeCityPanel', () => {
     expect(calls).toContain('demand:Zhytomyr:');
   });
 
+  it('Київ: «Лінії» — частка своїх даних, типово лише чого немає в наших даних; «Усі» показує й наші; у Житомира блоку нема', async () => {
+    const { calls } = mock();
+    const { user } = await open();
+    const block = await screen.findByRole('region', { name: 'Лінії: що є в наших даних' });
+    expect(await within(block).findByText('37 %')).toBeInTheDocument();
+    expect(within(block).getByText('820')).toBeInTheDocument();
+    expect(within(block).queryByText('39')).toBeNull();
+    await user.click(within(block).getByRole('button', { name: 'Усі' }));
+    expect(within(block).getByText('39')).toBeInTheDocument();
+    expect(within(block).getByText(/Оболонь - Центр/)).toBeInTheDocument();
+    expect(calls).toContain('lines');
+    await user.click(screen.getByRole('radio', { name: 'Житомир' }));
+    await waitFor(() => expect(screen.queryByRole('region', { name: 'Лінії: що є в наших даних' })).toBeNull());
+  });
+
   it('«Що питають»: «Без відповіді» — усі такі пари міста', async () => {
     const { calls } = mock();
     const { user } = await open();
@@ -221,7 +248,8 @@ describe('«Місця»: сторінки, дороги місця, архів 
     const { calls } = mock();
     const { user } = await open();
     await user.click(await screen.findByRole('button', { name: 'Дороги: Палац спорту' }));
-    const table = await screen.findByRole('table');
+    await waitFor(() => expect(document.querySelector('table.dovede-city-routes')).not.toBeNull());
+    const table = document.querySelector('table.dovede-city-routes') as HTMLElement;
     expect(calls).toContain('routes:Kyiv:палац спорту');
     const trs = within(table).getAllByRole('row');
     expect(trs[1]).toHaveTextContent('метро «Академмістечко» → Палац спорту');
@@ -230,7 +258,7 @@ describe('«Місця»: сторінки, дороги місця, архів 
     expect(trs[2]).toHaveTextContent('в архіві');
     expect(trs[2]).toHaveTextContent('пішки');
     await user.click(screen.getByRole('button', { name: 'Дороги: Палац спорту' }));
-    expect(screen.queryByRole('table')).toBeNull();
+    expect(document.querySelector('table.dovede-city-routes')).toBeNull();
   });
 
   it('«В архів» питає підтвердження й шле місто з ключем; «Повернути» — без питання', async () => {

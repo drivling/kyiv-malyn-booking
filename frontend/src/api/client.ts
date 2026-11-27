@@ -1203,6 +1203,11 @@ class ApiClient {
     return this.request(`/admin/dovede/city/quality${city ? `?city=${city}` : ''}`);
   }
 
+  /** Адмін: Київ — якими лініями возить Google і що з них є в наших даних */
+  async getDovedeKyivLines(): Promise<import('@/types').DovedeKyivLines> {
+    return this.request('/admin/dovede/city/lines?city=Kyiv');
+  }
+
   /** Адмін: «Нормально» у звіті якості — місце більше не показується серед підозрілих (false — знову показувати) */
   async dovedeCityPlaceOk(city: string, key: string, ok: boolean): Promise<{ city: string; key: string; ok: boolean }> {
     return this.request('/admin/dovede/city/place/ok', { method: 'POST', body: JSON.stringify({ city, key, ok }) });

@@ -12,12 +12,14 @@ import type { CityStep } from './city-route';
 import { OWN_DATASET_CITY_CODES, isLearnCity } from './learn-cities';
 import { loadTransportDataset, type TransportDataset } from '../local-transport';
 import { ownTimetable, type OwnTimetable } from './own-timetable';
+import { kptLineRunsAt } from './kyiv-lines-report';
 
 /**
  * `line_not_running` і `rail_in_city` — лише для міста зі своїм датасетом (Коростень): Google везе лінією в годину, коли
- * її нема в нашому розкладі, або електричкою містом (аналіз 2026-11-23, пункт 3)
+ * її нема в нашому розкладі, або електричкою містом (аналіз 2026-11-23, пункт 3). `kpt_not_running` — Київ (крок 8в-1):
+ * лінія «Київпастрансу» о годині, коли за її розкладом рейсів нема
  */
-export type QualityCode = 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only' | 'line_not_running' | 'rail_in_city';
+export type QualityCode = 'next_to_point' | 'near_far_points' | 'asymmetric' | 'walk_only' | 'line_not_running' | 'rail_in_city' | 'kpt_not_running';
 
 export interface QualityRouteRow {
   cityCode: string;
@@ -84,7 +86,7 @@ export function findSuspicious(rows: QualityRouteRow[], skip: Set<string> = new 
     if (own[r.cityCode]?.isOwnStop(label)) continue;
     const item = byPlace.get(id) ?? { city: r.cityCode as CrawlCity, key, label, reasons: [], routes: [] };
     const lines = transits(r.steps).map((x) => `${x.mode ?? ''} ${x.line ?? ''}`.trim());
-    item.routes.push({ origin, originLabel, dir, dayType: r.dayType, hour: r.hour, minutes: r.minutes, rides: rides(r.steps), ...(own[r.cityCode] ? { lines } : {}) });
+    item.routes.push({ origin, originLabel, dir, dayType: r.dayType, hour: r.hour, minutes: r.minutes, rides: rides(r.steps), ...(own[r.cityCode] || r.cityCode === 'Kyiv' ? { lines } : {}) });
     byPlace.set(id, item);
   }
 
@@ -131,6 +133,20 @@ export function findSuspicious(rows: QualityRouteRow[], skip: Set<string> = new 
           if (isRail(mode)) add('rail_in_city', `${when}: Google везе електричкою${line ? ` ${line}` : ''} містом`);
           else if (line && tt.lineRuns(line, r.dayType, r.hour) !== true) {
             add('line_not_running', tt.lineRuns(line, r.dayType, r.hour) === null ? `${when}: лінії №${line} у нашому розкладі нема` : `${when}: №${line} — у нашому розкладі цієї години рейсу нема`);
+          }
+        }
+      }
+    }
+
+    // Київ (крок 8в-1): Google везе лінією «Київпастрансу» о годині, коли за її розкладом рейсів нема
+    if (item.city === 'Kyiv') {
+      for (const r of item.routes) {
+        for (const l of r.lines ?? []) {
+          const [mode, ...rest] = l.split(' ');
+          const line = rest.join(' ');
+          if (!line || isRail(mode)) continue;
+          if (kptLineRunsAt(mode, line, r.dayType, r.hour) === false) {
+            add('kpt_not_running', `${DAY_UK[r.dayType] ?? r.dayType}, ${String(r.hour).padStart(2, '0')}:00: №${line} — за розкладом «Київпастрансу» цієї години рейсу нема`);
           }
         }
       }

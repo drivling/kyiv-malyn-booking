@@ -16,6 +16,7 @@ exports.createAdminDovedeRouter = createAdminDovedeRouter;
  */
 const express_1 = __importDefault(require("express"));
 const kyiv_kpt_gps_1 = require("../dovede/kyiv-kpt-gps");
+const kyiv_lines_report_1 = require("../dovede/kyiv-lines-report");
 const require_admin_1 = require("../middleware/require-admin");
 const access_1 = require("../dovede/access");
 const arrival_reports_1 = require("../arrival-reports");
@@ -463,6 +464,21 @@ function createAdminDovedeRouter(deps) {
         catch (e) {
             console.error('❌ GET /admin/dovede/city/quality:', e);
             res.status(500).json({ error: 'Не вдалося зібрати звіт' });
+        }
+    });
+    /** Київ (крок 8в-1): якими лініями возить Google у збережених відповідях і що з них є в наших даних */
+    r.get('/admin/dovede/city/lines', require_admin_1.requireAdmin, async (req, res) => {
+        if (String(req.query.city ?? 'Kyiv') !== 'Kyiv') {
+            res.status(400).json({ error: 'city: поки лише Kyiv' });
+            return;
+        }
+        try {
+            const rows = await prisma.dovedeCityRoute.findMany({ where: { cityCode: 'Kyiv', source: 'google', archivedAt: null }, select: { fromKey: true, toKey: true, steps: true } });
+            res.json((0, kyiv_lines_report_1.kyivLinesReport)(rows));
+        }
+        catch (e) {
+            console.error('❌ GET /admin/dovede/city/lines:', e);
+            res.status(500).json({ error: 'Не вдалося зібрати звіт ліній' });
         }
     });
     /** «Нормально» у звіті якості: `{ city, key, ok }` — місце більше не показується серед підозрілих (ok: false — знову) */
